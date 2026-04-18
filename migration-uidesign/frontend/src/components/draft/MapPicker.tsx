@@ -13,6 +13,7 @@ interface MapPickerProps {
   onSelectMap?: (mapId: number) => void;
   disabled?: boolean;
   isMyTurn?: boolean;
+  selectedMapId?: number | null;
 }
 
 const mapTypeColors: Record<MapType, string> = {
@@ -30,88 +31,93 @@ export function MapPicker({
   onSelectMap,
   disabled,
   isMyTurn,
+  selectedMapId,
 }: MapPickerProps) {
-  // Group maps by type
-  const mapsByType = availableMaps.reduce((acc, map) => {
-    if (!acc[map.type]) {
-      acc[map.type] = [];
-    }
-    acc[map.type].push(map);
-    return acc;
-  }, {} as Record<MapType, GameMap[]>);
-
   return (
     <Card variant="bordered" className="h-full">
       <CardHeader>
-        <CardTitle>Available Maps</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle>Available Maps</CardTitle>
+          {isMyTurn && (
+            <Badge variant="success" className="animate-pulse-glow">Your Turn</Badge>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="max-h-[500px] overflow-y-auto">
-        {Object.entries(mapsByType).map(([type, maps]) => {
-          const isTypeAllowed = !allowedTypes || allowedTypes.includes(type as MapType);
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {availableMaps.map((map) => {
+            const isPicked = pickedMapIds.includes(map.id);
+            const isTypeAllowed = !allowedTypes || allowedTypes.includes(map.type);
+            const isSelected = map.id === selectedMapId;
+            const isAvailable = isTypeAllowed && !isPicked && !disabled;
 
-          return (
-            <div key={type} className="mb-6 last:mb-0">
-              <div className="flex items-center gap-2 mb-3">
-                <Badge className={mapTypeColors[type as MapType]}>{type}</Badge>
-                {!isTypeAllowed && (
-                  <span className="text-xs text-muted">(Not available this round)</span>
+            return (
+              <button
+                key={map.id}
+                type="button"
+                onClick={() => isAvailable && onSelectMap?.(map.id)}
+                disabled={!isAvailable}
+                className={clsx(
+                  "relative rounded-lg overflow-hidden border-2 transition-all group",
+                  isPicked
+                    ? "border-border opacity-40 grayscale cursor-not-allowed"
+                    : isSelected
+                    ? "border-primary ring-2 ring-primary/30"
+                    : isAvailable && isMyTurn
+                    ? "border-border hover:border-primary cursor-pointer hover:scale-[1.02]"
+                    : "border-border",
+                  !isAvailable && "cursor-not-allowed"
                 )}
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {maps.map((map) => {
-                  const isPicked = pickedMapIds.includes(map.id);
-                  const isAvailable = isTypeAllowed && !isPicked && !disabled;
+              >
+                {/* Map Image */}
+                <div className="aspect-video bg-surface-elevated">
+                  {map.imgPath ? (
+                    <img
+                      src={resolveMapImageUrl(map.imgPath)}
+                      alt={map.description}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <span className="text-lg font-bold text-muted">{map.description.charAt(0)}</span>
+                    </div>
+                  )}
+                </div>
 
-                  return (
-                    <button
-                      key={map.id}
-                      type="button"
-                      onClick={() => isAvailable && onSelectMap?.(map.id)}
-                      disabled={!isAvailable}
-                      className={clsx(
-                        "relative rounded-lg overflow-hidden border transition-all",
-                        isAvailable && isMyTurn
-                          ? "border-primary/50 hover:border-primary cursor-pointer"
-                          : "border-border",
-                        isPicked && "opacity-40",
-                        !isAvailable && "cursor-not-allowed"
-                      )}
-                    >
-                      {/* Map Image */}
-                      <div className="aspect-video bg-surface-elevated">
-                        {map.imgPath ? (
-                          <img
-                            src={resolveMapImageUrl(map.imgPath)}
-                            alt={map.description}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <span className="text-xs text-muted">No Image</span>
-                          </div>
-                        )}
-                      </div>
+                {/* Map Info */}
+                <div className="p-2 bg-background">
+                  <p className="text-xs font-medium text-foreground truncate">
+                    {map.description}
+                  </p>
+                  <Badge className={clsx("text-[10px] mt-1", mapTypeColors[map.type])}>
+                    {map.type}
+                  </Badge>
+                </div>
 
-                      {/* Map Info */}
-                      <div className="p-2 bg-surface">
-                        <p className="text-xs font-medium text-foreground truncate">
-                          {map.description}
-                        </p>
-                      </div>
+                {/* Picked Overlay */}
+                {isPicked && (
+                  <div className="absolute inset-0 bg-background/70 flex items-center justify-center">
+                    <span className="text-xs text-muted font-semibold uppercase">Picked</span>
+                  </div>
+                )}
 
-                      {/* Picked Overlay */}
-                      {isPicked && (
-                        <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
-                          <Badge variant="default">Picked</Badge>
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
+                {/* Selected Badge */}
+                {isSelected && (
+                  <div className="absolute top-1 right-1">
+                    <Badge variant="success" className="text-[10px]">Selected</Badge>
+                  </div>
+                )}
+
+                {/* Not Allowed Overlay */}
+                {!isTypeAllowed && !isPicked && (
+                  <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
+                    <span className="text-[10px] text-muted">Not available</span>
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </CardContent>
     </Card>
   );

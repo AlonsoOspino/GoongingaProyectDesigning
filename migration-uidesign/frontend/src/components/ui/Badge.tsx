@@ -1,7 +1,7 @@
 import { forwardRef, type HTMLAttributes } from "react";
 import { clsx } from "clsx";
 
-type BadgeVariant = "default" | "primary" | "success" | "danger" | "warning" | "outline";
+type BadgeVariant = "default" | "primary" | "success" | "danger" | "warning" | "outline" | "secondary";
 
 interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
   variant?: BadgeVariant;
@@ -10,6 +10,7 @@ interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
 const variantStyles: Record<BadgeVariant, string> = {
   default: "bg-surface-elevated text-muted",
   primary: "bg-primary/20 text-primary",
+  secondary: "bg-accent/20 text-accent",
   success: "bg-success/20 text-success",
   danger: "bg-danger/20 text-danger",
   warning: "bg-warning/20 text-warning",
