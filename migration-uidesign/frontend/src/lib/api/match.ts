@@ -33,7 +33,7 @@ export async function updateManagerMatch(token: string, matchId: number, payload
   });
 }
 
-export async function submitMatchResult(token: string, matchId: number, winnerTeamId: number) {
+export async function submitMatchResult(token: string, matchId: number, winnerTeamId: number | null) {
   return apiRequest<Match>(`/match/${matchId}/result`, {
     method: "POST",
     token,

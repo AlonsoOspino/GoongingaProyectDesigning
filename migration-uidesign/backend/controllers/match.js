@@ -134,16 +134,21 @@ const getActiveMatches = async (req, res) => {
 };
 const submitResult = async (req, res) => {
   try {
-    if (!req.body || req.body.winnerTeamId === undefined) {
-      return res.status(400).json({ message: "winnerTeamId is required." });
+    // winnerTeamId can be null/undefined for draws
+    const winnerTeamId = req.body?.winnerTeamId;
+    
+    // If provided, validate it's a positive integer
+    if (winnerTeamId !== null && winnerTeamId !== undefined) {
+      const parsed = Number(winnerTeamId);
+      if (!Number.isInteger(parsed) || parsed <= 0) {
+        return res.status(400).json({ message: "winnerTeamId must be a positive integer or null for draw." });
+      }
     }
 
-    const winnerTeamId = Number(req.body.winnerTeamId);
-    if (!Number.isInteger(winnerTeamId) || winnerTeamId <= 0) {
-      return res.status(400).json({ message: "winnerTeamId must be a positive integer." });
-    }
-
-    const updatedMatch = await matchService.submitResult(Number(req.params.id), winnerTeamId);
+    const updatedMatch = await matchService.submitResult(
+      Number(req.params.id), 
+      winnerTeamId ?? null
+    );
     res.json(updatedMatch);
   } catch (err) {
     res.status(400).json({ message: err.message });

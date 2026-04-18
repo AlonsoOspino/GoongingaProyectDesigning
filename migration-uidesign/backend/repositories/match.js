@@ -90,25 +90,32 @@ const submitResult = async (id, winnerTeamId) => {
     const currentGame = Number.isInteger(match.gameNumber) && match.gameNumber > 0 ? match.gameNumber : 1;
     const requiredWins = Math.floor(match.bestOf / 2) + 1;
 
+    // For wins, increment the winner's score. For draws, neither score changes.
     const nextMapWinsA = hasWinner && winnerTeamId === match.teamAId ? match.mapWinsTeamA + 1 : match.mapWinsTeamA;
     const nextMapWinsB = hasWinner && winnerTeamId === match.teamBId ? match.mapWinsTeamB + 1 : match.mapWinsTeamB;
+    
+    // Check if match is finished based on wins or total games played
     const playedMapsAfter = currentGame;
     const isFinished =
       nextMapWinsA >= requiredWins ||
       nextMapWinsB >= requiredWins ||
       playedMapsAfter >= match.bestOf;
 
+    // Determine who picks next map: loser picks, or if draw, alternate based on who picked last
     const pickForCurrentGame = match.draft?.actions?.find(
       (a) => a.action === "PICK" && a.gameNumber === currentGame
     );
     const pickerTeamId = pickForCurrentGame?.teamId;
-    const loserTeamId = hasWinner
-      ? winnerTeamId === match.teamAId
-        ? match.teamBId
-        : match.teamAId
-      : pickerTeamId
-        ? (pickerTeamId === match.teamAId ? match.teamBId : match.teamAId)
-        : match.teamAId;
+    
+    // For next turn: loser picks next map. On draw, the non-picker from current map picks next.
+    let nextTurnTeamId;
+    if (hasWinner) {
+      // Loser picks next
+      nextTurnTeamId = winnerTeamId === match.teamAId ? match.teamBId : match.teamAId;
+    } else {
+      // Draw: alternate - the team that didn't pick this map picks next
+      nextTurnTeamId = pickerTeamId === match.teamAId ? match.teamBId : match.teamAId;
+    }
 
     const mapResults = Array.isArray(match.mapResults) ? match.mapResults : [];
     const mapId = match.draft?.currentMapId || null;
@@ -122,6 +129,7 @@ const submitResult = async (id, winnerTeamId) => {
       },
     ];
 
+    // Update team stats only if there's a winner
     if (hasWinner) {
       const losingTeamId = winnerTeamId === match.teamAId ? match.teamBId : match.teamAId;
       await tx.team.update({
@@ -134,6 +142,7 @@ const submitResult = async (id, winnerTeamId) => {
       });
     }
 
+    // If match is finished and there's an overall winner, update victories
     const matchWinnerTeamId =
       nextMapWinsA > nextMapWinsB ? match.teamAId : nextMapWinsB > nextMapWinsA ? match.teamBId : null;
 
@@ -144,6 +153,7 @@ const submitResult = async (id, winnerTeamId) => {
       });
     }
 
+    // Update match with new scores and advance gameNumber
     const updatedMatch = await tx.match.update({
       where: { id: match.id },
       data: {
@@ -166,13 +176,14 @@ const submitResult = async (id, winnerTeamId) => {
       },
     });
 
+    // Update draft phase: reset to STARTING for next map, or FINISHED if match is done
     if (match.draft) {
       await tx.draftTable.update({
         where: { id: match.draft.id },
         data: {
           phase: isFinished ? "FINISHED" : "STARTING",
           currentMapId: null,
-          currentTurnTeamId: isFinished ? null : loserTeamId,
+          currentTurnTeamId: isFinished ? null : nextTurnTeamId,
         },
       });
     }

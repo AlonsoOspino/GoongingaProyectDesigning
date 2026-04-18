@@ -18,7 +18,7 @@ import {
   type GameMap,
   type Hero,
 } from "@/lib/api";
-import { getTeams, type Team } from "@/lib/api";
+import { getTeams, submitMatchResult, type Team } from "@/lib/api";
 import { clsx } from "clsx";
 import { resolveHeroImageUrl, resolveMapImageUrl } from "@/lib/assetUrls";
 
@@ -41,7 +41,7 @@ export default function DraftTablePage() {
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [timeLeft, setTimeLeft] = useState(TURN_DURATION);
-  const [selectedRole, setSelectedRole] = useState<"TANK" | "DPS" | "SUPPORT">("TANK");
+  const [selectedRole, setSelectedRole] = useState<"ALL" | "TANK" | "DPS" | "SUPPORT">("ALL");
 
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -193,6 +193,20 @@ export default function DraftTablePage() {
     }
   }
 
+  async function handleSubmitResult(winnerTeamId: number | null) {
+    if (!token || !draftState) return;
+    setActionLoading(true);
+    try {
+      await submitMatchResult(token, matchId, winnerTeamId);
+      // Refetch the draft state to get updated match data
+      fetchDraftState();
+    } catch (err) {
+      console.error("Failed to submit result:", err);
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
   const getBannedHeroesByTeam = (teamId: number) => {
     if (!draftState?.actions) return [];
     return draftState.actions
@@ -222,8 +236,9 @@ export default function DraftTablePage() {
     ).length;
   };
 
-  const canBanRole = (role: "TANK" | "DPS" | "SUPPORT") => {
+  const canBanRole = (role: "ALL" | "TANK" | "DPS" | "SUPPORT") => {
     if (!myTeamId) return false;
+    if (role === "ALL") return true; // ALL always allowed
     return getBanCountByRole(myTeamId, role) < 2;
   };
 
@@ -356,9 +371,11 @@ export default function DraftTablePage() {
         {currentPhase === "ENDMAP" && (
           <EndMapPhase
             isManager={isManager}
+            isCaptain={isCaptain}
             draftState={draftState}
             teams={teams}
             onStartMapPicking={handleStartMapPicking}
+            onSubmitResult={handleSubmitResult}
             actionLoading={actionLoading}
           />
         )}
@@ -690,13 +707,13 @@ function BanPhase({
   draftState: DraftState;
   teams: Team[];
   myTeamId?: number | null;
-  selectedRole: "TANK" | "DPS" | "SUPPORT";
-  setSelectedRole: (role: "TANK" | "DPS" | "SUPPORT") => void;
+  selectedRole: "ALL" | "TANK" | "DPS" | "SUPPORT";
+  setSelectedRole: (role: "ALL" | "TANK" | "DPS" | "SUPPORT") => void;
   onBanHero: (heroId: number | null) => void;
   onEndMap: () => void;
   isHeroBanned: (heroId: number) => boolean;
   getBannedHeroesByTeam: (teamId: number) => number[];
-  canBanRole: (role: "TANK" | "DPS" | "SUPPORT") => boolean;
+  canBanRole: (role: "ALL" | "TANK" | "DPS" | "SUPPORT") => boolean;
   actionLoading: boolean;
 }) {
   const currentTeam = teams.find((t) => t.id === draftState.currentTurnTeamId);
@@ -708,7 +725,7 @@ function BanPhase({
   const teamABans = teamA ? getBannedHeroesByTeam(teamA.id) : [];
   const teamBBans = teamB ? getBannedHeroesByTeam(teamB.id) : [];
 
-  const roleHeroes = heroes.filter((h) => h.role === selectedRole);
+  const roleHeroes = selectedRole === "ALL" ? heroes : heroes.filter((h) => h.role === selectedRole);
 
   const isTeamATurn = draftState.currentTurnTeamId === teamA?.id;
   const isTeamBTurn = draftState.currentTurnTeamId === teamB?.id;
@@ -794,9 +811,9 @@ function BanPhase({
             </div>
           </CardHeader>
           <CardContent>
-            {/* Role Tabs */}
+            {/* Role Tabs - Manager sees "All" as default, Captain can use tabs */}
             <div className="flex gap-2 mb-6">
-              {(["TANK", "DPS", "SUPPORT"] as const).map((role) => (
+              {(["ALL", "TANK", "DPS", "SUPPORT"] as const).map((role) => (
                 <Button
                   key={role}
                   variant={selectedRole === role ? "default" : "ghost"}
@@ -804,8 +821,8 @@ function BanPhase({
                   className="flex-1"
                   size="sm"
                 >
-                  {role}
-                  {isCaptain && isMyTurn && !canBanRole(role) && (
+                  {role === "ALL" ? "All" : role}
+                  {isCaptain && isMyTurn && role !== "ALL" && !canBanRole(role) && (
                     <span className="ml-1.5 text-[10px] opacity-60">(Max)</span>
                   )}
                 </Button>
@@ -919,15 +936,19 @@ function BanPhase({
 
 function EndMapPhase({
   isManager,
+  isCaptain,
   draftState,
   teams,
   onStartMapPicking,
+  onSubmitResult,
   actionLoading,
 }: {
   isManager: boolean;
+  isCaptain: boolean;
   draftState: DraftState;
   teams: Team[];
   onStartMapPicking: () => void;
+  onSubmitResult: (winnerTeamId: number | null) => void;
   actionLoading: boolean;
 }) {
   const winsNeeded = Math.ceil(draftState.match.bestOf / 2);
@@ -935,42 +956,135 @@ function EndMapPhase({
   const teamBWins = draftState.match.mapWinsTeamB;
   const teamA = teams.find((t) => t.id === draftState.match.teamAId);
   const teamB = teams.find((t) => t.id === draftState.match.teamBId);
+  const currentMap = draftState.allMaps?.find((m) => m.id === draftState.currentMapId);
+  const matchStatus = draftState.match.status;
+
+  // Check if result has been registered for current game
+  const currentMapResult = draftState.match.mapResults?.find(
+    (r) => r.gameNumber === draftState.match.gameNumber
+  );
+  const resultRegistered = !!currentMapResult;
+
+  // Check if match is finished based on wins
+  const matchIsFinished = teamAWins >= winsNeeded || teamBWins >= winsNeeded;
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[50vh]">
-      <Card className="w-full max-w-lg">
-        <CardContent className="p-8 text-center">
-          <h2 className="text-xl font-bold text-foreground mb-6">
-            Game {draftState.match.gameNumber} Complete
-          </h2>
-
-          <div className="flex items-center justify-center gap-8 mb-6">
-            <div className="text-center">
-              <p className="text-sm text-muted mb-1">{teamA?.name}</p>
-              <p className="text-4xl font-bold text-[color:var(--color-team-a)]">{teamAWins}</p>
-            </div>
-            <div className="text-2xl text-muted">-</div>
-            <div className="text-center">
-              <p className="text-sm text-muted mb-1">{teamB?.name}</p>
-              <p className="text-4xl font-bold text-[color:var(--color-team-b)]">{teamBWins}</p>
-            </div>
+    <div className="space-y-6">
+      {/* Current Map Display */}
+      {currentMap && (
+        <div className="text-center">
+          <div className="inline-flex items-center gap-4 bg-surface border border-border rounded-lg px-6 py-3">
+            <span className="text-sm text-muted uppercase tracking-wide">Game {draftState.match.gameNumber} Map</span>
+            <span className="text-xl font-bold text-foreground">{currentMap.description}</span>
+            <Badge variant="primary">{currentMap.type}</Badge>
           </div>
+        </div>
+      )}
 
-          <p className="text-sm text-muted mb-6">
-            First to {winsNeeded} wins
-          </p>
+      <div className="flex flex-col items-center justify-center">
+        <Card className="w-full max-w-2xl">
+          <CardContent className="p-8">
+            {/* Match Score Header */}
+            <div className="flex items-center justify-center gap-8 mb-8">
+              <div className="text-center">
+                <p className="text-sm text-muted mb-2">{teamA?.name}</p>
+                <p className="text-5xl font-bold text-[color:var(--color-team-a)]">{teamAWins}</p>
+              </div>
+              <div className="text-3xl text-muted font-light">-</div>
+              <div className="text-center">
+                <p className="text-sm text-muted mb-2">{teamB?.name}</p>
+                <p className="text-5xl font-bold text-[color:var(--color-team-b)]">{teamBWins}</p>
+              </div>
+            </div>
 
-          {isManager && (
-            <Button size="lg" onClick={onStartMapPicking} disabled={actionLoading}>
-              {actionLoading ? "Starting..." : "Start Next Map"}
-            </Button>
-          )}
+            <p className="text-sm text-muted text-center mb-6">
+              First to {winsNeeded} wins | Best of {draftState.match.bestOf}
+            </p>
 
-          {!isManager && (
-            <p className="text-muted text-sm">Waiting for manager to start next map...</p>
-          )}
-        </CardContent>
-      </Card>
+            {/* Manager: Register Match Result */}
+            {isManager && matchStatus === "PENDINGREGISTERS" && !resultRegistered && (
+              <div className="border border-border rounded-lg p-6 bg-surface mb-6">
+                <h3 className="text-lg font-semibold text-foreground mb-4 text-center">
+                  Register Game {draftState.match.gameNumber} Result
+                </h3>
+                <p className="text-sm text-muted text-center mb-6">
+                  Who won this map?
+                </p>
+                <div className="grid grid-cols-3 gap-4">
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    onClick={() => onSubmitResult(teamA?.id || 0)}
+                    disabled={actionLoading}
+                    className="flex flex-col items-center gap-2 h-auto py-4 border-[color:var(--color-team-a)] hover:bg-[color:var(--color-team-a)]/10"
+                  >
+                    <span className="text-lg font-bold text-[color:var(--color-team-a)]">{teamA?.name}</span>
+                    <span className="text-xs text-muted">Won</span>
+                  </Button>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    onClick={() => onSubmitResult(null)}
+                    disabled={actionLoading}
+                    className="flex flex-col items-center gap-2 h-auto py-4"
+                  >
+                    <span className="text-lg font-bold text-muted">Draw</span>
+                    <span className="text-xs text-muted">Tie Game</span>
+                  </Button>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    onClick={() => onSubmitResult(teamB?.id || 0)}
+                    disabled={actionLoading}
+                    className="flex flex-col items-center gap-2 h-auto py-4 border-[color:var(--color-team-b)] hover:bg-[color:var(--color-team-b)]/10"
+                  >
+                    <span className="text-lg font-bold text-[color:var(--color-team-b)]">{teamB?.name}</span>
+                    <span className="text-xs text-muted">Won</span>
+                  </Button>
+                </div>
+                {actionLoading && (
+                  <p className="text-sm text-muted text-center mt-4">Submitting result...</p>
+                )}
+              </div>
+            )}
+
+            {/* Result registered - show next action */}
+            {isManager && resultRegistered && !matchIsFinished && (
+              <div className="text-center space-y-4">
+                <Badge variant="success" className="mb-2">Result Registered</Badge>
+                <p className="text-sm text-muted mb-4">
+                  Ready to start the next map picking phase.
+                </p>
+                <Button size="lg" onClick={onStartMapPicking} disabled={actionLoading}>
+                  {actionLoading ? "Starting..." : "Start Next Map"}
+                </Button>
+              </div>
+            )}
+
+            {/* Match finished */}
+            {matchIsFinished && (
+              <div className="text-center">
+                <Badge variant="success" className="mb-4">Match Complete</Badge>
+                <p className="text-xl font-bold text-primary">
+                  {teamAWins > teamBWins ? teamA?.name : teamB?.name} Wins!
+                </p>
+              </div>
+            )}
+
+            {/* Captain view */}
+            {isCaptain && !matchIsFinished && (
+              <div className="text-center">
+                <p className="text-muted text-sm">
+                  {resultRegistered 
+                    ? "Waiting for manager to start next map..."
+                    : "Waiting for manager to register result..."
+                  }
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
