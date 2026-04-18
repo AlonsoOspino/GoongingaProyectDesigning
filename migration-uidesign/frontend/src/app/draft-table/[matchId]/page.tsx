@@ -877,31 +877,44 @@ function BanPhase({
     );
   };
 
-  // Handle hero click with role limit warning
+  // Handle hero click with role limit warning - blocks backend call entirely
   const handleHeroClick = (hero: Hero) => {
+    // Check if team already has 2 total bans
+    if (myTeamId && getTeamTotalBans(myTeamId) >= 2) {
+      setBanWarning("Your team has already completed both bans.");
+      setTimeout(() => setBanWarning(null), 3000);
+      return;
+    }
+    
+    // Check role-specific limit
     if (!canBanRole(hero.role)) {
       const roleName = hero.role.charAt(0) + hero.role.slice(1).toLowerCase();
       setBanWarning(`You already banned 2 ${roleName} heroes. Choose a different role.`);
       setTimeout(() => setBanWarning(null), 3000);
       return;
     }
+    
     onBanHero(hero.id);
   };
 
   const renderHeroCard = (hero: Hero, canSelect: boolean, banned: boolean) => {
     const roleAtLimit = !canBanRole(hero.role);
+    const teamDone = myTeamId ? getTeamTotalBans(myTeamId) >= 2 : false;
+    const isDisabled = banned || actionLoading || roleAtLimit || teamDone;
     
     return (
       <button
         key={hero.id}
-        onClick={() => canSelect && handleHeroClick(hero)}
-        disabled={banned || actionLoading}
+        onClick={() => !isDisabled && isCaptain && isMyTurn && handleHeroClick(hero)}
+        disabled={isDisabled}
         className={clsx(
           "relative rounded-lg overflow-hidden border-2 transition-all flex flex-col",
           banned
             ? isManager 
               ? "border-danger cursor-not-allowed" // Manager sees red border
               : "border-muted/50 cursor-not-allowed grayscale" // Captain sees gray
+            : teamDone
+            ? "border-border cursor-not-allowed opacity-40" // Team finished banning
             : roleAtLimit && isCaptain
             ? "border-warning/50 cursor-not-allowed opacity-60" // Role at limit
             : canSelect
@@ -1116,7 +1129,13 @@ function BanPhase({
               ))}
             </div>
 
-            {isCaptain && !isMyTurn && (
+            {isCaptain && myTeamId && getTeamTotalBans(myTeamId) >= 2 && (
+              <div className="mb-4 p-3 rounded-lg bg-success/10 border border-success/30 text-center">
+                <p className="text-sm text-success font-medium">Your team has completed both bans. Waiting for other team...</p>
+              </div>
+            )}
+            
+            {isCaptain && !isMyTurn && myTeamId && getTeamTotalBans(myTeamId) < 2 && (
               <div className="mb-4 p-3 rounded-lg bg-surface-elevated text-center">
                 <p className="text-sm text-muted">Waiting for {currentTeam?.name} to ban...</p>
               </div>
@@ -1139,8 +1158,8 @@ function BanPhase({
               </div>
             )}
 
-            {/* Skip Ban Button */}
-            {isCaptain && isMyTurn && (
+            {/* Skip Ban Button - only show if team hasn't completed bans */}
+            {isCaptain && isMyTurn && myTeamId && getTeamTotalBans(myTeamId) < 2 && (
               <div className="mt-6 text-center">
                 <Button
                   variant="ghost"
