@@ -458,17 +458,21 @@ const banHero = async (draftId, payload, user) => {
     (a) => a.action === "BAN" && a.gameNumber === currentGame
   );
 
-  const teamBanCount = bansThisGame.filter((a) => a.teamId === actingTeamId).length;
+  // Get this team's bans this game
+  const teamBansThisGame = bansThisGame.filter((a) => a.teamId === actingTeamId);
+  const teamBanCount = teamBansThisGame.length;
+  
   if (teamBanCount >= 2) {
     throw new Error("Each team can ban at most 2 heroes.");
   }
 
-  const bannedHeroIdsThisGame = bansThisGame.map((a) => a.value).filter((v) => Number.isInteger(v));
-  const heroesInThisGame = bannedHeroIdsThisGame.length
-    ? await prisma.hero.findMany({ where: { id: { in: bannedHeroIdsThisGame } } })
+  // Check role limits per team (each team can ban at most 2 of same role)
+  const teamBannedHeroIds = teamBansThisGame.map((a) => a.value).filter((v) => Number.isInteger(v));
+  const teamBannedHeroes = teamBannedHeroIds.length
+    ? await prisma.hero.findMany({ where: { id: { in: teamBannedHeroIds } } })
     : [];
 
-  const roleCounts = heroesInThisGame.reduce(
+  const teamRoleCounts = teamBannedHeroes.reduce(
     (acc, h) => {
       acc[h.role] += 1;
       return acc;
@@ -476,8 +480,8 @@ const banHero = async (draftId, payload, user) => {
     { TANK: 0, DPS: 0, SUPPORT: 0 }
   );
 
-  if (hero && roleCounts[hero.role] >= 2) {
-    throw new Error(`Role limit reached: at most 2 bans for ${hero.role}.`);
+  if (hero && teamRoleCounts[hero.role] >= 2) {
+    throw new Error(`Role limit reached: your team already banned 2 ${hero.role} heroes.`);
   }
 
   const nextOrder = getNextOrder(draft.actions);
