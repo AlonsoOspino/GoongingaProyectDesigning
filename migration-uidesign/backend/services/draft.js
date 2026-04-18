@@ -251,6 +251,45 @@ const createDraft = async (matchId, user) => {
   });
 };
 
+const determineFirstPicker = async (match) => {
+  // For playoffs, semifinals, finals: team with most victories (or mapwins if tied)
+  // For round robin: random
+  const competitiveTypes = ["PLAYOFFS", "SEMIFINALS", "FINALS"];
+  
+  if (competitiveTypes.includes(match.type)) {
+    const [teamA, teamB] = await Promise.all([
+      prisma.team.findUnique({ where: { id: match.teamAId } }),
+      prisma.team.findUnique({ where: { id: match.teamBId } }),
+    ]);
+    
+    if (!teamA || !teamB) return match.teamAId;
+    
+    // Compare victories first
+    if (teamA.victories !== teamB.victories) {
+      return teamA.victories > teamB.victories ? match.teamAId : match.teamBId;
+    }
+    
+    // If victories tied, compare mapWins - mapLoses (map differential)
+    const teamADiff = teamA.mapWins - teamA.mapLoses;
+    const teamBDiff = teamB.mapWins - teamB.mapLoses;
+    
+    if (teamADiff !== teamBDiff) {
+      return teamADiff > teamBDiff ? match.teamAId : match.teamBId;
+    }
+    
+    // If still tied, compare raw mapWins
+    if (teamA.mapWins !== teamB.mapWins) {
+      return teamA.mapWins > teamB.mapWins ? match.teamAId : match.teamBId;
+    }
+    
+    // Truly tied - random
+    return Math.random() < 0.5 ? match.teamAId : match.teamBId;
+  }
+  
+  // Round robin or other: random
+  return Math.random() < 0.5 ? match.teamAId : match.teamBId;
+};
+
 const startMapPicking = async (draftId, user) => {
   ensureManagerRole(user);
   const draft = await getDraftByIdOrThrow(draftId);
@@ -266,10 +305,22 @@ const startMapPicking = async (draftId, user) => {
   // Managers can force progression even if captains have not confirmed ready.
 
   const currentGame = normalizeGameNumber(draft.match.gameNumber);
-  const validTeams = [draft.match.teamAId, draft.match.teamBId];
-  const turnStarter = validTeams.includes(draft.currentTurnTeamId)
-    ? draft.currentTurnTeamId
-    : draft.match.teamAId;
+  
+  // Determine who picks first map:
+  // - For first game (STARTING phase): use determineFirstPicker based on match type
+  // - For subsequent games (ENDMAP phase): loser of previous game picks (handled by currentTurnTeamId)
+  let turnStarter;
+  
+  if (draft.phase === "STARTING" && currentGame === 1) {
+    // First game - determine based on match type and team stats
+    turnStarter = await determineFirstPicker(draft.match);
+  } else {
+    // Subsequent games - currentTurnTeamId is already set to loser of previous game
+    const validTeams = [draft.match.teamAId, draft.match.teamBId];
+    turnStarter = validTeams.includes(draft.currentTurnTeamId)
+      ? draft.currentTurnTeamId
+      : draft.match.teamAId;
+  }
 
   return prisma.$transaction(async (tx) => {
     await tx.match.update({

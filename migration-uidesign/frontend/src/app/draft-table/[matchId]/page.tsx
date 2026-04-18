@@ -255,6 +255,16 @@ export default function DraftTablePage() {
     return draftState?.pickedMaps?.includes(mapId) || false;
   };
 
+  const getTeamTotalBans = (teamId: number) => {
+    if (!draftState?.actions) return 0;
+    return draftState.actions.filter(
+      (a) =>
+        a.teamId === teamId &&
+        a.action === "BAN" &&
+        a.gameNumber === draftState.match.gameNumber
+    ).length;
+  };
+
   const getBanCountByRole = (teamId: number, role: "TANK" | "DPS" | "SUPPORT") => {
     if (!draftState?.actions || !draftState?.heroes) return 0;
     const heroesOfRole = draftState.heroes.filter((h) => h.role === role).map((h) => h.id);
@@ -270,6 +280,8 @@ export default function DraftTablePage() {
 
   const canBanRole = (role: "ALL" | "TANK" | "DPS" | "SUPPORT") => {
     if (!myTeamId) return false;
+    // Check if team already has 2 total bans
+    if (getTeamTotalBans(myTeamId) >= 2) return false;
     if (role === "ALL") return true;
     return getBanCountByRole(myTeamId, role) < 2;
   };
@@ -413,8 +425,11 @@ export default function DraftTablePage() {
             onEndMap={handleEndMap}
             isHeroBanned={isHeroBanned}
             getBannedHeroesByTeam={getBannedHeroesByTeam}
+            getTeamTotalBans={getTeamTotalBans}
             getBanCountByRole={getBanCountByRole}
             canBanRole={canBanRole}
+            banWarning={banWarning}
+            setBanWarning={setBanWarning}
             actionLoading={actionLoading}
           />
         )}
@@ -786,6 +801,7 @@ function BanPhase({
   onEndMap,
   isHeroBanned,
   getBannedHeroesByTeam,
+  getTeamTotalBans,
   getBanCountByRole,
   canBanRole,
   banWarning,
@@ -804,6 +820,7 @@ function BanPhase({
   onEndMap: () => void;
   isHeroBanned: (heroId: number) => boolean;
   getBannedHeroesByTeam: (teamId: number) => (number | null)[];
+  getTeamTotalBans: (teamId: number) => number;
   getBanCountByRole: (teamId: number, role: "TANK" | "DPS" | "SUPPORT") => number;
   canBanRole: (role: "ALL" | "TANK" | "DPS" | "SUPPORT") => boolean;
   banWarning: string | null;
@@ -988,7 +1005,11 @@ function BanPhase({
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-3 h-3 rounded-full bg-[color:var(--color-team-a)]" />
                 <h3 className="font-semibold text-foreground text-sm flex-1">{teamA?.name}</h3>
-                {isTeamATurn && <Badge variant="danger" className="text-[10px]">Banning</Badge>}
+                {teamABans.length >= 2 ? (
+                  <Badge variant="success" className="text-[10px]">Done</Badge>
+                ) : isTeamATurn ? (
+                  <Badge variant="danger" className="text-[10px]">Banning</Badge>
+                ) : null}
               </div>
               <p className="text-[10px] text-muted mb-2 uppercase tracking-wide">Banned Heroes</p>
               <div className="flex gap-2">
@@ -1024,7 +1045,11 @@ function BanPhase({
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-3 h-3 rounded-full bg-[color:var(--color-team-b)]" />
                 <h3 className="font-semibold text-foreground text-sm flex-1">{teamB?.name}</h3>
-                {isTeamBTurn && <Badge variant="danger" className="text-[10px]">Banning</Badge>}
+                {teamBBans.length >= 2 ? (
+                  <Badge variant="success" className="text-[10px]">Done</Badge>
+                ) : isTeamBTurn ? (
+                  <Badge variant="danger" className="text-[10px]">Banning</Badge>
+                ) : null}
               </div>
               <p className="text-[10px] text-muted mb-2 uppercase tracking-wide">Banned Heroes</p>
               <div className="flex gap-2">
@@ -1057,14 +1082,19 @@ function BanPhase({
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg">Hero Bans</CardTitle>
-              {isCaptain && isMyTurn && (
-                <Badge variant="warning" className="animate-pulse">Your Turn to Ban</Badge>
-              )}
-              {isManager && (
-                <Button size="sm" variant="secondary" onClick={onEndMap} disabled={actionLoading}>
-                  End Map (Skip)
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {isCaptain && myTeamId && getTeamTotalBans(myTeamId) >= 2 && (
+                  <Badge variant="success">Your bans complete</Badge>
+                )}
+                {isCaptain && isMyTurn && myTeamId && getTeamTotalBans(myTeamId) < 2 && (
+                  <Badge variant="warning" className="animate-pulse">Your Turn to Ban</Badge>
+                )}
+                {isManager && (
+                  <Button size="sm" variant="secondary" onClick={onEndMap} disabled={actionLoading}>
+                    End Map (Skip)
+                  </Button>
+                )}
+              </div>
             </div>
           </CardHeader>
           <CardContent>
