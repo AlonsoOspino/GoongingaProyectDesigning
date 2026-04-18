@@ -52,6 +52,7 @@ export default function DraftTablePage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [timeLeft, setTimeLeft] = useState(TURN_DURATION);
   const [selectedRole, setSelectedRole] = useState<"ALL" | "TANK" | "DPS" | "SUPPORT">("ALL");
+  const [banWarning, setBanWarning] = useState<string | null>(null);
 
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -100,8 +101,10 @@ export default function DraftTablePage() {
   }, [draftState, currentPhase]);
 
   useEffect(() => {
-    if (!draftState?.phaseStartedAt || currentPhase === "STARTING" || currentPhase === "ENDMAP" || currentPhase === "FINISHED") {
+    // Timer only runs during BAN phase (map picking doesn't need timer - waiting for captain to pick)
+    if (!draftState?.phaseStartedAt || currentPhase !== "BAN") {
       setTimeLeft(TURN_DURATION);
+      if (timerRef.current) clearInterval(timerRef.current);
       return;
     }
     const startTime = new Date(draftState.phaseStartedAt).getTime();
@@ -237,12 +240,11 @@ export default function DraftTablePage() {
     }
   }
 
-  const getBannedHeroesByTeam = (teamId: number) => {
+  const getBannedHeroesByTeam = (teamId: number): (number | null)[] => {
     if (!draftState?.actions) return [];
     return draftState.actions
       .filter((a) => a.teamId === teamId && a.action === "BAN" && a.gameNumber === draftState.match.gameNumber)
-      .map((a) => a.value)
-      .filter((v): v is number => v !== null);
+      .map((a) => a.value); // Keep nulls to show "NO BAN" slots
   };
 
   const isHeroBanned = (heroId: number) => {
@@ -344,7 +346,7 @@ export default function DraftTablePage() {
               >
                 {currentPhase}
               </Badge>
-              {(currentPhase === "MAPPICKING" || currentPhase === "BAN") && (
+              {currentPhase === "BAN" && (
                 <div
                   className={clsx(
                     "text-2xl font-mono font-bold tabular-nums",
@@ -352,6 +354,11 @@ export default function DraftTablePage() {
                   )}
                 >
                   {formatTime(timeLeft)}
+                </div>
+              )}
+              {currentPhase === "MAPPICKING" && (
+                <div className="text-sm text-muted font-medium">
+                  Waiting for map pick...
                 </div>
               )}
             </div>
@@ -398,12 +405,15 @@ export default function DraftTablePage() {
             draftState={draftState}
             teams={teams}
             myTeamId={myTeamId}
+            banWarning={banWarning}
+            setBanWarning={setBanWarning}
             selectedRole={selectedRole}
             setSelectedRole={setSelectedRole}
             onBanHero={handleBanHero}
             onEndMap={handleEndMap}
             isHeroBanned={isHeroBanned}
             getBannedHeroesByTeam={getBannedHeroesByTeam}
+            getBanCountByRole={getBanCountByRole}
             canBanRole={canBanRole}
             actionLoading={actionLoading}
           />
@@ -776,7 +786,10 @@ function BanPhase({
   onEndMap,
   isHeroBanned,
   getBannedHeroesByTeam,
+  getBanCountByRole,
   canBanRole,
+  banWarning,
+  setBanWarning,
   actionLoading,
 }: {
   isManager: boolean;
@@ -790,8 +803,11 @@ function BanPhase({
   onBanHero: (heroId: number | null) => void;
   onEndMap: () => void;
   isHeroBanned: (heroId: number) => boolean;
-  getBannedHeroesByTeam: (teamId: number) => number[];
+  getBannedHeroesByTeam: (teamId: number) => (number | null)[];
+  getBanCountByRole: (teamId: number, role: "TANK" | "DPS" | "SUPPORT") => number;
   canBanRole: (role: "ALL" | "TANK" | "DPS" | "SUPPORT") => boolean;
+  banWarning: string | null;
+  setBanWarning: (warning: string | null) => void;
   actionLoading: boolean;
 }) {
   const currentTeam = teams.find((t) => t.id === draftState.currentTurnTeamId);
@@ -811,7 +827,19 @@ function BanPhase({
   const dpsHeroes = heroes.filter((h) => h.role === "DPS");
   const supportHeroes = heroes.filter((h) => h.role === "SUPPORT");
 
-  const renderBannedHero = (heroId: number) => {
+  const renderBannedHero = (heroId: number | null, index: number) => {
+    // If heroId is null, show "NO BAN" slot
+    if (heroId === null) {
+      return (
+        <div
+          key={`noban-${index}`}
+          className="w-12 h-12 rounded-lg bg-muted/20 border border-muted/50 flex items-center justify-center"
+        >
+          <span className="text-[8px] text-muted font-semibold uppercase">No Ban</span>
+        </div>
+      );
+    }
+    
     const hero = heroes.find((h) => h.id === heroId);
     return (
       <div
@@ -832,47 +860,75 @@ function BanPhase({
     );
   };
 
-  const renderHeroCard = (hero: Hero, canSelect: boolean, banned: boolean) => (
-    <button
-      key={hero.id}
-      onClick={() => canSelect && onBanHero(hero.id)}
-      disabled={!canSelect || actionLoading}
-      className={clsx(
-        "relative rounded-lg overflow-hidden border-2 transition-all flex flex-col",
-        banned
-          ? "border-danger/50 opacity-50 cursor-not-allowed"
-          : canSelect
-          ? "border-border hover:border-danger cursor-pointer hover:scale-105"
-          : "border-border cursor-default opacity-60"
-      )}
-    >
-      <div className="aspect-square bg-surface">
-        {hero.imgPath ? (
-          <img
-            src={resolveHeroImageUrl(hero.imgPath)}
-            alt={getHeroName(hero.imgPath)}
-            className={clsx("w-full h-full object-cover", banned && "grayscale")}
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <span className="text-xs font-bold text-muted">
-              {hero.role.charAt(0)}{hero.id}
-            </span>
+  // Handle hero click with role limit warning
+  const handleHeroClick = (hero: Hero) => {
+    if (!canBanRole(hero.role)) {
+      const roleName = hero.role.charAt(0) + hero.role.slice(1).toLowerCase();
+      setBanWarning(`You already banned 2 ${roleName} heroes. Choose a different role.`);
+      setTimeout(() => setBanWarning(null), 3000);
+      return;
+    }
+    onBanHero(hero.id);
+  };
+
+  const renderHeroCard = (hero: Hero, canSelect: boolean, banned: boolean) => {
+    const roleAtLimit = !canBanRole(hero.role);
+    
+    return (
+      <button
+        key={hero.id}
+        onClick={() => canSelect && handleHeroClick(hero)}
+        disabled={banned || actionLoading}
+        className={clsx(
+          "relative rounded-lg overflow-hidden border-2 transition-all flex flex-col",
+          banned
+            ? isManager 
+              ? "border-danger cursor-not-allowed" // Manager sees red border
+              : "border-muted/50 cursor-not-allowed grayscale" // Captain sees gray
+            : roleAtLimit && isCaptain
+            ? "border-warning/50 cursor-not-allowed opacity-60" // Role at limit
+            : canSelect
+            ? "border-border hover:border-danger cursor-pointer hover:scale-105"
+            : "border-border cursor-default opacity-60"
+        )}
+      >
+        <div className="aspect-square bg-surface">
+          {hero.imgPath ? (
+            <img
+              src={resolveHeroImageUrl(hero.imgPath)}
+              alt={getHeroName(hero.imgPath)}
+              className={clsx(
+                "w-full h-full object-cover", 
+                banned && isCaptain && "grayscale opacity-50" // Captain sees gray
+              )}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <span className="text-xs font-bold text-muted">
+                {hero.role.charAt(0)}{hero.id}
+              </span>
+            </div>
+          )}
+        </div>
+        <div className="px-1 py-0.5 bg-background text-center">
+          <span className="text-[9px] text-foreground truncate block">
+            {getHeroName(hero.imgPath)}
+          </span>
+        </div>
+        {/* Banned overlay - different for manager vs captain */}
+        {banned && isManager && (
+          <div className="absolute inset-0 bg-danger/70 flex items-center justify-center">
+            <span className="text-white font-bold text-xl">X</span>
           </div>
         )}
-      </div>
-      <div className="px-1 py-0.5 bg-background text-center">
-        <span className="text-[9px] text-foreground truncate block">
-          {getHeroName(hero.imgPath)}
-        </span>
-      </div>
-      {banned && (
-        <div className="absolute inset-0 bg-danger/50 flex items-center justify-center animate-banned">
-          <span className="text-white font-bold text-[10px] uppercase">Banned</span>
-        </div>
-      )}
-    </button>
-  );
+        {banned && isCaptain && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+            <span className="text-muted-foreground font-semibold text-[9px] uppercase">Banned</span>
+          </div>
+        )}
+      </button>
+    );
+  };
 
   const renderHeroSection = (title: string, heroList: Hero[], roleColor: string) => (
     <div className="mb-4">
@@ -896,6 +952,18 @@ function BanPhase({
 
   return (
     <div className="space-y-6">
+      {/* Warning Toast */}
+      {banWarning && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
+          <div className="bg-warning text-warning-foreground px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span className="text-sm font-medium">{banWarning}</span>
+          </div>
+        </div>
+      )}
+
       {/* Current Map - Top */}
       <div className="text-center">
         {currentMap && (
@@ -935,7 +1003,7 @@ function BanPhase({
                   </>
                 ) : (
                   <>
-                    {teamABans.map(renderBannedHero)}
+                    {teamABans.map((heroId, idx) => renderBannedHero(heroId, idx))}
                     {teamABans.length < 2 && (
                       <div className="w-12 h-12 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
                         <span className="text-[10px] text-muted">{teamABans.length + 1}</span>
@@ -971,7 +1039,7 @@ function BanPhase({
                   </>
                 ) : (
                   <>
-                    {teamBBans.map(renderBannedHero)}
+                    {teamBBans.map((heroId, idx) => renderBannedHero(heroId, idx))}
                     {teamBBans.length < 2 && (
                       <div className="w-12 h-12 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
                         <span className="text-[10px] text-muted">{teamBBans.length + 1}</span>
@@ -1085,7 +1153,7 @@ function EndMapPhase({
   onStartMapPicking: () => void;
   onSubmitResult: (winnerTeamId: number | null) => void;
   onSetReady: () => void;
-  getBannedHeroesByTeam: (teamId: number) => number[];
+  getBannedHeroesByTeam: (teamId: number) => (number | null)[];
   actionLoading: boolean;
 }) {
   const winsNeeded = Math.ceil(draftState.match.bestOf / 2);
@@ -1112,7 +1180,18 @@ function EndMapPhase({
   // Check if both teams are ready for next map
   const bothReady = draftState.match.teamAready === 1 && draftState.match.teamBready === 1;
 
-  const renderBannedHero = (heroId: number) => {
+  const renderBannedHeroEndMap = (heroId: number | null, index: number) => {
+    if (heroId === null) {
+      return (
+        <div
+          key={`noban-${index}`}
+          className="w-12 h-12 rounded-lg bg-muted/20 border border-muted/50 flex items-center justify-center"
+        >
+          <span className="text-[8px] text-muted font-semibold uppercase">No Ban</span>
+        </div>
+      );
+    }
+    
     const hero = heroes.find((h) => h.id === heroId);
     return (
       <div
@@ -1167,7 +1246,7 @@ function EndMapPhase({
                 {teamABans.length === 0 ? (
                   <span className="text-xs text-muted">No bans</span>
                 ) : (
-                  teamABans.map(renderBannedHero)
+                  teamABans.map((heroId, idx) => renderBannedHeroEndMap(heroId, idx))
                 )}
               </div>
               {isManager && (
@@ -1194,7 +1273,7 @@ function EndMapPhase({
                 {teamBBans.length === 0 ? (
                   <span className="text-xs text-muted">No bans</span>
                 ) : (
-                  teamBBans.map(renderBannedHero)
+                  teamBBans.map((heroId, idx) => renderBannedHeroEndMap(heroId, idx))
                 )}
               </div>
               {isManager && (
