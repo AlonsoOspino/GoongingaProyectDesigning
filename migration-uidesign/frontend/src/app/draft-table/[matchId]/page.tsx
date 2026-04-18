@@ -18,7 +18,7 @@ import {
   type GameMap,
   type Hero,
 } from "@/lib/api";
-import { getTeams, submitMatchResult, type Team } from "@/lib/api";
+import { getTeams, submitMatchResult, updateCaptainMatch, type Team } from "@/lib/api";
 import { clsx } from "clsx";
 import { resolveHeroImageUrl, resolveMapImageUrl } from "@/lib/assetUrls";
 
@@ -26,6 +26,16 @@ const POLL_INTERVAL = 3000;
 const TURN_DURATION = 75;
 
 type Phase = "STARTING" | "MAPPICKING" | "BAN" | "ENDMAP" | "FINISHED";
+
+// Helper: Extract hero name from imgPath (e.g., "Icon-Ana.webp" -> "Ana")
+function getHeroName(imgPath: string): string {
+  return imgPath
+    .replace(/^.*\//, "") // Remove path
+    .replace(/^Icon-/i, "") // Remove "Icon-" prefix
+    .replace(/\.[^.]+$/, "") // Remove extension
+    .replace(/%3F/gi, "o") // Fix URL encoding
+    .replace(/_/g, " "); // Replace underscores
+}
 
 export default function DraftTablePage() {
   const params = useParams();
@@ -58,6 +68,11 @@ export default function DraftTablePage() {
 
   // Show draft history only when match is PENDINGRESULT or FINISHED
   const showDraftHistory = matchStatus === "PENDINGREGISTERS" || matchStatus === "FINISHED" || currentPhase === "FINISHED";
+
+  // Check if I'm ready (for captains)
+  const amIReady = isCaptain && myTeamId === teamA?.id 
+    ? draftState?.match?.teamAready === 1 
+    : draftState?.match?.teamBready === 1;
 
   useEffect(() => {
     if (!isHydrated) return;
@@ -198,10 +213,25 @@ export default function DraftTablePage() {
     setActionLoading(true);
     try {
       await submitMatchResult(token, matchId, winnerTeamId);
-      // Refetch the draft state to get updated match data
       fetchDraftState();
     } catch (err) {
       console.error("Failed to submit result:", err);
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleSetReady() {
+    if (!token || !isCaptain || !myTeamId) return;
+    setActionLoading(true);
+    try {
+      const payload = myTeamId === teamA?.id 
+        ? { teamAready: 1 as const } 
+        : { teamBready: 1 as const };
+      await updateCaptainMatch(token, matchId, payload);
+      fetchDraftState();
+    } catch (err) {
+      console.error("Failed to set ready:", err);
     } finally {
       setActionLoading(false);
     }
@@ -238,7 +268,7 @@ export default function DraftTablePage() {
 
   const canBanRole = (role: "ALL" | "TANK" | "DPS" | "SUPPORT") => {
     if (!myTeamId) return false;
-    if (role === "ALL") return true; // ALL always allowed
+    if (role === "ALL") return true;
     return getBanCountByRole(myTeamId, role) < 2;
   };
 
@@ -295,6 +325,15 @@ export default function DraftTablePage() {
               </Badge>
             </div>
             <div className="flex items-center gap-4">
+              {/* Ready Status for Manager */}
+              {isManager && currentPhase === "STARTING" && (
+                <div className="flex items-center gap-2 text-xs">
+                  <div className={clsx("w-2 h-2 rounded-full", draftState.match.teamAready ? "bg-success" : "bg-muted")} />
+                  <span className="text-muted">{teamA?.name?.substring(0, 8)}</span>
+                  <div className={clsx("w-2 h-2 rounded-full ml-2", draftState.match.teamBready ? "bg-success" : "bg-muted")} />
+                  <span className="text-muted">{teamB?.name?.substring(0, 8)}</span>
+                </div>
+              )}
               <Badge
                 variant={
                   currentPhase === "STARTING" ? "default" :
@@ -329,7 +368,9 @@ export default function DraftTablePage() {
             teamA={teamA}
             teamB={teamB}
             match={draftState.match}
+            amIReady={amIReady}
             onStart={handleStartMapPicking}
+            onSetReady={handleSetReady}
             actionLoading={actionLoading}
           />
         )}
@@ -372,10 +413,14 @@ export default function DraftTablePage() {
           <EndMapPhase
             isManager={isManager}
             isCaptain={isCaptain}
+            myTeamId={myTeamId}
             draftState={draftState}
             teams={teams}
+            amIReady={amIReady}
             onStartMapPicking={handleStartMapPicking}
             onSubmitResult={handleSubmitResult}
+            onSetReady={handleSetReady}
+            getBannedHeroesByTeam={getBannedHeroesByTeam}
             actionLoading={actionLoading}
           />
         )}
@@ -399,7 +444,9 @@ function StartingPhase({
   teamA,
   teamB,
   match,
+  amIReady,
   onStart,
+  onSetReady,
   actionLoading,
 }: {
   isManager: boolean;
@@ -407,14 +454,23 @@ function StartingPhase({
   teamA?: Team;
   teamB?: Team;
   match: DraftState["match"];
+  amIReady: boolean;
   onStart: () => void;
+  onSetReady: () => void;
   actionLoading: boolean;
 }) {
+  const bothReady = match.teamAready === 1 && match.teamBready === 1;
+
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh]">
       <Card className="w-full max-w-2xl">
         <CardContent className="p-8">
-          <h2 className="text-2xl font-bold text-center text-foreground mb-8">Waiting to Start</h2>
+          <h2 className="text-2xl font-bold text-center text-foreground mb-2">
+            {match.gameNumber === 1 ? "Waiting to Start" : `Ready for Game ${match.gameNumber}?`}
+          </h2>
+          <p className="text-sm text-muted text-center mb-8">
+            Both captains must confirm they are ready before starting
+          </p>
           
           <div className="flex items-center justify-center gap-12 mb-8">
             <div className="text-center">
@@ -424,12 +480,9 @@ function StartingPhase({
                 </span>
               </div>
               <p className="font-semibold text-foreground mb-2">{teamA?.name}</p>
-              {/* Ready badges only visible to manager */}
-              {isManager && (
-                <Badge variant={match.teamAready ? "success" : "default"}>
-                  {match.teamAready ? "Ready" : "Not Ready"}
-                </Badge>
-              )}
+              <Badge variant={match.teamAready ? "success" : "default"}>
+                {match.teamAready ? "Ready" : "Not Ready"}
+              </Badge>
             </div>
 
             <div className="text-4xl font-bold text-muted">VS</div>
@@ -441,29 +494,50 @@ function StartingPhase({
                 </span>
               </div>
               <p className="font-semibold text-foreground mb-2">{teamB?.name}</p>
-              {isManager && (
-                <Badge variant={match.teamBready ? "success" : "default"}>
-                  {match.teamBready ? "Ready" : "Not Ready"}
-                </Badge>
-              )}
+              <Badge variant={match.teamBready ? "success" : "default"}>
+                {match.teamBready ? "Ready" : "Not Ready"}
+              </Badge>
             </div>
           </div>
 
-          {isManager && (
-            <div className="text-center">
-              <p className="text-muted mb-4 text-sm">
-                Waiting for both captains to be ready. Start when ready.
-              </p>
-              <Button size="lg" onClick={onStart} disabled={actionLoading} className="px-8">
-                {actionLoading ? "Starting..." : "Start Map Picking"}
+          {/* Captain Ready Button */}
+          {isCaptain && !amIReady && (
+            <div className="text-center mb-6">
+              <Button size="lg" onClick={onSetReady} disabled={actionLoading} className="px-8">
+                {actionLoading ? "Setting ready..." : "I'm Ready!"}
               </Button>
+              <p className="text-xs text-muted mt-2">Click to confirm you are ready to play</p>
             </div>
           )}
 
-          {isCaptain && (
-            <p className="text-center text-muted">
-              Waiting for the manager to start the draft...
-            </p>
+          {isCaptain && amIReady && (
+            <div className="text-center mb-6">
+              <Badge variant="success" className="text-sm px-4 py-2">You are ready</Badge>
+              <p className="text-xs text-muted mt-2">Waiting for manager to start...</p>
+            </div>
+          )}
+
+          {isManager && (
+            <div className="text-center">
+              {!bothReady && (
+                <p className="text-muted mb-4 text-sm">
+                  Waiting for both captains to be ready...
+                </p>
+              )}
+              <Button 
+                size="lg" 
+                onClick={onStart} 
+                disabled={actionLoading || !bothReady} 
+                className="px-8"
+              >
+                {actionLoading ? "Starting..." : "Start Map Picking"}
+              </Button>
+              {!bothReady && (
+                <p className="text-xs text-muted mt-2">
+                  Both captains must be ready before starting
+                </p>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>
@@ -501,11 +575,8 @@ function MapPickingPhase({
   const teamB = teams.find((t) => t.id === draftState.match.teamBId);
   const availableMaps = draftState.availableMaps || [];
   const currentMap = draftState.allMaps?.find((m) => m.id === draftState.currentMapId);
-  
-  // Get all picked maps for this match (show as banned/grayed)
   const pickedMaps = draftState.pickedMaps || [];
   
-  // Get team-specific picks for display in ban columns
   const getTeamPickedMaps = (teamId: number) => {
     return draftState.actions
       ?.filter((a) => a.teamId === teamId && a.action === "PICK")
@@ -515,7 +586,6 @@ function MapPickingPhase({
 
   const teamAMaps = getTeamPickedMaps(teamA?.id || 0);
   const teamBMaps = getTeamPickedMaps(teamB?.id || 0);
-
   const isTeamATurn = draftState.currentTurnTeamId === teamA?.id;
   const isTeamBTurn = draftState.currentTurnTeamId === teamB?.id;
 
@@ -536,37 +606,74 @@ function MapPickingPhase({
         )}
       </div>
 
-      {/* Three Column Layout - Responsive */}
-      <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr_200px] gap-6">
-        {/* Left - Team A Picked Maps */}
-        <div className={clsx(
-          "rounded-lg border p-4 transition-all",
-          isTeamATurn ? "border-[color:var(--color-team-a)] bg-[color:var(--color-team-a)]/5" : "border-border bg-surface"
-        )}>
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-3 h-3 rounded-full bg-[color:var(--color-team-a)]" />
-            <h3 className="font-semibold text-foreground">{teamA?.name}</h3>
-            {isTeamATurn && <Badge variant="primary" className="ml-auto text-xs">Turn</Badge>}
-          </div>
-          <div className="space-y-2">
-            {teamAMaps.length === 0 ? (
-              <p className="text-xs text-muted">No maps picked</p>
-            ) : (
-              teamAMaps.map((map) => (
-                <div key={map!.id} className="flex items-center gap-2 p-2 rounded bg-surface-elevated">
-                  <div className="w-10 h-6 rounded overflow-hidden bg-background">
-                    {map!.imgPath && (
-                      <img src={resolveMapImageUrl(map!.imgPath)} alt="" className="w-full h-full object-cover" />
-                    )}
-                  </div>
-                  <span className="text-xs text-foreground truncate">{map!.description}</span>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+      {/* Two Column Layout - Combined Teams + Map Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-6">
+        {/* Left - Combined Teams Panel */}
+        <Card className="border-border h-fit">
+          <CardContent className="p-4">
+            {/* Team A */}
+            <div className={clsx(
+              "rounded-lg p-3 mb-4 transition-all",
+              isTeamATurn ? "bg-[color:var(--color-team-a)]/10 ring-2 ring-[color:var(--color-team-a)]" : "bg-surface-elevated"
+            )}>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-3 h-3 rounded-full bg-[color:var(--color-team-a)]" />
+                <h3 className="font-semibold text-foreground text-sm flex-1">{teamA?.name}</h3>
+                {isTeamATurn && <Badge variant="primary" className="text-[10px]">Turn</Badge>}
+              </div>
+              <p className="text-[10px] text-muted mb-2 uppercase tracking-wide">Picked Maps</p>
+              <div className="space-y-2">
+                {teamAMaps.length === 0 ? (
+                  <p className="text-xs text-muted italic">No maps picked yet</p>
+                ) : (
+                  teamAMaps.map((map) => (
+                    <div key={map!.id} className="flex items-center gap-2 p-2 rounded bg-background">
+                      <div className="w-8 h-5 rounded overflow-hidden bg-surface-elevated flex-shrink-0">
+                        {map!.imgPath && (
+                          <img src={resolveMapImageUrl(map!.imgPath)} alt="" className="w-full h-full object-cover" />
+                        )}
+                      </div>
+                      <span className="text-xs text-foreground truncate">{map!.description}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
 
-        {/* Middle - Map Grid */}
+            <div className="border-t border-border my-3" />
+
+            {/* Team B */}
+            <div className={clsx(
+              "rounded-lg p-3 transition-all",
+              isTeamBTurn ? "bg-[color:var(--color-team-b)]/10 ring-2 ring-[color:var(--color-team-b)]" : "bg-surface-elevated"
+            )}>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-3 h-3 rounded-full bg-[color:var(--color-team-b)]" />
+                <h3 className="font-semibold text-foreground text-sm flex-1">{teamB?.name}</h3>
+                {isTeamBTurn && <Badge variant="primary" className="text-[10px]">Turn</Badge>}
+              </div>
+              <p className="text-[10px] text-muted mb-2 uppercase tracking-wide">Picked Maps</p>
+              <div className="space-y-2">
+                {teamBMaps.length === 0 ? (
+                  <p className="text-xs text-muted italic">No maps picked yet</p>
+                ) : (
+                  teamBMaps.map((map) => (
+                    <div key={map!.id} className="flex items-center gap-2 p-2 rounded bg-background">
+                      <div className="w-8 h-5 rounded overflow-hidden bg-surface-elevated flex-shrink-0">
+                        {map!.imgPath && (
+                          <img src={resolveMapImageUrl(map!.imgPath)} alt="" className="w-full h-full object-cover" />
+                        )}
+                      </div>
+                      <span className="text-xs text-foreground truncate">{map!.description}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Right - Map Grid (more space now) */}
         <Card className="border-border">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
@@ -588,7 +695,7 @@ function MapPickingPhase({
               </div>
             )}
 
-            <div className="grid grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
               {availableMaps.map((map) => {
                 const picked = isMapPicked(map.id);
                 const isCurrentMap = map.id === draftState.currentMapId;
@@ -643,37 +750,8 @@ function MapPickingPhase({
             </div>
           </CardContent>
         </Card>
-
-        {/* Right - Team B Picked Maps */}
-        <div className={clsx(
-          "rounded-lg border p-4 transition-all",
-          isTeamBTurn ? "border-[color:var(--color-team-b)] bg-[color:var(--color-team-b)]/5" : "border-border bg-surface"
-        )}>
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-3 h-3 rounded-full bg-[color:var(--color-team-b)]" />
-            <h3 className="font-semibold text-foreground">{teamB?.name}</h3>
-            {isTeamBTurn && <Badge variant="primary" className="ml-auto text-xs">Turn</Badge>}
-          </div>
-          <div className="space-y-2">
-            {teamBMaps.length === 0 ? (
-              <p className="text-xs text-muted">No maps picked</p>
-            ) : (
-              teamBMaps.map((map) => (
-                <div key={map!.id} className="flex items-center gap-2 p-2 rounded bg-surface-elevated">
-                  <div className="w-10 h-6 rounded overflow-hidden bg-background">
-                    {map!.imgPath && (
-                      <img src={resolveMapImageUrl(map!.imgPath)} alt="" className="w-full h-full object-cover" />
-                    )}
-                  </div>
-                  <span className="text-xs text-foreground truncate">{map!.description}</span>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
       </div>
 
-      {/* Manager Controls */}
       {isManager && (
         <div className="text-center text-sm text-muted">
           Manager View: Wait for captain to pick a map, then start ban phase.
@@ -725,26 +803,96 @@ function BanPhase({
   const teamABans = teamA ? getBannedHeroesByTeam(teamA.id) : [];
   const teamBBans = teamB ? getBannedHeroesByTeam(teamB.id) : [];
 
-  const roleHeroes = selectedRole === "ALL" ? heroes : heroes.filter((h) => h.role === selectedRole);
-
   const isTeamATurn = draftState.currentTurnTeamId === teamA?.id;
   const isTeamBTurn = draftState.currentTurnTeamId === teamB?.id;
+
+  // Group heroes by role
+  const tankHeroes = heroes.filter((h) => h.role === "TANK");
+  const dpsHeroes = heroes.filter((h) => h.role === "DPS");
+  const supportHeroes = heroes.filter((h) => h.role === "SUPPORT");
 
   const renderBannedHero = (heroId: number) => {
     const hero = heroes.find((h) => h.id === heroId);
     return (
       <div
         key={heroId}
-        className="w-14 h-14 rounded-lg bg-danger/20 border border-danger/50 flex items-center justify-center overflow-hidden"
+        className="w-12 h-12 rounded-lg bg-danger/20 border border-danger/50 flex flex-col items-center justify-center overflow-hidden"
       >
         {hero?.imgPath ? (
-          <img src={resolveHeroImageUrl(hero.imgPath)} alt="" className="w-full h-full object-cover grayscale" />
+          <>
+            <img src={resolveHeroImageUrl(hero.imgPath)} alt="" className="w-full h-8 object-cover grayscale" />
+            <span className="text-[7px] text-danger truncate w-full text-center px-0.5">
+              {getHeroName(hero.imgPath)}
+            </span>
+          </>
         ) : (
           <span className="text-xs text-danger font-bold">#{heroId}</span>
         )}
       </div>
     );
   };
+
+  const renderHeroCard = (hero: Hero, canSelect: boolean, banned: boolean) => (
+    <button
+      key={hero.id}
+      onClick={() => canSelect && onBanHero(hero.id)}
+      disabled={!canSelect || actionLoading}
+      className={clsx(
+        "relative rounded-lg overflow-hidden border-2 transition-all flex flex-col",
+        banned
+          ? "border-danger/50 opacity-50 cursor-not-allowed"
+          : canSelect
+          ? "border-border hover:border-danger cursor-pointer hover:scale-105"
+          : "border-border cursor-default opacity-60"
+      )}
+    >
+      <div className="aspect-square bg-surface">
+        {hero.imgPath ? (
+          <img
+            src={resolveHeroImageUrl(hero.imgPath)}
+            alt={getHeroName(hero.imgPath)}
+            className={clsx("w-full h-full object-cover", banned && "grayscale")}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <span className="text-xs font-bold text-muted">
+              {hero.role.charAt(0)}{hero.id}
+            </span>
+          </div>
+        )}
+      </div>
+      <div className="px-1 py-0.5 bg-background text-center">
+        <span className="text-[9px] text-foreground truncate block">
+          {getHeroName(hero.imgPath)}
+        </span>
+      </div>
+      {banned && (
+        <div className="absolute inset-0 bg-danger/50 flex items-center justify-center animate-banned">
+          <span className="text-white font-bold text-[10px] uppercase">Banned</span>
+        </div>
+      )}
+    </button>
+  );
+
+  const renderHeroSection = (title: string, heroList: Hero[], roleColor: string) => (
+    <div className="mb-4">
+      <div className="flex items-center gap-3 mb-3 border-b border-border pb-2">
+        <div className={clsx("w-1.5 h-5 rounded-full", roleColor)} />
+        <h4 className="text-sm font-bold text-foreground uppercase tracking-wider">{title}</h4>
+        <div className="flex-1 h-px bg-border" />
+        <span className="text-xs text-muted bg-surface-elevated px-2 py-0.5 rounded-full">
+          {heroList.length} heroes
+        </span>
+      </div>
+      <div className="grid grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-2">
+        {heroList.map((hero) => {
+          const banned = isHeroBanned(hero.id);
+          const canSelect = isCaptain && isMyTurn && !banned && canBanRole(hero.role);
+          return renderHeroCard(hero, canSelect, banned);
+        })}
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -759,43 +907,84 @@ function BanPhase({
         )}
       </div>
 
-      {/* Three Column Layout - Responsive */}
-      <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr_200px] gap-6">
-        {/* Left - Team A Bans */}
-        <div className={clsx(
-          "rounded-lg border p-4 transition-all",
-          isTeamATurn ? "border-[color:var(--color-team-a)] bg-[color:var(--color-team-a)]/5 animate-turn-glow" : "border-border bg-surface"
-        )}>
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-3 h-3 rounded-full bg-[color:var(--color-team-a)]" />
-            <h3 className="font-semibold text-foreground">{teamA?.name}</h3>
-            {isTeamATurn && <Badge variant="danger" className="ml-auto text-xs">Banning</Badge>}
-          </div>
-          <p className="text-xs text-muted mb-3 uppercase tracking-wide">Banned Heroes</p>
-          <div className="flex flex-wrap gap-2">
-            {teamABans.length === 0 ? (
-              <>
-                <div className="w-14 h-14 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
-                  <span className="text-xs text-muted">1</span>
-                </div>
-                <div className="w-14 h-14 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
-                  <span className="text-xs text-muted">2</span>
-                </div>
-              </>
-            ) : (
-              <>
-                {teamABans.map(renderBannedHero)}
-                {teamABans.length < 2 && (
-                  <div className="w-14 h-14 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
-                    <span className="text-xs text-muted">{teamABans.length + 1}</span>
-                  </div>
+      {/* Two Column Layout - Teams Panel + Hero Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-6">
+        {/* Left - Combined Teams Panel */}
+        <Card className="border-border h-fit">
+          <CardContent className="p-4">
+            {/* Team A */}
+            <div className={clsx(
+              "rounded-lg p-3 mb-4 transition-all",
+              isTeamATurn ? "bg-[color:var(--color-team-a)]/10 ring-2 ring-[color:var(--color-team-a)]" : "bg-surface-elevated"
+            )}>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-3 h-3 rounded-full bg-[color:var(--color-team-a)]" />
+                <h3 className="font-semibold text-foreground text-sm flex-1">{teamA?.name}</h3>
+                {isTeamATurn && <Badge variant="danger" className="text-[10px]">Banning</Badge>}
+              </div>
+              <p className="text-[10px] text-muted mb-2 uppercase tracking-wide">Banned Heroes</p>
+              <div className="flex gap-2">
+                {teamABans.length === 0 ? (
+                  <>
+                    <div className="w-12 h-12 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
+                      <span className="text-[10px] text-muted">1</span>
+                    </div>
+                    <div className="w-12 h-12 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
+                      <span className="text-[10px] text-muted">2</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {teamABans.map(renderBannedHero)}
+                    {teamABans.length < 2 && (
+                      <div className="w-12 h-12 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
+                        <span className="text-[10px] text-muted">{teamABans.length + 1}</span>
+                      </div>
+                    )}
+                  </>
                 )}
-              </>
-            )}
-          </div>
-        </div>
+              </div>
+            </div>
 
-        {/* Middle - Hero Grid */}
+            <div className="border-t border-border my-3" />
+
+            {/* Team B */}
+            <div className={clsx(
+              "rounded-lg p-3 transition-all",
+              isTeamBTurn ? "bg-[color:var(--color-team-b)]/10 ring-2 ring-[color:var(--color-team-b)]" : "bg-surface-elevated"
+            )}>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-3 h-3 rounded-full bg-[color:var(--color-team-b)]" />
+                <h3 className="font-semibold text-foreground text-sm flex-1">{teamB?.name}</h3>
+                {isTeamBTurn && <Badge variant="danger" className="text-[10px]">Banning</Badge>}
+              </div>
+              <p className="text-[10px] text-muted mb-2 uppercase tracking-wide">Banned Heroes</p>
+              <div className="flex gap-2">
+                {teamBBans.length === 0 ? (
+                  <>
+                    <div className="w-12 h-12 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
+                      <span className="text-[10px] text-muted">1</span>
+                    </div>
+                    <div className="w-12 h-12 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
+                      <span className="text-[10px] text-muted">2</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {teamBBans.map(renderBannedHero)}
+                    {teamBBans.length < 2 && (
+                      <div className="w-12 h-12 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
+                        <span className="text-[10px] text-muted">{teamBBans.length + 1}</span>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Right - Hero Grid (now has more space) */}
         <Card className="border-border">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
@@ -811,7 +1000,7 @@ function BanPhase({
             </div>
           </CardHeader>
           <CardContent>
-            {/* Role Tabs - Manager sees "All" as default, Captain can use tabs */}
+            {/* Role Tabs */}
             <div className="flex gap-2 mb-6">
               {(["ALL", "TANK", "DPS", "SUPPORT"] as const).map((role) => (
                 <Button
@@ -835,48 +1024,22 @@ function BanPhase({
               </div>
             )}
 
-            {/* Hero Grid */}
-            <div className="grid grid-cols-5 md:grid-cols-7 lg:grid-cols-9 gap-2">
-              {roleHeroes.map((hero) => {
-                const banned = isHeroBanned(hero.id);
-                const canSelect = isCaptain && isMyTurn && !banned && canBanRole(hero.role);
-
-                return (
-                  <button
-                    key={hero.id}
-                    onClick={() => canSelect && onBanHero(hero.id)}
-                    disabled={!canSelect || actionLoading}
-                    className={clsx(
-                      "relative aspect-square rounded-lg overflow-hidden border-2 transition-all",
-                      banned
-                        ? "border-danger/50 opacity-50 cursor-not-allowed"
-                        : canSelect
-                        ? "border-border hover:border-danger cursor-pointer hover:scale-105"
-                        : "border-border cursor-default opacity-60"
-                    )}
-                  >
-                    {hero.imgPath ? (
-                      <img
-                        src={resolveHeroImageUrl(hero.imgPath)}
-                        alt={`Hero ${hero.id}`}
-                        className={clsx("w-full h-full object-cover", banned && "grayscale")}
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-surface flex items-center justify-center">
-                        <span className="text-xs font-bold text-muted">
-                          {hero.role.charAt(0)}{hero.id}
-                        </span>
-                      </div>
-                    )}
-                    {banned && (
-                      <div className="absolute inset-0 bg-danger/50 flex items-center justify-center animate-banned">
-                        <span className="text-white font-bold text-[10px] uppercase">Banned</span>
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+            {/* Render heroes by role when ALL is selected */}
+            {selectedRole === "ALL" ? (
+              <div className="space-y-6 max-h-[500px] overflow-y-auto pr-2">
+                {renderHeroSection("Tank", tankHeroes, "bg-yellow-500")}
+                {renderHeroSection("DPS", dpsHeroes, "bg-red-500")}
+                {renderHeroSection("Support", supportHeroes, "bg-green-500")}
+              </div>
+            ) : (
+              <div className="grid grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-2">
+                {heroes.filter((h) => h.role === selectedRole).map((hero) => {
+                  const banned = isHeroBanned(hero.id);
+                  const canSelect = isCaptain && isMyTurn && !banned && canBanRole(hero.role);
+                  return renderHeroCard(hero, canSelect, banned);
+                })}
+              </div>
+            )}
 
             {/* Skip Ban Button */}
             {isCaptain && isMyTurn && (
@@ -893,40 +1056,6 @@ function BanPhase({
             )}
           </CardContent>
         </Card>
-
-        {/* Right - Team B Bans */}
-        <div className={clsx(
-          "rounded-lg border p-4 transition-all",
-          isTeamBTurn ? "border-[color:var(--color-team-b)] bg-[color:var(--color-team-b)]/5 animate-turn-glow" : "border-border bg-surface"
-        )}>
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-3 h-3 rounded-full bg-[color:var(--color-team-b)]" />
-            <h3 className="font-semibold text-foreground">{teamB?.name}</h3>
-            {isTeamBTurn && <Badge variant="danger" className="ml-auto text-xs">Banning</Badge>}
-          </div>
-          <p className="text-xs text-muted mb-3 uppercase tracking-wide">Banned Heroes</p>
-          <div className="flex flex-wrap gap-2">
-            {teamBBans.length === 0 ? (
-              <>
-                <div className="w-14 h-14 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
-                  <span className="text-xs text-muted">1</span>
-                </div>
-                <div className="w-14 h-14 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
-                  <span className="text-xs text-muted">2</span>
-                </div>
-              </>
-            ) : (
-              <>
-                {teamBBans.map(renderBannedHero)}
-                {teamBBans.length < 2 && (
-                  <div className="w-14 h-14 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
-                    <span className="text-xs text-muted">{teamBBans.length + 1}</span>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -937,18 +1066,26 @@ function BanPhase({
 function EndMapPhase({
   isManager,
   isCaptain,
+  myTeamId,
   draftState,
   teams,
+  amIReady,
   onStartMapPicking,
   onSubmitResult,
+  onSetReady,
+  getBannedHeroesByTeam,
   actionLoading,
 }: {
   isManager: boolean;
   isCaptain: boolean;
+  myTeamId?: number | null;
   draftState: DraftState;
   teams: Team[];
+  amIReady: boolean;
   onStartMapPicking: () => void;
   onSubmitResult: (winnerTeamId: number | null) => void;
+  onSetReady: () => void;
+  getBannedHeroesByTeam: (teamId: number) => number[];
   actionLoading: boolean;
 }) {
   const winsNeeded = Math.ceil(draftState.match.bestOf / 2);
@@ -957,7 +1094,11 @@ function EndMapPhase({
   const teamA = teams.find((t) => t.id === draftState.match.teamAId);
   const teamB = teams.find((t) => t.id === draftState.match.teamBId);
   const currentMap = draftState.allMaps?.find((m) => m.id === draftState.currentMapId);
-  const matchStatus = draftState.match.status;
+  const heroes = draftState.heroes || [];
+
+  // Get banned heroes for this game
+  const teamABans = teamA ? getBannedHeroesByTeam(teamA.id) : [];
+  const teamBBans = teamB ? getBannedHeroesByTeam(teamB.id) : [];
 
   // Check if result has been registered for current game
   const currentMapResult = draftState.match.mapResults?.find(
@@ -967,6 +1108,30 @@ function EndMapPhase({
 
   // Check if match is finished based on wins
   const matchIsFinished = teamAWins >= winsNeeded || teamBWins >= winsNeeded;
+
+  // Check if both teams are ready for next map
+  const bothReady = draftState.match.teamAready === 1 && draftState.match.teamBready === 1;
+
+  const renderBannedHero = (heroId: number) => {
+    const hero = heroes.find((h) => h.id === heroId);
+    return (
+      <div
+        key={heroId}
+        className="w-12 h-12 rounded-lg bg-danger/20 border border-danger/50 flex flex-col items-center justify-center overflow-hidden"
+      >
+        {hero?.imgPath ? (
+          <>
+            <img src={resolveHeroImageUrl(hero.imgPath)} alt="" className="w-full h-8 object-cover grayscale" />
+            <span className="text-[7px] text-danger truncate w-full text-center">
+              {getHeroName(hero.imgPath)}
+            </span>
+          </>
+        ) : (
+          <span className="text-xs text-danger font-bold">#{heroId}</span>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -981,104 +1146,185 @@ function EndMapPhase({
         </div>
       )}
 
-      <div className="flex flex-col items-center justify-center">
-        <Card className="w-full max-w-2xl">
-          <CardContent className="p-8">
-            {/* Match Score Header */}
-            <div className="flex items-center justify-center gap-8 mb-8">
-              <div className="text-center">
-                <p className="text-sm text-muted mb-2">{teamA?.name}</p>
-                <p className="text-5xl font-bold text-[color:var(--color-team-a)]">{teamAWins}</p>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-6">
+        {/* Left - Teams Info with Bans */}
+        <Card className="border-border">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">Teams</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {/* Team A */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-[color:var(--color-team-a)]" />
+                  <span className="font-semibold text-foreground">{teamA?.name}</span>
+                </div>
+                <span className="text-2xl font-bold text-[color:var(--color-team-a)]">{teamAWins}</span>
               </div>
-              <div className="text-3xl text-muted font-light">-</div>
-              <div className="text-center">
-                <p className="text-sm text-muted mb-2">{teamB?.name}</p>
-                <p className="text-5xl font-bold text-[color:var(--color-team-b)]">{teamBWins}</p>
+              <p className="text-xs text-muted mb-2">Banned Heroes:</p>
+              <div className="flex gap-2">
+                {teamABans.length === 0 ? (
+                  <span className="text-xs text-muted">No bans</span>
+                ) : (
+                  teamABans.map(renderBannedHero)
+                )}
               </div>
+              {isManager && (
+                <div className="flex items-center gap-2 mt-2">
+                  <div className={clsx("w-2 h-2 rounded-full", draftState.match.teamAready ? "bg-success" : "bg-muted")} />
+                  <span className="text-xs text-muted">{draftState.match.teamAready ? "Ready" : "Not Ready"}</span>
+                </div>
+              )}
             </div>
 
-            <p className="text-sm text-muted text-center mb-6">
+            <div className="border-t border-border my-4" />
+
+            {/* Team B */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-[color:var(--color-team-b)]" />
+                  <span className="font-semibold text-foreground">{teamB?.name}</span>
+                </div>
+                <span className="text-2xl font-bold text-[color:var(--color-team-b)]">{teamBWins}</span>
+              </div>
+              <p className="text-xs text-muted mb-2">Banned Heroes:</p>
+              <div className="flex gap-2">
+                {teamBBans.length === 0 ? (
+                  <span className="text-xs text-muted">No bans</span>
+                ) : (
+                  teamBBans.map(renderBannedHero)
+                )}
+              </div>
+              {isManager && (
+                <div className="flex items-center gap-2 mt-2">
+                  <div className={clsx("w-2 h-2 rounded-full", draftState.match.teamBready ? "bg-success" : "bg-muted")} />
+                  <span className="text-xs text-muted">{draftState.match.teamBready ? "Ready" : "Not Ready"}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-border my-4" />
+
+            <p className="text-xs text-muted text-center">
               First to {winsNeeded} wins | Best of {draftState.match.bestOf}
             </p>
+          </CardContent>
+        </Card>
 
-            {/* Manager: Register Match Result */}
-            {isManager && matchStatus === "PENDINGREGISTERS" && !resultRegistered && (
-              <div className="border border-border rounded-lg p-6 bg-surface mb-6">
-                <h3 className="text-lg font-semibold text-foreground mb-4 text-center">
+        {/* Right - Result Registration / Captain Ready */}
+        <Card className="border-border">
+          <CardContent className="p-6">
+            {/* Manager: Register Match Result Form */}
+            {isManager && !resultRegistered && !matchIsFinished && (
+              <div>
+                <h3 className="text-xl font-bold text-foreground mb-2 text-center">
                   Register Game {draftState.match.gameNumber} Result
                 </h3>
                 <p className="text-sm text-muted text-center mb-6">
-                  Who won this map?
+                  Select the winner of {currentMap?.description || "this map"}
                 </p>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-3 gap-4 mb-6">
                   <Button
                     size="lg"
                     variant="outline"
                     onClick={() => onSubmitResult(teamA?.id || 0)}
                     disabled={actionLoading}
-                    className="flex flex-col items-center gap-2 h-auto py-4 border-[color:var(--color-team-a)] hover:bg-[color:var(--color-team-a)]/10"
+                    className="flex flex-col items-center gap-2 h-auto py-6 border-2 border-[color:var(--color-team-a)] hover:bg-[color:var(--color-team-a)]/10"
                   >
-                    <span className="text-lg font-bold text-[color:var(--color-team-a)]">{teamA?.name}</span>
-                    <span className="text-xs text-muted">Won</span>
+                    <span className="text-2xl font-bold text-[color:var(--color-team-a)]">{teamA?.name}</span>
+                    <span className="text-sm text-muted">Won</span>
                   </Button>
                   <Button
                     size="lg"
                     variant="outline"
                     onClick={() => onSubmitResult(null)}
                     disabled={actionLoading}
-                    className="flex flex-col items-center gap-2 h-auto py-4"
+                    className="flex flex-col items-center gap-2 h-auto py-6 border-2"
                   >
-                    <span className="text-lg font-bold text-muted">Draw</span>
-                    <span className="text-xs text-muted">Tie Game</span>
+                    <span className="text-2xl font-bold text-muted">Draw</span>
+                    <span className="text-sm text-muted">Tie Game</span>
                   </Button>
                   <Button
                     size="lg"
                     variant="outline"
                     onClick={() => onSubmitResult(teamB?.id || 0)}
                     disabled={actionLoading}
-                    className="flex flex-col items-center gap-2 h-auto py-4 border-[color:var(--color-team-b)] hover:bg-[color:var(--color-team-b)]/10"
+                    className="flex flex-col items-center gap-2 h-auto py-6 border-2 border-[color:var(--color-team-b)] hover:bg-[color:var(--color-team-b)]/10"
                   >
-                    <span className="text-lg font-bold text-[color:var(--color-team-b)]">{teamB?.name}</span>
-                    <span className="text-xs text-muted">Won</span>
+                    <span className="text-2xl font-bold text-[color:var(--color-team-b)]">{teamB?.name}</span>
+                    <span className="text-sm text-muted">Won</span>
                   </Button>
                 </div>
                 {actionLoading && (
-                  <p className="text-sm text-muted text-center mt-4">Submitting result...</p>
+                  <p className="text-sm text-muted text-center">Submitting result...</p>
                 )}
               </div>
             )}
 
-            {/* Result registered - show next action */}
+            {/* Manager: Result registered, wait for captains */}
             {isManager && resultRegistered && !matchIsFinished && (
-              <div className="text-center space-y-4">
-                <Badge variant="success" className="mb-2">Result Registered</Badge>
-                <p className="text-sm text-muted mb-4">
-                  Ready to start the next map picking phase.
+              <div className="text-center">
+                <Badge variant="success" className="mb-4">Game {draftState.match.gameNumber} Result Registered</Badge>
+                <p className="text-sm text-muted mb-6">
+                  Waiting for both captains to be ready for the next map.
                 </p>
-                <Button size="lg" onClick={onStartMapPicking} disabled={actionLoading}>
+                <Button 
+                  size="lg" 
+                  onClick={onStartMapPicking} 
+                  disabled={actionLoading || !bothReady}
+                  className="px-8"
+                >
                   {actionLoading ? "Starting..." : "Start Next Map"}
                 </Button>
+                {!bothReady && (
+                  <p className="text-xs text-muted mt-2">Both captains must be ready</p>
+                )}
+              </div>
+            )}
+
+            {/* Captain: Ready button */}
+            {isCaptain && !matchIsFinished && (
+              <div className="text-center">
+                <h3 className="text-xl font-bold text-foreground mb-4">
+                  {resultRegistered ? "Get Ready for Next Map" : "Waiting for Results"}
+                </h3>
+                {currentMap && (
+                  <p className="text-sm text-muted mb-6">
+                    After you finish playing on <span className="font-semibold text-foreground">{currentMap.description}</span>, 
+                    press the button below to tell the manager you are ready to continue!
+                  </p>
+                )}
+                {!amIReady ? (
+                  <Button 
+                    size="lg" 
+                    onClick={onSetReady} 
+                    disabled={actionLoading}
+                    className="px-8"
+                  >
+                    {actionLoading ? "Setting ready..." : "I'm Ready for Next Map!"}
+                  </Button>
+                ) : (
+                  <div>
+                    <Badge variant="success" className="text-sm px-4 py-2">You are ready</Badge>
+                    <p className="text-xs text-muted mt-2">
+                      Waiting for {resultRegistered ? "the other captain and manager..." : "manager to register results..."}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
             {/* Match finished */}
             {matchIsFinished && (
-              <div className="text-center">
+              <div className="text-center py-8">
                 <Badge variant="success" className="mb-4">Match Complete</Badge>
-                <p className="text-xl font-bold text-primary">
+                <p className="text-3xl font-bold text-primary">
                   {teamAWins > teamBWins ? teamA?.name : teamB?.name} Wins!
                 </p>
-              </div>
-            )}
-
-            {/* Captain view */}
-            {isCaptain && !matchIsFinished && (
-              <div className="text-center">
-                <p className="text-muted text-sm">
-                  {resultRegistered 
-                    ? "Waiting for manager to start next map..."
-                    : "Waiting for manager to register result..."
-                  }
+                <p className="text-muted mt-2">
+                  Final Score: {teamAWins} - {teamBWins}
                 </p>
               </div>
             )}
@@ -1160,12 +1406,11 @@ function DraftHistory({
     }
     if (action.action === "BAN" && action.value) {
       const hero = heroes.find((h) => h.id === action.value);
-      return hero ? `Banned ${hero.role} Hero` : `Banned Hero #${action.value}`;
+      return hero ? `Banned ${getHeroName(hero.imgPath)}` : `Banned Hero #${action.value}`;
     }
     return action.action;
   };
 
-  // Group by game
   const actionsByGame = actions.reduce((acc, action) => {
     if (!acc[action.gameNumber]) acc[action.gameNumber] = [];
     acc[action.gameNumber].push(action);
