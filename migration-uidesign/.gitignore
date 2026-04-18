@@ -1,0 +1,79 @@
+# .gitignore for migration-uidesign
+# Node.js
+node_modules/
+.env
+.DS_Store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Logs
+logs
+*.log
+
+# Build output
+/dist
+/build
+
+# Prisma
+backend/prisma/.env
+backend/prisma/dev.db
+backend/prisma/dev.db-journal
+backend/prisma/migrations/*/README.md
+
+# VSCode
+.vscode/
+
+# OS
+Thumbs.db
+
+# Next.js
+.next/
+
+# Misc
+*.local
+*.cache
+
+# Ignore system files
+*.swp
+*.swo
+
+# Ignore frontend build artifacts
+frontend/.next/
+frontend/out/
+
+# Ignore backend build artifacts
+backend/dist/
+backend/build/
+
+# Ignore coverage
+coverage/
+
+# Ignore IDE files
+.idea/
+*.iml
+
+# Ignore test output
+junit.xml
+
+# Ignore temporary files
+*.tmp
+*.temp
+
+# Ignore backups
+*~
+*.bak
+
+# Ignore lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Ignore Mac system files
+*.DS_Store
+
+# Ignore Windows system files
+Thumbs.db
+
+# Ignore environment files
+.env.*

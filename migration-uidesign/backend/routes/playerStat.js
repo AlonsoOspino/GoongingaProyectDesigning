@@ -1,0 +1,15 @@
+const express = require("express");
+const multer = require("multer");
+const authMiddleware = require("../middlewares/authMiddleware");
+const managerMiddleware = require("../middlewares/manager");
+const playerStatController = require("../controllers/playerStat");
+
+const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage() });
+
+router.get("/", authMiddleware, managerMiddleware, playerStatController.getAll);
+router.get("/mine", authMiddleware, playerStatController.getMine);
+router.post("/", authMiddleware, playerStatController.create);
+router.post("/upload", authMiddleware, upload.single("image"), playerStatController.createFromImage);
+
+module.exports = router;
