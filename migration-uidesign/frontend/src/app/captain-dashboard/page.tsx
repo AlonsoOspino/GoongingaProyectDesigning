@@ -83,6 +83,8 @@ export default function CaptainDashboardPage() {
     }
   }, [notificationPermission]);
 
+  const prevDraftsRef = useRef<Record<number, DraftState | null>>({});
+
   async function loadData(silent = false) {
     try {
       if (!silent) setLoading(true);
@@ -101,9 +103,12 @@ export default function CaptainDashboardPage() {
       for (const match of myMatches) {
         const prevMatch = prevMatchesRef.current.find((m) => m.id === match.id);
         if (prevMatch && prevMatch.status !== "ACTIVE" && match.status === "ACTIVE") {
+          const opponentName = teamsData.find(
+            (t) => t.id === (match.teamAId === user?.teamId ? match.teamBId : match.teamAId)
+          )?.name || "opponent";
           sendNotification(
             "Match is Live!",
-            `Your match is now active. Join the draft table!`
+            `Your match vs ${opponentName} is now active. Join the draft table!`
           );
         }
       }
@@ -112,8 +117,8 @@ export default function CaptainDashboardPage() {
       setMatches(matchesData);
       setTeams(teamsData);
 
-      // Load draft states for active matches
-      const activeMatches = myMatches.filter((m) => m.status === "ACTIVE");
+      // Load draft states for active matches (and pending)
+      const activeMatches = myMatches.filter((m) => m.status === "ACTIVE" || m.status === "PENDINGREGISTERS");
       const draftPromises = activeMatches.map(async (match) => {
         try {
           const draft = await getDraftByMatchId(match.id);
@@ -127,7 +132,49 @@ export default function CaptainDashboardPage() {
       const newDrafts: Record<number, DraftState | null> = {};
       for (const result of draftResults) {
         newDrafts[result.matchId] = result.draft;
+        
+        // Check if draft was just created (exists now but didn't before)
+        const prevDraft = prevDraftsRef.current[result.matchId];
+        if (result.draft && !prevDraft && silent) {
+          sendNotification(
+            "Draft Table Ready!",
+            "The manager has created the draft table. Join now!"
+          );
+        }
+        
+        // Check if phase changed to something captain needs to act on
+        if (result.draft && prevDraft && prevDraft.phase !== result.draft.phase) {
+          const isMyTurn = result.draft.currentTurnTeamId === user?.teamId;
+          if (result.draft.phase === "MAPPICKING" && isMyTurn) {
+            sendNotification(
+              "Your Turn to Pick!",
+              "It's your turn to pick a map."
+            );
+          } else if (result.draft.phase === "BAN" && isMyTurn) {
+            sendNotification(
+              "Your Turn to Ban!",
+              "It's your turn to ban a hero."
+            );
+          } else if (result.draft.phase === "STARTING") {
+            sendNotification(
+              "Next Map Starting",
+              "Get ready for the next map!"
+            );
+          }
+        }
+        
+        // Check if turn changed to us
+        if (result.draft && prevDraft && 
+            prevDraft.currentTurnTeamId !== user?.teamId && 
+            result.draft.currentTurnTeamId === user?.teamId) {
+          sendNotification(
+            "Your Turn!",
+            `It's your turn in the ${result.draft.phase.toLowerCase()} phase.`
+          );
+        }
       }
+      
+      prevDraftsRef.current = newDrafts;
       setDrafts(newDrafts);
     } catch (err) {
       console.error("Failed to load data:", err);
@@ -232,19 +279,30 @@ export default function CaptainDashboardPage() {
               Manage your team&apos;s matches and participate in draft tables
             </p>
           </div>
-          {notificationPermission === "default" && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                Notification.requestPermission().then((permission) => {
-                  setNotificationPermission(permission);
-                });
-              }}
-            >
-              Enable Notifications
-            </Button>
-          )}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+              <span className="text-xs text-muted">Live updates</span>
+            </div>
+            {notificationPermission === "default" && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  Notification.requestPermission().then((permission) => {
+                    setNotificationPermission(permission);
+                  });
+                }}
+              >
+                Enable Notifications
+              </Button>
+            )}
+            {notificationPermission === "denied" && (
+              <Badge variant="warning" className="text-xs">
+                Notifications blocked
+              </Badge>
+            )}
+          </div>
         </div>
 
         {/* Team Info Card */}
