@@ -75,6 +75,15 @@ const getDraftState = async (req, res) => {
   }
 };
 
+const getDraftByMatchId = async (req, res) => {
+  try {
+    const draft = await draftService.getDraftByMatchId(req.params.matchId);
+    res.json(draft);
+  } catch (err) {
+    respondError(res, err);
+  }
+};
+
 module.exports = {
   createDraft,
   startMapPicking,
@@ -83,4 +92,5 @@ module.exports = {
   banHero,
   endMap,
   getDraftState,
+  getDraftByMatchId,
 };

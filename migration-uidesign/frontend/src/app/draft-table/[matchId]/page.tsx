@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import {
+  getDraftByMatchId,
   getDraftState,
   startMapPicking,
   pickMap,
@@ -30,9 +31,10 @@ export default function DraftTablePage() {
   const router = useRouter();
   const { user, token, isAuthenticated, isHydrated } = useSession();
   
-  const draftId = Number(params.draftId);
+  const matchId = Number(params.matchId);
   
   const [draftState, setDraftState] = useState<DraftState | null>(null);
+  const draftId = draftState?.id; // Get draftId from the loaded draft state
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +66,7 @@ export default function DraftTablePage() {
     if (isHydrated && isAuthenticated) {
       loadData();
     }
-  }, [isHydrated, isAuthenticated, draftId]);
+  }, [isHydrated, isAuthenticated, matchId]);
 
   // Setup polling
   useEffect(() => {
@@ -105,20 +107,21 @@ export default function DraftTablePage() {
   async function loadData() {
     try {
       const [draft, teamsData] = await Promise.all([
-        getDraftState(draftId),
+        getDraftByMatchId(matchId),
         getTeams(),
       ]);
       setDraftState(draft);
       setTeams(teamsData);
     } catch (err) {
       console.error("Failed to load draft:", err);
-      setError("Failed to load draft table. It may not exist.");
+      setError("Failed to load draft table. It may not exist or has not been created yet.");
     } finally {
       setLoading(false);
     }
   }
 
   async function fetchDraftState() {
+    if (!draftId) return;
     try {
       const draft = await getDraftState(draftId);
       setDraftState(draft);
@@ -129,7 +132,7 @@ export default function DraftTablePage() {
 
   // Manager actions
   async function handleStartMapPicking() {
-    if (!token) return;
+    if (!token || !draftId) return;
     setActionLoading(true);
     try {
       const updated = await startMapPicking(token, draftId);
@@ -142,7 +145,7 @@ export default function DraftTablePage() {
   }
 
   async function handleStartBan() {
-    if (!token) return;
+    if (!token || !draftId) return;
     setActionLoading(true);
     try {
       const updated = await startBan(token, draftId);
@@ -155,7 +158,7 @@ export default function DraftTablePage() {
   }
 
   async function handleEndMap() {
-    if (!token) return;
+    if (!token || !draftId) return;
     setActionLoading(true);
     try {
       const updated = await endMap(token, draftId);
@@ -169,7 +172,7 @@ export default function DraftTablePage() {
 
   // Captain actions
   async function handlePickMap(mapId: number) {
-    if (!token || !isMyTurn) return;
+    if (!token || !isMyTurn || !draftId) return;
     setActionLoading(true);
     try {
       const updated = await pickMap(token, draftId, { mapId, teamId: myTeamId });
@@ -182,7 +185,7 @@ export default function DraftTablePage() {
   }
 
   async function handleBanHero(heroId: number | null) {
-    if (!token || !isMyTurn) return;
+    if (!token || !isMyTurn || !draftId) return;
     setActionLoading(true);
     try {
       const updated = await banHero(token, draftId, { heroId, teamId: myTeamId });

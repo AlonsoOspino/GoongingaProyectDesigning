@@ -10,5 +10,6 @@ router.patch("/:id/start-ban", authMiddleware, draftController.startBan);
 router.post("/:id/ban-hero", authMiddleware, draftController.banHero);
 router.patch("/:id/end-map", authMiddleware, draftController.endMap);
 router.get("/:id/state", draftController.getDraftState);
+router.get("/by-match/:matchId", draftController.getDraftByMatchId);
 
 module.exports = router;

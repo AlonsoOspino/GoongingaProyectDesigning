@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/Table";
-import { getMatches, getActiveMatches, getTeams, createDraft, type Match, type Team } from "@/lib/api";
+import { getMatches, getTeams, createDraft, getDraftByMatchId, type Match, type Team } from "@/lib/api";
 
 type TabValue = "scheduled" | "active" | "pending";
 
@@ -54,9 +54,9 @@ export default function ManagerDashboardPage() {
     if (!token) return;
     setCreatingDraft(matchId);
     try {
-      const draft = await createDraft(token, matchId);
-      // Navigate to the draft table
-      router.push(`/draft-table/${draft.id}`);
+      await createDraft(token, matchId);
+      // Navigate to the draft table using matchId
+      router.push(`/draft-table/${matchId}`);
     } catch (err) {
       console.error("Failed to create draft:", err);
       alert("Failed to create draft table. Make sure both teams are ready.");

@@ -580,6 +580,25 @@ const getDraftState = async (draftId) => {
   };
 };
 
+const getDraftByMatchId = async (matchId) => {
+  const parsedMatchId = assertPositiveInt(matchId, "matchId");
+
+  const draft = await prisma.draftTable.findUnique({
+    where: { matchId: parsedMatchId },
+    include: {
+      match: true,
+      actions: { orderBy: { order: "asc" } },
+    },
+  });
+
+  if (!draft) {
+    throw new Error("Draft not found for this match.");
+  }
+
+  // Return full state like getDraftState
+  return getDraftState(draft.id);
+};
+
 module.exports = {
   mapOrder,
   createDraft,
@@ -589,4 +608,5 @@ module.exports = {
   banHero,
   endMap,
   getDraftState,
+  getDraftByMatchId,
 };
