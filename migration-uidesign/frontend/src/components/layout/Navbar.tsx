@@ -8,20 +8,35 @@ import { useSession } from "@/features/session/SessionProvider";
 import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
 
-const navLinks = [
+const publicNavLinks = [
   { href: "/", label: "Home" },
-  { href: "/teams", label: "Teams" },
-  { href: "/standings", label: "Standings" },
-  { href: "/draft", label: "Draft" },
   { href: "/schedule", label: "Schedule" },
   { href: "/news", label: "News" },
-  { href: "/stats", label: "Stats" },
+  { href: "/standings", label: "Leaderboard" },
+  { href: "/stats", label: "Top Players" },
 ];
 
 export function Navbar() {
   const pathname = usePathname();
-  const { isAuthenticated, user, clearSession } = useSession();
+  const { isAuthenticated, user, clearSession, isHydrated } = useSession();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Get role-based dashboard link
+  const getDashboardLink = () => {
+    if (!user) return null;
+    switch (user.role) {
+      case "ADMIN":
+        return { href: "/admin-dashboard", label: "Admin Dashboard" };
+      case "MANAGER":
+        return { href: "/manager-dashboard", label: "Manager Dashboard" };
+      case "CAPTAIN":
+        return { href: "/captain-dashboard", label: "Captain Dashboard" };
+      default:
+        return null;
+    }
+  };
+
+  const dashboardLink = getDashboardLink();
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -39,7 +54,7 @@ export function Navbar() {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-1">
-            {navLinks.map((link) => {
+            {publicNavLinks.map((link) => {
               const isActive =
                 link.href === "/"
                   ? pathname === "/"
@@ -64,36 +79,41 @@ export function Navbar() {
 
           {/* Auth Section */}
           <div className="flex items-center gap-3">
-            {isAuthenticated && user ? (
+            {!isHydrated ? (
+              <div className="w-20 h-8 bg-surface animate-pulse rounded-md" />
+            ) : isAuthenticated && user ? (
               <div className="hidden md:flex items-center gap-3">
-                <Link
-                  href="/my-team"
-                  className={clsx(
-                    "px-3 py-2 text-sm font-medium rounded-md transition-colors",
-                    pathname === "/my-team"
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted hover:text-foreground hover:bg-surface"
-                  )}
-                >
-                  My Team
-                </Link>
-                <div className="flex items-center gap-2">
+                {/* Role-based dashboard button */}
+                {dashboardLink && (
+                  <Link
+                    href={dashboardLink.href}
+                    className={clsx(
+                      "px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                      pathname.startsWith(dashboardLink.href)
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-accent/20 text-accent hover:bg-accent/30"
+                    )}
+                  >
+                    {dashboardLink.label}
+                  </Link>
+                )}
+                
+                {/* Profile dropdown */}
+                <div className="flex items-center gap-2 px-2 py-1 rounded-md bg-surface">
                   <Avatar size="sm" fallback={user.nickname} />
-                  <span className="text-sm text-foreground">{user.nickname}</span>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-foreground">{user.nickname}</span>
+                    <span className="text-xs text-muted capitalize">{user.role.toLowerCase()}</span>
+                  </div>
                 </div>
                 <Button variant="ghost" size="sm" onClick={clearSession}>
-                  Sign Out
+                  Logout
                 </Button>
               </div>
             ) : (
               <div className="hidden md:flex items-center gap-2">
                 <Link href="/login">
-                  <Button variant="ghost" size="sm">
-                    Sign In
-                  </Button>
-                </Link>
-                <Link href="/register">
-                  <Button size="sm">Register</Button>
+                  <Button size="sm">Login</Button>
                 </Link>
               </div>
             )}
@@ -137,7 +157,7 @@ export function Navbar() {
         {isMobileMenuOpen && (
           <nav className="md:hidden py-4 border-t border-border">
             <div className="flex flex-col gap-1">
-              {navLinks.map((link) => {
+              {publicNavLinks.map((link) => {
                 const isActive =
                   link.href === "/"
                     ? pathname === "/"
@@ -162,21 +182,26 @@ export function Navbar() {
 
               {isAuthenticated && user ? (
                 <>
-                  <Link
-                    href="/my-team"
-                    className={clsx(
-                      "px-3 py-2 text-sm font-medium rounded-md transition-colors",
-                      pathname === "/my-team"
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted hover:text-foreground hover:bg-surface"
-                    )}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    My Team
-                  </Link>
-                  <div className="flex items-center gap-2 px-3 py-2">
+                  {dashboardLink && (
+                    <Link
+                      href={dashboardLink.href}
+                      className={clsx(
+                        "px-3 py-2 text-sm font-medium rounded-md transition-colors mt-2",
+                        pathname.startsWith(dashboardLink.href)
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-accent/20 text-accent hover:bg-accent/30"
+                      )}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      {dashboardLink.label}
+                    </Link>
+                  )}
+                  <div className="flex items-center gap-2 px-3 py-2 mt-2 border-t border-border">
                     <Avatar size="sm" fallback={user.nickname} />
-                    <span className="text-sm text-foreground">{user.nickname}</span>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-foreground">{user.nickname}</span>
+                      <span className="text-xs text-muted capitalize">{user.role.toLowerCase()}</span>
+                    </div>
                   </div>
                   <button
                     type="button"
@@ -186,19 +211,14 @@ export function Navbar() {
                       setIsMobileMenuOpen(false);
                     }}
                   >
-                    Sign Out
+                    Logout
                   </button>
                 </>
               ) : (
                 <div className="flex flex-col gap-2 pt-2 border-t border-border mt-2">
                   <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
-                    <Button variant="ghost" size="sm" className="w-full justify-start">
-                      Sign In
-                    </Button>
-                  </Link>
-                  <Link href="/register" onClick={() => setIsMobileMenuOpen(false)}>
                     <Button size="sm" className="w-full">
-                      Register
+                      Login
                     </Button>
                   </Link>
                 </div>
