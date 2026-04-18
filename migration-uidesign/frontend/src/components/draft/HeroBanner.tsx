@@ -4,6 +4,7 @@ import { clsx } from "clsx";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import type { Hero, HeroRole } from "@/lib/api/types";
+import { resolveHeroImageUrl } from "@/lib/assetUrls";
 
 interface HeroBannerProps {
   heroes: Hero[];
@@ -83,7 +84,7 @@ export function HeroBanner({
                       {/* Hero Image */}
                       {hero.imgPath ? (
                         <img
-                          src={hero.imgPath}
+                          src={resolveHeroImageUrl(hero.imgPath)}
                           alt={`Hero ${hero.id}`}
                           className="w-full h-full object-cover"
                         />

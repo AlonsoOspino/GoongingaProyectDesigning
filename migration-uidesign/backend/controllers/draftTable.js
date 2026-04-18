@@ -70,11 +70,28 @@ const getAll = async (req, res) => {
   }
 };
 
+const getByMatchId = async (req, res) => {
+  try {
+    const matchId = Number(req.params.matchId);
+    if (!Number.isFinite(matchId) || matchId <= 0) {
+      return res.status(400).json({ message: "Invalid matchId" });
+    }
+    const draft = await draftTableService.findByMatchId(matchId);
+    if (!draft) {
+      return res.status(404).json({ message: "Draft table not found for this match" });
+    }
+    res.json(draft);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 module.exports = {
   adminCreate,
   adminUpdate,
   adminRemove,
   managerCreate,
   managerUpdate,
-  getAll
+  getAll,
+  getByMatchId
 };

@@ -4,6 +4,7 @@ import { clsx } from "clsx";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import type { GameMap, MapType } from "@/lib/api/types";
+import { resolveMapImageUrl } from "@/lib/assetUrls";
 
 interface MapPickerProps {
   availableMaps: GameMap[];
@@ -80,7 +81,7 @@ export function MapPicker({
                       <div className="aspect-video bg-surface-elevated">
                         {map.imgPath ? (
                           <img
-                            src={map.imgPath}
+                            src={resolveMapImageUrl(map.imgPath)}
                             alt={map.description}
                             className="w-full h-full object-cover"
                           />

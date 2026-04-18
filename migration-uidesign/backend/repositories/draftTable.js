@@ -5,7 +5,18 @@ const update = (id, data) => prisma.draftTable.update({ where: { id }, data });
 const remove = (id) => prisma.draftTable.delete({ where: { id } });
 const getAll = () => prisma.draftTable.findMany();
 const findByMatchId = async (matchId) => {
-  return await prisma.draftTable.findUnique({ where: { matchId } });
+  return await prisma.draftTable.findUnique({
+    where: { matchId },
+    include: {
+      match: {
+        include: {
+          teamA: true,
+          teamB: true
+        }
+      },
+      actions: true
+    }
+  });
 };
 
 module.exports = {

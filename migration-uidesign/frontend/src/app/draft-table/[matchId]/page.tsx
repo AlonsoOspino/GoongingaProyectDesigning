@@ -20,6 +20,7 @@ import {
 } from "@/lib/api";
 import { getTeams, type Team } from "@/lib/api";
 import { clsx } from "clsx";
+import { resolveHeroImageUrl, resolveMapImageUrl } from "@/lib/assetUrls";
 
 const POLL_INTERVAL = 3000; // 3 seconds
 const TURN_DURATION = 75; // 1 minute 15 seconds
@@ -63,9 +64,21 @@ export default function DraftTablePage() {
 
   // Load initial data
   useEffect(() => {
-    if (isHydrated && isAuthenticated) {
-      loadData();
+    if (!isHydrated) return;
+
+    if (!Number.isFinite(matchId) || matchId <= 0) {
+      setError("Invalid match id.");
+      setLoading(false);
+      return;
     }
+
+    if (!isAuthenticated) {
+      setError("You need to log in to access the draft table.");
+      setLoading(false);
+      return;
+    }
+
+    loadData();
   }, [isHydrated, isAuthenticated, matchId]);
 
   // Setup polling
@@ -258,7 +271,11 @@ export default function DraftTablePage() {
         <Card className="max-w-md">
           <CardContent className="p-8 text-center">
             <p className="text-danger mb-4">{error || "Draft not found"}</p>
-            <Button onClick={() => router.back()}>Go Back</Button>
+            {!isAuthenticated ? (
+              <Button onClick={() => router.push("/login")}>Go to Login</Button>
+            ) : (
+              <Button onClick={() => router.back()}>Go Back</Button>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -552,7 +569,7 @@ function MapPickingPhase({
                 <div className="aspect-video bg-surface flex items-center justify-center">
                   {map.imgPath ? (
                     <img
-                      src={map.imgPath}
+                      src={resolveMapImageUrl(map.imgPath)}
                       alt={map.description}
                       className="w-full h-full object-cover"
                     />
@@ -666,7 +683,7 @@ function BanPhase({
                       className="w-12 h-12 rounded-lg bg-danger/20 border border-danger flex items-center justify-center"
                     >
                       {hero?.imgPath ? (
-                        <img src={hero.imgPath} alt="" className="w-10 h-10 rounded" />
+                        <img src={resolveHeroImageUrl(hero.imgPath)} alt="" className="w-10 h-10 rounded" />
                       ) : (
                         <span className="text-xs text-danger">#{heroId}</span>
                       )}
@@ -711,7 +728,7 @@ function BanPhase({
                       className="w-12 h-12 rounded-lg bg-danger/20 border border-danger flex items-center justify-center"
                     >
                       {hero?.imgPath ? (
-                        <img src={hero.imgPath} alt="" className="w-10 h-10 rounded" />
+                        <img src={resolveHeroImageUrl(hero.imgPath)} alt="" className="w-10 h-10 rounded" />
                       ) : (
                         <span className="text-xs text-danger">#{heroId}</span>
                       )}
@@ -774,7 +791,7 @@ function BanPhase({
                 >
                   {hero.imgPath ? (
                     <img
-                      src={hero.imgPath}
+                      src={resolveHeroImageUrl(hero.imgPath)}
                       alt={`Hero ${hero.id}`}
                       className="w-full h-full object-cover"
                     />

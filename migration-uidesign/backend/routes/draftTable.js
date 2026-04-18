@@ -13,5 +13,8 @@ router.delete("/admin/delete/:id", authMiddleware, adminMiddleware, draftTableCo
 router.post("/manager/create", authMiddleware, managerMiddleware, draftTableController.managerCreate);
 router.put("/manager/update/:id", authMiddleware, managerMiddleware, draftTableController.managerUpdate);
 // Public get all draft tables
-router.get("/", draftTableController.getAll);   
+router.get("/", draftTableController.getAll);
+
+// Public get draft table by matchId
+router.get("/by-match/:matchId", draftTableController.getByMatchId);
 module.exports = router;
