@@ -1,0 +1,9 @@
+{
+  "name": "goonginga-project",
+  "private": true,
+  "scripts": {
+    "dev": "cd migration-uidesign/frontend && npm run dev",
+    "build": "cd migration-uidesign/frontend && npm run build",
+    "start": "cd migration-uidesign/frontend && npm run start"
+  }
+}
