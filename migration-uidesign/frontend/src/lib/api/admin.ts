@@ -87,9 +87,11 @@ export async function adminDeleteMatch(token: string, matchId: number) {
   });
 }
 
+import type { GenerateRoundRobinPayload } from "@/lib/api/types";
+
 export async function adminGenerateRoundRobin(
   token: string,
-  payload: { tournamentId: number; bestOf: number; startDate: string }
+  payload: GenerateRoundRobinPayload
 ) {
   return apiRequest<Match[]>("/match/admin/generate-round-robin", {
     method: "POST",

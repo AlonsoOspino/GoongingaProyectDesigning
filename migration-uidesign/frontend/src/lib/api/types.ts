@@ -135,3 +135,10 @@ export interface PlayerStat {
   role: HeroRole;
   createdAt: string;
 }
+
+// Payload for adminGenerateRoundRobin API
+export interface GenerateRoundRobinPayload {
+  tournamentId: number;
+  bestOf: number;
+  confirmationText: string;
+}
