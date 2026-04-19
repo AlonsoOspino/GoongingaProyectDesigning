@@ -25,11 +25,17 @@ export default async function NewsPage() {
   const news = await getNewsData();
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-12 relative">
+      {/* Background decoration */}
+      <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-primary/5 to-transparent rounded-full blur-3xl pointer-events-none" />
+      
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">News</h1>
-        <p className="text-muted">
+      <div className="mb-10 relative">
+        <div className="flex items-center gap-4 mb-3">
+          <div className="w-1 h-10 bg-gradient-to-b from-primary to-accent rounded-full" />
+          <h1 className="text-3xl font-bold text-foreground">News</h1>
+        </div>
+        <p className="text-muted ml-5">
           Stay up to date with the latest from the Goonginga League
         </p>
       </div>

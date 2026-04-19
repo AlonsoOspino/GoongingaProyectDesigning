@@ -41,14 +41,15 @@ export function NewsCard({ article, variant = "default" }: NewsCardProps) {
     <Link href={`/news/${article.id}`}>
       <Card
         variant="bordered"
-        className="overflow-hidden transition-all duration-200 hover:border-primary/50 hover:bg-surface-elevated/50"
+        className="overflow-hidden transition-all duration-200 hover:border-primary/50 hover:bg-surface-elevated/50 hover-lift group"
       >
         {article.imageUrl && (
-          <div className="aspect-video bg-surface-elevated overflow-hidden">
+          <div className="aspect-video bg-surface-elevated overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-t from-background/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-10" />
             <img
               src={article.imageUrl}
               alt=""
-              className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             />
           </div>
         )}

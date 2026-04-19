@@ -39,8 +39,8 @@ export function MatchCard({ match, teamA, teamB }: MatchCardProps) {
       <Card
         variant="bordered"
         className={clsx(
-          "transition-all duration-200 hover:border-primary/50 hover:bg-surface-elevated/50",
-          isLive && "border-primary/50 animate-pulse-glow"
+          "transition-all duration-200 hover:border-primary/50 hover:bg-surface-elevated/50 hover-lift",
+          isLive && "border-primary/50 animate-pulse-glow gradient-border"
         )}
       >
         <CardContent className="p-4">

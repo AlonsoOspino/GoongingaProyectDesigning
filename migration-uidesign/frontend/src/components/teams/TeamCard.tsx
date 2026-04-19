@@ -15,7 +15,7 @@ export function TeamCard({ team, rank }: TeamCardProps) {
     <Link href={`/teams/${team.id}`}>
       <Card
         variant="bordered"
-        className="transition-all duration-200 hover:border-primary/50 hover:bg-surface-elevated/50"
+        className="transition-all duration-200 hover:border-primary/50 hover:bg-surface-elevated/50 hover-lift"
       >
         <CardContent className="p-4">
           <div className="flex items-center gap-4">

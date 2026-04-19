@@ -123,20 +123,26 @@ export default function StatsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-12 relative">
+      {/* Background decoration */}
+      <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-primary/5 to-transparent rounded-full blur-3xl pointer-events-none" />
+      
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">Stats Center</h1>
-        <p className="text-muted">Player performance statistics across all matches</p>
+      <div className="mb-10 relative">
+        <div className="flex items-center gap-4 mb-3">
+          <div className="w-1 h-10 bg-gradient-to-b from-primary to-accent rounded-full" />
+          <h1 className="text-3xl font-bold text-foreground">Stats Center</h1>
+        </div>
+        <p className="text-muted ml-5">Player performance statistics across all matches</p>
       </div>
 
       {stats.length > 0 ? (
         <>
           {/* Role Averages */}
-          <div className="grid gap-4 md:grid-cols-3 mb-8">
+          <div className="grid gap-4 md:grid-cols-3 mb-10">
             {statsByRole.map(({ role, avg }) => (
-              <Card key={role} variant="bordered">
-                <CardContent className="p-4">
+              <Card key={role} variant="bordered" className="hover-lift">
+                <CardContent className="p-5">
                   <div className="flex items-center gap-3 mb-4">
                     <Badge variant={roleColors[role] as "primary" | "danger" | "success"}>
                       {role}

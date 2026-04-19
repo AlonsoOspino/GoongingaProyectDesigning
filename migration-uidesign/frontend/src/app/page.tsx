@@ -70,41 +70,63 @@ export default async function HomePage() {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative py-20 overflow-hidden">
+      <section className="relative py-24 overflow-hidden">
+        {/* Background decorations */}
         <div className="absolute inset-0 bg-gradient-to-b from-primary/10 via-transparent to-transparent" />
+        <div className="absolute inset-0 grid-pattern opacity-50" />
+        
+        {/* Floating decorative elements */}
+        <div className="absolute top-20 left-[10%] w-32 h-32 rounded-full bg-primary/5 blur-3xl animate-float" />
+        <div className="absolute bottom-20 right-[15%] w-40 h-40 rounded-full bg-accent/5 blur-3xl animate-float" style={{ animationDelay: "2s" }} />
+        
+        {/* Decorative lines */}
+        <div className="absolute top-0 left-1/4 w-px h-32 bg-gradient-to-b from-transparent via-primary/30 to-transparent" />
+        <div className="absolute top-0 right-1/4 w-px h-24 bg-gradient-to-b from-transparent via-accent/30 to-transparent" />
+        
         <div className="container mx-auto px-4 relative">
           <div className="max-w-3xl mx-auto text-center">
-            <Badge variant="primary" className="mb-4">
+            <Badge variant="primary" className="mb-6 gradient-border">
               Season 2026
             </Badge>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-4 text-balance">
-              Welcome to the Goonginga League
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6 text-balance">
+              Welcome to the{" "}
+              <span className="text-gradient">Goonginga League</span>
             </h1>
-            <p className="text-lg text-muted mb-8 text-pretty max-w-2xl mx-auto">
+            <p className="text-lg text-muted mb-10 text-pretty max-w-2xl mx-auto leading-relaxed">
               The premier competitive Overwatch league. Track teams, follow matches, 
               and watch the best players compete for glory.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4">
               <Link href="/schedule">
-                <Button size="lg">View Schedule</Button>
+                <Button size="lg" className="glow-primary">View Schedule</Button>
               </Link>
               <Link href="/standings">
-                <Button variant="outline" size="lg">
+                <Button variant="outline" size="lg" className="hover-lift">
                   Standings
                 </Button>
               </Link>
             </div>
+            
+            {/* Decorative separator */}
+            <div className="mt-16 separator-glow max-w-md mx-auto" />
           </div>
         </div>
       </section>
 
       {/* Live/Active Matches */}
       {data.activeMatches.length > 0 && (
-        <section className="py-8 bg-primary/5 border-y border-primary/20">
-          <div className="container mx-auto px-4">
-            <div className="flex items-center gap-3 mb-6">
-              <span className="w-3 h-3 bg-danger rounded-full animate-pulse" />
+        <section className="py-10 bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 border-y border-primary/20 relative overflow-hidden">
+          {/* Animated background */}
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-transparent to-accent/10 animate-gradient" />
+          
+          <div className="container mx-auto px-4 relative">
+            <div className="flex items-center gap-3 mb-8">
+              <div className="relative">
+                <span className="w-3 h-3 bg-danger rounded-full animate-pulse block" />
+                <span className="absolute inset-0 w-3 h-3 bg-danger rounded-full animate-ping" />
+              </div>
               <h2 className="text-xl font-bold text-foreground">Live Now</h2>
+              <div className="h-px flex-1 bg-gradient-to-r from-danger/50 to-transparent ml-4" />
             </div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {data.activeMatches.map((match) => (
@@ -121,7 +143,10 @@ export default async function HomePage() {
       )}
 
       {/* Main Content Grid */}
-      <section className="py-12">
+      <section className="py-16 relative">
+        {/* Subtle background decoration */}
+        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+        
         <div className="container mx-auto px-4">
           <div className="grid gap-8 lg:grid-cols-3">
             {/* Upcoming Matches */}
@@ -266,12 +291,19 @@ export default async function HomePage() {
 
       {/* News Section */}
       {data.recentNews.length > 0 && (
-        <section className="py-12 bg-surface">
-          <div className="container mx-auto px-4">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold text-foreground">Latest News</h2>
+        <section className="py-16 bg-surface relative overflow-hidden">
+          {/* Decorative corner accent */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-primary/5 to-transparent" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-accent/5 to-transparent" />
+          
+          <div className="container mx-auto px-4 relative">
+            <div className="flex items-center justify-between mb-10">
+              <div className="flex items-center gap-4">
+                <div className="w-1 h-8 bg-gradient-to-b from-primary to-accent rounded-full" />
+                <h2 className="text-2xl font-bold text-foreground">Latest News</h2>
+              </div>
               <Link href="/news">
-                <Button variant="ghost">View All News</Button>
+                <Button variant="ghost" className="hover-lift">View All News</Button>
               </Link>
             </div>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">

@@ -17,22 +17,35 @@ const footerLinks = [
       { href: "/stats", label: "Stats" },
     ],
   },
+  {
+    title: "About",
+    links: [
+      { href: "/dev", label: "Developer" },
+    ],
+  },
 ];
 
 export function Footer() {
   return (
-    <footer className="border-t border-border bg-surface mt-auto">
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+    <footer className="border-t border-border bg-surface mt-auto relative overflow-hidden">
+      {/* Decorative gradient line at top */}
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+      
+      {/* Subtle corner decorations */}
+      <div className="absolute bottom-0 right-0 w-48 h-48 bg-gradient-to-tl from-primary/5 to-transparent pointer-events-none" />
+      <div className="absolute top-0 left-0 w-32 h-32 bg-gradient-to-br from-accent/5 to-transparent pointer-events-none" />
+      
+      <div className="container mx-auto px-4 py-10 relative">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center glow-primary">
                 <span className="font-bold text-primary-foreground text-sm">GL</span>
               </div>
               <span className="font-bold text-foreground">Goonginga League</span>
             </div>
-            <p className="text-sm text-muted">
+            <p className="text-sm text-muted leading-relaxed">
               The premier competitive gaming league for Overwatch enthusiasts.
             </p>
           </div>
@@ -62,7 +75,7 @@ export function Footer() {
             <div className="flex gap-3">
               <a
                 href="#"
-                className="p-2 rounded-md bg-surface-elevated text-muted hover:text-foreground transition-colors"
+                className="p-2 rounded-md bg-surface-elevated text-muted hover:text-primary hover:bg-primary/10 transition-all duration-200"
                 aria-label="Discord"
               >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -71,7 +84,7 @@ export function Footer() {
               </a>
               <a
                 href="#"
-                className="p-2 rounded-md bg-surface-elevated text-muted hover:text-foreground transition-colors"
+                className="p-2 rounded-md bg-surface-elevated text-muted hover:text-accent hover:bg-accent/10 transition-all duration-200"
                 aria-label="Twitter"
               >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -82,10 +95,19 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-border text-center">
+        <div className="mt-10 pt-6 border-t border-border/50 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-sm text-muted">
             {new Date().getFullYear()} Goonginga League. All rights reserved.
           </p>
+          <Link 
+            href="/dev" 
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20 text-sm text-muted hover:text-foreground hover:border-primary/40 transition-all duration-200"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+            </svg>
+            Meet the Developer
+          </Link>
         </div>
       </div>
     </footer>

@@ -25,11 +25,18 @@ export default async function TeamsPage() {
   const teams = await getTeamsData();
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-12 relative">
+      {/* Background decoration */}
+      <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-primary/5 to-transparent rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-32 left-0 w-48 h-48 bg-gradient-to-tr from-accent/5 to-transparent rounded-full blur-3xl pointer-events-none" />
+      
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">Teams</h1>
-        <p className="text-muted">
+      <div className="mb-10 relative">
+        <div className="flex items-center gap-4 mb-3">
+          <div className="w-1 h-10 bg-gradient-to-b from-primary to-accent rounded-full" />
+          <h1 className="text-3xl font-bold text-foreground">Teams</h1>
+        </div>
+        <p className="text-muted ml-5">
           All teams competing in the Goonginga League this season
         </p>
       </div>
@@ -62,7 +69,7 @@ function TeamCardLarge({ team, rank }: { team: Team; rank: number }) {
     <Link href={`/teams/${team.id}`}>
       <Card
         variant="bordered"
-        className="h-full transition-all duration-200 hover:border-primary/50 hover:bg-surface-elevated/50"
+        className="h-full transition-all duration-200 hover:border-primary/50 hover:bg-surface-elevated/50 hover-lift"
       >
         <CardContent className="p-6">
           {/* Rank Badge */}

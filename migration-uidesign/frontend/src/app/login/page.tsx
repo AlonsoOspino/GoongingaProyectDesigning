@@ -34,21 +34,26 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-[80vh] flex items-center justify-center px-4 relative overflow-hidden">
+      {/* Background decorations */}
+      <div className="absolute top-20 left-[10%] w-64 h-64 rounded-full bg-primary/5 blur-3xl animate-float pointer-events-none" />
+      <div className="absolute bottom-20 right-[10%] w-48 h-48 rounded-full bg-accent/5 blur-3xl animate-float pointer-events-none" style={{ animationDelay: "2s" }} />
+      <div className="absolute inset-0 grid-pattern opacity-30 pointer-events-none" />
+      
+      <div className="w-full max-w-md relative">
         {/* Logo */}
         <div className="flex justify-center mb-8">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center">
+          <Link href="/" className="flex items-center gap-2 group">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center glow-primary group-hover:scale-105 transition-transform">
               <span className="font-bold text-primary-foreground text-xl">GL</span>
             </div>
           </Link>
         </div>
 
-        <Card variant="bordered">
+        <Card variant="bordered" className="gradient-border">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Welcome Back</CardTitle>
-            <p className="text-muted text-sm mt-1">Sign in to your account</p>
+            <p className="text-muted text-sm mt-2">Sign in to your account</p>
           </CardHeader>
 
           <form onSubmit={handleSubmit}>
