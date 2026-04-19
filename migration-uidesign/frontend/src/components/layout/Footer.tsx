@@ -50,7 +50,7 @@ export function Footer() {
               </div>
               <div className="flex flex-col">
                 <span className="font-bold text-foreground">Goonginga League</span>
-                <span className="text-xs text-primary/70 font-medium">EST. 2024</span>
+                <span className="text-xs text-primary/70 font-medium">EST. 202</span>
               </div>
             </div>
             <p className="text-sm text-muted leading-relaxed">
@@ -59,7 +59,7 @@ export function Footer() {
             
             {/* Twitch Link */}
             <a 
-              href="https://twitch.tv" 
+              href="https://www.twitch.tv/goongingatournament" 
               target="_blank" 
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 mt-4 px-3 py-1.5 rounded-md bg-[#9146FF]/10 border border-[#9146FF]/20 text-[#9146FF] hover:bg-[#9146FF]/20 transition-colors text-sm font-medium"
@@ -103,7 +103,7 @@ export function Footer() {
             <p className="text-sm text-muted mb-4">Join our gaming community</p>
             <div className="flex gap-2">
               <a
-                href="#"
+                href="https://discord.gg/FysfwrjK8b"
                 className="p-2.5 rounded-lg bg-surface-elevated border border-border hover:border-[#5865F2]/50 hover:bg-[#5865F2]/10 text-muted hover:text-[#5865F2] transition-all"
                 aria-label="Discord"
               >
@@ -112,16 +112,18 @@ export function Footer() {
                 </svg>
               </a>
               <a
-                href="#"
-                className="p-2.5 rounded-lg bg-surface-elevated border border-border hover:border-foreground/30 hover:bg-foreground/10 text-muted hover:text-foreground transition-all"
-                aria-label="Twitter"
+                href="https://www.youtube.com/@goongingatournament"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2.5 rounded-lg bg-surface-elevated border border-border hover:border-[#FF0000]/50 hover:bg-[#FF0000]/10 text-muted hover:text-[#FF0000] transition-all"
+                aria-label="YouTube"
               >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                  <path d="M23.498 6.186a2.994 2.994 0 0 0-2.107-2.117C19.379 3.5 12 3.5 12 3.5s-7.379 0-9.391.569A2.994 2.994 0 0 0 .502 6.186C0 8.207 0 12 0 12s0 3.793.502 5.814a2.994 2.994 0 0 0 2.107 2.117C4.621 20.5 12 20.5 12 20.5s7.379 0 9.391-.569a2.994 2.994 0 0 0 2.107-2.117C24 15.793 24 12 24 12s0-3.793-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
                 </svg>
               </a>
               <a
-                href="https://twitch.tv"
+                href="https://www.twitch.tv/goongingatournament"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-2.5 rounded-lg bg-surface-elevated border border-border hover:border-[#9146FF]/50 hover:bg-[#9146FF]/10 text-muted hover:text-[#9146FF] transition-all"

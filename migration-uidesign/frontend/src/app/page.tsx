@@ -313,7 +313,7 @@ export default async function HomePage() {
               The Goonginga League Story
             </h2>
             <p className="text-muted max-w-2xl mx-auto text-pretty">
-              Building a community of passionate Overwatch players since 2024
+              Building a community of passionate Overwatch players since 2023
             </p>
           </div>
 
@@ -331,7 +331,7 @@ export default async function HomePage() {
                     Our Beginning
                   </h3>
                   <p className="text-muted leading-relaxed">
-                    The Goonginga League was founded in 2024 by a group of friends who shared a passion for competitive Overwatch. What started as casual scrims among friends quickly grew into a full-fledged competitive league with teams from across the community.
+                    The Goonginga League was founded in 2023 by a group of friends who shared a passion for competitive Overwatch. What started as casual scrims among friends quickly grew into a full-fledged competitive league with teams from across the community.
                   </p>
                 </div>
               </div>
@@ -349,7 +349,7 @@ export default async function HomePage() {
                     All our matches are streamed live on Twitch! Catch the action, watch player highlights, and experience the excitement of competitive Overwatch with our dedicated casting team and community chat.
                   </p>
                   <a 
-                    href="https://twitch.tv" 
+                    href="https://www.twitch.tv/goongingatournament" 
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 mt-3 text-[#9146FF] hover:text-[#9146FF]/80 font-medium text-sm transition-colors"
@@ -389,13 +389,9 @@ export default async function HomePage() {
                 <div className="relative aspect-video rounded-xl bg-surface-elevated border border-border overflow-hidden">
                   {/* Replace src with your actual image path */}
                   <img 
-                    src="/league-image-1.jpg" 
+                    src="/emotionalsupport.png" 
                     alt="Goonginga League Match" 
                     className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                      e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                    }}
                   />
                   <div className="hidden absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-primary/20 to-accent/20">
                     <svg className="w-12 h-12 text-muted mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -409,19 +405,13 @@ export default async function HomePage() {
                 </div>
               </div>
 
-              {/* Image 2 Placeholder */}
               <div className="relative group">
                 <div className="absolute -inset-1 bg-gradient-to-r from-accent/50 to-success/50 rounded-2xl blur opacity-25 group-hover:opacity-50 transition-opacity" />
                 <div className="relative aspect-video rounded-xl bg-surface-elevated border border-border overflow-hidden">
-                  {/* Replace src with your actual image path */}
                   <img 
-                    src="/league-image-2.jpg" 
+                    src="/community.png" 
                     alt="Goonginga League Community" 
                     className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                      e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                    }}
                   />
                   <div className="hidden absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-accent/20 to-success/20">
                     <svg className="w-12 h-12 text-muted mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
