@@ -271,6 +271,7 @@ function TournamentSection({ token }: { token: string }) {
               label="Tournament Name"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="Enter tournament name"
             />
             <Select
               label="State"
@@ -288,7 +289,7 @@ function TournamentSection({ token }: { token: string }) {
           </div>
         </ModalContent>
         <ModalFooter>
-          <Button variant="ghost" onClick={() => setShowEditModal(false)}>Cancel</Button>
+          <Button variant="ghost" onClick={() => { setShowEditModal(false); setFormData({ name: "", startDate: "", state: "SCHEDULED" }); }}>Cancel</Button>
           <Button onClick={handleUpdate}>Save Changes</Button>
         </ModalFooter>
       </Modal>
@@ -589,7 +590,7 @@ function MatchesSection({ token }: { token: string }) {
           </div>
         </ModalContent>
         <ModalFooter>
-          <Button variant="ghost" onClick={() => setShowCreateModal(false)}>Cancel</Button>
+          <Button variant="ghost" onClick={() => { setShowCreateModal(false); setFormData({ type: "ROUNDROBIN", bestOf: 5, startDate: "", teamAId: 0, teamBId: 0, semanas: 1, title: "" }); }}>Cancel</Button>
           <Button onClick={handleCreate}>Create Match</Button>
         </ModalFooter>
       </Modal>
@@ -614,6 +615,20 @@ function MatchesSection({ token }: { token: string }) {
                 { value: "PRACTICE", label: "Practice" },
               ]}
             />
+            <div className="grid grid-cols-2 gap-4">
+              <Select
+                label="Team A"
+                value={formData.teamAId?.toString()}
+                onChange={(e) => setFormData({ ...formData, teamAId: parseInt(e.target.value) })}
+                options={teams.map((t) => ({ value: t.id.toString(), label: t.name }))}
+              />
+              <Select
+                label="Team B"
+                value={formData.teamBId?.toString()}
+                onChange={(e) => setFormData({ ...formData, teamBId: parseInt(e.target.value) })}
+                options={teams.map((t) => ({ value: t.id.toString(), label: t.name }))}
+              />
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <Input
                 label="Best Of"
@@ -645,7 +660,7 @@ function MatchesSection({ token }: { token: string }) {
           </div>
         </ModalContent>
         <ModalFooter>
-          <Button variant="ghost" onClick={() => setShowEditModal(false)}>Cancel</Button>
+          <Button variant="ghost" onClick={() => { setShowEditModal(false); setFormData({ type: "ROUNDROBIN", bestOf: 5, startDate: "", teamAId: 0, teamBId: 0, semanas: 1, title: "" }); setSelectedMatch(null); }}>Cancel</Button>
           <Button onClick={handleUpdate}>Save Changes</Button>
         </ModalFooter>
       </Modal>
@@ -868,7 +883,7 @@ function TeamsSection({ token }: { token: string }) {
           </div>
         </ModalContent>
         <ModalFooter>
-          <Button variant="ghost" onClick={() => setShowCreateModal(false)}>Cancel</Button>
+          <Button variant="ghost" onClick={() => { setShowCreateModal(false); setFormData({ name: "", logo: "", roster: "" }); }}>Cancel</Button>
           <Button onClick={handleCreate}>Create Team</Button>
         </ModalFooter>
       </Modal>
@@ -898,7 +913,7 @@ function TeamsSection({ token }: { token: string }) {
           </div>
         </ModalContent>
         <ModalFooter>
-          <Button variant="ghost" onClick={() => setShowEditModal(false)}>Cancel</Button>
+          <Button variant="ghost" onClick={() => { setShowEditModal(false); setFormData({ name: "", logo: "", roster: "" }); setSelectedTeam(null); }}>Cancel</Button>
           <Button onClick={handleUpdate}>Save Changes</Button>
         </ModalFooter>
       </Modal>
@@ -1118,7 +1133,7 @@ function UsersSection({ token }: { token: string }) {
           </div>
         </ModalContent>
         <ModalFooter>
-          <Button variant="ghost" onClick={() => setShowCreateModal(false)}>Cancel</Button>
+          <Button variant="ghost" onClick={() => { setShowCreateModal(false); setFormData({ nickname: "", user: "", password: "", role: "DEFAULT", teamId: "" }); }}>Cancel</Button>
           <Button onClick={handleCreate}>Register User</Button>
         </ModalFooter>
       </Modal>
@@ -1159,7 +1174,7 @@ function UsersSection({ token }: { token: string }) {
           </div>
         </ModalContent>
         <ModalFooter>
-          <Button variant="ghost" onClick={() => setShowEditModal(false)}>Cancel</Button>
+          <Button variant="ghost" onClick={() => { setShowEditModal(false); setFormData({ nickname: "", user: "", password: "", role: "DEFAULT", teamId: "" }); setSelectedMember(null); }}>Cancel</Button>
           <Button onClick={handleUpdate}>Save Changes</Button>
         </ModalFooter>
       </Modal>
