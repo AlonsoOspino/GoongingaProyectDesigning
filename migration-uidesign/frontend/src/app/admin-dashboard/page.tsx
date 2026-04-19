@@ -206,19 +206,6 @@ function TournamentSection({ token }: { token: string }) {
                   {formatDateEST(tournament.startDate)}
                 </p>
               </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div>
-                <p className="text-sm text-muted">Name</p>
-                <p className="text-lg font-semibold text-foreground">{tournament.name}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted">Start Date</p>
-                <p className="text-lg font-semibold text-foreground">
-                  {new Date(tournament.startDate).toLocaleDateString()}
-                </p>
-              </div>
               <div>
                 <p className="text-sm text-muted">State</p>
                 <Badge variant={tournament.state === "FINISHED" ? "success" : "default"}>
