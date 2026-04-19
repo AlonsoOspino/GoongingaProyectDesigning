@@ -461,7 +461,7 @@ function MatchesSection({ token }: { token: string }) {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {weekMap.get(week).map((match: import("@/lib/api/types").Match) => (
+                            {weekMap.get(week).map((match: Match) => (
                               <TableRow key={match.id}>
                                 <TableCell className="font-medium">
                                   {getTeamName(match.teamAId)} vs {getTeamName(match.teamBId)}
