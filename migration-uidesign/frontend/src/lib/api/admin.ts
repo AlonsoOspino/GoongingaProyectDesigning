@@ -1,6 +1,9 @@
 import { apiRequest } from "@/lib/api/client";
 import type { Match, Team, MatchType, MatchStatus, Tournament, GenerateRoundRobinPayload } from "@/lib/api/types";
 
+// Re-export Tournament type for components that import from admin
+export type { Tournament };
+
 // ==================== TOURNAMENT ====================
 
 export async function getTournaments() {
