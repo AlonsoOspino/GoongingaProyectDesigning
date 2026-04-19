@@ -22,13 +22,11 @@ export default function DevPage() {
               <div className="relative">
                 <div className="w-40 h-40 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 p-1">
                   <div className="w-full h-full rounded-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center overflow-hidden">
-                    <svg className="w-20 h-20 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="absolute -right-2 top-1/2 -translate-y-1/2">
-                  <div className="w-4 h-4 bg-white border-2 border-teal-400 rounded-full" />
+                    <img
+                        src="LuffyRlbaf.jpg"
+                        alt="Your Name"
+                        className="w-32 h-32 object-cover rounded-full"
+                      />
                 </div>
               </div>
               
