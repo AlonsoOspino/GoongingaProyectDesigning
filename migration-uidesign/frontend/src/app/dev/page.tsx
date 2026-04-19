@@ -44,10 +44,10 @@ export default function DevPage() {
                   Hi! I&apos;m the Developer
                 </h1>
                 <p className="text-lg text-slate-600 leading-relaxed">
-                  I built this platform to bring the competitive Overwatch community together. 
-                  The Goonginga League is powered by a robust tournament management system with 
+                  I built this platform to bring the competitive Overwatch community of Goonginga League together. 
+                  This web page is the first big proyect I have ever designed or implemented, but I managed to create a software solution powered by a robust tournament management system with 
                   real-time draft phases, intelligent stat tracking with OCR, and a complete 
-                  match lifecycle engine. Let me walk you through how it all works.
+                  match lifecycle engine. Let me walk you through how it all works!
                 </p>
               </div>
             </div>

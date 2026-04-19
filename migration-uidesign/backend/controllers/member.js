@@ -21,7 +21,9 @@ const login = async (req, res) => {
 const getAll = async (req, res) => {
   try {
     const members = await memberRepo.findAll();
-    res.json(members);
+    // Oculta el campo passwordHash en la respuesta
+    const safeMembers = members.map(({ passwordHash, ...rest }) => rest);
+    res.json(safeMembers);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -32,7 +34,9 @@ const getById = async (req, res) => {
     if (!member) {
       return res.status(404).json({ message: "Member not found" });
     }
-    res.json(member);
+    // Oculta el campo passwordHash en la respuesta
+    const { passwordHash, ...safeMember } = member;
+    res.json(safeMember);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
