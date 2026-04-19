@@ -1,13 +1,7 @@
 import { apiRequest } from "@/lib/api/client";
-import type { Match, Team, MatchType, MatchStatus } from "@/lib/api/types";
+import type { Match, Team, MatchType, MatchStatus, Tournament, GenerateRoundRobinPayload } from "@/lib/api/types";
 
 // ==================== TOURNAMENT ====================
-export interface Tournament {
-  id: number;
-  name: string;
-  startDate: string;
-  state: "SCHEDULED" | "ROUNDROBIN" | "PLAYOFFS" | "SEMIFINALS" | "FINALS" | "FINISHED";
-}
 
 export async function getTournaments() {
   return apiRequest<Tournament[]>("/tournament");
@@ -86,8 +80,6 @@ export async function adminDeleteMatch(token: string, matchId: number) {
     token,
   });
 }
-
-import type { GenerateRoundRobinPayload } from "@/lib/api/types";
 
 export async function adminGenerateRoundRobin(
   token: string,
