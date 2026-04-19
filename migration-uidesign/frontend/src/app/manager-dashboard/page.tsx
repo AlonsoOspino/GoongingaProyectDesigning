@@ -33,7 +33,7 @@ type PlayerCandidate = {
   nickname: string;
 };
 
-const POLL_INTERVAL = 3000; // 3 seconds for real-time updates
+const POLL_INTERVAL = 12000; // 12 seconds to reduce background API pressure
 
 const DEFAULT_PENDING_UPLOAD_FORM: PendingUploadFormState = {
   image: null,
@@ -160,6 +160,7 @@ export default function ManagerDashboardPage() {
     if (!isAuthenticated || user?.role !== "MANAGER") return;
 
     pollRef.current = setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return;
       loadData(true); // silent refresh
     }, POLL_INTERVAL);
 
