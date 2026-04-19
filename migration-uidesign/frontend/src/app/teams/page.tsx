@@ -100,7 +100,7 @@ function TeamCardLarge({ team, rank }: { team: Team; rank: number }) {
               <h3 className="text-lg font-semibold text-foreground truncate">
                 {team.name}
               </h3>
-              <p className="text-sm text-muted">Tournament #{team.tournamentId}</p>
+              <p className="text-sm text-muted">Tournament #{team.tournamentId} • Founded 2023</p>
             </div>
           </div>
 

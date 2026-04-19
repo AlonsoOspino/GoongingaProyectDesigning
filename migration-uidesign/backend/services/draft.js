@@ -340,8 +340,6 @@ const startMapPicking = async (draftId, user) => {
       where: { id: draft.match.id },
       data: {
         gameNumber: currentGame,
-        teamAready: 0,
-        teamBready: 0,
         status: "ACTIVE",
       },
     });

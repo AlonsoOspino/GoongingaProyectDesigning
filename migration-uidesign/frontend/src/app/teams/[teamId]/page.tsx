@@ -132,7 +132,7 @@ export default async function TeamPage({ params }: TeamPageProps) {
               </Badge>
             )}
           </div>
-          <p className="text-muted">Tournament #{team.tournamentId}</p>
+          <p className="text-muted">Tournament #{team.tournamentId} • Founded 2023</p>
         </div>
       </div>
 

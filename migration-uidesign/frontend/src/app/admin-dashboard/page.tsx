@@ -103,7 +103,13 @@ function TournamentSection({ token }: { token: string }) {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [formData, setFormData] = useState({ name: "", startDate: "", state: "SCHEDULED" });
+
+  const showNotification = (type: "success" | "error", message: string) => {
+    setNotification({ type, message });
+    setTimeout(() => setNotification(null), 3000);
+  };
 
   useEffect(() => {
     loadTournament();
@@ -124,9 +130,12 @@ function TournamentSection({ token }: { token: string }) {
     try {
       await createTournament(token, { name: formData.name, startDate: formData.startDate });
       setShowCreateModal(false);
+      setFormData({ name: "", startDate: "", state: "SCHEDULED" });
+      showNotification("success", "Tournament created successfully");
       loadTournament();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to create tournament:", err);
+      showNotification("error", err.message || "Failed to create tournament");
     }
   }
 
@@ -138,9 +147,11 @@ function TournamentSection({ token }: { token: string }) {
         state: formData.state as Tournament["state"],
       });
       setShowEditModal(false);
+      showNotification("success", "Tournament updated successfully");
       loadTournament();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to update tournament:", err);
+      showNotification("error", err.message || "Failed to update tournament");
     }
   }
 
@@ -150,8 +161,10 @@ function TournamentSection({ token }: { token: string }) {
     try {
       await deleteTournament(token, tournament.id);
       setTournament(null);
-    } catch (err) {
+      showNotification("success", "Tournament deleted successfully");
+    } catch (err: any) {
       console.error("Failed to delete tournament:", err);
+      showNotification("error", err.message || "Failed to delete tournament");
     }
   }
 
@@ -161,6 +174,11 @@ function TournamentSection({ token }: { token: string }) {
 
   return (
     <div className="space-y-6">
+      {notification && (
+        <div className={`p-4 rounded-lg ${notification.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+          {notification.message}
+        </div>
+      )}
       {tournament ? (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
@@ -288,6 +306,7 @@ function MatchesSection({ token }: { token: string }) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showRoundRobinModal, setShowRoundRobinModal] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+  const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [formData, setFormData] = useState<Partial<CreateMatchPayload>>({
     type: "ROUNDROBIN",
     bestOf: 5,
@@ -298,6 +317,11 @@ function MatchesSection({ token }: { token: string }) {
     title: "",
   });
   const [roundRobinData, setRoundRobinData] = useState({ bestOf: 5, confirmationText: "" });
+
+  const showNotification = (type: "success" | "error", message: string) => {
+    setNotification({ type, message });
+    setTimeout(() => setNotification(null), 3000);
+  };
 
   useEffect(() => {
     loadData();
@@ -328,9 +352,12 @@ function MatchesSection({ token }: { token: string }) {
         tournamentId: tournament.id,
       } as CreateMatchPayload);
       setShowCreateModal(false);
+      setFormData({ type: "ROUNDROBIN", bestOf: 5, startDate: "", teamAId: 0, teamBId: 0, semanas: 1, title: "" });
+      showNotification("success", "Match created successfully");
       loadData();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to create match:", err);
+      showNotification("error", err.message || "Failed to create match");
     }
   }
 
@@ -339,9 +366,11 @@ function MatchesSection({ token }: { token: string }) {
     try {
       await adminUpdateMatch(token, selectedMatch.id, formData as Partial<Match>);
       setShowEditModal(false);
+      showNotification("success", "Match updated successfully");
       loadData();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to update match:", err);
+      showNotification("error", err.message || "Failed to update match");
     }
   }
 
@@ -349,9 +378,11 @@ function MatchesSection({ token }: { token: string }) {
     if (!confirm("Are you sure you want to delete this match?")) return;
     try {
       await adminDeleteMatch(token, matchId);
+      showNotification("success", "Match deleted successfully");
       loadData();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to delete match:", err);
+      showNotification("error", err.message || "Failed to delete match");
     }
   }
 
@@ -364,9 +395,11 @@ function MatchesSection({ token }: { token: string }) {
         confirmationText: roundRobinData.confirmationText,
       });
       setShowRoundRobinModal(false);
+      showNotification("success", "Round robin schedule generated successfully");
       loadData();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to generate round robin:", err);
+      showNotification("error", err.message || "Failed to generate round robin");
     }
   }
 
@@ -378,6 +411,11 @@ function MatchesSection({ token }: { token: string }) {
 
   return (
     <div className="space-y-6">
+      {notification && (
+        <div className={`p-4 rounded-lg ${notification.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+          {notification.message}
+        </div>
+      )}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Matches ({matches.length})</CardTitle>
@@ -656,11 +694,17 @@ function TeamsSection({ token }: { token: string }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+  const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [formData, setFormData] = useState<Partial<CreateTeamPayload>>({
     name: "",
     logo: "",
     roster: "",
   });
+
+  const showNotification = (type: "success" | "error", message: string) => {
+    setNotification({ type, message });
+    setTimeout(() => setNotification(null), 3000);
+  };
 
   useEffect(() => {
     loadData();
@@ -690,9 +734,11 @@ function TeamsSection({ token }: { token: string }) {
       } as CreateTeamPayload);
       setShowCreateModal(false);
       setFormData({ name: "", logo: "", roster: "" });
+      showNotification("success", "Team created successfully");
       loadData();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to create team:", err);
+      showNotification("error", err.message || "Failed to create team");
     }
   }
 
@@ -701,9 +747,11 @@ function TeamsSection({ token }: { token: string }) {
     try {
       await adminUpdateTeam(token, selectedTeam.id, formData);
       setShowEditModal(false);
+      showNotification("success", "Team updated successfully");
       loadData();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to update team:", err);
+      showNotification("error", err.message || "Failed to update team");
     }
   }
 
@@ -711,9 +759,11 @@ function TeamsSection({ token }: { token: string }) {
     if (!confirm("Are you sure you want to delete this team?")) return;
     try {
       await adminDeleteTeam(token, teamId);
+      showNotification("success", "Team deleted successfully");
       loadData();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to delete team:", err);
+      showNotification("error", err.message || "Failed to delete team");
     }
   }
 
@@ -723,6 +773,11 @@ function TeamsSection({ token }: { token: string }) {
 
   return (
     <div className="space-y-6">
+      {notification && (
+        <div className={`p-4 rounded-lg ${notification.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+          {notification.message}
+        </div>
+      )}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Teams ({teams.length})</CardTitle>
@@ -859,6 +914,7 @@ function UsersSection({ token }: { token: string }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [formData, setFormData] = useState({
     nickname: "",
     user: "",
@@ -866,6 +922,11 @@ function UsersSection({ token }: { token: string }) {
     role: "DEFAULT",
     teamId: "",
   });
+
+  const showNotification = (type: "success" | "error", message: string) => {
+    setNotification({ type, message });
+    setTimeout(() => setNotification(null), 3000);
+  };
 
   useEffect(() => {
     loadData();
@@ -897,9 +958,11 @@ function UsersSection({ token }: { token: string }) {
       });
       setShowCreateModal(false);
       setFormData({ nickname: "", user: "", password: "", role: "DEFAULT", teamId: "" });
+      showNotification("success", "User created successfully");
       loadData();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to create user:", err);
+      showNotification("error", err.message || "Failed to create user");
     }
   }
 
@@ -912,9 +975,11 @@ function UsersSection({ token }: { token: string }) {
         teamId: formData.teamId ? parseInt(formData.teamId) : null,
       });
       setShowEditModal(false);
+      showNotification("success", "User updated successfully");
       loadData();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to update user:", err);
+      showNotification("error", err.message || "Failed to update user");
     }
   }
 
@@ -927,6 +992,11 @@ function UsersSection({ token }: { token: string }) {
 
   return (
     <div className="space-y-6">
+      {notification && (
+        <div className={`p-4 rounded-lg ${notification.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+          {notification.message}
+        </div>
+      )}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Users ({members.length})</CardTitle>
