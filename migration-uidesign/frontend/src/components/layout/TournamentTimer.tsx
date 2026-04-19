@@ -72,7 +72,7 @@ export function TournamentTimer() {
   return (
     <div className="bg-gradient-to-r from-amber-600 to-amber-700 text-white py-3 px-4 text-center">
       <div className="container mx-auto">
-        <p className="text-sm font-medium mb-2">Tournament Starting In:</p>
+        <p className="text-sm font-medium mb-2">Tournament Starting In (EST):</p>
         <div className="flex justify-center items-center gap-2 text-lg font-bold">
           <div className="flex flex-col items-center">
             <span className="text-2xl">{timeRemaining.days}</span>

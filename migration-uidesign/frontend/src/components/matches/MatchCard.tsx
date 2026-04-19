@@ -5,6 +5,7 @@ import { clsx } from "clsx";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
+import { formatDateEST } from "@/lib/dateUtils";
 import type { Match, Team, MatchStatus, MatchType } from "@/lib/api/types";
 
 interface MatchCardProps {
@@ -184,11 +185,7 @@ export function MatchCard({ match, teamA, teamB }: MatchCardProps) {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                   <span className="text-muted">
-                    {matchDate!.toLocaleDateString("en-US", {
-                      weekday: "short",
-                      month: "short",
-                      day: "numeric",
-                    })}
+                    {formatDateEST(match.startDate)}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -199,7 +196,8 @@ export function MatchCard({ match, teamA, teamB }: MatchCardProps) {
                     {matchDate!.toLocaleTimeString("en-US", {
                       hour: "numeric",
                       minute: "2-digit",
-                    })}
+                      timeZone: "America/New_York",
+                    })} EST
                   </span>
                 </div>
               </>

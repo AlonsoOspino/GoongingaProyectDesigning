@@ -12,8 +12,6 @@ import { Modal, ModalHeader, ModalTitle, ModalContent, ModalFooter } from "@/com
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/Table";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
 import {
-  getTournaments,
-  getCurrentTournament,
   createTournament,
   updateTournament,
   deleteTournament,
@@ -24,14 +22,10 @@ import {
   adminCreateTeam,
   adminUpdateTeam,
   adminDeleteTeam,
-  getMembers,
   adminRegisterMember,
   adminUpdateMember,
-  type Tournament,
-  type Member,
-  type CreateMatchPayload,
-  type CreateTeamPayload,
 } from "@/lib/api/admin";
+import { convertToISODateTime, formatDateEST, formatForDateInput, formatForDateTimeInput } from "@/lib/dateUtils";
 import { getMatches, getTeams, type Match, type Team } from "@/lib/api";
 
 type ActiveTab = "tournament" | "matches" | "teams" | "users";
@@ -128,7 +122,8 @@ function TournamentSection({ token }: { token: string }) {
 
   async function handleCreate() {
     try {
-      await createTournament(token, { name: formData.name, startDate: formData.startDate });
+      const isoDate = convertToISODateTime(formData.startDate);
+      await createTournament(token, { name: formData.name, startDate: isoDate });
       setShowCreateModal(false);
       setFormData({ name: "", startDate: "", state: "SCHEDULED" });
       showNotification("success", "Tournament created successfully");
@@ -182,26 +177,35 @@ function TournamentSection({ token }: { token: string }) {
       {tournament ? (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Current Tournament</CardTitle>
+            <CardTitle>{tournament.name}</CardTitle>
             <div className="flex gap-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  setFormData({
-                    name: tournament.name,
-                    startDate: tournament.startDate.split("T")[0],
-                    state: tournament.state,
-                  });
-                  setShowEditModal(true);
-                }}
-              >
+              <Button onClick={() => {
+                setShowEditModal(true);
+                setFormData({
+                  name: tournament.name,
+                  startDate: formatForDateInput(tournament.startDate),
+                  state: tournament.state as Tournament["state"],
+                });
+              }}>
                 Edit
               </Button>
               <Button variant="danger" size="sm" onClick={handleDelete}>
                 Delete
               </Button>
             </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <p className="text-sm text-muted">Name</p>
+                <p className="text-lg font-semibold text-foreground">{tournament.name}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted">Start Date (EST)</p>
+                <p className="text-lg font-semibold text-foreground">
+                  {formatDateEST(tournament.startDate)}
+                </p>
+              </div>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -247,8 +251,8 @@ function TournamentSection({ token }: { token: string }) {
               placeholder="Season 1"
             />
             <Input
-              label="Start Date"
-              type="date"
+              label="Start Date & Time (EST)"
+              type="datetime-local"
               value={formData.startDate}
               onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
             />
@@ -348,8 +352,10 @@ function MatchesSection({ token }: { token: string }) {
   async function handleCreate() {
     if (!tournament) return;
     try {
+      const isoDate = formData.startDate ? convertToISODateTime(formData.startDate) : "";
       await adminCreateMatch(token, {
         ...formData,
+        startDate: isoDate,
         tournamentId: tournament.id,
       } as CreateMatchPayload);
       setShowCreateModal(false);
@@ -365,7 +371,8 @@ function MatchesSection({ token }: { token: string }) {
   async function handleUpdate() {
     if (!selectedMatch) return;
     try {
-      await adminUpdateMatch(token, selectedMatch.id, formData as Partial<Match>);
+      const isoDate = formData.startDate ? convertToISODateTime(formData.startDate) : formData.startDate;
+      await adminUpdateMatch(token, selectedMatch.id, { ...formData, startDate: isoDate } as Partial<Match>);
       setShowEditModal(false);
       showNotification("success", "Match updated successfully");
       loadData();
@@ -494,7 +501,7 @@ function MatchesSection({ token }: { token: string }) {
                                         setFormData({
                                           type: match.type,
                                           bestOf: match.bestOf,
-                                          startDate: match.startDate ? match.startDate.split("T")[0] : "",
+                                          startDate: match.startDate ? formatForDateTimeInput(match.startDate) : "",
                                           teamAId: match.teamAId,
                                           teamBId: match.teamBId,
                                           semanas: match.semanas,
