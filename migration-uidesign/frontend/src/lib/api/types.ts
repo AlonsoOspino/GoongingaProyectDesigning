@@ -97,6 +97,7 @@ export interface GameMap {
 
 export interface Hero {
   id: number;
+  name: string;
   role: HeroRole;
   imgPath: string;
 }

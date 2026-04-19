@@ -27,9 +27,9 @@ export function Footer() {
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <span className="font-bold text-primary-foreground text-sm">GL</span>
-              </div>
+                      <div className="w-12 h-12 rounded-full bg-white overflow-hidden flex items-center justify-center">
+                        <img src="/winton.jpg" alt="Goonginga League Logo" className="w-full h-full object-contain" />
+                      </div>
               <span className="font-bold text-foreground">Goonginga League</span>
             </div>
             <p className="text-sm text-muted">

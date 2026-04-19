@@ -135,7 +135,6 @@ function TournamentSection({ token }: { token: string }) {
     try {
       await updateTournament(token, tournament.id, {
         name: formData.name,
-        startDate: formData.startDate,
         state: formData.state as Tournament["state"],
       });
       setShowEditModal(false);
@@ -255,12 +254,6 @@ function TournamentSection({ token }: { token: string }) {
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             />
-            <Input
-              label="Start Date"
-              type="date"
-              value={formData.startDate}
-              onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-            />
             <Select
               label="State"
               value={formData.state}
@@ -304,7 +297,7 @@ function MatchesSection({ token }: { token: string }) {
     semanas: 1,
     title: "",
   });
-  const [roundRobinData, setRoundRobinData] = useState({ bestOf: 5, startDate: "" });
+  const [roundRobinData, setRoundRobinData] = useState({ bestOf: 5, confirmationText: "" });
 
   useEffect(() => {
     loadData();
@@ -368,7 +361,7 @@ function MatchesSection({ token }: { token: string }) {
       await adminGenerateRoundRobin(token, {
         tournamentId: tournament.id,
         bestOf: roundRobinData.bestOf,
-        startDate: roundRobinData.startDate,
+        confirmationText: roundRobinData.confirmationText,
       });
       setShowRoundRobinModal(false);
       loadData();
@@ -404,73 +397,89 @@ function MatchesSection({ token }: { token: string }) {
             <p className="text-muted text-center py-4">No matches yet. Create one or generate a round robin schedule.</p>
           ) : (
             <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Match</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Best Of</TableHead>
-                    <TableHead>Week</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {matches.map((match) => (
-                    <TableRow key={match.id}>
-                      <TableCell className="font-medium">
-                        {getTeamName(match.teamAId)} vs {getTeamName(match.teamBId)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{match.type}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            match.status === "ACTIVE"
-                              ? "warning"
-                              : match.status === "FINISHED"
-                              ? "success"
-                              : "default"
-                          }
-                        >
-                          {match.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{match.bestOf}</TableCell>
-                      <TableCell>{match.semanas}</TableCell>
-                      <TableCell>{new Date(match.startDate).toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedMatch(match);
-                              setFormData({
-                                type: match.type,
-                                bestOf: match.bestOf,
-                                startDate: match.startDate.split("T")[0],
-                                teamAId: match.teamAId,
-                                teamBId: match.teamBId,
-                                semanas: match.semanas,
-                                title: match.title || "",
-                              });
-                              setShowEditModal(true);
-                            }}
-                          >
-                            Edit
-                          </Button>
-                          <Button variant="danger" size="sm" onClick={() => handleDelete(match.id)}>
-                            Delete
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              {/* Group matches by week (semanas) */}
+              {(() => {
+                // Group matches by week
+                const weekMap = new Map();
+                matches.forEach((match) => {
+                  const week = match.semanas || 1;
+                  if (!weekMap.has(week)) weekMap.set(week, []);
+                  weekMap.get(week).push(match);
+                });
+                const sortedWeeks = Array.from(weekMap.keys()).sort((a, b) => a - b);
+                return (
+                  <div>
+                    {sortedWeeks.map((week) => (
+                      <div key={week} className="mb-8">
+                        <h3 className="text-lg font-bold mb-2">Week {week}</h3>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Match</TableHead>
+                              <TableHead>Type</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Best Of</TableHead>
+                              <TableHead>Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {weekMap.get(week).map((match) => (
+                              <TableRow key={match.id}>
+                                <TableCell className="font-medium">
+                                  {getTeamName(match.teamAId)} vs {getTeamName(match.teamBId)}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="secondary">{match.type}</Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge
+                                    variant={
+                                      match.status === "ACTIVE"
+                                        ? "warning"
+                                        : match.status === "FINISHED"
+                                        ? "success"
+                                        : "default"
+                                    }
+                                  >
+                                    {match.status}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>{match.bestOf}</TableCell>
+                                <TableCell>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        setSelectedMatch(match);
+                                        setFormData({
+                                          type: match.type,
+                                          bestOf: match.bestOf,
+                                          startDate: match.startDate ? match.startDate.split("T")[0] : "",
+                                          teamAId: match.teamAId,
+                                          teamBId: match.teamBId,
+                                          semanas: match.semanas,
+                                          title: match.title || "",
+                                        });
+                                        setShowEditModal(true);
+                                      }}
+                                    >
+                                      Edit
+                                    </Button>
+                                    <Button variant="danger" size="sm" onClick={() => handleDelete(match.id)}>
+                                      Delete
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
           )}
         </CardContent>
@@ -610,7 +619,8 @@ function MatchesSection({ token }: { token: string }) {
         </ModalHeader>
         <ModalContent>
           <p className="text-muted text-sm mb-4">
-            This will generate all matches for a round robin format where each team plays against every other team.
+            This will generate all matches for a round robin format where each team plays against every other team.<br />
+            <span className="text-warning">Type <b>CONFIRM ROUND ROBIN</b> below to confirm.</span>
           </p>
           <div className="space-y-4">
             <Input
@@ -622,16 +632,16 @@ function MatchesSection({ token }: { token: string }) {
               max={9}
             />
             <Input
-              label="Start Date"
-              type="date"
-              value={roundRobinData.startDate}
-              onChange={(e) => setRoundRobinData({ ...roundRobinData, startDate: e.target.value })}
+              label="Confirmation"
+              placeholder="Type CONFIRM ROUND ROBIN"
+              value={roundRobinData.confirmationText}
+              onChange={(e) => setRoundRobinData({ ...roundRobinData, confirmationText: e.target.value })}
             />
           </div>
         </ModalContent>
         <ModalFooter>
           <Button variant="ghost" onClick={() => setShowRoundRobinModal(false)}>Cancel</Button>
-          <Button onClick={handleGenerateRoundRobin}>Generate Schedule</Button>
+          <Button onClick={handleGenerateRoundRobin} disabled={roundRobinData.confirmationText !== "CONFIRM ROUND ROBIN"}>Generate Schedule</Button>
         </ModalFooter>
       </Modal>
     </div>

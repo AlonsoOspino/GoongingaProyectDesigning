@@ -31,7 +31,8 @@ const typeLabels: Record<MatchType, string> = {
 
 export function MatchCard({ match, teamA, teamB }: MatchCardProps) {
   const status = statusVariants[match.status];
-  const matchDate = new Date(match.startDate);
+  const hasDate = Boolean(match.startDate);
+  const matchDate = hasDate ? new Date(match.startDate) : null;
   const isLive = match.status === "ACTIVE";
 
   return (
@@ -116,21 +117,27 @@ export function MatchCard({ match, teamA, teamB }: MatchCardProps) {
             </div>
           </div>
 
-          {/* Date */}
+          {/* Date or Week */}
           <div className="mt-4 pt-3 border-t border-border flex items-center justify-between text-sm">
-            <span className="text-muted">
-              {matchDate.toLocaleDateString("en-US", {
-                weekday: "short",
-                month: "short",
-                day: "numeric",
-              })}
-            </span>
-            <span className="text-foreground font-medium">
-              {matchDate.toLocaleTimeString("en-US", {
-                hour: "numeric",
-                minute: "2-digit",
-              })}
-            </span>
+            {hasDate ? (
+              <>
+                <span className="text-muted">
+                  {matchDate!.toLocaleDateString("en-US", {
+                    weekday: "short",
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </span>
+                <span className="text-foreground font-medium">
+                  {matchDate!.toLocaleTimeString("en-US", {
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </span>
+              </>
+            ) : (
+              <span className="text-muted">Week {match.semanas}</span>
+            )}
           </div>
         </CardContent>
       </Card>

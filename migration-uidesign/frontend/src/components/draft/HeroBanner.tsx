@@ -85,7 +85,7 @@ export function HeroBanner({
                       {hero.imgPath ? (
                         <img
                           src={resolveHeroImageUrl(hero.imgPath)}
-                          alt={`Hero ${hero.id}`}
+                          alt={hero.name}
                           className="w-full h-full object-cover"
                         />
                       ) : (
@@ -93,6 +93,12 @@ export function HeroBanner({
                           <span className="text-xs text-muted font-mono">#{hero.id}</span>
                         </div>
                       )}
+
+                      <div className="absolute bottom-0 left-0 right-0 bg-black/70 px-1 py-0.5">
+                        <span className="block truncate text-[10px] text-white text-center">
+                          {hero.name}
+                        </span>
+                      </div>
 
                       {/* Banned Overlay */}
                       {isBanned && (

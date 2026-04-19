@@ -137,12 +137,7 @@ export default function SchedulePage() {
               value={teamFilter}
               onChange={(e) => setTeamFilter(e.target.value)}
             />
-            <Select
-              label="Match Type"
-              options={typeOptions}
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-            />
+            {/* Removed Match Type selector as requested */}
           </div>
           {(weekFilter !== "all" || teamFilter !== "all" || typeFilter !== "all") && (
             <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
@@ -195,16 +190,35 @@ export default function SchedulePage() {
 
         <TabsContent value="upcoming">
           {upcomingMatches.length > 0 ? (
-            <div className="space-y-4">
-              {upcomingMatches.map((match) => (
-                <MatchCard
-                  key={match.id}
-                  match={match}
-                  teamA={teamsById.get(match.teamAId)}
-                  teamB={teamsById.get(match.teamBId)}
-                />
-              ))}
-            </div>
+            (() => {
+              // Group upcoming matches by week
+              const weekMap = new Map();
+              upcomingMatches.forEach((match) => {
+                const week = match.semanas || 1;
+                if (!weekMap.has(week)) weekMap.set(week, []);
+                weekMap.get(week).push(match);
+              });
+              const sortedWeeks = Array.from(weekMap.keys()).sort((a, b) => a - b);
+              return (
+                <div className="space-y-8">
+                  {sortedWeeks.map((week) => (
+                    <div key={week}>
+                      <h3 className="text-lg font-bold mb-2">Week {week}</h3>
+                      <div className="space-y-4">
+                        {weekMap.get(week).map((match) => (
+                          <MatchCard
+                            key={match.id}
+                            match={match}
+                            teamA={teamsById.get(match.teamAId)}
+                            teamB={teamsById.get(match.teamBId)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()
           ) : (
             <Card variant="bordered">
               <CardContent className="py-12 text-center text-muted">

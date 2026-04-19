@@ -180,23 +180,24 @@ export async function adminUpdateMember(
 }
 
 // ==================== MAPS & HEROES ====================
-export interface GameMap {
+export interface AdminGameMap {
   id: number;
   type: "CONTROL" | "HYBRID" | "PAYLOAD" | "PUSH" | "FLASHPOINT";
   description: string;
   imgPath: string;
 }
 
-export interface Hero {
+export interface AdminHero {
   id: number;
+  name: string;
   role: "TANK" | "DPS" | "SUPPORT";
   imgPath: string;
 }
 
 export async function getMaps() {
-  return apiRequest<GameMap[]>("/map");
+  return apiRequest<AdminGameMap[]>("/map");
 }
 
 export async function getHeroes() {
-  return apiRequest<Hero[]>("/hero");
+  return apiRequest<AdminHero[]>("/hero");
 }

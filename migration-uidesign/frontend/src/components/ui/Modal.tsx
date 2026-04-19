@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, type HTMLAttributes, type ReactNode } from "react";
 import { clsx } from "clsx";
 
 interface ModalProps {
@@ -77,8 +77,51 @@ export function Modal({ isOpen, onClose, title, children, className }: ModalProp
             </button>
           </div>
         )}
-        <div className="p-6">{children}</div>
+        {title ? <div className="p-6">{children}</div> : children}
       </div>
+    </div>
+  );
+}
+
+interface ModalSectionProps extends HTMLAttributes<HTMLDivElement> {
+  children: ReactNode;
+}
+
+interface ModalTitleProps extends HTMLAttributes<HTMLHeadingElement> {
+  children: ReactNode;
+}
+
+export function ModalHeader({ children, className, ...props }: ModalSectionProps) {
+  return (
+    <div
+      className={clsx("flex items-center justify-between px-6 py-4 border-b border-border", className)}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function ModalTitle({ children, className, ...props }: ModalTitleProps) {
+  return (
+    <h2 className={clsx("text-lg font-semibold text-foreground", className)} {...props}>
+      {children}
+    </h2>
+  );
+}
+
+export function ModalContent({ children, className, ...props }: ModalSectionProps) {
+  return (
+    <div className={clsx("px-6 py-4", className)} {...props}>
+      {children}
+    </div>
+  );
+}
+
+export function ModalFooter({ children, className, ...props }: ModalSectionProps) {
+  return (
+    <div className={clsx("flex items-center justify-end gap-2 px-6 py-4 border-t border-border", className)} {...props}>
+      {children}
     </div>
   );
 }

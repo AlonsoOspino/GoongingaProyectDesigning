@@ -40,3 +40,10 @@ export async function submitMatchResult(token: string, matchId: number, winnerTe
     body: { winnerTeamId },
   });
 }
+
+export async function finishPendingRegisters(token: string, matchId: number) {
+  return apiRequest<Match>(`/match/${matchId}/finish-registers`, {
+    method: "POST",
+    token,
+  });
+}

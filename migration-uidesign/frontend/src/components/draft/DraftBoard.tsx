@@ -53,7 +53,7 @@ export function DraftBoard({ actions, teamA, teamB, heroes, maps, currentGameNum
     }
     if (action.action === "BAN" && action.value) {
       const hero = getHeroById(action.value);
-      return { label: `Hero #${action.value}`, sublabel: hero?.role };
+      return { label: hero?.name || `Hero #${action.value}`, sublabel: hero?.role };
     }
     return { label: action.action, sublabel: null };
   };

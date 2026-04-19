@@ -7,4 +7,4 @@ export { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from ".
 export { Skeleton } from "./Skeleton";
 export { Tabs, TabsList, TabsTrigger, TabsContent } from "./Tabs";
 export { Select } from "./Select";
-export { Modal } from "./Modal";
+export { Modal, ModalHeader, ModalTitle, ModalContent, ModalFooter } from "./Modal";

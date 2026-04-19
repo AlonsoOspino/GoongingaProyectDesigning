@@ -38,7 +38,7 @@ export default function DraftPage() {
             ) : (
               <div className="space-y-3">
                 <p className="text-sm text-foreground">
-                  Signed in as {user?.username ?? "user"}. Choose your dashboard:
+                  Signed in as {user?.nickname ?? "user"}. Choose your dashboard:
                 </p>
                 <div className="flex flex-wrap gap-3">
                   <Link href="/captain-dashboard">

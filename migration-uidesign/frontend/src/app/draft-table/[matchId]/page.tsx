@@ -27,16 +27,6 @@ const TURN_DURATION = 75;
 
 type Phase = "STARTING" | "MAPPICKING" | "BAN" | "ENDMAP" | "FINISHED";
 
-// Helper: Extract hero name from imgPath (e.g., "Icon-Ana.webp" -> "Ana")
-function getHeroName(imgPath: string): string {
-  return imgPath
-    .replace(/^.*\//, "") // Remove path
-    .replace(/^Icon-/i, "") // Remove "Icon-" prefix
-    .replace(/\.[^.]+$/, "") // Remove extension
-    .replace(/%3F/gi, "o") // Fix URL encoding
-    .replace(/_/g, " "); // Replace underscores
-}
-
 export default function DraftTablePage() {
   const params = useParams();
   const router = useRouter();
@@ -189,7 +179,7 @@ export default function DraftTablePage() {
     if (!token || !isMyTurn || !draftId) return;
     setActionLoading(true);
     try {
-      const updated = await pickMap(token, draftId, { mapId, teamId: myTeamId });
+      const updated = await pickMap(token, draftId, { mapId, teamId: myTeamId ?? undefined });
       setDraftState(updated);
     } catch (err) {
       console.error("Failed to pick map:", err);
@@ -202,7 +192,7 @@ export default function DraftTablePage() {
     if (!token || !isMyTurn || !draftId) return;
     setActionLoading(true);
     try {
-      const updated = await banHero(token, draftId, { heroId, teamId: myTeamId });
+      const updated = await banHero(token, draftId, { heroId, teamId: myTeamId ?? undefined });
       setDraftState(updated);
     } catch (err) {
       console.error("Failed to ban hero:", err);
@@ -428,8 +418,6 @@ export default function DraftTablePage() {
             getTeamTotalBans={getTeamTotalBans}
             getBanCountByRole={getBanCountByRole}
             canBanRole={canBanRole}
-            banWarning={banWarning}
-            setBanWarning={setBanWarning}
             actionLoading={actionLoading}
           />
         )}
@@ -867,7 +855,7 @@ function BanPhase({
           <>
             <img src={resolveHeroImageUrl(hero.imgPath)} alt="" className="w-full h-8 object-cover grayscale" />
             <span className="text-[7px] text-danger truncate w-full text-center px-0.5">
-              {getHeroName(hero.imgPath)}
+              {hero.name}
             </span>
           </>
         ) : (
@@ -926,7 +914,7 @@ function BanPhase({
           {hero.imgPath ? (
             <img
               src={resolveHeroImageUrl(hero.imgPath)}
-              alt={getHeroName(hero.imgPath)}
+              alt={hero.name}
               className={clsx(
                 "w-full h-full object-cover", 
                 banned && isCaptain && "grayscale opacity-50" // Captain sees gray
@@ -942,7 +930,7 @@ function BanPhase({
         </div>
         <div className="px-1 py-0.5 bg-background text-center">
           <span className="text-[9px] text-foreground truncate block">
-            {getHeroName(hero.imgPath)}
+            {hero.name}
           </span>
         </div>
         {/* Banned overlay - different for manager vs captain */}
@@ -1251,7 +1239,7 @@ function EndMapPhase({
           <>
             <img src={resolveHeroImageUrl(hero.imgPath)} alt="" className="w-full h-8 object-cover grayscale" />
             <span className="text-[7px] text-danger truncate w-full text-center">
-              {getHeroName(hero.imgPath)}
+              {hero.name}
             </span>
           </>
         ) : (
@@ -1525,7 +1513,7 @@ function DraftHistory({
     teams.find((t) => t.id === teamId)?.name || `Team ${teamId}`;
 
   const getActionDisplay = (action: DraftState["actions"][0]) => {
-    if (action.action === "SKIP") {
+    if (action.action === "BAN"   && action.value === null) {
       return "Skipped";
     }
     if (action.action === "PICK" && action.value) {
@@ -1534,7 +1522,7 @@ function DraftHistory({
     }
     if (action.action === "BAN" && action.value) {
       const hero = heroes.find((h) => h.id === action.value);
-      return hero ? `Banned ${getHeroName(hero.imgPath)}` : `Banned Hero #${action.value}`;
+      return hero ? `Banned ${hero.name}` : `Banned Hero #${action.value}`;
     }
     return action.action;
   };

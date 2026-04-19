@@ -40,7 +40,7 @@ export default function CaptainDashboardPage() {
       router.push("/login");
     }
   }, [isHydrated, isAuthenticated, user, router]);
-
+  
   // Request notification permission on mount
   useEffect(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
@@ -405,21 +405,27 @@ export default function CaptainDashboardPage() {
                                   vs {getTeamName(opponentId)}
                                 </h3>
                                 <div className="flex items-center gap-4 mt-2">
-                                  <div className={clsx(
-                                    "text-sm font-medium",
-                                    isSoon ? "text-primary" : "text-muted"
-                                  )}>
-                                    {formatMatchDate(match.startDate)}
-                                  </div>
-                                  <span className="text-muted">|</span>
-                                  <span className="text-sm text-muted">
-                                    {new Date(match.startDate).toLocaleTimeString([], {
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    })}
-                                  </span>
-                                  <span className="text-muted">|</span>
-                                  <span className="text-sm text-muted">Best of {match.bestOf}</span>
+                                  {match.startDate ? (
+                                    <>
+                                      <div className={clsx(
+                                        "text-sm font-medium",
+                                        isSoon ? "text-primary" : "text-muted"
+                                      )}>
+                                        {formatMatchDate(match.startDate)}
+                                      </div>
+                                      <span className="text-muted">|</span>
+                                      <span className="text-sm text-muted">
+                                        {new Date(match.startDate).toLocaleTimeString([], {
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })}
+                                      </span>
+                                      <span className="text-muted">|</span>
+                                      <span className="text-sm text-muted">Best of {match.bestOf}</span>
+                                    </>
+                                  ) : (
+                                    <span className="text-sm text-warning font-semibold">Waiting for Captain's Schedule</span>
+                                  )}
                                 </div>
                               </div>
 
@@ -450,11 +456,11 @@ export default function CaptainDashboardPage() {
                                     variant="ghost"
                                     onClick={() => {
                                       setSelectedMatch(match);
-                                      setNewDate(match.startDate.slice(0, 16));
+                                      setNewDate(match.startDate ? match.startDate.slice(0, 16) : "");
                                       setShowRescheduleModal(true);
                                     }}
                                   >
-                                    Reschedule
+                                    {match.startDate ? "Reschedule" : "Schedule"}
                                   </Button>
                                 </div>
                               </div>

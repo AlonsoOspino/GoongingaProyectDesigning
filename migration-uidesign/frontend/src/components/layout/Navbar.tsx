@@ -31,6 +31,8 @@ export function Navbar() {
         return { href: "/manager-dashboard", label: "Manager Dashboard" };
       case "CAPTAIN":
         return { href: "/captain-dashboard", label: "Captain Dashboard" };
+      case "EDITOR":
+        return { href: "/editor-dashboard", label: "Editor Dashboard" };
       default:
         return null;
     }
@@ -44,10 +46,10 @@ export function Navbar() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <span className="font-bold text-primary-foreground text-sm">GL</span>
+            <div className="w-12 h-12 rounded-full bg-white overflow-hidden flex items-center justify-center">
+              <img src="/winton.jpg" alt="Goonginga League Logo" className="w-full h-full object-contain" />
             </div>
-            <span className="font-bold text-lg text-foreground hidden sm:block">
+            <span className="font-bold text-xl text-foreground hidden sm:block">
               Goonginga League
             </span>
           </Link>
