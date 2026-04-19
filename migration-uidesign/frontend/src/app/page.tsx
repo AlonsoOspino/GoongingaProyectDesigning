@@ -292,6 +292,169 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* About the League Section */}
+      <section className="py-16 relative overflow-hidden">
+        {/* Decorative background */}
+        <div className="absolute inset-0 bg-gradient-to-b from-surface/50 to-transparent pointer-events-none" />
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+        <div className="absolute -top-32 left-1/4 w-64 h-64 bg-primary/10 rounded-full blur-[100px] pointer-events-none" />
+        <div className="absolute -bottom-32 right-1/4 w-56 h-56 bg-accent/10 rounded-full blur-[80px] pointer-events-none" />
+        
+        <div className="container mx-auto px-4 relative">
+          {/* Section Header */}
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium mb-4">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              About Us
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4 text-balance">
+              The Goonginga League Story
+            </h2>
+            <p className="text-muted max-w-2xl mx-auto text-pretty">
+              Building a community of passionate Overwatch players since 2024
+            </p>
+          </div>
+
+          {/* Content Grid with Images */}
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+            {/* Left Column - Text Content */}
+            <div className="space-y-6">
+              <div className="p-6 rounded-xl bg-card border border-border relative overflow-hidden group hover:border-primary/30 transition-colors">
+                <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-primary to-accent" />
+                <div className="pl-4">
+                  <h3 className="text-xl font-semibold text-foreground mb-3 flex items-center gap-2">
+                    <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Our Beginning
+                  </h3>
+                  <p className="text-muted leading-relaxed">
+                    The Goonginga League was founded in 2024 by a group of friends who shared a passion for competitive Overwatch. What started as casual scrims among friends quickly grew into a full-fledged competitive league with teams from across the community.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-6 rounded-xl bg-card border border-border relative overflow-hidden group hover:border-primary/30 transition-colors">
+                <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-accent to-success" />
+                <div className="pl-4">
+                  <h3 className="text-xl font-semibold text-foreground mb-3 flex items-center gap-2">
+                    <svg className="w-5 h-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    Live on Twitch
+                  </h3>
+                  <p className="text-muted leading-relaxed">
+                    All our matches are streamed live on Twitch! Catch the action, watch player highlights, and experience the excitement of competitive Overwatch with our dedicated casting team and community chat.
+                  </p>
+                  <a 
+                    href="https://twitch.tv" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 mt-3 text-[#9146FF] hover:text-[#9146FF]/80 font-medium text-sm transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z" />
+                    </svg>
+                    Watch our streams
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                </div>
+              </div>
+
+              <div className="p-6 rounded-xl bg-card border border-border relative overflow-hidden group hover:border-primary/30 transition-colors">
+                <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-success to-primary" />
+                <div className="pl-4">
+                  <h3 className="text-xl font-semibold text-foreground mb-3 flex items-center gap-2">
+                    <svg className="w-5 h-5 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    Our Community
+                  </h3>
+                  <p className="text-muted leading-relaxed">
+                    We pride ourselves on fostering a positive, welcoming environment. Our players range from aspiring pros to casual competitors, all united by their love for the game. Skill and sportsmanship go hand in hand here.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column - Images */}
+            <div className="space-y-6">
+              {/* Image 1 Placeholder */}
+              <div className="relative group">
+                <div className="absolute -inset-1 bg-gradient-to-r from-primary/50 to-accent/50 rounded-2xl blur opacity-25 group-hover:opacity-50 transition-opacity" />
+                <div className="relative aspect-video rounded-xl bg-surface-elevated border border-border overflow-hidden">
+                  {/* Replace src with your actual image path */}
+                  <img 
+                    src="/league-image-1.jpg" 
+                    alt="Goonginga League Match" 
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                    }}
+                  />
+                  <div className="hidden absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-primary/20 to-accent/20">
+                    <svg className="w-12 h-12 text-muted mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span className="text-sm text-muted">Match Highlight Image</span>
+                  </div>
+                </div>
+                <div className="absolute bottom-3 left-3 px-3 py-1 rounded-md bg-background/80 backdrop-blur text-xs text-foreground font-medium">
+                  Live Match Action
+                </div>
+              </div>
+
+              {/* Image 2 Placeholder */}
+              <div className="relative group">
+                <div className="absolute -inset-1 bg-gradient-to-r from-accent/50 to-success/50 rounded-2xl blur opacity-25 group-hover:opacity-50 transition-opacity" />
+                <div className="relative aspect-video rounded-xl bg-surface-elevated border border-border overflow-hidden">
+                  {/* Replace src with your actual image path */}
+                  <img 
+                    src="/league-image-2.jpg" 
+                    alt="Goonginga League Community" 
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                    }}
+                  />
+                  <div className="hidden absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-accent/20 to-success/20">
+                    <svg className="w-12 h-12 text-muted mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span className="text-sm text-muted">Community Image</span>
+                  </div>
+                </div>
+                <div className="absolute bottom-3 left-3 px-3 py-1 rounded-md bg-background/80 backdrop-blur text-xs text-foreground font-medium">
+                  Our Amazing Community
+                </div>
+              </div>
+
+              {/* Stats Row */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="p-4 rounded-xl bg-card border border-border text-center group hover:border-primary/30 transition-colors">
+                  <div className="text-2xl font-bold text-primary mb-1">2024</div>
+                  <div className="text-xs text-muted">Founded</div>
+                </div>
+                <div className="p-4 rounded-xl bg-card border border-border text-center group hover:border-accent/30 transition-colors">
+                  <div className="text-2xl font-bold text-accent mb-1">8+</div>
+                  <div className="text-xs text-muted">Teams</div>
+                </div>
+                <div className="p-4 rounded-xl bg-card border border-border text-center group hover:border-success/30 transition-colors">
+                  <div className="text-2xl font-bold text-success mb-1">50+</div>
+                  <div className="text-xs text-muted">Players</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* News Section */}
       {data.recentNews.length > 0 && (
         <section className="py-12 bg-surface relative overflow-hidden">

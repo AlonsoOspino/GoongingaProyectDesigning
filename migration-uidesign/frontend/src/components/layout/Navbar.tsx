@@ -42,22 +42,32 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 relative">
-      {/* Subtle gradient accent line at top */}
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-      <div className="container mx-auto px-4">
+      {/* Decorative top accent */}
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent" />
+      {/* Subtle corner accents */}
+      <div className="absolute top-0 left-0 w-32 h-16 bg-gradient-to-br from-primary/10 to-transparent pointer-events-none" />
+      <div className="absolute top-0 right-0 w-32 h-16 bg-gradient-to-bl from-accent/10 to-transparent pointer-events-none" />
+      
+      <div className="container mx-auto px-4 relative">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-12 h-12 rounded-full bg-white overflow-hidden flex items-center justify-center">
-              <img src="/winton.jpg" alt="Goonginga League Logo" className="w-full h-full object-contain" />
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="relative">
+              <div className="absolute -inset-1 bg-gradient-to-r from-primary/50 to-accent/50 rounded-full blur opacity-0 group-hover:opacity-75 transition-opacity" />
+              <div className="relative w-12 h-12 rounded-full bg-white overflow-hidden flex items-center justify-center ring-2 ring-primary/20 group-hover:ring-primary/50 transition-all">
+                <img src="/winton.jpg" alt="Goonginga League Logo" className="w-full h-full object-contain" />
+              </div>
             </div>
-            <span className="font-bold text-xl text-foreground hidden sm:block">
-              Goonginga League
-            </span>
+            <div className="hidden sm:flex flex-col">
+              <span className="font-bold text-xl text-foreground leading-tight">
+                Goonginga League
+              </span>
+              <span className="text-xs text-primary/80 font-medium tracking-wide">COMPETITIVE OVERWATCH</span>
+            </div>
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden md:flex items-center gap-1 px-2 py-1 rounded-full bg-surface/50 border border-border/50">
             {publicNavLinks.map((link) => {
               const isActive =
                 link.href === "/"
@@ -69,10 +79,10 @@ export function Navbar() {
                   key={link.href}
                   href={link.href}
                   className={clsx(
-                    "px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                    "relative px-4 py-1.5 text-sm font-medium rounded-full transition-all",
                     isActive
-                      ? "bg-surface-elevated text-foreground"
-                      : "text-muted hover:text-foreground hover:bg-surface"
+                      ? "bg-primary text-primary-foreground shadow-sm shadow-primary/25"
+                      : "text-muted hover:text-foreground hover:bg-surface-elevated"
                   )}
                 >
                   {link.label}

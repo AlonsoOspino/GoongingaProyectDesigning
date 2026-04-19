@@ -22,38 +22,70 @@ const footerLinks = [
 export function Footer() {
   return (
     <footer className="border-t border-border bg-surface mt-auto relative overflow-hidden">
-      {/* Decorative gradient at top */}
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
-      {/* Subtle background blobs */}
-      <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-primary/5 rounded-full blur-[60px]" />
-      <div className="absolute -bottom-10 right-1/4 w-32 h-32 bg-accent/5 rounded-full blur-[50px]" />
+      {/* Decorative grid pattern */}
+      <div className="absolute inset-0 bg-grid-pattern-subtle opacity-30 pointer-events-none" />
       
-      <div className="container mx-auto px-4 py-8 relative">
+      {/* Top gradient line */}
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+      
+      {/* Corner accent decorations */}
+      <div className="absolute top-0 left-0 w-48 h-48 bg-gradient-to-br from-primary/10 to-transparent pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-64 h-64 bg-gradient-to-tl from-accent/10 to-transparent pointer-events-none" />
+      
+      {/* Floating orbs */}
+      <div className="absolute top-10 right-1/4 w-2 h-2 bg-primary/40 rounded-full animate-pulse" />
+      <div className="absolute bottom-16 left-1/3 w-1.5 h-1.5 bg-accent/40 rounded-full animate-pulse" style={{ animationDelay: '1s' }} />
+      <div className="absolute top-1/2 right-1/3 w-1 h-1 bg-primary/30 rounded-full animate-pulse" style={{ animationDelay: '2s' }} />
+      
+      <div className="container mx-auto px-4 py-12 relative">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
-            <div className="flex items-center gap-2 mb-4">
-                      <div className="w-12 h-12 rounded-full bg-white overflow-hidden flex items-center justify-center">
-                        <img src="/winton.jpg" alt="Goonginga League Logo" className="w-full h-full object-contain" />
-                      </div>
-              <span className="font-bold text-foreground">Goonginga League</span>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="relative">
+                <div className="absolute -inset-1 bg-gradient-to-r from-primary/30 to-accent/30 rounded-full blur" />
+                <div className="relative w-12 h-12 rounded-full bg-white overflow-hidden flex items-center justify-center ring-2 ring-primary/20">
+                  <img src="/winton.jpg" alt="Goonginga League Logo" className="w-full h-full object-contain" />
+                </div>
+              </div>
+              <div className="flex flex-col">
+                <span className="font-bold text-foreground">Goonginga League</span>
+                <span className="text-xs text-primary/70 font-medium">EST. 2024</span>
+              </div>
             </div>
-            <p className="text-sm text-muted">
-              The premier competitive gaming league for Overwatch enthusiasts.
+            <p className="text-sm text-muted leading-relaxed">
+              The premier competitive gaming league for Overwatch enthusiasts. Join our community of passionate players.
             </p>
+            
+            {/* Twitch Link */}
+            <a 
+              href="https://twitch.tv" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 mt-4 px-3 py-1.5 rounded-md bg-[#9146FF]/10 border border-[#9146FF]/20 text-[#9146FF] hover:bg-[#9146FF]/20 transition-colors text-sm font-medium"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z" />
+              </svg>
+              Watch Live
+            </a>
           </div>
 
           {/* Links */}
           {footerLinks.map((group) => (
             <div key={group.title}>
-              <h3 className="font-semibold text-foreground mb-3">{group.title}</h3>
-              <ul className="space-y-2">
+              <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                <span className="w-1 h-4 bg-gradient-to-b from-primary to-accent rounded-full" />
+                {group.title}
+              </h3>
+              <ul className="space-y-2.5">
                 {group.links.map((link) => (
                   <li key={link.href}>
                     <Link
                       href={link.href}
-                      className="text-sm text-muted hover:text-foreground transition-colors"
+                      className="inline-flex items-center gap-2 text-sm text-muted hover:text-foreground hover:translate-x-1 transition-all group"
                     >
+                      <span className="w-0 group-hover:w-2 h-px bg-primary transition-all" />
                       {link.label}
                     </Link>
                   </li>
@@ -64,11 +96,15 @@ export function Footer() {
 
           {/* Social/Contact */}
           <div>
-            <h3 className="font-semibold text-foreground mb-3">Connect</h3>
-            <div className="flex gap-3">
+            <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+              <span className="w-1 h-4 bg-gradient-to-b from-primary to-accent rounded-full" />
+              Connect
+            </h3>
+            <p className="text-sm text-muted mb-4">Join our gaming community</p>
+            <div className="flex gap-2">
               <a
                 href="#"
-                className="p-2 rounded-md bg-surface-elevated text-muted hover:text-foreground transition-colors"
+                className="p-2.5 rounded-lg bg-surface-elevated border border-border hover:border-[#5865F2]/50 hover:bg-[#5865F2]/10 text-muted hover:text-[#5865F2] transition-all"
                 aria-label="Discord"
               >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -77,35 +113,57 @@ export function Footer() {
               </a>
               <a
                 href="#"
-                className="p-2 rounded-md bg-surface-elevated text-muted hover:text-foreground transition-colors"
+                className="p-2.5 rounded-lg bg-surface-elevated border border-border hover:border-foreground/30 hover:bg-foreground/10 text-muted hover:text-foreground transition-all"
                 aria-label="Twitter"
               >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                 </svg>
               </a>
+              <a
+                href="https://twitch.tv"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2.5 rounded-lg bg-surface-elevated border border-border hover:border-[#9146FF]/50 hover:bg-[#9146FF]/10 text-muted hover:text-[#9146FF] transition-all"
+                aria-label="Twitch"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z" />
+                </svg>
+              </a>
             </div>
           </div>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-muted">
-            {new Date().getFullYear()} Goonginga League. All rights reserved.
-          </p>
-          <Link
-            href="/dev"
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md bg-surface-elevated border border-border hover:border-primary/50 hover:bg-surface transition-all group"
-          >
-            <svg 
-              className="w-4 h-4 text-primary group-hover:text-primary transition-colors" 
-              fill="none" 
-              viewBox="0 0 24 24" 
-              stroke="currentColor"
+        <div className="mt-10 pt-6 border-t border-border">
+          {/* Decorative divider */}
+          <div className="flex items-center justify-center gap-3 -mt-9 mb-6">
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent to-border" />
+            <div className="w-2 h-2 rotate-45 border border-primary/50 bg-surface" />
+            <div className="h-px flex-1 bg-gradient-to-l from-transparent to-border" />
+          </div>
+          
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3 text-sm text-muted">
+              <span>{new Date().getFullYear()} Goonginga League</span>
+              <span className="w-1 h-1 rounded-full bg-muted/50" />
+              <span>All rights reserved</span>
+            </div>
+            <Link
+              href="/dev"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-gradient-to-r from-surface-elevated to-surface border border-border hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all group"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-            </svg>
-            <span className="text-muted group-hover:text-foreground transition-colors">Developer</span>
-          </Link>
+              <svg 
+                className="w-4 h-4 text-primary transition-transform group-hover:scale-110" 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+              </svg>
+              <span className="text-muted group-hover:text-foreground transition-colors">Developer</span>
+            </Link>
+          </div>
         </div>
       </div>
     </footer>
