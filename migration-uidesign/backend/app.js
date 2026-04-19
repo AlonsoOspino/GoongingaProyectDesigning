@@ -2,6 +2,7 @@
 require("dotenv").config();
 const express = require("express");
 const path = require("path");
+const prisma = require("./config/prisma");
 const memberRoutes = require("./routes/member");
 const tournamentRoutes = require("./routes/tournament");
 const draftActionRoutes = require("./routes/draftAction");
@@ -17,6 +18,19 @@ const PORT = Number(process.env.PORT || 3000);
 app.use(cors()); 
 app.use(express.json());
 
+app.get("/health", async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return res.status(200).json({ ok: true, database: "connected" });
+  } catch (error) {
+    return res.status(500).json({
+      ok: false,
+      database: "disconnected",
+      error: error?.message || "Unknown DB error",
+    });
+  }
+});
+
 app.use("/assets/heroes", express.static(path.join(__dirname, "../frontend/HeroImages")));
 app.use("/assets/maps", express.static(path.join(__dirname, "../frontend/MapImages")));
 
@@ -29,6 +43,20 @@ app.use("/match", matchRoutes);
 app.use("/team", teamRoutes);
 app.use("/playerStat", playerStatRoutes);
 app.use("/news", newsRoutes);
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+
+const startServer = async () => {
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL is not set");
+  }
+
+  await prisma.$connect();
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    console.log("Database connection established");
+  });
+};
+
+startServer().catch((error) => {
+  console.error("Failed to start server:", error?.message || error);
+  process.exit(1);
 });
