@@ -114,11 +114,18 @@ export default function SchedulePage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 relative">
+      {/* Decorative background */}
+      <div className="fixed top-32 left-1/4 w-60 h-60 bg-primary/10 rounded-full blur-[100px] pointer-events-none" />
+      <div className="fixed bottom-1/4 right-1/3 w-48 h-48 bg-accent/10 rounded-full blur-[80px] pointer-events-none" />
+      
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">Schedule</h1>
-        <p className="text-muted">View all matches across the season</p>
+      <div className="mb-8 relative">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-1 h-8 bg-gradient-to-b from-primary to-accent rounded-full" />
+          <h1 className="text-3xl font-bold text-foreground">Schedule</h1>
+        </div>
+        <p className="text-muted pl-4">View all matches across the season</p>
       </div>
 
       {/* Filters */}

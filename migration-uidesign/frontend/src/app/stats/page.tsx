@@ -123,11 +123,18 @@ export default function StatsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 relative">
+      {/* Decorative background */}
+      <div className="fixed top-28 right-1/3 w-72 h-72 bg-danger/10 rounded-full blur-[110px] pointer-events-none" />
+      <div className="fixed bottom-1/3 left-1/4 w-56 h-56 bg-success/10 rounded-full blur-[90px] pointer-events-none" />
+      
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">Stats Center</h1>
-        <p className="text-muted">Player performance statistics across all matches</p>
+      <div className="mb-8 relative">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-1 h-8 bg-gradient-to-b from-danger to-success rounded-full" />
+          <h1 className="text-3xl font-bold text-foreground">Stats Center</h1>
+        </div>
+        <p className="text-muted pl-4">Player performance statistics across all matches</p>
       </div>
 
       {stats.length > 0 ? (

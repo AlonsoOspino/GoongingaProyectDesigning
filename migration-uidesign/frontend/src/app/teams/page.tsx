@@ -25,11 +25,18 @@ export default async function TeamsPage() {
   const teams = await getTeamsData();
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 relative">
+      {/* Decorative background */}
+      <div className="fixed top-24 right-1/4 w-72 h-72 bg-success/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="fixed bottom-1/3 left-1/4 w-56 h-56 bg-primary/10 rounded-full blur-[100px] pointer-events-none" />
+      
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">Teams</h1>
-        <p className="text-muted">
+      <div className="mb-8 relative">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-1 h-8 bg-gradient-to-b from-success to-primary rounded-full" />
+          <h1 className="text-3xl font-bold text-foreground">Teams</h1>
+        </div>
+        <p className="text-muted pl-4">
           All teams competing in the Goonginga League this season
         </p>
       </div>

@@ -34,12 +34,17 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-[80vh] flex items-center justify-center px-4 relative">
+      {/* Decorative background */}
+      <div className="fixed inset-0 bg-grid-pattern-subtle pointer-events-none opacity-50" />
+      <div className="fixed top-1/4 left-1/4 w-80 h-80 bg-primary/15 rounded-full blur-[120px] pointer-events-none" />
+      <div className="fixed bottom-1/4 right-1/4 w-64 h-64 bg-accent/10 rounded-full blur-[100px] pointer-events-none" />
+      
+      <div className="w-full max-w-md relative">
         {/* Logo */}
         <div className="flex justify-center mb-8">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center">
+          <Link href="/" className="flex items-center gap-2 group">
+            <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center glow-teal transition-all group-hover:scale-105">
               <span className="font-bold text-primary-foreground text-xl">GL</span>
             </div>
           </Link>

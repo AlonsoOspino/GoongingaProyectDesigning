@@ -95,6 +95,103 @@ body {
   background: var(--color-muted-foreground);
 }
 
+/* Decorative gradient backgrounds */
+.bg-gradient-radial {
+  background: radial-gradient(ellipse at top, rgba(20, 184, 166, 0.15) 0%, transparent 50%);
+}
+
+.bg-gradient-radial-bottom {
+  background: radial-gradient(ellipse at bottom, rgba(56, 189, 248, 0.1) 0%, transparent 50%);
+}
+
+.bg-grid-pattern {
+  background-image: 
+    linear-gradient(to right, rgba(63, 63, 70, 0.3) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(63, 63, 70, 0.3) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.bg-grid-pattern-subtle {
+  background-image: 
+    linear-gradient(to right, rgba(63, 63, 70, 0.15) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(63, 63, 70, 0.15) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+/* Glow effects */
+.glow-teal {
+  box-shadow: 0 0 20px rgba(20, 184, 166, 0.3), 0 0 40px rgba(20, 184, 166, 0.1);
+}
+
+.glow-cyan {
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.3), 0 0 40px rgba(56, 189, 248, 0.1);
+}
+
+.text-glow {
+  text-shadow: 0 0 20px rgba(20, 184, 166, 0.5);
+}
+
+/* Border gradients */
+.border-gradient-teal {
+  border: 1px solid transparent;
+  background: linear-gradient(var(--color-card), var(--color-card)) padding-box,
+              linear-gradient(135deg, rgba(20, 184, 166, 0.5), rgba(56, 189, 248, 0.3)) border-box;
+}
+
+/* Decorative shapes */
+.decoration-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* Noise texture overlay */
+.noise-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  pointer-events: none;
+}
+
+/* Animated border */
+@keyframes border-pulse {
+  0%, 100% {
+    border-color: rgba(20, 184, 166, 0.3);
+  }
+  50% {
+    border-color: rgba(20, 184, 166, 0.6);
+  }
+}
+
+.animate-border-pulse {
+  animation: border-pulse 3s ease-in-out infinite;
+}
+
+/* Shine effect */
+@keyframes shine {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shine-effect {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shine 8s linear infinite;
+}
+
 /* Animation utilities */
 @keyframes pulse-glow {
   0%, 100% {

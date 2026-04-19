@@ -2,7 +2,7 @@ import { forwardRef, type HTMLAttributes } from "react";
 import { clsx } from "clsx";
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
-  variant?: "default" | "elevated" | "bordered";
+  variant?: "default" | "elevated" | "bordered" | "gradient";
 }
 
 export const Card = forwardRef<HTMLDivElement, CardProps>(
@@ -11,11 +11,12 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
       <div
         ref={ref}
         className={clsx(
-          "rounded-lg",
+          "rounded-lg relative overflow-hidden",
           {
             "bg-card": variant === "default",
-            "bg-surface-elevated shadow-lg": variant === "elevated",
-            "bg-card border border-border": variant === "bordered",
+            "bg-surface-elevated shadow-lg shadow-black/20": variant === "elevated",
+            "bg-card border border-border hover:border-border/80 transition-colors": variant === "bordered",
+            "bg-card border border-border before:absolute before:inset-0 before:bg-gradient-to-br before:from-primary/5 before:to-accent/5 before:pointer-events-none": variant === "gradient",
           },
           className
         )}

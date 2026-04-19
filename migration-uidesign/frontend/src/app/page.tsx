@@ -68,16 +68,28 @@ export default async function HomePage() {
   const data = await getHomeData();
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen relative">
+      {/* Global decorative elements */}
+      <div className="fixed inset-0 bg-grid-pattern-subtle pointer-events-none" />
+      <div className="fixed top-0 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-[120px] pointer-events-none" />
+      <div className="fixed bottom-1/4 right-1/4 w-80 h-80 bg-accent/15 rounded-full blur-[100px] pointer-events-none" />
+      
       {/* Hero Section */}
-      <section className="relative py-20 overflow-hidden">
+      <section className="relative py-24 overflow-hidden">
+        {/* Hero background effects */}
+        <div className="absolute inset-0 bg-gradient-radial" />
         <div className="absolute inset-0 bg-gradient-to-b from-primary/10 via-transparent to-transparent" />
+        <div className="absolute top-10 left-10 w-2 h-2 bg-primary rounded-full animate-pulse" />
+        <div className="absolute top-20 right-20 w-1.5 h-1.5 bg-accent rounded-full animate-pulse" style={{ animationDelay: '0.5s' }} />
+        <div className="absolute bottom-20 left-1/4 w-1 h-1 bg-primary rounded-full animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-1/3 right-1/3 w-1.5 h-1.5 bg-accent rounded-full animate-pulse" style={{ animationDelay: '1.5s' }} />
+        
         <div className="container mx-auto px-4 relative">
           <div className="max-w-3xl mx-auto text-center">
-            <Badge variant="primary" className="mb-4">
+            <Badge variant="primary" className="mb-4 glow-teal">
               Season 2026
             </Badge>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-4 text-balance">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-4 text-balance text-glow">
               Welcome to the Goonginga League
             </h1>
             <p className="text-lg text-muted mb-8 text-pretty max-w-2xl mx-auto">
@@ -86,13 +98,20 @@ export default async function HomePage() {
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4">
               <Link href="/schedule">
-                <Button size="lg">View Schedule</Button>
+                <Button size="lg" className="glow-teal">View Schedule</Button>
               </Link>
               <Link href="/standings">
-                <Button variant="outline" size="lg">
+                <Button variant="outline" size="lg" className="animate-border-pulse">
                   Standings
                 </Button>
               </Link>
+            </div>
+            
+            {/* Decorative line */}
+            <div className="mt-12 flex items-center justify-center gap-2">
+              <div className="h-px w-16 bg-gradient-to-r from-transparent to-primary/50" />
+              <div className="w-2 h-2 rotate-45 border border-primary/50" />
+              <div className="h-px w-16 bg-gradient-to-l from-transparent to-primary/50" />
             </div>
           </div>
         </div>
@@ -100,11 +119,20 @@ export default async function HomePage() {
 
       {/* Live/Active Matches */}
       {data.activeMatches.length > 0 && (
-        <section className="py-8 bg-primary/5 border-y border-primary/20">
-          <div className="container mx-auto px-4">
+        <section className="py-8 bg-primary/5 border-y border-primary/20 relative overflow-hidden">
+          {/* Animated background for live section */}
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-accent/5" />
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+          
+          <div className="container mx-auto px-4 relative">
             <div className="flex items-center gap-3 mb-6">
-              <span className="w-3 h-3 bg-danger rounded-full animate-pulse" />
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-danger opacity-75" />
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-danger" />
+              </span>
               <h2 className="text-xl font-bold text-foreground">Live Now</h2>
+              <div className="h-px flex-1 bg-gradient-to-r from-danger/30 to-transparent" />
             </div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {data.activeMatches.map((match) => (
@@ -266,10 +294,17 @@ export default async function HomePage() {
 
       {/* News Section */}
       {data.recentNews.length > 0 && (
-        <section className="py-12 bg-surface">
-          <div className="container mx-auto px-4">
+        <section className="py-12 bg-surface relative overflow-hidden">
+          {/* Decorative elements */}
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+          <div className="absolute -top-20 -right-20 w-40 h-40 bg-accent/10 rounded-full blur-[80px]" />
+          
+          <div className="container mx-auto px-4 relative">
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold text-foreground">Latest News</h2>
+              <div className="flex items-center gap-3">
+                <div className="w-1 h-6 bg-gradient-to-b from-primary to-accent rounded-full" />
+                <h2 className="text-2xl font-bold text-foreground">Latest News</h2>
+              </div>
               <Link href="/news">
                 <Button variant="ghost">View All News</Button>
               </Link>

@@ -21,8 +21,14 @@ const footerLinks = [
 
 export function Footer() {
   return (
-    <footer className="border-t border-border bg-surface mt-auto">
-      <div className="container mx-auto px-4 py-8">
+    <footer className="border-t border-border bg-surface mt-auto relative overflow-hidden">
+      {/* Decorative gradient at top */}
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
+      {/* Subtle background blobs */}
+      <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-primary/5 rounded-full blur-[60px]" />
+      <div className="absolute -bottom-10 right-1/4 w-32 h-32 bg-accent/5 rounded-full blur-[50px]" />
+      
+      <div className="container mx-auto px-4 py-8 relative">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
@@ -82,10 +88,24 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-border text-center">
+        <div className="mt-8 pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-sm text-muted">
             {new Date().getFullYear()} Goonginga League. All rights reserved.
           </p>
+          <Link
+            href="/dev"
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md bg-surface-elevated border border-border hover:border-primary/50 hover:bg-surface transition-all group"
+          >
+            <svg 
+              className="w-4 h-4 text-primary group-hover:text-primary transition-colors" 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+            </svg>
+            <span className="text-muted group-hover:text-foreground transition-colors">Developer</span>
+          </Link>
         </div>
       </div>
     </footer>
