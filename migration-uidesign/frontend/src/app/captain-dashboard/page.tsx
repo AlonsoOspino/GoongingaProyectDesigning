@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { useSession } from "@/features/session/SessionProvider";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -10,7 +11,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/Input";
 import { Modal, ModalHeader, ModalTitle, ModalContent, ModalFooter } from "@/components/ui/Modal";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
-import { getMatches, getTeams, updateCaptainMatch, getDraftByMatchId, type Match, type Team, type DraftState } from "@/lib/api";
+import { getMatches, getTeams, updateCaptainMatch, updateCaptainTeam, getDraftByMatchId, type Match, type Team, type DraftState } from "@/lib/api";
 import { clsx } from "clsx";
 
 type TabValue = "upcoming" | "active" | "history";
@@ -30,8 +31,15 @@ export default function CaptainDashboardPage() {
   const [newDate, setNewDate] = useState("");
   const [updatingReady, setUpdatingReady] = useState<number | null>(null);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
+  const [showEditTeamModal, setShowEditTeamModal] = useState(false);
+  const [teamFormData, setTeamFormData] = useState({ name: "", logo: "", roster: "" });
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [rosterUploading, setRosterUploading] = useState(false);
+  const [teamNotification, setTeamNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
   
   const pollRef = useRef<NodeJS.Timeout | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const rosterInputRef = useRef<HTMLInputElement>(null);
   const prevMatchesRef = useRef<Match[]>([]);
 
   // Redirect non-captain users
@@ -235,6 +243,87 @@ export default function CaptainDashboardPage() {
     }
   }
 
+  const showTeamNotification = (type: "success" | "error", message: string) => {
+    setTeamNotification({ type, message });
+    setTimeout(() => setTeamNotification(null), 3000);
+  };
+
+  async function uploadImage(file: File, type: "logo" | "roster"): Promise<string | null> {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("type", type);
+    
+    try {
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Upload failed");
+      }
+      
+      const result = await response.json();
+      return result.url;
+    } catch (error: any) {
+      showTeamNotification("error", error.message || "Failed to upload image");
+      return null;
+    }
+  }
+
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setLogoUploading(true);
+    const url = await uploadImage(file, "logo");
+    if (url) {
+      setTeamFormData({ ...teamFormData, logo: url });
+    }
+    setLogoUploading(false);
+  }
+
+  async function handleRosterUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setRosterUploading(true);
+    const url = await uploadImage(file, "roster");
+    if (url) {
+      setTeamFormData({ ...teamFormData, roster: url });
+    }
+    setRosterUploading(false);
+  }
+
+  async function handleUpdateTeam() {
+    if (!token || !myTeam) return;
+    try {
+      await updateCaptainTeam(token, myTeam.id, {
+        name: teamFormData.name || undefined,
+        logo: teamFormData.logo || undefined,
+        roster: teamFormData.roster || undefined,
+      });
+      setShowEditTeamModal(false);
+      showTeamNotification("success", "Team updated successfully");
+      loadData();
+    } catch (err: any) {
+      console.error("Failed to update team:", err);
+      showTeamNotification("error", err.message || "Failed to update team");
+    }
+  }
+
+  function openEditTeamModal() {
+    if (myTeam) {
+      setTeamFormData({
+        name: myTeam.name,
+        logo: myTeam.logo || "",
+        roster: myTeam.roster || "",
+      });
+      setShowEditTeamModal(true);
+    }
+  }
+
   const formatMatchDate = (dateStr: string) => {
     const date = new Date(dateStr);
     const now = new Date();
@@ -305,15 +394,22 @@ export default function CaptainDashboardPage() {
           </div>
         </div>
 
+        {/* Team Notification */}
+        {teamNotification && (
+          <div className={`mb-4 p-4 rounded-lg ${teamNotification.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+            {teamNotification.message}
+          </div>
+        )}
+
         {/* Team Info Card */}
         {myTeam && (
           <Card className="mb-8 border-primary/30">
             <CardContent className="p-6">
               <div className="flex items-center justify-between flex-wrap gap-4">
                 <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-lg bg-primary/10 border border-primary/30 flex items-center justify-center">
+                  <div className="relative w-16 h-16 rounded-lg bg-primary/10 border border-primary/30 flex items-center justify-center overflow-hidden">
                     {myTeam.logo ? (
-                      <img src={myTeam.logo} alt={myTeam.name} className="w-12 h-12 object-contain" />
+                      <Image src={myTeam.logo} alt={myTeam.name} fill className="object-cover" unoptimized />
                     ) : (
                       <span className="text-2xl font-bold text-primary">
                         {myTeam.name.charAt(0)}
@@ -325,21 +421,35 @@ export default function CaptainDashboardPage() {
                     <p className="text-sm text-muted">Your Team</p>
                   </div>
                 </div>
-                <div className="flex gap-8">
-                  <div className="text-center">
-                    <p className="text-3xl font-bold text-foreground">{myTeam.victories}</p>
-                    <p className="text-xs text-muted uppercase tracking-wide">Wins</p>
+                <div className="flex items-center gap-8">
+                  <div className="flex gap-8">
+                    <div className="text-center">
+                      <p className="text-3xl font-bold text-foreground">{myTeam.victories}</p>
+                      <p className="text-xs text-muted uppercase tracking-wide">Wins</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-3xl font-bold text-success">{myTeam.mapWins}</p>
+                      <p className="text-xs text-muted uppercase tracking-wide">Map Wins</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-3xl font-bold text-danger">{myTeam.mapLoses}</p>
+                      <p className="text-xs text-muted uppercase tracking-wide">Map Losses</p>
+                    </div>
                   </div>
-                  <div className="text-center">
-                    <p className="text-3xl font-bold text-success">{myTeam.mapWins}</p>
-                    <p className="text-xs text-muted uppercase tracking-wide">Map Wins</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-3xl font-bold text-danger">{myTeam.mapLoses}</p>
-                    <p className="text-xs text-muted uppercase tracking-wide">Map Losses</p>
-                  </div>
+                  <Button onClick={openEditTeamModal} variant="secondary">
+                    Edit Team
+                  </Button>
                 </div>
               </div>
+              {/* Roster Preview */}
+              {myTeam.roster && (
+                <div className="mt-4 pt-4 border-t border-border">
+                  <p className="text-sm text-muted mb-2">Team Roster</p>
+                  <div className="relative w-full max-w-md h-32 rounded-lg overflow-hidden border border-border">
+                    <Image src={myTeam.roster} alt="Team Roster" fill className="object-contain" unoptimized />
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
@@ -648,6 +758,115 @@ export default function CaptainDashboardPage() {
             <Button onClick={handleReschedule}>
               Update Schedule
             </Button>
+          </ModalFooter>
+        </Modal>
+
+        {/* Edit Team Modal */}
+        <Modal isOpen={showEditTeamModal} onClose={() => setShowEditTeamModal(false)}>
+          <ModalHeader>
+            <ModalTitle>Edit Team</ModalTitle>
+          </ModalHeader>
+          <ModalContent>
+            <div className="space-y-4">
+              <Input
+                label="Team Name"
+                value={teamFormData.name}
+                onChange={(e) => setTeamFormData({ ...teamFormData, name: e.target.value })}
+                placeholder="Team Name"
+              />
+              
+              {/* Logo Upload */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">Team Logo</label>
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  className="hidden"
+                />
+                <div className="flex items-center gap-4">
+                  {teamFormData.logo ? (
+                    <div className="relative w-20 h-20 rounded-lg overflow-hidden border border-border">
+                      <Image src={teamFormData.logo} alt="Logo preview" fill className="object-cover" unoptimized />
+                    </div>
+                  ) : (
+                    <div className="w-20 h-20 rounded-lg bg-surface border-2 border-dashed border-border flex items-center justify-center">
+                      <span className="text-xs text-muted">No logo</span>
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => logoInputRef.current?.click()}
+                      disabled={logoUploading}
+                    >
+                      {logoUploading ? "Uploading..." : "Upload Logo"}
+                    </Button>
+                    {teamFormData.logo && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setTeamFormData({ ...teamFormData, logo: "" })}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Roster Upload */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">Team Roster Image</label>
+                <input
+                  ref={rosterInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleRosterUpload}
+                  className="hidden"
+                />
+                <div className="flex items-center gap-4">
+                  {teamFormData.roster ? (
+                    <div className="relative w-32 h-20 rounded-lg overflow-hidden border border-border">
+                      <Image src={teamFormData.roster} alt="Roster preview" fill className="object-cover" unoptimized />
+                    </div>
+                  ) : (
+                    <div className="w-32 h-20 rounded-lg bg-surface border-2 border-dashed border-border flex items-center justify-center">
+                      <span className="text-xs text-muted">No roster</span>
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => rosterInputRef.current?.click()}
+                      disabled={rosterUploading}
+                    >
+                      {rosterUploading ? "Uploading..." : "Upload Roster"}
+                    </Button>
+                    {teamFormData.roster && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setTeamFormData({ ...teamFormData, roster: "" })}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </ModalContent>
+          <ModalFooter>
+            <Button variant="ghost" onClick={() => setShowEditTeamModal(false)}>Cancel</Button>
+            <Button onClick={handleUpdateTeam}>Save Changes</Button>
           </ModalFooter>
         </Modal>
       </div>

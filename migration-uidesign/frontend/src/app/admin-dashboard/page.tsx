@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/features/session/SessionProvider";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
@@ -703,10 +704,12 @@ function MatchesSection({ token }: { token: string }) {
 // ==================== TEAMS SECTION ====================
 function TeamsSection({ token }: { token: string }) {
   const [teams, setTeams] = useState<Team[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showMembersModal, setShowMembersModal] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [formData, setFormData] = useState<Partial<CreateTeamPayload>>({
@@ -714,6 +717,11 @@ function TeamsSection({ token }: { token: string }) {
     logo: "",
     roster: "",
   });
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [rosterUploading, setRosterUploading] = useState(false);
+  const [memberSearch, setMemberSearch] = useState("");
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const rosterInputRef = useRef<HTMLInputElement>(null);
 
   const showNotification = (type: "success" | "error", message: string) => {
     setNotification({ type, message });
@@ -726,17 +734,575 @@ function TeamsSection({ token }: { token: string }) {
 
   async function loadData() {
     try {
-      const [teamsData, tournamentData] = await Promise.all([
+      const [teamsData, tournamentData, membersData] = await Promise.all([
         getTeams(),
         getCurrentTournament(),
+        getMembers(),
       ]);
       setTeams(teamsData);
       setTournament(tournamentData);
+      setMembers(membersData);
     } catch (err) {
       console.error("Failed to load data:", err);
     } finally {
       setLoading(false);
     }
+  }
+
+  async function uploadImage(file: File, type: "logo" | "roster"): Promise<string | null> {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("type", type);
+    
+    try {
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Upload failed");
+      }
+      
+      const result = await response.json();
+      return result.url;
+    } catch (error: any) {
+      showNotification("error", error.message || "Failed to upload image");
+      return null;
+    }
+  }
+
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setLogoUploading(true);
+    const url = await uploadImage(file, "logo");
+    if (url) {
+      setFormData({ ...formData, logo: url });
+    }
+    setLogoUploading(false);
+  }
+
+  async function handleRosterUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setRosterUploading(true);
+    const url = await uploadImage(file, "roster");
+    if (url) {
+      setFormData({ ...formData, roster: url });
+    }
+    setRosterUploading(false);
+  }
+
+  async function handleCreate() {
+    if (!tournament) return;
+    try {
+      await adminCreateTeam(token, {
+        ...formData,
+        tournamentId: tournament.id,
+      } as CreateTeamPayload);
+      setShowCreateModal(false);
+      setFormData({ name: "", logo: "", roster: "" });
+      showNotification("success", "Team created successfully");
+      loadData();
+    } catch (err: any) {
+      console.error("Failed to create team:", err);
+      showNotification("error", err.message || "Failed to create team");
+    }
+  }
+
+  async function handleUpdate() {
+    if (!selectedTeam) return;
+    try {
+      await adminUpdateTeam(token, selectedTeam.id, formData);
+      setShowEditModal(false);
+      showNotification("success", "Team updated successfully");
+      loadData();
+    } catch (err: any) {
+      console.error("Failed to update team:", err);
+      showNotification("error", err.message || "Failed to update team");
+    }
+  }
+
+  async function handleDelete(teamId: number) {
+    if (!confirm("Are you sure you want to delete this team?")) return;
+    try {
+      await adminDeleteTeam(token, teamId);
+      showNotification("success", "Team deleted successfully");
+      loadData();
+    } catch (err: any) {
+      console.error("Failed to delete team:", err);
+      showNotification("error", err.message || "Failed to delete team");
+    }
+  }
+
+  async function handleAddMemberToTeam(memberId: number) {
+    if (!selectedTeam) return;
+    try {
+      await adminUpdateMember(token, memberId, { teamId: selectedTeam.id });
+      showNotification("success", "Member added to team");
+      loadData();
+    } catch (err: any) {
+      console.error("Failed to add member:", err);
+      showNotification("error", err.message || "Failed to add member");
+    }
+  }
+
+  async function handleRemoveMemberFromTeam(memberId: number) {
+    try {
+      await adminUpdateMember(token, memberId, { teamId: null });
+      showNotification("success", "Member removed from team");
+      loadData();
+    } catch (err: any) {
+      console.error("Failed to remove member:", err);
+      showNotification("error", err.message || "Failed to remove member");
+    }
+  }
+
+  // Get team members for the selected team
+  const teamMembers = selectedTeam 
+    ? members.filter(m => m.teamId === selectedTeam.id)
+    : [];
+
+  // Get available members (users without a team) and filter by search
+  const availableMembers = members
+    .filter(m => m.teamId === null)
+    .filter(m => 
+      memberSearch === "" || 
+      m.nickname.toLowerCase().includes(memberSearch.toLowerCase()) ||
+      m.user.toLowerCase().includes(memberSearch.toLowerCase())
+    );
+
+  if (loading) {
+    return <Card><CardContent className="p-8 text-center text-muted">Loading teams...</CardContent></Card>;
+  }
+
+  return (
+    <div className="space-y-6">
+      {notification && (
+        <div className={`p-4 rounded-lg ${notification.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+          {notification.message}
+        </div>
+      )}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Teams ({teams.length})</CardTitle>
+          <Button onClick={() => setShowCreateModal(true)} disabled={!tournament}>
+            Create Team
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {!tournament ? (
+            <p className="text-muted text-center py-4">Create a tournament first to manage teams.</p>
+          ) : teams.length === 0 ? (
+            <p className="text-muted text-center py-4">No teams yet. Create one to get started.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Logo</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Members</TableHead>
+                    <TableHead>Wins</TableHead>
+                    <TableHead>Map W</TableHead>
+                    <TableHead>Map L</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {teams.map((team) => {
+                    const teamMemberCount = members.filter(m => m.teamId === team.id).length;
+                    return (
+                      <TableRow key={team.id}>
+                        <TableCell>
+                          {team.logo ? (
+                            <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-surface border border-border">
+                              <Image 
+                                src={team.logo} 
+                                alt={team.name} 
+                                fill 
+                                className="object-cover"
+                                unoptimized
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/30 flex items-center justify-center">
+                              <span className="text-sm font-bold text-primary">{team.name.charAt(0)}</span>
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="font-medium">{team.name}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">{teamMemberCount} members</Badge>
+                        </TableCell>
+                        <TableCell>{team.victories}</TableCell>
+                        <TableCell className="text-success">{team.mapWins}</TableCell>
+                        <TableCell className="text-danger">{team.mapLoses}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedTeam(team);
+                                setMemberSearch("");
+                                setShowMembersModal(true);
+                              }}
+                            >
+                              Members
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedTeam(team);
+                                setFormData({
+                                  name: team.name,
+                                  logo: team.logo || "",
+                                  roster: team.roster || "",
+                                });
+                                setShowEditModal(true);
+                              }}
+                            >
+                              Edit
+                            </Button>
+                            <Button variant="danger" size="sm" onClick={() => handleDelete(team.id)}>
+                              Delete
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Create Team Modal */}
+      <Modal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)}>
+        <ModalHeader>
+          <ModalTitle>Create Team</ModalTitle>
+        </ModalHeader>
+        <ModalContent>
+          <div className="space-y-4">
+            <Input
+              label="Team Name"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="Team Name"
+            />
+            
+            {/* Logo Upload */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">Team Logo</label>
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleLogoUpload}
+                className="hidden"
+              />
+              <div className="flex items-center gap-4">
+                {formData.logo ? (
+                  <div className="relative w-20 h-20 rounded-lg overflow-hidden border border-border">
+                    <Image src={formData.logo} alt="Logo preview" fill className="object-cover" unoptimized />
+                  </div>
+                ) : (
+                  <div className="w-20 h-20 rounded-lg bg-surface border-2 border-dashed border-border flex items-center justify-center">
+                    <span className="text-xs text-muted">No logo</span>
+                  </div>
+                )}
+                <div className="flex flex-col gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => logoInputRef.current?.click()}
+                    disabled={logoUploading}
+                  >
+                    {logoUploading ? "Uploading..." : "Upload Logo"}
+                  </Button>
+                  {formData.logo && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFormData({ ...formData, logo: "" })}
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Roster Upload */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">Team Roster Image</label>
+              <input
+                ref={rosterInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleRosterUpload}
+                className="hidden"
+              />
+              <div className="flex items-center gap-4">
+                {formData.roster ? (
+                  <div className="relative w-32 h-20 rounded-lg overflow-hidden border border-border">
+                    <Image src={formData.roster} alt="Roster preview" fill className="object-cover" unoptimized />
+                  </div>
+                ) : (
+                  <div className="w-32 h-20 rounded-lg bg-surface border-2 border-dashed border-border flex items-center justify-center">
+                    <span className="text-xs text-muted">No roster</span>
+                  </div>
+                )}
+                <div className="flex flex-col gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => rosterInputRef.current?.click()}
+                    disabled={rosterUploading}
+                  >
+                    {rosterUploading ? "Uploading..." : "Upload Roster"}
+                  </Button>
+                  {formData.roster && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFormData({ ...formData, roster: "" })}
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </ModalContent>
+        <ModalFooter>
+          <Button variant="ghost" onClick={() => { setShowCreateModal(false); setFormData({ name: "", logo: "", roster: "" }); }}>Cancel</Button>
+          <Button onClick={handleCreate}>Create Team</Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Edit Team Modal */}
+      <Modal isOpen={showEditModal} onClose={() => setShowEditModal(false)}>
+        <ModalHeader>
+          <ModalTitle>Edit Team</ModalTitle>
+        </ModalHeader>
+        <ModalContent>
+          <div className="space-y-4">
+            <Input
+              label="Team Name"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            />
+            
+            {/* Logo Upload */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">Team Logo</label>
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleLogoUpload}
+                className="hidden"
+              />
+              <div className="flex items-center gap-4">
+                {formData.logo ? (
+                  <div className="relative w-20 h-20 rounded-lg overflow-hidden border border-border">
+                    <Image src={formData.logo} alt="Logo preview" fill className="object-cover" unoptimized />
+                  </div>
+                ) : (
+                  <div className="w-20 h-20 rounded-lg bg-surface border-2 border-dashed border-border flex items-center justify-center">
+                    <span className="text-xs text-muted">No logo</span>
+                  </div>
+                )}
+                <div className="flex flex-col gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => logoInputRef.current?.click()}
+                    disabled={logoUploading}
+                  >
+                    {logoUploading ? "Uploading..." : "Upload Logo"}
+                  </Button>
+                  {formData.logo && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFormData({ ...formData, logo: "" })}
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Roster Upload */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">Team Roster Image</label>
+              <input
+                ref={rosterInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleRosterUpload}
+                className="hidden"
+              />
+              <div className="flex items-center gap-4">
+                {formData.roster ? (
+                  <div className="relative w-32 h-20 rounded-lg overflow-hidden border border-border">
+                    <Image src={formData.roster} alt="Roster preview" fill className="object-cover" unoptimized />
+                  </div>
+                ) : (
+                  <div className="w-32 h-20 rounded-lg bg-surface border-2 border-dashed border-border flex items-center justify-center">
+                    <span className="text-xs text-muted">No roster</span>
+                  </div>
+                )}
+                <div className="flex flex-col gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => rosterInputRef.current?.click()}
+                    disabled={rosterUploading}
+                  >
+                    {rosterUploading ? "Uploading..." : "Upload Roster"}
+                  </Button>
+                  {formData.roster && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFormData({ ...formData, roster: "" })}
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </ModalContent>
+        <ModalFooter>
+          <Button variant="ghost" onClick={() => { setShowEditModal(false); setFormData({ name: "", logo: "", roster: "" }); setSelectedTeam(null); }}>Cancel</Button>
+          <Button onClick={handleUpdate}>Save Changes</Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Manage Team Members Modal */}
+      <Modal isOpen={showMembersModal} onClose={() => setShowMembersModal(false)}>
+        <ModalHeader>
+          <ModalTitle>Manage Members - {selectedTeam?.name}</ModalTitle>
+        </ModalHeader>
+        <ModalContent>
+          <div className="space-y-6">
+            {/* Current Team Members */}
+            <div>
+              <h4 className="text-sm font-semibold text-foreground mb-3">Current Members ({teamMembers.length})</h4>
+              {teamMembers.length === 0 ? (
+                <p className="text-sm text-muted py-4 text-center border border-dashed border-border rounded-lg">
+                  No members in this team yet.
+                </p>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {teamMembers.map((member) => (
+                    <div 
+                      key={member.id} 
+                      className="flex items-center justify-between p-3 bg-surface rounded-lg border border-border"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                          <span className="text-xs font-bold text-primary">{member.nickname.charAt(0)}</span>
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground">{member.nickname}</p>
+                          <p className="text-xs text-muted">@{member.user}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={member.role === "CAPTAIN" ? "success" : "secondary"}>
+                          {member.role}
+                        </Badge>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => handleRemoveMemberFromTeam(member.id)}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Add Members */}
+            <div>
+              <h4 className="text-sm font-semibold text-foreground mb-3">Add Members</h4>
+              <Input
+                placeholder="Search by nickname or username..."
+                value={memberSearch}
+                onChange={(e) => setMemberSearch(e.target.value)}
+                className="mb-3"
+              />
+              {availableMembers.length === 0 ? (
+                <p className="text-sm text-muted py-4 text-center border border-dashed border-border rounded-lg">
+                  {memberSearch ? "No matching users found." : "All users are already assigned to teams."}
+                </p>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {availableMembers.map((member) => (
+                    <div 
+                      key={member.id} 
+                      className="flex items-center justify-between p-3 bg-surface rounded-lg border border-border hover:border-primary/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-muted/20 flex items-center justify-center">
+                          <span className="text-xs font-bold text-muted">{member.nickname.charAt(0)}</span>
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground">{member.nickname}</p>
+                          <p className="text-xs text-muted">@{member.user}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">{member.role}</Badge>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => handleAddMemberToTeam(member.id)}
+                        >
+                          Add
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </ModalContent>
+        <ModalFooter>
+          <Button variant="ghost" onClick={() => setShowMembersModal(false)}>Close</Button>
+        </ModalFooter>
+      </Modal>
+    </div>
+  );
+}
   }
 
   async function handleCreate() {
