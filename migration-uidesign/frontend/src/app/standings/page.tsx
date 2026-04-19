@@ -82,27 +82,78 @@ export default function StandingsPage() {
   }, [teams, sortField, sortDirection]);
 
   return (
-    <div className="container mx-auto px-4 py-8 relative">
+    <div className="min-h-screen relative">
       {/* Decorative background elements */}
-      <div className="fixed top-20 right-1/4 w-64 h-64 bg-primary/10 rounded-full blur-[100px] pointer-events-none" />
-      <div className="fixed bottom-1/3 left-1/4 w-48 h-48 bg-accent/10 rounded-full blur-[80px] pointer-events-none" />
+      <div className="fixed inset-0 bg-gradient-radial pointer-events-none" />
+      <div className="fixed inset-0 bg-gradient-radial-bottom pointer-events-none" />
+      <div className="fixed inset-0 bg-grid-pattern-subtle pointer-events-none opacity-50" />
       
-      {/* Header */}
-      <div className="mb-8 relative">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-1 h-8 bg-gradient-to-b from-primary to-accent rounded-full" />
-          <h1 className="text-3xl font-bold text-foreground">Standings</h1>
+      <div className="container mx-auto px-4 py-8 relative">
+        {/* Header */}
+        <div className="mb-8 relative">
+          <div className="flex items-center gap-4 mb-3">
+            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 border border-primary/20">
+              <svg className="w-6 h-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">Standings</h1>
+              <p className="text-muted">Current league standings sorted by victories and map differential</p>
+            </div>
+          </div>
+          <div className="h-px bg-gradient-to-r from-primary/50 via-accent/30 to-transparent" />
         </div>
-        <p className="text-muted pl-4">
-          Current league standings sorted by victories and map differential
-        </p>
-      </div>
 
-      {/* Standings Table */}
-      <Card variant="bordered">
-        <CardHeader>
-          <CardTitle>League Standings</CardTitle>
-        </CardHeader>
+        {/* Top 3 Podium */}
+        {!loading && teams.length >= 3 && (
+          <div className="grid grid-cols-3 gap-4 mb-8">
+            {/* 2nd Place */}
+            <div className="bg-surface/80 backdrop-blur border border-border rounded-xl p-4 flex flex-col items-center order-1">
+              <div className="w-10 h-10 rounded-full bg-slate-400/20 border-2 border-slate-400 flex items-center justify-center mb-3">
+                <span className="font-bold text-slate-400">2</span>
+              </div>
+              <Avatar size="xl" src={teams[1]?.logo || undefined} fallback={teams[1]?.name || "2"} />
+              <p className="font-semibold text-foreground mt-2 text-center truncate w-full">{teams[1]?.name}</p>
+              <p className="text-xs text-muted">{teams[1]?.victories}W - {teams[1]?.mapWins}MW</p>
+            </div>
+            
+            {/* 1st Place */}
+            <div className="bg-gradient-to-b from-amber-500/10 to-surface/80 backdrop-blur border border-amber-500/30 rounded-xl p-4 flex flex-col items-center order-2 -mt-4">
+              <div className="w-12 h-12 rounded-full bg-amber-500/20 border-2 border-amber-500 flex items-center justify-center mb-3">
+                <svg className="w-6 h-6 text-amber-500" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                </svg>
+              </div>
+              <Avatar size="xl" src={teams[0]?.logo || undefined} fallback={teams[0]?.name || "1"} />
+              <p className="font-bold text-amber-500 mt-2 text-center truncate w-full">{teams[0]?.name}</p>
+              <p className="text-xs text-amber-500/70">{teams[0]?.victories}W - {teams[0]?.mapWins}MW</p>
+            </div>
+            
+            {/* 3rd Place */}
+            <div className="bg-surface/80 backdrop-blur border border-border rounded-xl p-4 flex flex-col items-center order-3">
+              <div className="w-10 h-10 rounded-full bg-amber-700/20 border-2 border-amber-700 flex items-center justify-center mb-3">
+                <span className="font-bold text-amber-700">3</span>
+              </div>
+              <Avatar size="xl" src={teams[2]?.logo || undefined} fallback={teams[2]?.name || "3"} />
+              <p className="font-semibold text-foreground mt-2 text-center truncate w-full">{teams[2]?.name}</p>
+              <p className="text-xs text-muted">{teams[2]?.victories}W - {teams[2]?.mapWins}MW</p>
+            </div>
+          </div>
+        )}
+
+        {/* Standings Table */}
+        <Card variant="bordered" className="border-border/50 bg-surface/50 backdrop-blur overflow-hidden">
+          <CardHeader className="border-b border-border/50">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
+                <svg className="w-4 h-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
+              </div>
+              <CardTitle>League Standings</CardTitle>
+            </div>
+          </CardHeader>
         <CardContent className="p-0">
           {loading ? (
             <div className="p-6 space-y-4">
@@ -179,17 +230,27 @@ export default function StandingsPage() {
                   const winRate = totalMaps > 0 ? Math.round((team.mapWins / totalMaps) * 100) : 0;
 
                   return (
-                    <TableRow key={team.id}>
+                    <TableRow key={team.id} className={
+                      originalRank === 1 ? "bg-amber-500/5" :
+                      originalRank === 2 ? "bg-slate-400/5" :
+                      originalRank === 3 ? "bg-amber-700/5" : ""
+                    }>
                       <TableCell>
                         <div className="flex items-center justify-center">
-                          {originalRank <= 3 ? (
-                            <Badge
-                              variant={
-                                originalRank === 1 ? "primary" : originalRank === 2 ? "default" : "outline"
-                              }
-                            >
-                              #{originalRank}
-                            </Badge>
+                          {originalRank === 1 ? (
+                            <div className="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/50 flex items-center justify-center">
+                              <svg className="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                              </svg>
+                            </div>
+                          ) : originalRank === 2 ? (
+                            <div className="w-8 h-8 rounded-full bg-slate-400/20 border border-slate-400/50 flex items-center justify-center">
+                              <span className="font-bold text-slate-400">2</span>
+                            </div>
+                          ) : originalRank === 3 ? (
+                            <div className="w-8 h-8 rounded-full bg-amber-700/20 border border-amber-700/50 flex items-center justify-center">
+                              <span className="font-bold text-amber-700">3</span>
+                            </div>
                           ) : (
                             <span className="text-muted font-medium">#{originalRank}</span>
                           )}
@@ -198,32 +259,53 @@ export default function StandingsPage() {
                       <TableCell>
                         <Link
                           href={`/teams/${team.id}`}
-                          className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                          className="flex items-center gap-3 hover:opacity-80 transition-opacity group"
                         >
-                          <Avatar size="md" src={team.logo || undefined} fallback={team.name} />
-                          <span className="font-medium text-foreground">{team.name}</span>
+                          <div className="relative">
+                            <Avatar size="md" src={team.logo || undefined} fallback={team.name} />
+                            {originalRank <= 3 && (
+                              <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                                originalRank === 1 ? "bg-amber-500 text-white" :
+                                originalRank === 2 ? "bg-slate-400 text-white" :
+                                "bg-amber-700 text-white"
+                              }`}>
+                                {originalRank}
+                              </div>
+                            )}
+                          </div>
+                          <span className={`font-medium group-hover:text-primary transition-colors ${
+                            originalRank === 1 ? "text-amber-500" : "text-foreground"
+                          }`}>{team.name}</span>
                         </Link>
                       </TableCell>
                       <TableCell className="text-center">
-                        <span className="font-bold text-success font-mono">{team.victories}</span>
+                        <span className="font-bold text-success font-mono px-2 py-0.5 rounded bg-success/10">{team.victories}</span>
                       </TableCell>
                       <TableCell className="text-center">
-                        <span className="font-mono">{team.mapWins}</span>
+                        <span className="font-mono text-primary">{team.mapWins}</span>
                       </TableCell>
                       <TableCell className="text-center">
-                        <span className="font-mono text-muted">{team.mapLoses}</span>
+                        <span className="font-mono text-danger/70">{team.mapLoses}</span>
                       </TableCell>
                       <TableCell className="text-center">
                         <span
-                          className={`font-bold font-mono ${
-                            mapDiff > 0 ? "text-success" : mapDiff < 0 ? "text-danger" : "text-muted"
+                          className={`font-bold font-mono px-2 py-0.5 rounded ${
+                            mapDiff > 0 ? "text-success bg-success/10" : mapDiff < 0 ? "text-danger bg-danger/10" : "text-muted"
                           }`}
                         >
                           {mapDiff > 0 ? "+" : ""}{mapDiff}
                         </span>
                       </TableCell>
                       <TableCell className="text-center">
-                        <span className="font-mono text-accent">{winRate}%</span>
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-12 h-1.5 rounded-full bg-border overflow-hidden">
+                            <div 
+                              className="h-full rounded-full bg-gradient-to-r from-primary to-accent transition-all"
+                              style={{ width: `${winRate}%` }}
+                            />
+                          </div>
+                          <span className="font-mono text-accent text-sm">{winRate}%</span>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -239,26 +321,35 @@ export default function StandingsPage() {
       </Card>
 
       {/* Legend */}
-      <div className="mt-6 flex flex-wrap gap-4 text-sm text-muted">
-        <div className="flex items-center gap-2">
-          <span className="font-medium">W</span>
-          <span>= Match Victories</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="font-medium">MW</span>
-          <span>= Maps Won</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="font-medium">ML</span>
-          <span>= Maps Lost</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="font-medium">Diff</span>
-          <span>= Map Differential (MW - ML)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="font-medium">Win%</span>
-          <span>= Map Win Percentage</span>
+        <div className="mt-6 bg-surface/50 backdrop-blur border border-border/50 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <svg className="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-sm font-medium text-foreground">Legend</span>
+          </div>
+          <div className="flex flex-wrap gap-4 text-sm text-muted">
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-success bg-success/10 px-1.5 py-0.5 rounded">W</span>
+              <span>= Match Victories</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-primary">MW</span>
+              <span>= Maps Won</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-danger/70">ML</span>
+              <span>= Maps Lost</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-medium">Diff</span>
+              <span>= Map Differential (MW - ML)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-accent">Win%</span>
+              <span>= Map Win Percentage</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
