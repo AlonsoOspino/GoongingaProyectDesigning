@@ -127,7 +127,7 @@ function TournamentSection({ token }: { token: string }) {
 
   async function handleCreate() {
     try {
-      const isoDate = convertToISODateTime(formData.startDate);
+      const isoDate = new Date(formData.startDate).toISOString();
       await createTournament(token, { name: formData.name, startDate: isoDate });
       setShowCreateModal(false);
       setFormData({ name: "", startDate: "", state: "SCHEDULED" });

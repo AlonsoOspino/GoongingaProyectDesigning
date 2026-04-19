@@ -65,7 +65,7 @@ const adminUpdate = async (req, res) => {
     // Only allow admin to update role and team
     const { team, password, ...safeBody } = req.body;
     if (req.body.teamId !== undefined) {
-      safeBody.teamId = Number(req.body.teamId);
+      safeBody.teamId = req.body.teamId === null ? null : Number(req.body.teamId);
     }
     if (password) {
       safeBody.passwordHash = await bcrypt.hash(password, 10);
