@@ -14,6 +14,7 @@ router.delete("/admin/delete/:id", authMiddleware, adminMiddleware, matchControl
 router.put("/captain/update/:id", authMiddleware, captainMatchMiddleware, matchController.captainUpdate);
 router.put("/manager/update/:id", authMiddleware, managerMiddleware, matchController.managerUpdate);
 router.post("/:id/result", authMiddleware, managerMiddleware, matchController.submitResult);
+router.post("/:id/finish-registers", authMiddleware, managerMiddleware, matchController.finishPendingRegisters);
 router.get("/soonest", matchController.findSoonest);
 router.get("/active", matchController.getActiveMatches);
 router.get("/:id", matchController.getById);

@@ -46,6 +46,13 @@ const captainCreate = async (req, res) => {
   try {
     // Remove forbidden fields
     const { teamId, draftId, order, matchId, ...allowedFields } = req.body;
+    const normalizedAction = String(allowedFields.action || "").toUpperCase();
+
+    if (["BAN", "PICK", "SKIP"].includes(normalizedAction)) {
+      return res.status(400).json({
+        message: "Use /draft endpoints for BAN/PICK/SKIP actions to enforce draft rules.",
+      });
+    }
 
     // Get teamId from authenticated user
     allowedFields.teamId = req.user.teamId;
@@ -62,12 +69,11 @@ const captainCreate = async (req, res) => {
       return res.status(404).json({ message: "DraftTable not found for match" });
     }
     allowedFields.draftId = draftTable.id;
-
     // Set order as next available for this draft
     const allActions = await draftActionService.getAll();
     const draftActions = allActions.filter(a => a.draftId === draftTable.id);
     allowedFields.order = draftActions.length + 1;
-
+    
     const action = await draftActionService.create(allowedFields);
     res.status(201).json(action);
   } catch (err) {

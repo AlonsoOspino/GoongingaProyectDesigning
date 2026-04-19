@@ -154,6 +154,16 @@ const submitResult = async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 };
+
+const finishPendingRegisters = async (req, res) => {
+  try {
+    const updatedMatch = await matchService.finishPendingRegisters(Number(req.params.id));
+    res.json(updatedMatch);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
 module.exports = {
   getById,
   getAll,
@@ -165,6 +175,7 @@ module.exports = {
   managerUpdate,
   findSoonest,
   getActiveMatches,
-  submitResult
+  submitResult,
+  finishPendingRegisters
 };
 

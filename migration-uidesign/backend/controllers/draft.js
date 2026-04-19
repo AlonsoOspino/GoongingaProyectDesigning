@@ -81,11 +81,7 @@ const getDraftByMatchId = async (req, res) => {
     if (!Number.isFinite(matchId) || matchId <= 0) {
       return res.status(400).json({ message: "Invalid matchId" });
     }
-    // Use the draftTableService to find by matchId
-    const draft = await require("../services/draftTable").findByMatchId(matchId);
-    if (!draft) {
-      return res.status(404).json({ message: "Draft table not found for this match" });
-    }
+    const draft = await draftService.getDraftByMatchId(matchId);
     res.json(draft);
   } catch (err) {
     respondError(res, err);

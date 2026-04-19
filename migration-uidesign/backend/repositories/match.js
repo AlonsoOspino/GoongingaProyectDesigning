@@ -16,7 +16,25 @@ const findById = (id) =>
 const findAll = (args) => prisma.match.findMany(args);
 const create = (data) => prisma.match.create({ data });
 const update = (id, data) => prisma.match.update({ where: { id }, data });
-const remove = (id) => prisma.match.delete({ where: { id } });
+const remove = async (id) => {
+  // Delete related DraftActions, DraftTable, and PlayerStat records
+  // 1. Find the draftTable for this match
+  const draftTable = await prisma.draftTable.findUnique({ where: { matchId: id } });
+  if (draftTable) {
+    // 2. Delete all DraftActions for this draftTable
+    await prisma.draftAction.deleteMany({ where: { draftId: draftTable.id } });
+    // 3. Delete the DraftTable
+    await prisma.draftTable.delete({ where: { id: draftTable.id } });
+  }
+  // 4. Delete all PlayerStat records for this match (if PlayerStat has matchId)
+  try {
+    await prisma.playerStat.deleteMany({ where: { matchId: id } });
+  } catch (e) {
+    // Ignore if PlayerStat does not have matchId
+  }
+  // 5. Delete the match
+  return prisma.match.delete({ where: { id } });
+};
 const generateRoundRobin = async (tournamentId) => {
   const teams = await prisma.team.findMany({
     where: { tournamentId },
@@ -36,16 +54,14 @@ const generateRoundRobin = async (tournamentId) => {
   for (let i = 0; i < teams.length; i += 1) {
     for (let j = i + 1; j < teams.length; j += 1) {
       const week = (pairIndex % rounds) + 1;
-      const startDate = new Date(Date.now() + week * 24 * 60 * 60 * 1000);
-
       const match = await prisma.match.create({
         data: {
           type: "ROUNDROBIN",
           title: `Week ${week}`,
           semanas: week,
-          bestOf: 1,
+          bestOf: 5,
           status: "SCHEDULED",
-          startDate,
+          // No startDate for round robin matches
           tournamentId,
           teamAId: teams[i].id,
           teamBId: teams[j].id,
@@ -163,7 +179,7 @@ const submitResult = async (id, winnerTeamId) => {
         teamAready: 0,
         teamBready: 0,
         mapResults: nextMapResults,
-        status: isFinished ? "FINISHED" : "ACTIVE",
+        status: isFinished ? "PENDINGREGISTERS" : "ACTIVE",
       },
       include: {
         draft: {
@@ -197,6 +213,22 @@ const findSoonest = () => {
     where: { status: "SCHEDULED" }
   });
 }
+
+const finishPendingRegisters = async (id) => {
+  const match = await prisma.match.findUnique({ where: { id } });
+  if (!match) {
+    throw new Error("Match not found.");
+  }
+  if (match.status !== "PENDINGREGISTERS") {
+    throw new Error("Only matches in PENDINGREGISTERS can be marked as FINISHED.");
+  }
+
+  return prisma.match.update({
+    where: { id },
+    data: { status: "FINISHED" },
+  });
+};
+
 module.exports = {
   findById,
   findAll,
@@ -205,5 +237,6 @@ module.exports = {
   remove,
   generateRoundRobin,
   submitResult,
-  findSoonest
+  findSoonest,
+  finishPendingRegisters
 };

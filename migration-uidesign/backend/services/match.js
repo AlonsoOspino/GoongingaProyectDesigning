@@ -115,6 +115,15 @@ const getActiveMatches = async () => {
     }
   });
 } 
+
+const finishPendingRegisters = async (id) => {
+  const parsedId = Number(id);
+  if (!Number.isInteger(parsedId) || parsedId <= 0) {
+    throw new Error("id must be a positive integer.");
+  }
+  return matchRepo.finishPendingRegisters(parsedId);
+};
+
 module.exports = {
   getById,
   getAll,
@@ -124,5 +133,6 @@ module.exports = {
   update,
   create,
   findSoonest,
-  getActiveMatches
+  getActiveMatches,
+  finishPendingRegisters
 };

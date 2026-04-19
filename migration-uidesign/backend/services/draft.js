@@ -128,6 +128,19 @@ const getAvailableMaps = async ({ match, pickedMapIds }) => {
   });
 };
 
+const parseHeroNameFromImgPath = (imgPath) => {
+  if (typeof imgPath !== "string" || imgPath.length === 0) {
+    return "Unknown Hero";
+  }
+
+  return imgPath
+    .replace(/^.*\//, "")
+    .replace(/^Icon-/i, "")
+    .replace(/\.[^.]+$/, "")
+    .replace(/%3F/gi, "o")
+    .replace(/_/g, " ");
+};
+
 const applyTimeoutIfNeeded = async (draft) => {
   if (!draft.currentTurnTeamId) return draft;
   if (!["MAPPICKING", "BAN"].includes(draft.phase)) return draft;
@@ -490,58 +503,78 @@ const banHero = async (draftId, payload, user) => {
     }
   }
 
-  const alreadyBannedInMatch = hasNoBan
-    ? null
-    : await prisma.draftAction.findFirst({
-      where: {
-        draftId: draft.id,
-        action: "BAN",
-        value: heroId,
+  return prisma.$transaction(async (tx) => {
+    const freshDraft = await tx.draftTable.findUnique({
+      where: { id: draft.id },
+      include: {
+        actions: { orderBy: { order: "asc" } },
+        match: true,
       },
     });
 
-  if (alreadyBannedInMatch) {
-    throw new Error("Hero already banned in this match.");
-  }
+    if (!freshDraft) {
+      throw new Error("Draft not found.");
+    }
 
-  const currentGame = normalizeGameNumber(draft.match.gameNumber);
-  const bansThisGame = draft.actions.filter(
-    (a) => a.action === "BAN" && a.gameNumber === currentGame
-  );
+    if (freshDraft.phase !== "BAN") {
+      throw new Error("Draft phase must be BAN.");
+    }
 
-  // Get this team's bans this game
-  const teamBansThisGame = bansThisGame.filter((a) => a.teamId === actingTeamId);
-  const teamBanCount = teamBansThisGame.length;
-  
-  if (teamBanCount >= 2) {
-    throw new Error("Each team can ban at most 2 heroes.");
-  }
+    if (freshDraft.currentTurnTeamId && actingTeamId !== freshDraft.currentTurnTeamId) {
+      throw new Error("It is not your turn to ban.");
+    }
 
-  // Check role limits per team (each team can ban at most 2 of same role)
-  const teamBannedHeroIds = teamBansThisGame.map((a) => a.value).filter((v) => Number.isInteger(v));
-  const teamBannedHeroes = teamBannedHeroIds.length
-    ? await prisma.hero.findMany({ where: { id: { in: teamBannedHeroIds } } })
-    : [];
+    const currentGame = normalizeGameNumber(freshDraft.match.gameNumber);
+    const bansThisGame = freshDraft.actions.filter(
+      (a) => a.action === "BAN" && a.gameNumber === currentGame
+    );
 
-  const teamRoleCounts = teamBannedHeroes.reduce(
-    (acc, h) => {
-      acc[h.role] += 1;
-      return acc;
-    },
-    { TANK: 0, DPS: 0, SUPPORT: 0 }
-  );
+    const teamBansThisGame = bansThisGame.filter((a) => a.teamId === actingTeamId);
+    if (teamBansThisGame.length >= 2) {
+      throw new Error("Each team can ban at most 2 heroes.");
+    }
 
-  if (hero && teamRoleCounts[hero.role] >= 2) {
-    throw new Error(`Role limit reached: your team already banned 2 ${hero.role} heroes.`);
-  }
+    if (!hasNoBan && heroId !== null) {
+      const alreadyBannedInGame = await tx.draftAction.findFirst({
+        where: {
+          draftId: freshDraft.id,
+          action: "BAN",
+          gameNumber: currentGame,
+          value: heroId,
+        },
+      });
 
-  const nextOrder = getNextOrder(draft.actions);
-  const bannedHeroes = Array.isArray(draft.bannedHeroes) ? draft.bannedHeroes : [];
+      if (alreadyBannedInGame) {
+        throw new Error("Hero already banned in this game.");
+      }
 
-  return prisma.$transaction(async (tx) => {
+      const bannedHeroIdsThisGame = bansThisGame
+        .map((a) => a.value)
+        .filter((v) => Number.isInteger(v));
+
+      const bannedHeroesThisGame = bannedHeroIdsThisGame.length
+        ? await tx.hero.findMany({ where: { id: { in: bannedHeroIdsThisGame } } })
+        : [];
+
+      const roleCounts = bannedHeroesThisGame.reduce(
+        (acc, h) => {
+          acc[h.role] += 1;
+          return acc;
+        },
+        { TANK: 0, DPS: 0, SUPPORT: 0 }
+      );
+
+      if (hero && roleCounts[hero.role] >= 2) {
+        throw new Error(`Role limit reached: only 2 ${hero.role} bans are allowed per game.`);
+      }
+    }
+
+    const nextOrder = getNextOrder(freshDraft.actions);
+    const bannedHeroes = Array.isArray(freshDraft.bannedHeroes) ? freshDraft.bannedHeroes : [];
+
     await tx.draftAction.create({
       data: {
-        draftId: draft.id,
+        draftId: freshDraft.id,
         teamId: actingTeamId,
         action: "BAN",
         value: heroId,
@@ -553,10 +586,10 @@ const banHero = async (draftId, payload, user) => {
     const totalBansAfter = bansThisGame.length + 1;
 
     return tx.draftTable.update({
-      where: { id: draft.id },
+      where: { id: freshDraft.id },
       data: {
         bannedHeroes: heroId ? [...bannedHeroes, heroId] : bannedHeroes,
-        currentTurnTeamId: getOtherTeamId(draft.match, actingTeamId),
+        currentTurnTeamId: getOtherTeamId(freshDraft.match, actingTeamId),
         phase: totalBansAfter >= 4 ? "ENDMAP" : "BAN",
         phaseStartedAt: new Date(),
       },
@@ -631,7 +664,10 @@ const getDraftState = async (draftId) => {
     allowedMapTypes: allowedTypesFromPool,
     availableMaps,
     allMaps,
-    heroes,
+    heroes: heroes.map((hero) => ({
+      ...hero,
+      name: hero.name || parseHeroNameFromImgPath(hero.imgPath),
+    })),
   };
 };
 

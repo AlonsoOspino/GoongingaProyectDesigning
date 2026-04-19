@@ -31,12 +31,57 @@ const createFromImage = async (req, res) => {
       waitTime: req.body.waitTime,
       initialTime: req.body.initialTime,
       extraRounds: req.body.extraRounds,
+      gameDuration: req.body.gameDuration,
+      damage: req.body.damage,
+      healing: req.body.healing,
+      mitigation: req.body.mitigation,
+      kills: req.body.kills,
+      assists: req.body.assists,
+      deaths: req.body.deaths,
     });
 
     res.status(201).json({
       stat,
       ocrPreview: text.slice(0, 400),
     });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+const previewMatchFromImage = async (req, res) => {
+  try {
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ message: "image file is required (multipart/form-data, field: image)." });
+    }
+
+    const ocr = await googleVisionService.extractOcrFromBuffer(req.file.buffer);
+
+    const preview = await playerStatService.previewMatchStatsFromOcrText({
+      text: ocr.text,
+      ocrWords: ocr.words,
+      matchId: req.body.matchId,
+      mapType: req.body.mapType,
+      extraRounds: req.body.extraRounds,
+    });
+
+    res.json(preview);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+const confirmBatchFromPreview = async (req, res) => {
+  try {
+    const created = await playerStatService.createBatchFromPreview({
+      matchId: req.body.matchId,
+      mapType: req.body.mapType,
+      extraRounds: req.body.extraRounds,
+      gameDuration: req.body.gameDuration,
+      rows: req.body.rows,
+    });
+
+    res.status(201).json({ count: created.length, stats: created });
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
@@ -63,6 +108,8 @@ const getMine = async (req, res) => {
 module.exports = {
   create,
   createFromImage,
+  previewMatchFromImage,
+  confirmBatchFromPreview,
   getAll,
   getMine,
 };

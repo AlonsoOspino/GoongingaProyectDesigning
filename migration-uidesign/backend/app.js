@@ -13,6 +13,7 @@ const playerStatRoutes = require("./routes/playerStat");
 const newsRoutes = require("./routes/news");
 const cors = require("cors");
 const app = express();
+const PORT = Number(process.env.PORT || 3000);
 app.use(cors()); 
 app.use(express.json());
 
@@ -28,6 +29,6 @@ app.use("/match", matchRoutes);
 app.use("/team", teamRoutes);
 app.use("/playerStat", playerStatRoutes);
 app.use("/news", newsRoutes);
-app.listen(3000, () => {
-  console.log("Server running on port 3000");
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });

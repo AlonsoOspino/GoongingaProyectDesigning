@@ -133,7 +133,7 @@ model Match {
   type      MatchType
   bestOf    Int
   status    MatchStatus @default(SCHEDULED)
-  startDate DateTime
+  startDate DateTime?
 
   tournamentId Int
   tournament   Tournament @relation(fields: [tournamentId], references: [id])
@@ -219,6 +219,7 @@ model Map {
 
 model Hero {
   id      Int      @id @default(autoincrement())
+  name    String?
   role    HeroRole
   imgPath String
 }

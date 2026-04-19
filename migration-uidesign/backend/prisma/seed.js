@@ -131,6 +131,14 @@ const heroRoleByName = {
   ZENYATTA: "SUPPORT",
 };
 
+const heroDisplayNameByKey = {
+  DVA: "D.Va",
+  JUNKERQUEEN: "Junker Queen",
+  SOLDIER76: "Soldier: 76",
+  TORBJORN: "Torbjorn",
+  WRECKINGBALL: "Wrecking Ball",
+};
+
 const normalizeHeroKey = (name) =>
   name
     .replace(/%3F/gi, "o")
@@ -144,6 +152,11 @@ const parseHeroName = (file) =>
     .replace(/%3F/gi, "o")
     .replace(/_/g, " ");
 
+const resolveHeroDisplayName = (parsedName) => {
+  const key = normalizeHeroKey(parsedName);
+  return heroDisplayNameByKey[key] || parsedName;
+};
+
 const parseMapType = (fileBase) => {
   const rawType = fileBase.split("_").pop().toUpperCase();
   if (rawType === "PLAYLOAD") return "PAYLOAD";
@@ -153,6 +166,17 @@ const parseMapType = (fileBase) => {
 async function main() {
   console.log("Seeding database with provided HeroImages and MapImages...");
   const passwordHash = await bcrypt.hash("123456", 10);
+
+  // Make seeding repeatable in local development.
+  await prisma.playerStat.deleteMany();
+  await prisma.draftAction.deleteMany();
+  await prisma.draftTable.deleteMany();
+  await prisma.match.deleteMany();
+  await prisma.member.deleteMany();
+  await prisma.team.deleteMany();
+  await prisma.map.deleteMany();
+  await prisma.hero.deleteMany();
+  await prisma.tournament.deleteMany();
 
   const tournament = await prisma.tournament.create({
     data: {
@@ -183,12 +207,14 @@ async function main() {
   }
 
   for (const file of heroIconFiles) {
-    const name = parseHeroName(file);
-    const key = normalizeHeroKey(name);
+    const parsedName = parseHeroName(file);
+    const key = normalizeHeroKey(parsedName);
     const role = heroRoleByName[key] || "DPS";
+    const name = resolveHeroDisplayName(parsedName);
 
     await prisma.hero.create({
       data: {
+        name,
         role,
         imgPath: `/HeroImages/${file}`,
       },
