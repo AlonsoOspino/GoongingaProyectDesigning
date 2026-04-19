@@ -114,148 +114,210 @@ export default function SchedulePage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 relative">
+    <div className="min-h-screen relative">
       {/* Decorative background */}
-      <div className="fixed top-32 left-1/4 w-60 h-60 bg-primary/10 rounded-full blur-[100px] pointer-events-none" />
-      <div className="fixed bottom-1/4 right-1/3 w-48 h-48 bg-accent/10 rounded-full blur-[80px] pointer-events-none" />
+      <div className="fixed inset-0 bg-gradient-radial pointer-events-none" />
+      <div className="fixed inset-0 bg-gradient-radial-bottom pointer-events-none" />
+      <div className="fixed inset-0 bg-grid-pattern-subtle pointer-events-none opacity-50" />
       
-      {/* Header */}
-      <div className="mb-8 relative">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-1 h-8 bg-gradient-to-b from-primary to-accent rounded-full" />
-          <h1 className="text-3xl font-bold text-foreground">Schedule</h1>
-        </div>
-        <p className="text-muted pl-4">View all matches across the season</p>
-      </div>
-
-      {/* Filters */}
-      <Card variant="bordered" className="mb-6">
-        <CardContent className="p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Select
-              label="Week"
-              options={weekOptions}
-              value={weekFilter}
-              onChange={(e) => setWeekFilter(e.target.value)}
-            />
-            <Select
-              label="Team"
-              options={teamOptions}
-              value={teamFilter}
-              onChange={(e) => setTeamFilter(e.target.value)}
-            />
-            {/* Removed Match Type selector as requested */}
+      <div className="container mx-auto px-4 py-8 relative">
+        {/* Header */}
+        <div className="mb-8 relative">
+          <div className="flex items-center gap-4 mb-3">
+            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 border border-primary/20">
+              <svg className="w-6 h-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">Schedule</h1>
+              <p className="text-muted">View all matches across the season</p>
+            </div>
           </div>
-          {(weekFilter !== "all" || teamFilter !== "all" || typeFilter !== "all") && (
-            <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
-              <span className="text-sm text-muted">
-                Showing {filteredMatches.length} of {matches.length} matches
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setWeekFilter("all");
-                  setTeamFilter("all");
-                  setTypeFilter("all");
-                }}
-              >
-                Clear Filters
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          <div className="h-px bg-gradient-to-r from-primary/50 via-accent/30 to-transparent" />
+        </div>
 
-      {/* Matches Tabs */}
-      <Tabs defaultValue={liveMatches.length > 0 ? "live" : "upcoming"}>
-        <TabsList>
+        {/* Stats summary bar */}
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="bg-surface/80 backdrop-blur border border-border rounded-xl p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <span className="text-lg font-bold text-primary">{liveMatches.length}</span>
+            </div>
+            <div>
+              <p className="text-sm text-muted">Live Now</p>
+              <p className="text-xs text-primary">{liveMatches.length > 0 ? "In Progress" : "None"}</p>
+            </div>
+          </div>
+          <div className="bg-surface/80 backdrop-blur border border-border rounded-xl p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
+              <span className="text-lg font-bold text-accent">{upcomingMatches.length}</span>
+            </div>
+            <div>
+              <p className="text-sm text-muted">Upcoming</p>
+              <p className="text-xs text-accent">Scheduled</p>
+            </div>
+          </div>
+          <div className="bg-surface/80 backdrop-blur border border-border rounded-xl p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center">
+              <span className="text-lg font-bold text-success">{completedMatches.length}</span>
+            </div>
+            <div>
+              <p className="text-sm text-muted">Completed</p>
+              <p className="text-xs text-success">Finished</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <Card variant="bordered" className="mb-6 border-border/50 bg-surface/50 backdrop-blur">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-4">
+              <svg className="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              <span className="text-sm font-medium text-foreground">Filters</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Select
+                label="Week"
+                options={weekOptions}
+                value={weekFilter}
+                onChange={(e) => setWeekFilter(e.target.value)}
+              />
+              <Select
+                label="Team"
+                options={teamOptions}
+                value={teamFilter}
+                onChange={(e) => setTeamFilter(e.target.value)}
+              />
+            </div>
+            {(weekFilter !== "all" || teamFilter !== "all" || typeFilter !== "all") && (
+              <div className="mt-4 pt-4 border-t border-border/50 flex items-center justify-between">
+                <span className="text-sm text-muted">
+                  Showing <span className="text-primary font-medium">{filteredMatches.length}</span> of {matches.length} matches
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setWeekFilter("all");
+                    setTeamFilter("all");
+                    setTypeFilter("all");
+                  }}
+                >
+                  Clear Filters
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Matches Tabs */}
+        <Tabs defaultValue={liveMatches.length > 0 ? "live" : "upcoming"}>
+          <TabsList>
+            {liveMatches.length > 0 && (
+              <TabsTrigger value="live">
+                <span className="w-2 h-2 bg-danger rounded-full mr-2 animate-pulse" />
+                Live ({liveMatches.length})
+              </TabsTrigger>
+            )}
+            <TabsTrigger value="upcoming">Upcoming ({upcomingMatches.length})</TabsTrigger>
+            <TabsTrigger value="completed">Completed ({completedMatches.length})</TabsTrigger>
+          </TabsList>
+
           {liveMatches.length > 0 && (
-            <TabsTrigger value="live">
-              <span className="w-2 h-2 bg-danger rounded-full mr-2 animate-pulse" />
-              Live ({liveMatches.length})
-            </TabsTrigger>
+            <TabsContent value="live">
+              <div className="space-y-4">
+                {liveMatches.map((match) => (
+                  <MatchCard
+                    key={match.id}
+                    match={match}
+                    teamA={teamsById.get(match.teamAId)}
+                    teamB={teamsById.get(match.teamBId)}
+                  />
+                ))}
+              </div>
+            </TabsContent>
           )}
-          <TabsTrigger value="upcoming">Upcoming ({upcomingMatches.length})</TabsTrigger>
-          <TabsTrigger value="completed">Completed ({completedMatches.length})</TabsTrigger>
-        </TabsList>
 
-        {liveMatches.length > 0 && (
-          <TabsContent value="live">
-            <div className="space-y-4">
-              {liveMatches.map((match) => (
-                <MatchCard
-                  key={match.id}
-                  match={match}
-                  teamA={teamsById.get(match.teamAId)}
-                  teamB={teamsById.get(match.teamBId)}
-                />
-              ))}
-            </div>
-          </TabsContent>
-        )}
-
-        <TabsContent value="upcoming">
-          {upcomingMatches.length > 0 ? (
-            (() => {
-              // Group upcoming matches by week
-              const weekMap = new Map();
-              upcomingMatches.forEach((match) => {
-                const week = match.semanas || 1;
-                if (!weekMap.has(week)) weekMap.set(week, []);
-                weekMap.get(week).push(match);
-              });
-              const sortedWeeks = Array.from(weekMap.keys()).sort((a, b) => a - b);
-              return (
-                <div className="space-y-8">
-                  {sortedWeeks.map((week) => (
-                    <div key={week}>
-                      <h3 className="text-lg font-bold mb-2">Week {week}</h3>
-                      <div className="space-y-4">
-                        {weekMap.get(week).map((match) => (
-                          <MatchCard
-                            key={match.id}
-                            match={match}
-                            teamA={teamsById.get(match.teamAId)}
-                            teamB={teamsById.get(match.teamBId)}
-                          />
-                        ))}
+          <TabsContent value="upcoming">
+            {upcomingMatches.length > 0 ? (
+              (() => {
+                // Group upcoming matches by week
+                const weekMap = new Map();
+                upcomingMatches.forEach((match) => {
+                  const week = match.semanas || 1;
+                  if (!weekMap.has(week)) weekMap.set(week, []);
+                  weekMap.get(week).push(match);
+                });
+                const sortedWeeks = Array.from(weekMap.keys()).sort((a, b) => a - b);
+                return (
+                  <div className="space-y-8">
+                    {sortedWeeks.map((week) => (
+                      <div key={week}>
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="w-8 h-8 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center">
+                            <span className="text-sm font-bold text-accent">{week}</span>
+                          </div>
+                          <h3 className="text-lg font-bold text-foreground">Week {week}</h3>
+                          <div className="flex-1 h-px bg-gradient-to-r from-accent/30 to-transparent" />
+                        </div>
+                        <div className="space-y-4">
+                          {weekMap.get(week).map((match: Match) => (
+                            <MatchCard
+                              key={match.id}
+                              match={match}
+                              teamA={teamsById.get(match.teamAId)}
+                              teamB={teamsById.get(match.teamBId)}
+                            />
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()
-          ) : (
-            <Card variant="bordered">
-              <CardContent className="py-12 text-center text-muted">
-                No upcoming matches found
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
+                    ))}
+                  </div>
+                );
+              })()
+            ) : (
+              <Card variant="bordered" className="border-border/50">
+                <CardContent className="py-12 text-center">
+                  <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-accent/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <p className="text-muted">No upcoming matches found</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
 
-        <TabsContent value="completed">
-          {completedMatches.length > 0 ? (
-            <div className="space-y-4">
-              {completedMatches.map((match) => (
-                <MatchCard
-                  key={match.id}
-                  match={match}
-                  teamA={teamsById.get(match.teamAId)}
-                  teamB={teamsById.get(match.teamBId)}
-                />
-              ))}
-            </div>
-          ) : (
-            <Card variant="bordered">
-              <CardContent className="py-12 text-center text-muted">
-                No completed matches found
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="completed">
+            {completedMatches.length > 0 ? (
+              <div className="space-y-4">
+                {completedMatches.map((match) => (
+                  <MatchCard
+                    key={match.id}
+                    match={match}
+                    teamA={teamsById.get(match.teamAId)}
+                    teamB={teamsById.get(match.teamBId)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <Card variant="bordered" className="border-border/50">
+                <CardContent className="py-12 text-center">
+                  <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-success/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <p className="text-muted">No completed matches found</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 }
