@@ -298,6 +298,7 @@ export default function ManagerDashboardPage() {
 
   async function handleParseScreenshot(match: Match) {
     if (!token) return;
+    const matchPlayers = getPlayersForMatch(match);
 
     const form = getOrCreateUploadForm(match.id);
     if (!form.image) {
