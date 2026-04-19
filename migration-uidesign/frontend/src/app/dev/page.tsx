@@ -22,11 +22,15 @@ export default function DevPage() {
               <div className="relative">
                 <div className="w-40 h-40 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 p-1">
                   <div className="w-full h-full rounded-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center overflow-hidden">
-                    <img
-                        src="LuffyRlbaf.jpg"
+                      <img
+                        src="/LuffyRlbaf.jpg"
                         alt="Your Name"
-                        className="w-32 h-32 object-cover rounded-full"
+                        className="w-full h-full object-cover rounded-full"
                       />
+                  </div>
+                </div>
+                <div className="absolute -right-2 top-1/2 -translate-y-1/2">
+                  <div className="w-4 h-4 bg-white border-2 border-teal-400 rounded-full" />
                 </div>
               </div>
               
