@@ -142,3 +142,12 @@ export interface GenerateRoundRobinPayload {
   bestOf: number;
   confirmationText: string;
 }
+
+export interface Tournament {
+  id: number;
+  name: string;
+  startDate: string;
+  state: "SCHEDULED" | "ROUNDROBIN" | "PLAYOFFS" | "SEMIFINALS" | "FINALS" | "FINISHED";
+  teams?: Team[];
+  matches?: Match[];
+}

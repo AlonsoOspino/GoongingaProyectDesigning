@@ -27,7 +27,7 @@ import {
 } from "@/lib/api/admin";
 import { convertToISODateTime, formatDateEST, formatForDateInput, formatForDateTimeInput } from "@/lib/dateUtils";
 import { getMatches, getTeams, type Match, type Team } from "@/lib/api";
-
+import type { Tournament } from "@/lib/api/types";
 type ActiveTab = "tournament" | "matches" | "teams" | "users";
 
 export default function AdminDashboardPage() {
