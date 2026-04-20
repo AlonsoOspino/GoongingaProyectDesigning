@@ -1,0 +1,26 @@
+-- Map seed data for Prisma
+
+INSERT INTO "Map" ("id", "name", "imageUrl") VALUES
+  (1, 'Hollywood', '/MapImages/Hollywood_Hybrid.avif'),
+  (2, 'King''s Row', '/MapImages/Kings_Row_Hybrid.avif'),
+  (3, 'Numbani', '/MapImages/Numbani_Hybrid.avif'),
+  (4, 'Eichenwalde', '/MapImages/Eichenwalde_Hybrid.avif'),
+  (5, 'Blizzard World', '/MapImages/Blizzard_World_Hybrid.avif'),
+  (6, 'Midtown', '/MapImages/Midtown_Hybrid.avif'),
+  (7, 'Paraiso', '/MapImages/Paraiso_Hybrid.avif'),
+  (8, 'Gibraltar', '/MapImages/Gibraltar_Escort.avif'),
+  (9, 'Dorado', '/MapImages/Dorado_Escort.avif'),
+  (10, 'Route 66', '/MapImages/Route_66_Escort.avif'),
+  (11, 'Junkertown', '/MapImages/Junkertown_Escort.avif'),
+  (12, 'Havana', '/MapImages/Havana_Escort.avif'),
+  (13, 'Shambali Monastery', '/MapImages/Shambali_Monastery_Escort.avif'),
+  (14, 'Circuit Royal', '/MapImages/Circuit_Royal_Escort.avif'),
+  (15, 'Colosseo', '/MapImages/Colosseo_Push.avif'),
+  (16, 'Esperanca', '/MapImages/Esperanca_Push.avif'),
+  (17, 'New Queen Street', '/MapImages/New_Queen_Street_Push.avif'),
+  (18, 'Antarctic Peninsula', '/MapImages/Antarctic_Peninsula_Control.avif'),
+  (19, 'Busan', '/MapImages/Busan_Control.avif'),
+  (20, 'Ilios', '/MapImages/Ilios_Control.avif'),
+  (21, 'Lijiang Tower', '/MapImages/Lijiang_Tower_Control.avif'),
+  (22, 'Nepal', '/MapImages/Nepal_Control.avif'),
+  (23, 'Oasis', '/MapImages/Oasis_Control.avif');
