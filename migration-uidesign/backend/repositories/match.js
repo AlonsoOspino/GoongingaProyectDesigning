@@ -17,24 +17,26 @@ const findAll = (args) => prisma.match.findMany(args);
 const create = (data) => prisma.match.create({ data });
 const update = (id, data) => prisma.match.update({ where: { id }, data });
 const remove = async (id) => {
-  // Delete related DraftActions, DraftTable, and PlayerStat records
-  // 1. Find the draftTable for this match
   const draftTable = await prisma.draftTable.findUnique({ where: { matchId: id } });
   if (draftTable) {
-    // 2. Delete all DraftActions for this draftTable
     await prisma.draftAction.deleteMany({ where: { draftId: draftTable.id } });
-    // 3. Delete the DraftTable
     await prisma.draftTable.delete({ where: { id: draftTable.id } });
   }
-  // 4. Delete all PlayerStat records for this match (if PlayerStat has matchId)
   try {
     await prisma.playerStat.deleteMany({ where: { matchId: id } });
   } catch (e) {
     // Ignore if PlayerStat does not have matchId
   }
-  // 5. Delete the match
   return prisma.match.delete({ where: { id } });
 };
+
+/**
+ * Round robin generation using the "circle method" (polygon rotation algorithm).
+ * This guarantees that NO team plays more than ONCE per round/week.
+ *
+ * With N teams (N even):  N-1 rounds, each round has N/2 matches.
+ * With N teams (N odd):   N rounds, each round has floor(N/2) matches (one team has a bye each round).
+ */
 const generateRoundRobin = async (tournamentId) => {
   const teams = await prisma.team.findMany({
     where: { tournamentId },
@@ -46,38 +48,53 @@ const generateRoundRobin = async (tournamentId) => {
   }
 
   const maps = await prisma.map.findMany({ select: { id: true } });
-  const rounds = teams.length - 1;
+
+  // Circle (polygon rotation) algorithm
+  // If odd number of teams, add a "bye" placeholder at index 0
+  const teamList = [...teams];
+  const hasBye = teamList.length % 2 !== 0;
+  if (hasBye) {
+    teamList.unshift(null); // null = bye
+  }
+
+  const n = teamList.length; // always even now
+  const numRounds = n - 1;
+  const matchesPerRound = n / 2;
 
   const created = [];
-  let pairIndex = 0;
 
-  for (let i = 0; i < teams.length; i += 1) {
-    for (let j = i + 1; j < teams.length; j += 1) {
-      const week = (pairIndex % rounds) + 1;
-      const match = await prisma.match.create({
+  for (let round = 0; round < numRounds; round++) {
+    const week = round + 1;
+
+    for (let match = 0; match < matchesPerRound; match++) {
+      const home = teamList[match === 0 ? 0 : ((round + match - 1) % (n - 1)) + 1];
+      const away = teamList[match === 0 ? ((round) % (n - 1)) + 1 : ((round + n - 1 - match) % (n - 1)) + 1];
+
+      // Skip if either team is the "bye" placeholder
+      if (home === null || away === null) continue;
+
+      const created_match = await prisma.match.create({
         data: {
           type: "ROUNDROBIN",
           title: `Week ${week}`,
           semanas: week,
           bestOf: 5,
           status: "SCHEDULED",
-          // No startDate for round robin matches
           tournamentId,
-          teamAId: teams[i].id,
-          teamBId: teams[j].id,
+          teamAId: home.id,
+          teamBId: away.id,
           allowedMaps: {
             connect: maps.map((m) => ({ id: m.id })),
           },
         },
       });
-
-      created.push(match);
-      pairIndex += 1;
+      created.push(created_match);
     }
   }
 
   return created;
 };
+
 const submitResult = async (id, winnerTeamId) => {
   return prisma.$transaction(async (tx) => {
     const match = await tx.match.findUnique({
@@ -103,34 +120,41 @@ const submitResult = async (id, winnerTeamId) => {
       throw new Error("winnerTeamId must be one of the match teams.");
     }
 
-    const currentGame = Number.isInteger(match.gameNumber) && match.gameNumber > 0 ? match.gameNumber : 1;
-    const requiredWins = Math.floor(match.bestOf / 2) + 1;
+    // gameNumber starts at 0, increments AFTER each game. So current game being played is gameNumber+1.
+    // But after createDraft, gameNumber is 0, meaning game 1 is about to start.
+    // After submitResult for game 1, gameNumber becomes 1.
+    // The "current game being reported" is match.gameNumber + 1 (1-indexed).
+    const currentGameBeingReported = match.gameNumber + 1;
+    const requiredWins = Math.ceil(match.bestOf / 2);
 
-    // For wins, increment the winner's score. For draws, neither score changes.
-    const nextMapWinsA = hasWinner && winnerTeamId === match.teamAId ? match.mapWinsTeamA + 1 : match.mapWinsTeamA;
-    const nextMapWinsB = hasWinner && winnerTeamId === match.teamBId ? match.mapWinsTeamB + 1 : match.mapWinsTeamB;
-    
-    // Check if match is finished based on wins or total games played
-    const playedMapsAfter = currentGame;
+    const nextMapWinsA =
+      hasWinner && winnerTeamId === match.teamAId
+        ? match.mapWinsTeamA + 1
+        : match.mapWinsTeamA;
+    const nextMapWinsB =
+      hasWinner && winnerTeamId === match.teamBId
+        ? match.mapWinsTeamB + 1
+        : match.mapWinsTeamB;
+
+    // Match is finished when someone reaches required wins OR we've played all bestOf games
     const isFinished =
       nextMapWinsA >= requiredWins ||
       nextMapWinsB >= requiredWins ||
-      playedMapsAfter >= match.bestOf;
+      currentGameBeingReported >= match.bestOf;
 
-    // Determine who picks next map: loser picks, or if draw, alternate based on who picked last
+    // For next turn: loser picks next map. On draw, alternate.
     const pickForCurrentGame = match.draft?.actions?.find(
-      (a) => a.action === "PICK" && a.gameNumber === currentGame
+      (a) => a.action === "PICK" && a.gameNumber === currentGameBeingReported
     );
     const pickerTeamId = pickForCurrentGame?.teamId;
-    
-    // For next turn: loser picks next map. On draw, the non-picker from current map picks next.
+
     let nextTurnTeamId;
     if (hasWinner) {
-      // Loser picks next
       nextTurnTeamId = winnerTeamId === match.teamAId ? match.teamBId : match.teamAId;
     } else {
-      // Draw: alternate - the team that didn't pick this map picks next
-      nextTurnTeamId = pickerTeamId === match.teamAId ? match.teamBId : match.teamAId;
+      // Draw: team that didn't pick this map picks next
+      nextTurnTeamId =
+        pickerTeamId === match.teamAId ? match.teamBId : match.teamAId;
     }
 
     const mapResults = Array.isArray(match.mapResults) ? match.mapResults : [];
@@ -138,16 +162,16 @@ const submitResult = async (id, winnerTeamId) => {
     const nextMapResults = [
       ...mapResults,
       {
-        gameNumber: currentGame,
+        gameNumber: currentGameBeingReported,
         mapId,
         winnerTeamId: hasWinner ? winnerTeamId : null,
         isDraw: !hasWinner,
       },
     ];
 
-    // Update team stats only if there's a winner
     if (hasWinner) {
-      const losingTeamId = winnerTeamId === match.teamAId ? match.teamBId : match.teamAId;
+      const losingTeamId =
+        winnerTeamId === match.teamAId ? match.teamBId : match.teamAId;
       await tx.team.update({
         where: { id: winnerTeamId },
         data: { mapWins: { increment: 1 } },
@@ -158,9 +182,12 @@ const submitResult = async (id, winnerTeamId) => {
       });
     }
 
-    // If match is finished and there's an overall winner, update victories
     const matchWinnerTeamId =
-      nextMapWinsA > nextMapWinsB ? match.teamAId : nextMapWinsB > nextMapWinsA ? match.teamBId : null;
+      nextMapWinsA > nextMapWinsB
+        ? match.teamAId
+        : nextMapWinsB > nextMapWinsA
+        ? match.teamBId
+        : null;
 
     if (isFinished && matchWinnerTeamId) {
       await tx.team.update({
@@ -169,13 +196,12 @@ const submitResult = async (id, winnerTeamId) => {
       });
     }
 
-    // Update match with new scores and advance gameNumber
     const updatedMatch = await tx.match.update({
       where: { id: match.id },
       data: {
         mapWinsTeamA: nextMapWinsA,
         mapWinsTeamB: nextMapWinsB,
-        gameNumber: currentGame + 1,
+        gameNumber: currentGameBeingReported, // store the game just played
         teamAready: 0,
         teamBready: 0,
         mapResults: nextMapResults,
@@ -192,7 +218,6 @@ const submitResult = async (id, winnerTeamId) => {
       },
     });
 
-    // Update draft phase: reset to STARTING for next map, or FINISHED if match is done
     if (match.draft) {
       await tx.draftTable.update({
         where: { id: match.draft.id },
@@ -207,12 +232,13 @@ const submitResult = async (id, winnerTeamId) => {
     return updatedMatch;
   });
 };
+
 const findSoonest = () => {
   return prisma.match.findFirst({
     orderBy: { startDate: "asc" },
-    where: { status: "SCHEDULED" }
+    where: { status: "SCHEDULED", startDate: { not: null } },
   });
-}
+};
 
 const finishPendingRegisters = async (id) => {
   const match = await prisma.match.findUnique({ where: { id } });
@@ -229,6 +255,16 @@ const finishPendingRegisters = async (id) => {
   });
 };
 
+const bulkCreateUsers = async (usersData) => {
+  // usersData: Array<{ nickname, user, passwordHash, teamId }>
+  const created = [];
+  for (const userData of usersData) {
+    const member = await prisma.member.create({ data: userData });
+    created.push(member);
+  }
+  return created;
+};
+
 module.exports = {
   findById,
   findAll,
@@ -238,5 +274,6 @@ module.exports = {
   generateRoundRobin,
   submitResult,
   findSoonest,
-  finishPendingRegisters
+  finishPendingRegisters,
+  bulkCreateUsers,
 };

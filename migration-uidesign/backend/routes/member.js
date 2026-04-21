@@ -3,10 +3,14 @@ const router = express.Router();
 const memberController = require("../controllers/member");
 const authMiddleware = require("../middlewares/authMiddleware");
 const adminMiddleware = require("../middlewares/admin");
+
 router.post("/register", authMiddleware, adminMiddleware, memberController.register);
 router.post("/login", memberController.login);
 router.get("/all", memberController.getAll);
 router.get("/:id", memberController.getById);
 router.put("/:id", authMiddleware, memberController.update);
 router.put("/admin/:id", authMiddleware, adminMiddleware, memberController.adminUpdate);
+// Bulk import: POST /member/bulk-import
+router.post("/bulk-import", authMiddleware, adminMiddleware, memberController.bulkImport);
+
 module.exports = router;

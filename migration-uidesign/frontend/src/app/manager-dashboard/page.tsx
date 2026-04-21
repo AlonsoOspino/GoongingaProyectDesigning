@@ -8,6 +8,7 @@ import { getMembers, type Member } from "@/lib/api/admin";
 import {
   uploadMatchStatsScreenshotPreview,
   confirmMatchStatsUpload,
+  getAllPlayerStats,
   type MatchStatPreviewResponse,
   type MatchStatPreviewRow,
 } from "@/lib/api/playerStat";
@@ -16,9 +17,11 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
+import { Input } from "@/components/ui/Input";
 import { getMatches, getTeams, createDraft, getDraftByMatchId, type Match, type Team, type DraftState } from "@/lib/api";
+import type { PlayerStat } from "@/lib/api/types";
 
-type TabValue = "scheduled" | "active" | "pending";
+type TabValue = "scheduled" | "active" | "pending" | "stats";
 type MapType = "CONTROL" | "HYBRID" | "PAYLOAD" | "PUSH" | "FLASHPOINT";
 type HeroRole = "TANK" | "DPS" | "SUPPORT";
 
@@ -33,7 +36,7 @@ type PlayerCandidate = {
   nickname: string;
 };
 
-const POLL_INTERVAL = 12000; // 12 seconds to reduce background API pressure
+const POLL_INTERVAL = 12000;
 
 const DEFAULT_PENDING_UPLOAD_FORM: PendingUploadFormState = {
   image: null,
@@ -55,18 +58,15 @@ const normalizeNicknameForMatch = (value: string) =>
 function levenshteinDistance(a: string, b: string) {
   if (!a.length) return b.length;
   if (!b.length) return a.length;
-
   const dp = Array.from({ length: a.length + 1 }, () => new Array<number>(b.length + 1).fill(0));
   for (let i = 0; i <= a.length; i += 1) dp[i][0] = i;
   for (let j = 0; j <= b.length; j += 1) dp[0][j] = j;
-
   for (let i = 1; i <= a.length; i += 1) {
     for (let j = 1; j <= b.length; j += 1) {
       const cost = a[i - 1] === b[j - 1] ? 0 : 1;
       dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
     }
   }
-
   return dp[a.length][b.length];
 }
 
@@ -76,14 +76,12 @@ function nicknameMatchScore(inputNickname: string, candidateNickname: string) {
   if (!left || !right) return 0;
   if (left === right) return 1;
   if ((left.includes(right) || right.includes(left)) && Math.min(left.length, right.length) >= 4) return 0.9;
-
   const maxLen = Math.max(left.length, right.length);
   if (maxLen >= 4) {
     const similarity = 1 - levenshteinDistance(left, right) / maxLen;
     if (similarity >= 0.85) return 0.84;
     if (similarity >= 0.72) return 0.72;
   }
-
   return 0;
 }
 
@@ -95,7 +93,6 @@ function findBestPlayerMatch(
 ) {
   let best: PlayerCandidate | null = null;
   let bestScore = 0;
-
   for (const candidate of candidates) {
     if (candidate.id !== keepCurrentId && usedIds.has(candidate.id)) continue;
     const score = nicknameMatchScore(nickname, candidate.nickname);
@@ -104,7 +101,6 @@ function findBestPlayerMatch(
       bestScore = score;
     }
   }
-
   return bestScore >= 0.7 ? best : null;
 }
 
@@ -126,25 +122,26 @@ export default function ManagerDashboardPage() {
   const [uploadMessages, setUploadMessages] = useState<Record<number, string>>({});
   const [finishingMatchId, setFinishingMatchId] = useState<number | null>(null);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
+  // Stats tab state
+  const [allStats, setAllStats] = useState<PlayerStat[]>([]);
+  const [statsSearch, setStatsSearch] = useState("");
+  const [statsTopFilter, setStatsTopFilter] = useState<string | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
 
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const prevMatchesRef = useRef<Match[]>([]);
 
-  // Redirect non-manager users
   useEffect(() => {
     if (isHydrated && (!isAuthenticated || user?.role !== "MANAGER")) {
       router.push("/login");
     }
   }, [isHydrated, isAuthenticated, user, router]);
 
-  // Request notification permission
   useEffect(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
       setNotificationPermission(Notification.permission);
       if (Notification.permission === "default") {
-        Notification.requestPermission().then((permission) => {
-          setNotificationPermission(permission);
-        });
+        Notification.requestPermission().then(setNotificationPermission);
       }
     }
   }, []);
@@ -155,58 +152,39 @@ export default function ManagerDashboardPage() {
     }
   }, [isAuthenticated, user]);
 
-  // Real-time polling
   useEffect(() => {
     if (!isAuthenticated || user?.role !== "MANAGER") return;
-
     pollRef.current = setInterval(() => {
       if (typeof document !== "undefined" && document.hidden) return;
-      loadData(true); // silent refresh
+      loadData(true);
     }, POLL_INTERVAL);
-
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [isAuthenticated, user]);
 
   const sendNotification = useCallback((title: string, body: string) => {
     if (notificationPermission === "granted" && typeof window !== "undefined" && "Notification" in window) {
-      new Notification(title, {
-        body,
-        icon: "/favicon.ico",
-        tag: "manager-notification",
-      });
+      new Notification(title, { body, icon: "/favicon.ico", tag: "manager-notification" });
     }
   }, [notificationPermission]);
 
   async function loadData(silent = false) {
     try {
       if (!silent) setLoading(true);
-      
       const [matchesData, teamsData, membersData] = await Promise.all([
         getMatches(),
         getTeams(),
         getMembers(),
       ]);
 
-      // Check for ready status changes
       for (const match of matchesData) {
         const prevMatch = prevMatchesRef.current.find((m) => m.id === match.id);
         if (prevMatch) {
-          // Both teams just became ready
           const wasNotBothReady = !(prevMatch.teamAready === 1 && prevMatch.teamBready === 1);
           const isNowBothReady = match.teamAready === 1 && match.teamBready === 1;
           if (wasNotBothReady && isNowBothReady && match.status === "SCHEDULED") {
             const teamAName = teamsData.find((t) => t.id === match.teamAId)?.name || "Team A";
             const teamBName = teamsData.find((t) => t.id === match.teamBId)?.name || "Team B";
-            sendNotification(
-              "Teams Ready!",
-              `${teamAName} vs ${teamBName} - Both teams are ready. You can create the draft table.`
-            );
-          }
-          // Check for individual team ready changes
-          if (prevMatch.teamAready !== match.teamAready || prevMatch.teamBready !== match.teamBready) {
-            // Trigger UI update by forcing re-render
+            sendNotification("Teams Ready!", `${teamAName} vs ${teamBName} - Both teams are ready.`);
           }
         }
       }
@@ -216,7 +194,6 @@ export default function ManagerDashboardPage() {
       setTeams(teamsData);
       setMembers(membersData);
 
-      // Load draft states for active matches
       const activeMatches = matchesData.filter((m) => m.status === "ACTIVE" || m.status === "PENDINGREGISTERS");
       const draftPromises = activeMatches.map(async (match) => {
         try {
@@ -240,12 +217,30 @@ export default function ManagerDashboardPage() {
     }
   }
 
+  async function loadStats() {
+    if (!token) return;
+    setStatsLoading(true);
+    try {
+      const data = await getAllPlayerStats(token);
+      setAllStats(data);
+    } catch (err) {
+      console.error("Failed to load stats:", err);
+    } finally {
+      setStatsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === "stats" && token && allStats.length === 0) {
+      loadStats();
+    }
+  }, [activeTab, token]);
+
   async function handleCreateDraft(matchId: number) {
     if (!token) return;
     setCreatingDraft(matchId);
     try {
       await createDraft(token, matchId);
-      // Navigate to the draft table using matchId
       router.push(`/draft-table/${matchId}`);
     } catch (err) {
       console.error("Failed to create draft:", err);
@@ -274,10 +269,7 @@ export default function ManagerDashboardPage() {
   function updateUploadForm(matchId: number, patch: Partial<PendingUploadFormState>) {
     setUploadForms((prev) => ({
       ...prev,
-      [matchId]: {
-        ...(prev[matchId] ?? DEFAULT_PENDING_UPLOAD_FORM),
-        ...patch,
-      },
+      [matchId]: { ...(prev[matchId] ?? DEFAULT_PENDING_UPLOAD_FORM), ...patch },
     }));
   }
 
@@ -290,17 +282,13 @@ export default function ManagerDashboardPage() {
       rows[rowIndex] = { ...rows[rowIndex], ...patch };
       const nextPreviews = [...previews];
       nextPreviews[previewIndex] = { ...target, rows };
-      return {
-        ...prev,
-        [matchId]: nextPreviews,
-      };
+      return { ...prev, [matchId]: nextPreviews };
     });
   }
 
   async function handleParseScreenshot(match: Match) {
     if (!token) return;
     const matchPlayers = getPlayersForMatch(match);
-
     const form = getOrCreateUploadForm(match.id);
     if (!form.image) {
       setUploadMessages((prev) => ({ ...prev, [match.id]: "Please select a screenshot image first." }));
@@ -328,48 +316,19 @@ export default function ManagerDashboardPage() {
         const auto = findBestPlayerMatch(row.nickname, candidatePlayers, usedIds, row.userId);
         if (!auto) return row;
         usedIds.add(auto.id);
-        return {
-          ...row,
-          userId: auto.id,
-          userFound: true,
-          nickname: row.nickname || auto.nickname,
-        };
+        return { ...row, userId: auto.id, userFound: true, nickname: row.nickname || auto.nickname };
       });
 
       const paddedRows = [...parsedRows];
       while (paddedRows.length < 10) {
-        paddedRows.push({
-          nickname: "",
-          userId: null,
-          role: "DPS",
-          kills: 0,
-          assists: 0,
-          deaths: 0,
-          damage: 0,
-          healing: 0,
-          mitigation: 0,
-          userFound: false,
-        });
+        paddedRows.push({ nickname: "", userId: null, role: "DPS", kills: 0, assists: 0, deaths: 0, damage: 0, healing: 0, mitigation: 0, userFound: false });
       }
 
       setMatchPreviews((prev) => {
         const existing = prev[match.id] || [];
-        return {
-          ...prev,
-          [match.id]: [
-            ...existing,
-            {
-              ...response,
-              rows: paddedRows.slice(0, 10),
-            },
-          ],
-        };
+        return { ...prev, [match.id]: [...existing, { ...response, rows: paddedRows.slice(0, 10) }] };
       });
-
-      setUploadMessages((prev) => ({
-        ...prev,
-        [match.id]: "Screenshot parsed and added as a game batch. You can add more screenshots and confirm all.",
-      }));
+      setUploadMessages((prev) => ({ ...prev, [match.id]: "Screenshot parsed. Verify players, then confirm." }));
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to parse screenshot.";
       setUploadMessages((prev) => ({ ...prev, [match.id]: message }));
@@ -389,19 +348,15 @@ export default function ManagerDashboardPage() {
     for (let batchIndex = 0; batchIndex < previews.length; batchIndex += 1) {
       const rows = previews[batchIndex].rows.slice(0, 10);
       for (let i = 0; i < rows.length; i += 1) {
-        const row = rows[i];
-        if (!row.userId) {
-          setUploadMessages((prev) => ({
-            ...prev,
-            [matchId]: `Game ${batchIndex + 1}, Row ${i + 1}: select a player user.`,
-          }));
+        if (!rows[i].userId) {
+          setUploadMessages((prev) => ({ ...prev, [matchId]: `Game ${batchIndex + 1}, Row ${i + 1}: select a player user.` }));
           return;
         }
       }
     }
 
     setConfirmingMatchId(matchId);
-    setUploadMessages((prev) => ({ ...prev, [matchId]: "Saving player stats for all parsed games..." }));
+    setUploadMessages((prev) => ({ ...prev, [matchId]: "Saving player stats..." }));
 
     try {
       let totalSaved = 0;
@@ -425,11 +380,7 @@ export default function ManagerDashboardPage() {
         });
         totalSaved += result.count;
       }
-
-      setUploadMessages((prev) => ({
-        ...prev,
-        [matchId]: `Saved ${totalSaved} player stats across ${previews.length} game screenshot(s). You can now mark the match as finished.`,
-      }));
+      setUploadMessages((prev) => ({ ...prev, [matchId]: `Saved ${totalSaved} player stats across ${previews.length} game(s). Mark as finished when done.` }));
       setMatchPreviews((prev) => ({ ...prev, [matchId]: [] }));
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to save match stats.";
@@ -454,25 +405,84 @@ export default function ManagerDashboardPage() {
     }
   }
 
-  const getTeamName = (teamId: number) => 
+  const getTeamName = (teamId: number) =>
     teams.find((t) => t.id === teamId)?.name || `Team ${teamId}`;
 
-  // Filter matches by status
   const scheduledMatches = matches.filter((m) => m.status === "SCHEDULED");
   const activeMatches = matches.filter((m) => m.status === "ACTIVE");
   const pendingMatches = matches.filter((m) => m.status === "PENDINGREGISTERS");
 
+  // Group scheduled matches by week
+  const scheduledByWeek = scheduledMatches.reduce((acc, m) => {
+    const w = m.semanas || 1;
+    if (!acc[w]) acc[w] = [];
+    acc[w].push(m);
+    return acc;
+  }, {} as Record<number, Match[]>);
+
+  // Find the next upcoming match (soonest startDate)
+  const nextMatch = scheduledMatches
+    .filter((m) => m.startDate)
+    .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())[0] || null;
+
+  // Stats filtering
+  const statsFiltered = (() => {
+    let data = [...allStats];
+    if (statsSearch.trim()) {
+      const q = statsSearch.trim().toLowerCase();
+      // We need member nicknames - join by userId
+      const memberMap = new Map(members.map((m) => [m.id, m]));
+      data = data.filter((s) => {
+        const m = memberMap.get(s.userId);
+        return m?.nickname?.toLowerCase().includes(q) || m?.user?.toLowerCase().includes(q);
+      });
+    }
+    if (statsTopFilter) {
+      const field = statsTopFilter as keyof PlayerStat;
+      data = [...data].sort((a, b) => (b[field] as number) - (a[field] as number)).slice(0, 10);
+    }
+    return data;
+  })();
+
+  // Average stats per player
+  const playerAverages = (() => {
+    const memberMap = new Map(members.map((m) => [m.id, m]));
+    const byPlayer: Record<number, PlayerStat[]> = {};
+    for (const s of allStats) {
+      if (!byPlayer[s.userId]) byPlayer[s.userId] = [];
+      byPlayer[s.userId].push(s);
+    }
+    return Object.entries(byPlayer).map(([userId, stats]) => {
+      const member = memberMap.get(Number(userId));
+      const avg = (field: keyof PlayerStat) =>
+        stats.reduce((acc, s) => acc + (s[field] as number), 0) / stats.length;
+      return {
+        userId: Number(userId),
+        nickname: member?.nickname || `Player #${userId}`,
+        games: stats.length,
+        avgDmg: Math.round(avg("damagePer10")),
+        avgHeal: Math.round(avg("healingPer10")),
+        avgMit: Math.round(avg("mitigationPer10")),
+        avgKills: +avg("killsPer10").toFixed(1),
+        avgAssists: +avg("assistsPer10").toFixed(1),
+        avgDeaths: +avg("deathsPer10").toFixed(1),
+      };
+    });
+  })();
+
+  const searchedPlayer = (() => {
+    if (!statsSearch.trim()) return null;
+    const q = statsSearch.trim().toLowerCase();
+    return playerAverages.find(
+      (p) => p.nickname.toLowerCase().includes(q)
+    ) || null;
+  })();
+
   if (!isHydrated) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-pulse text-muted">Loading...</div>
-      </div>
-    );
+    return <div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-muted">Loading...</div></div>;
   }
 
-  if (!isAuthenticated || user?.role !== "MANAGER") {
-    return null;
-  }
+  if (!isAuthenticated || user?.role !== "MANAGER") return null;
 
   return (
     <main className="min-h-screen bg-background py-8">
@@ -488,185 +498,150 @@ export default function ManagerDashboardPage() {
           </div>
         </div>
 
-        {/* Stats Overview */}
+        {/* Overview cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted">Scheduled</p>
-                  <p className="text-3xl font-bold text-foreground">{scheduledMatches.length}</p>
-                </div>
-                <div className="w-12 h-12 rounded-full bg-surface flex items-center justify-center">
-                  <svg className="w-6 h-6 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted">Active</p>
-                  <p className="text-3xl font-bold text-accent">{activeMatches.length}</p>
-                </div>
-                <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center">
-                  <svg className="w-6 h-6 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted">Pending Results</p>
-                  <p className="text-3xl font-bold text-warning">{pendingMatches.length}</p>
-                </div>
-                <div className="w-12 h-12 rounded-full bg-warning/20 flex items-center justify-center">
-                  <svg className="w-6 h-6 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {[
+            { label: "Scheduled", count: scheduledMatches.length, color: "text-foreground" },
+            { label: "Active", count: activeMatches.length, color: "text-accent" },
+            { label: "Pending Results", count: pendingMatches.length, color: "text-warning" },
+          ].map(({ label, count, color }) => (
+            <Card key={label}>
+              <CardContent className="p-6">
+                <p className="text-sm text-muted">{label}</p>
+                <p className={`text-3xl font-bold ${color}`}>{count}</p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
+
+        {/* Next match highlight */}
+        {nextMatch && (
+          <div className="mb-6 p-4 rounded-xl border-2 border-primary bg-primary/5">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <p className="text-xs text-primary uppercase tracking-wide font-semibold mb-1">Next Match</p>
+                <p className="text-xl font-bold text-foreground">
+                  {getTeamName(nextMatch.teamAId)} <span className="text-muted">vs</span> {getTeamName(nextMatch.teamBId)}
+                </p>
+                <p className="text-sm text-muted mt-1">
+                  Week {nextMatch.semanas} · BO{nextMatch.bestOf} ·{" "}
+                  {nextMatch.startDate
+                    ? new Date(nextMatch.startDate).toLocaleString()
+                    : "No date set"}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Badge variant={nextMatch.teamAready ? "success" : "default"}>
+                  {getTeamName(nextMatch.teamAId).slice(0, 8)}: {nextMatch.teamAready ? "✓" : "—"}
+                </Badge>
+                <Badge variant={nextMatch.teamBready ? "success" : "default"}>
+                  {getTeamName(nextMatch.teamBId).slice(0, 8)}: {nextMatch.teamBready ? "✓" : "—"}
+                </Badge>
+                {nextMatch.teamAready === 1 && nextMatch.teamBready === 1 && (
+                  <Button
+                    onClick={() => handleCreateDraft(nextMatch.id)}
+                    disabled={creatingDraft === nextMatch.id}
+                    size="sm"
+                  >
+                    {creatingDraft === nextMatch.id ? "Creating..." : "Create Draft"}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)}>
           <TabsList className="mb-6">
-            <TabsTrigger value="scheduled">
-              Scheduled ({scheduledMatches.length})
-            </TabsTrigger>
-            <TabsTrigger value="active">
-              Active ({activeMatches.length})
-            </TabsTrigger>
-            <TabsTrigger value="pending">
-              Pending Results ({pendingMatches.length})
-            </TabsTrigger>
+            <TabsTrigger value="scheduled">Scheduled ({scheduledMatches.length})</TabsTrigger>
+            <TabsTrigger value="active">Active ({activeMatches.length})</TabsTrigger>
+            <TabsTrigger value="pending">Pending ({pendingMatches.length})</TabsTrigger>
+            <TabsTrigger value="stats">Stats</TabsTrigger>
           </TabsList>
 
+          {/* SCHEDULED TAB */}
           <TabsContent value="scheduled">
-            <Card>
-              <CardHeader>
-                <CardTitle>Scheduled Matches</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <p className="text-muted text-center py-8">Loading...</p>
-                ) : scheduledMatches.length === 0 ? (
-                  <p className="text-muted text-center py-8">No scheduled matches.</p>
-                ) : (
-                  <div className="space-y-4">
-                    {scheduledMatches.map((match) => {
-                      const bothReady = match.teamAready === 1 && match.teamBready === 1;
-                      const teamAName = getTeamName(match.teamAId);
-                      const teamBName = getTeamName(match.teamBId);
-                      
-                      return (
-                        <div
-                          key={match.id}
-                          className={`border rounded-lg p-4 transition-all ${
-                            bothReady 
-                              ? "border-success bg-success/5 animate-pulse" 
-                              : "border-border bg-surface"
-                          }`}
-                        >
-                          <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-                            {/* Match Info */}
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <span className="text-lg font-semibold text-foreground">{teamAName}</span>
-                                <span className="text-muted">vs</span>
-                                <span className="text-lg font-semibold text-foreground">{teamBName}</span>
-                              </div>
-                              <div className="flex items-center gap-3 text-sm text-muted">
-                                <Badge variant="secondary">{match.type}</Badge>
-                                <span>BO{match.bestOf}</span>
-                                <span>
-                                  {new Date(match.startDate).toLocaleDateString()}{" "}
-                                  {new Date(match.startDate).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                                </span>
-                              </div>
-                            </div>
+            <div className="space-y-8">
+              {loading ? (
+                <p className="text-muted text-center py-8">Loading...</p>
+              ) : scheduledMatches.length === 0 ? (
+                <p className="text-muted text-center py-8">No scheduled matches.</p>
+              ) : (
+                Object.entries(scheduledByWeek)
+                  .sort(([a], [b]) => Number(a) - Number(b))
+                  .map(([week, weekMatches]) => (
+                    <div key={week}>
+                      <h3 className="text-sm font-semibold text-muted uppercase tracking-wide mb-3">
+                        Week {week}
+                      </h3>
+                      <div className="space-y-3">
+                        {weekMatches
+                          .sort((a, b) => (a.startDate && b.startDate ? new Date(a.startDate).getTime() - new Date(b.startDate).getTime() : 0))
+                          .map((match) => {
+                            const bothReady = match.teamAready === 1 && match.teamBready === 1;
+                            const teamAName = getTeamName(match.teamAId);
+                            const teamBName = getTeamName(match.teamBId);
+                            const isNext = match.id === nextMatch?.id;
 
-                            {/* Ready Status */}
-                            <div className="flex items-center gap-4">
-                              <div className="flex flex-col items-center">
-                                <span className="text-xs text-muted mb-1">{teamAName.slice(0, 8)}</span>
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                                  match.teamAready ? "bg-success text-success-foreground" : "bg-surface-elevated text-muted"
-                                }`}>
-                                  {match.teamAready ? (
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                    </svg>
-                                  ) : (
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="flex flex-col items-center">
-                                <span className="text-xs text-muted mb-1">{teamBName.slice(0, 8)}</span>
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                                  match.teamBready ? "bg-success text-success-foreground" : "bg-surface-elevated text-muted"
-                                }`}>
-                                  {match.teamBready ? (
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                    </svg>
-                                  ) : (
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Action */}
-                            <div className="flex items-center">
-                              <Button
-                                onClick={() => handleCreateDraft(match.id)}
-                                disabled={!bothReady || creatingDraft === match.id}
-                                className={bothReady ? "" : "opacity-50"}
+                            return (
+                              <div
+                                key={match.id}
+                                className={`border rounded-lg p-4 transition-all ${
+                                  isNext
+                                    ? "border-primary bg-primary/5"
+                                    : bothReady
+                                    ? "border-success bg-success/5"
+                                    : "border-border bg-surface"
+                                }`}
                               >
-                                {creatingDraft === match.id ? (
-                                  "Creating..."
-                                ) : bothReady ? (
-                                  <>
-                                    <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                                    </svg>
-                                    Create Draft
-                                  </>
-                                ) : (
-                                  "Waiting for Teams"
-                                )}
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                                <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                      {isNext && <Badge variant="primary" className="text-xs">Next Match</Badge>}
+                                      <span className="text-lg font-semibold text-foreground">{teamAName}</span>
+                                      <span className="text-muted">vs</span>
+                                      <span className="text-lg font-semibold text-foreground">{teamBName}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3 text-sm text-muted">
+                                      <Badge variant="secondary">{match.type}</Badge>
+                                      <span>BO{match.bestOf}</span>
+                                      {match.startDate && (
+                                        <span>{new Date(match.startDate).toLocaleString()}</span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${match.teamAready ? "bg-success text-white" : "bg-surface-elevated text-muted"}`}>
+                                      {teamAName.charAt(0)}
+                                    </div>
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${match.teamBready ? "bg-success text-white" : "bg-surface-elevated text-muted"}`}>
+                                      {teamBName.charAt(0)}
+                                    </div>
+                                    <Button
+                                      onClick={() => handleCreateDraft(match.id)}
+                                      disabled={!bothReady || creatingDraft === match.id}
+                                      size="sm"
+                                      className={bothReady ? "" : "opacity-50"}
+                                    >
+                                      {creatingDraft === match.id ? "Creating..." : bothReady ? "Create Draft" : "Waiting"}
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  ))
+              )}
+            </div>
           </TabsContent>
 
+          {/* ACTIVE TAB */}
           <TabsContent value="active">
             <Card>
-              <CardHeader>
-                <CardTitle>Active Matches</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>Active Matches</CardTitle></CardHeader>
               <CardContent>
                 {loading ? (
                   <p className="text-muted text-center py-8">Loading...</p>
@@ -676,39 +651,22 @@ export default function ManagerDashboardPage() {
                   <div className="space-y-4">
                     {activeMatches.map((match) => {
                       const draft = drafts[match.id];
-                      const teamAName = getTeamName(match.teamAId);
-                      const teamBName = getTeamName(match.teamBId);
-                      
                       return (
-                        <div
-                          key={match.id}
-                          className="border border-accent/30 rounded-lg p-4 bg-accent/5"
-                        >
+                        <div key={match.id} className="border border-accent/30 rounded-lg p-4 bg-accent/5">
                           <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-                            {/* Match Info */}
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-2">
-                                <span className="text-lg font-semibold text-foreground">{teamAName}</span>
+                                <span className="text-lg font-semibold text-foreground">{getTeamName(match.teamAId)}</span>
                                 <span className="font-mono text-xl text-accent">{match.mapWinsTeamA} - {match.mapWinsTeamB}</span>
-                                <span className="text-lg font-semibold text-foreground">{teamBName}</span>
+                                <span className="text-lg font-semibold text-foreground">{getTeamName(match.teamBId)}</span>
                               </div>
                               <div className="flex items-center gap-3 text-sm">
-                                <Badge variant="primary">Game {match.gameNumber}</Badge>
-                                {draft && (
-                                  <Badge variant="secondary">{draft.phase}</Badge>
-                                )}
+                                <Badge variant="primary">Game {(match.gameNumber || 0) + 1}</Badge>
+                                {draft && <Badge variant="secondary">{draft.phase}</Badge>}
                               </div>
                             </div>
-
-                            {/* Action */}
                             <Link href={`/draft-table/${match.id}`}>
-                              <Button variant="secondary">
-                                <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                </svg>
-                                View Draft
-                              </Button>
+                              <Button variant="secondary">View Draft</Button>
                             </Link>
                           </div>
                         </div>
@@ -720,11 +678,10 @@ export default function ManagerDashboardPage() {
             </Card>
           </TabsContent>
 
+          {/* PENDING TAB */}
           <TabsContent value="pending">
             <Card>
-              <CardHeader>
-                <CardTitle>Pending Results</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>Pending Results</CardTitle></CardHeader>
               <CardContent>
                 {loading ? (
                   <p className="text-muted text-center py-8">Loading...</p>
@@ -744,7 +701,7 @@ export default function ManagerDashboardPage() {
                         <div key={match.id} className="border border-warning/30 rounded-lg p-4 bg-warning/5">
                           <div className="flex flex-col lg:flex-row lg:items-center gap-4">
                             <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
+                              <div className="flex items-center gap-3 mb-1">
                                 <span className="text-lg font-semibold text-foreground">{teamAName}</span>
                                 <span className="font-mono text-lg text-warning">{match.mapWinsTeamA} - {match.mapWinsTeamB}</span>
                                 <span className="text-lg font-semibold text-foreground">{teamBName}</span>
@@ -752,13 +709,11 @@ export default function ManagerDashboardPage() {
                               <div className="flex items-center gap-2 text-sm text-muted">
                                 <Badge variant="secondary">{match.type}</Badge>
                                 <span>BO{match.bestOf}</span>
-                                <span>Next: register player screenshots</span>
                               </div>
                             </div>
-
                             <div className="flex items-center gap-2">
                               <Button size="sm" variant="secondary" onClick={() => openStatForm(match.id)}>
-                                {isOpen ? "Hide Stat Form" : "Register Stats"}
+                                {isOpen ? "Hide Stats Form" : "Register Stats"}
                               </Button>
                               <Link href={`/draft-table/${match.id}`}>
                                 <Button size="sm" variant="secondary">View Draft</Button>
@@ -769,59 +724,53 @@ export default function ManagerDashboardPage() {
                           {isOpen && (
                             <div className="mt-4 border-t border-border pt-4 space-y-4">
                               <p className="text-sm text-muted">
-                                Upload one scoreboard screenshot. The system auto-fills 10 players, and you only confirm names, users, roles and values.
+                                Upload one scoreboard screenshot per game. The system auto-fills 10 players using OCR.
+                                Verify the names, assign users and roles, then confirm.
                               </p>
 
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                 <label className="text-sm">
-                                  <span className="text-muted">Map Type</span>
+                                  <span className="text-muted block mb-1">Map Type</span>
                                   <select
-                                    className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
+                                    className="w-full rounded-md border border-border bg-background px-3 py-2"
                                     value={form.mapType}
                                     onChange={(e) => updateUploadForm(match.id, { mapType: e.target.value as MapType })}
                                   >
-                                    <option value="CONTROL">CONTROL</option>
-                                    <option value="HYBRID">HYBRID</option>
-                                    <option value="PAYLOAD">PAYLOAD</option>
-                                    <option value="PUSH">PUSH</option>
-                                    <option value="FLASHPOINT">FLASHPOINT</option>
+                                    {["CONTROL", "HYBRID", "PAYLOAD", "PUSH", "FLASHPOINT"].map((t) => (
+                                      <option key={t} value={t}>{t}</option>
+                                    ))}
                                   </select>
                                 </label>
 
                                 <label className="text-sm">
-                                  <span className="text-muted">Extra Rounds</span>
+                                  <span className="text-muted block mb-1">Extra Rounds</span>
                                   <input
-                                    type="number"
-                                    min={0}
-                                    className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
+                                    type="number" min={0}
+                                    className="w-full rounded-md border border-border bg-background px-3 py-2"
                                     value={form.extraRounds}
                                     onChange={(e) => updateUploadForm(match.id, { extraRounds: e.target.value })}
                                   />
                                 </label>
 
                                 <label className="text-sm">
-                                  <span className="text-muted">Screenshot</span>
+                                  <span className="text-muted block mb-1">Screenshot</span>
                                   <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
+                                    type="file" accept="image/*"
+                                    className="w-full rounded-md border border-border bg-background px-3 py-2"
                                     onChange={(e) => updateUploadForm(match.id, { image: e.target.files?.[0] ?? null })}
                                   />
                                 </label>
                               </div>
 
-                              <div className="flex items-center gap-3">
-                                <Button
-                                  onClick={() => void handleParseScreenshot(match)}
-                                  disabled={parsingMatchId === match.id}
-                                >
-                                  {parsingMatchId === match.id ? "Parsing..." : "Parse Screenshot"}
+                              <div className="flex flex-wrap items-center gap-3">
+                                <Button onClick={() => void handleParseScreenshot(match)} disabled={parsingMatchId === match.id}>
+                                  {parsingMatchId === match.id ? "Parsing..." : "Parse Screenshot (OCR)"}
                                 </Button>
                                 <Button
                                   onClick={() => void handleConfirmBatch(match.id)}
                                   disabled={!previews.length || confirmingMatchId === match.id}
                                 >
-                                  {confirmingMatchId === match.id ? "Saving..." : "Confirm 10 Players"}
+                                  {confirmingMatchId === match.id ? "Saving..." : `Confirm ${previews.length} Game(s)`}
                                 </Button>
                                 <Button
                                   variant="secondary"
@@ -843,10 +792,9 @@ export default function ManagerDashboardPage() {
                                   </div>
 
                                   <label className="text-sm block">
-                                    <span className="text-muted">Detected Match Duration (seconds)</span>
+                                    <span className="text-muted">Match Duration (seconds)</span>
                                     <input
-                                      type="number"
-                                      min={0}
+                                      type="number" min={0}
                                       className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
                                       value={preview.gameDuration}
                                       onChange={(e) =>
@@ -863,70 +811,48 @@ export default function ManagerDashboardPage() {
                                     <table className="w-full text-sm">
                                       <thead className="bg-surface">
                                         <tr>
-                                          <th className="px-2 py-2 text-left">#</th>
-                                          <th className="px-2 py-2 text-left">Nickname</th>
-                                          <th className="px-2 py-2 text-left">User</th>
-                                          <th className="px-2 py-2 text-left">Role</th>
-                                          <th className="px-2 py-2 text-left">K</th>
-                                          <th className="px-2 py-2 text-left">A</th>
-                                          <th className="px-2 py-2 text-left">D</th>
-                                          <th className="px-2 py-2 text-left">DMG</th>
-                                          <th className="px-2 py-2 text-left">HEAL</th>
-                                          <th className="px-2 py-2 text-left">MIT</th>
+                                          {["#", "OCR Nick", "User", "Role", "K", "A", "D", "DMG", "HEAL", "MIT"].map((h) => (
+                                            <th key={h} className="px-2 py-2 text-left text-xs">{h}</th>
+                                          ))}
                                         </tr>
                                       </thead>
                                       <tbody>
                                         {preview.rows.slice(0, 10).map((row, rowIndex) => (
-                                          <tr key={rowIndex} className="border-t border-border">
-                                            <td className="px-2 py-2">{rowIndex + 1}</td>
-                                            <td className="px-2 py-2">
+                                          <tr key={rowIndex} className={`border-t border-border ${row.userFound ? "" : "bg-warning/5"}`}>
+                                            <td className="px-2 py-1 text-xs text-muted">{rowIndex + 1}</td>
+                                            <td className="px-2 py-1">
                                               <input
-                                                className="w-36 rounded border border-border bg-background px-2 py-1"
+                                                className="w-28 rounded border border-border bg-background px-2 py-1 text-xs"
                                                 value={row.nickname}
                                                 onChange={(e) => {
                                                   const nickname = e.target.value;
                                                   const selectedPlayers = new Set(
-                                                    preview.rows
-                                                      .filter((_, i) => i !== rowIndex)
-                                                      .map((r) => r.userId)
-                                                      .filter((id): id is number => Boolean(id))
+                                                    preview.rows.filter((_, i) => i !== rowIndex).map((r) => r.userId).filter((id): id is number => Boolean(id))
                                                   );
-                                                  const candidatePlayers = (preview.players?.length
-                                                    ? preview.players
-                                                    : matchPlayers) as PlayerCandidate[];
-                                                  const auto = findBestPlayerMatch(
-                                                    nickname,
-                                                    candidatePlayers,
-                                                    selectedPlayers,
-                                                    row.userId
-                                                  );
-
+                                                  const candidatePlayers = (preview.players?.length ? preview.players : matchPlayers) as PlayerCandidate[];
+                                                  const auto = findBestPlayerMatch(nickname, candidatePlayers, selectedPlayers, row.userId);
                                                   updatePreviewRow(match.id, previewIndex, rowIndex, {
                                                     nickname,
-                                                    ...(auto && (!row.userId || !row.userFound)
-                                                      ? { userId: auto.id, userFound: true }
-                                                      : {}),
+                                                    ...(auto && (!row.userId || !row.userFound) ? { userId: auto.id, userFound: true } : {}),
                                                   });
                                                 }}
                                               />
                                             </td>
-                                            <td className="px-2 py-2">
+                                            <td className="px-2 py-1">
                                               <select
-                                                className="w-44 rounded border border-border bg-background px-2 py-1"
+                                                className="w-36 rounded border border-border bg-background px-2 py-1 text-xs"
                                                 value={row.userId ?? ""}
                                                 onChange={(e) => updatePreviewRow(match.id, previewIndex, rowIndex, { userId: e.target.value ? Number(e.target.value) : null })}
                                               >
-                                                <option value="">Manual select</option>
+                                                <option value="">— select —</option>
                                                 {(preview.players?.length ? preview.players : matchPlayers).map((player) => (
-                                                  <option key={player.id} value={player.id}>
-                                                    {player.nickname}
-                                                  </option>
+                                                  <option key={player.id} value={player.id}>{player.nickname}</option>
                                                 ))}
                                               </select>
                                             </td>
-                                            <td className="px-2 py-2">
+                                            <td className="px-2 py-1">
                                               <select
-                                                className="w-24 rounded border border-border bg-background px-2 py-1"
+                                                className="w-20 rounded border border-border bg-background px-2 py-1 text-xs"
                                                 value={row.role}
                                                 onChange={(e) => updatePreviewRow(match.id, previewIndex, rowIndex, { role: e.target.value as HeroRole })}
                                               >
@@ -935,12 +861,16 @@ export default function ManagerDashboardPage() {
                                                 <option value="SUPPORT">SUPPORT</option>
                                               </select>
                                             </td>
-                                            <td className="px-2 py-2"><input type="number" min={0} className="w-16 rounded border border-border bg-background px-2 py-1" value={row.kills} onChange={(e) => updatePreviewRow(match.id, previewIndex, rowIndex, { kills: Number(e.target.value || 0) })} /></td>
-                                            <td className="px-2 py-2"><input type="number" min={0} className="w-16 rounded border border-border bg-background px-2 py-1" value={row.assists} onChange={(e) => updatePreviewRow(match.id, previewIndex, rowIndex, { assists: Number(e.target.value || 0) })} /></td>
-                                            <td className="px-2 py-2"><input type="number" min={0} className="w-16 rounded border border-border bg-background px-2 py-1" value={row.deaths} onChange={(e) => updatePreviewRow(match.id, previewIndex, rowIndex, { deaths: Number(e.target.value || 0) })} /></td>
-                                            <td className="px-2 py-2"><input type="number" min={0} className="w-24 rounded border border-border bg-background px-2 py-1" value={row.damage} onChange={(e) => updatePreviewRow(match.id, previewIndex, rowIndex, { damage: Number(e.target.value || 0) })} /></td>
-                                            <td className="px-2 py-2"><input type="number" min={0} className="w-24 rounded border border-border bg-background px-2 py-1" value={row.healing} onChange={(e) => updatePreviewRow(match.id, previewIndex, rowIndex, { healing: Number(e.target.value || 0) })} /></td>
-                                            <td className="px-2 py-2"><input type="number" min={0} className="w-24 rounded border border-border bg-background px-2 py-1" value={row.mitigation} onChange={(e) => updatePreviewRow(match.id, previewIndex, rowIndex, { mitigation: Number(e.target.value || 0) })} /></td>
+                                            {(["kills", "assists", "deaths", "damage", "healing", "mitigation"] as const).map((field) => (
+                                              <td key={field} className="px-2 py-1">
+                                                <input
+                                                  type="number" min={0}
+                                                  className="w-16 rounded border border-border bg-background px-2 py-1 text-xs"
+                                                  value={row[field]}
+                                                  onChange={(e) => updatePreviewRow(match.id, previewIndex, rowIndex, { [field]: Number(e.target.value || 0) })}
+                                                />
+                                              </td>
+                                            ))}
                                           </tr>
                                         ))}
                                       </tbody>
@@ -948,10 +878,10 @@ export default function ManagerDashboardPage() {
                                   </div>
 
                                   {preview.ocrPreview && (
-                                    <div className="rounded-md border border-border bg-surface p-3">
-                                      <p className="text-xs uppercase tracking-wide text-muted mb-1">OCR Preview</p>
-                                      <pre className="text-xs whitespace-pre-wrap text-foreground">{preview.ocrPreview}</pre>
-                                    </div>
+                                    <details className="text-xs">
+                                      <summary className="cursor-pointer text-muted">OCR raw text (debug)</summary>
+                                      <pre className="mt-2 p-2 bg-surface rounded text-foreground whitespace-pre-wrap">{preview.ocrPreview}</pre>
+                                    </details>
                                   )}
                                 </div>
                               ))}
@@ -964,6 +894,147 @@ export default function ManagerDashboardPage() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* STATS TAB */}
+          <TabsContent value="stats">
+            <div className="space-y-6">
+              {/* Search bar */}
+              <Card>
+                <CardContent className="p-4">
+                  <Input
+                    label="Search player"
+                    placeholder="Type a nickname to see that player's stats..."
+                    value={statsSearch}
+                    onChange={(e) => { setStatsSearch(e.target.value); setStatsTopFilter(null); }}
+                  />
+                </CardContent>
+              </Card>
+
+              {/* If searching, show player summary card first */}
+              {searchedPlayer && (
+                <Card className="border-primary/30">
+                  <CardContent className="p-6">
+                    <p className="text-xs text-primary uppercase tracking-wide font-semibold mb-2">Player Average Stats / 10 min</p>
+                    <p className="text-xl font-bold text-foreground mb-4">{searchedPlayer.nickname} <span className="text-sm text-muted font-normal">({searchedPlayer.games} games)</span></p>
+                    <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+                      {[
+                        { label: "DMG", value: searchedPlayer.avgDmg, color: "text-danger" },
+                        { label: "HEAL", value: searchedPlayer.avgHeal, color: "text-success" },
+                        { label: "MIT", value: searchedPlayer.avgMit, color: "text-primary" },
+                        { label: "ELIMS", value: searchedPlayer.avgKills, color: "text-accent" },
+                        { label: "ASSISTS", value: searchedPlayer.avgAssists, color: "text-foreground" },
+                        { label: "DEATHS", value: searchedPlayer.avgDeaths, color: "text-muted" },
+                      ].map(({ label, value, color }) => (
+                        <div key={label} className="text-center">
+                          <p className={`text-2xl font-bold font-mono ${color}`}>{value}</p>
+                          <p className="text-xs text-muted">{label}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Top 10 buttons */}
+              <div className="flex flex-wrap gap-2">
+                <p className="text-sm text-muted self-center">Top 10:</p>
+                {[
+                  { label: "DMG", field: "damagePer10" },
+                  { label: "Mitigated", field: "mitigationPer10" },
+                  { label: "Kills", field: "killsPer10" },
+                  { label: "Healing", field: "healingPer10" },
+                  { label: "Assists", field: "assistsPer10" },
+                  { label: "Least Deaths", field: "deathsPer10" },
+                ].map(({ label, field }) => (
+                  <Button
+                    key={field}
+                    size="sm"
+                    variant={statsTopFilter === field ? "default" : "ghost"}
+                    onClick={() => {
+                      setStatsSearch("");
+                      setStatsTopFilter(statsTopFilter === field ? null : field);
+                    }}
+                  >
+                    {label}
+                  </Button>
+                ))}
+                {(statsTopFilter || statsSearch) && (
+                  <Button size="sm" variant="ghost" onClick={() => { setStatsTopFilter(null); setStatsSearch(""); }}>
+                    Clear
+                  </Button>
+                )}
+              </div>
+
+              {/* Stats table */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>
+                    {statsTopFilter
+                      ? `Top 10 — ${statsTopFilter.replace("Per10", "").replace("damage", "Damage").replace("healing", "Healing").replace("mitigation", "Mitigation").replace("kills", "Kills").replace("assists", "Assists").replace("deaths", "Deaths")} per 10 min`
+                      : statsSearch
+                      ? `Stats for "${statsSearch}"`
+                      : "All Player Stats (avg / 10 min)"}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {statsLoading ? (
+                    <p className="text-muted text-center py-8">Loading stats...</p>
+                  ) : playerAverages.length === 0 ? (
+                    <p className="text-muted text-center py-8">No stats recorded yet.</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-surface border-b border-border">
+                          <tr>
+                            {["Player", "Games", "DMG/10", "HEAL/10", "MIT/10", "ELIMS/10", "AST/10", "DEATHS/10"].map((h) => (
+                              <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase">{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(() => {
+                            let rows = [...playerAverages];
+                            if (statsSearch.trim()) {
+                              const q = statsSearch.trim().toLowerCase();
+                              rows = rows.filter((p) => p.nickname.toLowerCase().includes(q));
+                            }
+                            if (statsTopFilter) {
+                              const fieldMap: Record<string, keyof typeof rows[0]> = {
+                                damagePer10: "avgDmg", mitigationPer10: "avgMit",
+                                killsPer10: "avgKills", healingPer10: "avgHeal",
+                                assistsPer10: "avgAssists", deathsPer10: "avgDeaths",
+                              };
+                              const sortKey = fieldMap[statsTopFilter];
+                              const ascending = statsTopFilter === "deathsPer10";
+                              rows = [...rows].sort((a, b) => ascending
+                                ? (a[sortKey] as number) - (b[sortKey] as number)
+                                : (b[sortKey] as number) - (a[sortKey] as number)
+                              ).slice(0, 10);
+                            }
+                            return rows.map((p, i) => (
+                              <tr key={p.userId} className="border-t border-border hover:bg-surface/50 transition-colors">
+                                <td className="px-4 py-3">
+                                  {statsTopFilter && <span className="text-xs text-muted mr-2">#{i + 1}</span>}
+                                  <span className="font-medium text-foreground">{p.nickname}</span>
+                                </td>
+                                <td className="px-4 py-3 text-muted">{p.games}</td>
+                                <td className="px-4 py-3 font-mono text-danger">{p.avgDmg.toLocaleString()}</td>
+                                <td className="px-4 py-3 font-mono text-success">{p.avgHeal.toLocaleString()}</td>
+                                <td className="px-4 py-3 font-mono text-primary">{p.avgMit.toLocaleString()}</td>
+                                <td className="px-4 py-3 font-mono">{p.avgKills}</td>
+                                <td className="px-4 py-3 font-mono">{p.avgAssists}</td>
+                                <td className="px-4 py-3 font-mono text-muted">{p.avgDeaths}</td>
+                              </tr>
+                            ));
+                          })()}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>

@@ -1,6 +1,6 @@
-
 const memberService = require("../services/authUser");
 const memberRepo = require("../repositories/member");
+const bcrypt = require("bcrypt");
 
 const register = async (req, res) => {
   try {
@@ -10,6 +10,7 @@ const register = async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 };
+
 const login = async (req, res) => {
   try {
     const result = await memberService.login(req.body);
@@ -18,23 +19,23 @@ const login = async (req, res) => {
     res.status(401).json({ message: err.message });
   }
 };
+
 const getAll = async (req, res) => {
   try {
     const members = await memberRepo.findAll();
-    // Oculta el campo passwordHash en la respuesta
     const safeMembers = members.map(({ passwordHash, ...rest }) => rest);
     res.json(safeMembers);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
+
 const getById = async (req, res) => {
   try {
     const member = await memberRepo.findById(Number(req.params.id));
     if (!member) {
       return res.status(404).json({ message: "Member not found" });
     }
-    // Oculta el campo passwordHash en la respuesta
     const { passwordHash, ...safeMember } = member;
     res.json(safeMember);
   } catch (err) {
@@ -42,14 +43,11 @@ const getById = async (req, res) => {
   }
 };
 
-const bcrypt = require("bcrypt");
 const update = async (req, res) => {
   try {
-    // Only allow self-update or admin
     if (req.user.id !== Number(req.params.id) && req.user.role !== "ADMIN") {
       return res.status(403).json({ message: "Forbidden: You can only update your own profile." });
     }
-    // Prevent role and team from being updated by users
     const { role, team, teamId, password, ...safeBody } = req.body;
     if (password) {
       safeBody.passwordHash = await bcrypt.hash(password, 10);
@@ -60,9 +58,9 @@ const update = async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 };
+
 const adminUpdate = async (req, res) => {
   try {
-    // Only allow admin to update role and team
     const { team, password, ...safeBody } = req.body;
     if (req.body.teamId !== undefined) {
       safeBody.teamId = req.body.teamId === null ? null : Number(req.body.teamId);
@@ -77,6 +75,66 @@ const adminUpdate = async (req, res) => {
   }
 };
 
+/**
+ * Bulk import users from text format:
+ * NICKNAME USUARIO CONTRASEÑA TEAMID
+ * one per line, space-separated
+ */
+const bulkImport = async (req, res) => {
+  try {
+    const { script } = req.body;
+    if (!script || typeof script !== "string" || !script.trim()) {
+      return res.status(400).json({ message: "script is required (text block with users)" });
+    }
+
+    const lines = script
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
+
+    if (!lines.length) {
+      return res.status(400).json({ message: "No valid lines found in script" });
+    }
+
+    const results = [];
+    const errors = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      const parts = lines[i].split(/\s+/);
+      if (parts.length < 4) {
+        errors.push(`Line ${i + 1}: expected 'NICKNAME USUARIO CONTRASEÑA TEAMID', got "${lines[i]}"`);
+        continue;
+      }
+
+      const [nickname, user, password, teamIdStr] = parts;
+      const teamId = Number(teamIdStr);
+
+      if (!Number.isInteger(teamId) || teamId <= 0) {
+        errors.push(`Line ${i + 1}: invalid teamId "${teamIdStr}"`);
+        continue;
+      }
+
+      try {
+        const member = await memberService.register({ user, password, nickname });
+        // Assign role DEFAULT and teamId
+        const updated = await memberRepo.update(member.id, { teamId });
+        const { passwordHash, ...safe } = updated;
+        results.push(safe);
+      } catch (err) {
+        errors.push(`Line ${i + 1} (${user}): ${err.message}`);
+      }
+    }
+
+    res.status(201).json({
+      created: results.length,
+      errors: errors.length,
+      results,
+      errorDetails: errors,
+    });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
 
 module.exports = {
   register,
@@ -84,5 +142,6 @@ module.exports = {
   getAll,
   getById,
   update,
-  adminUpdate 
+  adminUpdate,
+  bulkImport,
 };

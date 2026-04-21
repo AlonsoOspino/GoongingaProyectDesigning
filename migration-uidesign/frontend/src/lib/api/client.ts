@@ -1,7 +1,8 @@
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
-  (process.env.NODE_ENV === "development" ? "http://localhost:3000" : "");
+  process.env.API_BASE_URL ||
+  "http://localhost:3000";
 
 export class ApiError extends Error {
   status: number;
@@ -20,6 +21,7 @@ export interface RequestOptions {
   token?: string;
   body?: unknown;
   formData?: FormData;
+  cache?: RequestCache;
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -38,7 +40,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     method: options.method ?? "GET",
     headers,
     body: options.formData ?? (options.body !== undefined ? JSON.stringify(options.body) : undefined),
-    cache: "no-store",
+    cache: options.cache,
   });
 
   const contentType = response.headers.get("content-type") ?? "";
