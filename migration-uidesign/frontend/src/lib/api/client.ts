@@ -49,10 +49,15 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     : await response.text().catch(() => "");
 
   if (!response.ok) {
-    const message =
-      typeof payload === "object" && payload && "message" in payload
-        ? String((payload as { message: string }).message)
-        : `HTTP ${response.status}`;
+    const messageFromPayload =
+      typeof payload === "object" && payload
+        ? "message" in payload
+          ? String((payload as { message: string }).message)
+          : "error" in payload
+          ? String((payload as { error: string }).error)
+          : null
+        : null;
+    const message = messageFromPayload || `HTTP ${response.status} ${response.statusText}`;
     throw new ApiError(message, response.status, payload);
   }
 
