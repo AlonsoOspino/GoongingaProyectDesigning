@@ -1,2 +1,22 @@
 node_modules/
 .env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+
+# Credentials and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*service-account*.json
+*credentials*.json
+
+# Local databases/backups
+*.db
+*.sqlite
+*.sqlite3
+*.sqlitedb
+backups/

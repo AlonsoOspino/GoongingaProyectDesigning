@@ -77,3 +77,38 @@ Thumbs.db
 
 # Ignore environment files
 .env.*
+
+# Keep template env files trackable
+!.env.example
+!.env.sample
+!.env.template
+
+# Security-critical local env files
+backend/.env
+backend/.env.*
+frontend/.env
+frontend/.env.*
+
+# Local databases and dumps (can contain sensitive runtime data)
+backend/dev.db
+backend/dev.db-journal
+*.db
+*.sqlite
+*.sqlite3
+*.sqlitedb
+backups/
+backend/backups/
+
+# Credentials and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*service-account*.json
+*credentials*.json
+
+# Runtime upload/temp folders
+backend/uploads/
+backend/tmp/
+backend/temp/

@@ -9,6 +9,59 @@ const parsePositiveInt = (value, fieldName) => {
   return parsed;
 };
 
+const normalizeMatchType = (value) => String(value || "").trim().toUpperCase();
+
+const ensureDistinctTeams = (teamAId, teamBId) => {
+  const parsedTeamAId = parsePositiveInt(teamAId, "teamAId");
+  const parsedTeamBId = parsePositiveInt(teamBId, "teamBId");
+
+  if (parsedTeamAId === parsedTeamBId) {
+    throw new Error("teamAId and teamBId must be different.");
+  }
+
+  return { parsedTeamAId, parsedTeamBId };
+};
+
+const ensureNoRoundRobinWeekConflict = async ({
+  tournamentId,
+  semanas,
+  teamAId,
+  teamBId,
+  excludeMatchId,
+}) => {
+  const parsedTournamentId = parsePositiveInt(tournamentId, "tournamentId");
+  const parsedWeek = parsePositiveInt(semanas, "semanas");
+  const { parsedTeamAId, parsedTeamBId } = ensureDistinctTeams(teamAId, teamBId);
+
+  const where = {
+    tournamentId: parsedTournamentId,
+    type: "ROUNDROBIN",
+    semanas: parsedWeek,
+    OR: [
+      { teamAId: parsedTeamAId },
+      { teamBId: parsedTeamAId },
+      { teamAId: parsedTeamBId },
+      { teamBId: parsedTeamBId },
+    ],
+  };
+
+  if (excludeMatchId !== undefined && excludeMatchId !== null) {
+    where.NOT = { id: Number(excludeMatchId) };
+  }
+
+  const conflicts = await matchRepo.findAll({
+    where,
+    select: { id: true, teamAId: true, teamBId: true },
+    take: 1,
+  });
+
+  if (conflicts.length > 0) {
+    throw new Error(
+      `Round robin week conflict: one of these teams is already scheduled in week ${parsedWeek}.`
+    );
+  }
+};
+
 const validateRoundRobinWeekRules = async ({ type, tournamentId, semanas }) => {
   const normalizedTournamentId = parsePositiveInt(tournamentId, "tournamentId");
   const tournament = await tournamentRepo.findById(normalizedTournamentId);
@@ -17,7 +70,7 @@ const validateRoundRobinWeekRules = async ({ type, tournamentId, semanas }) => {
     throw new Error("Tournament not found.");
   }
 
-  const normalizedType = String(type || "").trim().toUpperCase();
+  const normalizedType = normalizeMatchType(type);
   const isRoundRobinType = normalizedType === "ROUNDROBIN";
   const isRoundRobinState = tournament.state === "ROUNDROBIN";
 
@@ -51,6 +104,15 @@ const create = async (data) => {
     normalizedData.semanas = 1;
   }
 
+  if (normalizeMatchType(normalizedData.type) === "ROUNDROBIN") {
+    await ensureNoRoundRobinWeekConflict({
+      tournamentId: normalizedData.tournamentId,
+      semanas: normalizedData.semanas,
+      teamAId: normalizedData.teamAId,
+      teamBId: normalizedData.teamBId,
+    });
+  }
+
   return await matchRepo.create(normalizedData);
 }   
 const update = async (id, data) => {
@@ -63,6 +125,8 @@ const update = async (id, data) => {
   const nextType = normalizedData.type ?? existing.type;
   const nextTournamentId = normalizedData.tournamentId ?? existing.tournamentId;
   const nextSemanas = normalizedData.semanas ?? existing.semanas;
+  const nextTeamAId = normalizedData.teamAId ?? existing.teamAId;
+  const nextTeamBId = normalizedData.teamBId ?? existing.teamBId;
 
   const validatedWeek = await validateRoundRobinWeekRules({
     type: nextType,
@@ -72,6 +136,16 @@ const update = async (id, data) => {
 
   if (validatedWeek !== undefined) {
     normalizedData.semanas = validatedWeek;
+  }
+
+  if (normalizeMatchType(nextType) === "ROUNDROBIN") {
+    await ensureNoRoundRobinWeekConflict({
+      tournamentId: nextTournamentId,
+      semanas: validatedWeek,
+      teamAId: nextTeamAId,
+      teamBId: nextTeamBId,
+      excludeMatchId: id,
+    });
   }
 
   return await matchRepo.update(id, normalizedData);
@@ -95,6 +169,21 @@ const generateRoundRobin = async ({ tournamentId, confirmationText }) => {
 
   if (String(confirmationText || "").trim() !== "CONFIRM ROUND ROBIN") {
     throw new Error("confirmationText must be exactly: CONFIRM ROUND ROBIN");
+  }
+
+  const existingRoundRobin = await matchRepo.findAll({
+    where: {
+      tournamentId: parsedTournamentId,
+      type: "ROUNDROBIN",
+    },
+    select: { id: true },
+    take: 1,
+  });
+
+  if (existingRoundRobin.length > 0) {
+    throw new Error(
+      "This tournament already has round robin matches. Delete existing round robin matches before generating again."
+    );
   }
 
   return await matchRepo.generateRoundRobin(parsedTournamentId);

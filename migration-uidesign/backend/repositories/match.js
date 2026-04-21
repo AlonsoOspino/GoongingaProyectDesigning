@@ -48,6 +48,20 @@ const generateRoundRobin = async (tournamentId) => {
   }
 
   return prisma.$transaction(async (tx) => {
+    const existingRoundRobin = await tx.match.findFirst({
+      where: {
+        tournamentId,
+        type: "ROUNDROBIN",
+      },
+      select: { id: true },
+    });
+
+    if (existingRoundRobin) {
+      throw new Error(
+        "This tournament already has round robin matches. Delete existing round robin matches before generating again."
+      );
+    }
+
     const maps = await tx.map.findMany({ select: { id: true } });
 
     const participants = [...teams];
