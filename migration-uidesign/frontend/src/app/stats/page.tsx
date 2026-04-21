@@ -1,330 +1,222 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { useSession } from "@/features/session/SessionProvider";
-import { getAllPlayerStats } from "@/lib/api/playerStat";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/Table";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { getPublicPlayerStats } from "@/lib/api/playerStat";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
-import type { PlayerStat, HeroRole, MapType } from "@/lib/api/types";
+import type { PlayerStat } from "@/lib/api/types";
+import {
+  buildPlayerAverages,
+  sortByMetric,
+  TOP_METRICS,
+  type TopMetricKey,
+} from "@/lib/stats/playerAverages";
 
-type SortField = "damage" | "healing" | "mitigation" | "kills" | "deaths" | "assists";
+const ROLE_COLOR: Record<string, "primary" | "danger" | "success" | "default"> = {
+  TANK: "primary",
+  DPS: "danger",
+  SUPPORT: "success",
+};
 
 export default function StatsPage() {
-  const { token, isHydrated } = useSession();
+  const router = useRouter();
   const [stats, setStats] = useState<PlayerStat[]>([]);
   const [loading, setLoading] = useState(true);
-  const [roleFilter, setRoleFilter] = useState<string>("all");
-  const [mapTypeFilter, setMapTypeFilter] = useState<string>("all");
-  const [sortField, setSortField] = useState<SortField>("damage");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [selectedMetric, setSelectedMetric] = useState<TopMetricKey>("killsPer10");
+  const [search, setSearch] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
 
   useEffect(() => {
-    async function fetchStats() {
+    async function load() {
       try {
-        // Stats require auth in most cases, but try without token first
-        const data = token
-          ? await getAllPlayerStats(token)
-          : [];
+        const data = await getPublicPlayerStats();
         setStats(data);
       } catch (error) {
-        console.error("Failed to fetch stats:", error);
+        console.error("Failed to fetch public stats:", error);
       } finally {
         setLoading(false);
       }
     }
+    load();
+  }, []);
 
-    if (isHydrated) {
-      fetchStats();
-    }
-  }, [token, isHydrated]);
+  const averages = useMemo(() => buildPlayerAverages(stats), [stats]);
 
-  const filteredStats = useMemo(() => {
-    return stats.filter((stat) => {
-      if (roleFilter !== "all" && stat.role !== roleFilter) return false;
-      if (mapTypeFilter !== "all" && stat.mapType !== mapTypeFilter) return false;
-      return true;
+  const metricTop10 = useMemo(() => {
+    return sortByMetric(averages, selectedMetric).slice(0, 10);
+  }, [averages, selectedMetric]);
+
+  const filteredPlayers = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return averages;
+    return averages.filter((row) => row.nickname.toLowerCase().includes(q) || String(row.userId) === q);
+  }, [averages, search]);
+
+  const selectedPlayer = useMemo(() => {
+    if (!selectedUserId) return null;
+    return averages.find((p) => p.userId === selectedUserId) || null;
+  }, [averages, selectedUserId]);
+
+  const topByMetricSummary = useMemo(() => {
+    return TOP_METRICS.map((metric) => {
+      const leader = sortByMetric(averages, metric.key)[0] || null;
+      return { ...metric, leader };
     });
-  }, [stats, roleFilter, mapTypeFilter]);
-
-  const sortedStats = useMemo(() => {
-    return [...filteredStats].sort((a, b) => {
-      const aVal = a[sortField];
-      const bVal = b[sortField];
-      const multiplier = sortDirection === "asc" ? 1 : -1;
-      return (aVal - bVal) * multiplier;
-    });
-  }, [filteredStats, sortField, sortDirection]);
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortDirection("desc");
-    }
-  };
-
-  // Aggregate stats by role
-  const statsByRole = useMemo(() => {
-    const roles: HeroRole[] = ["TANK", "DPS", "SUPPORT"];
-    return roles.map((role) => {
-      const roleStats = stats.filter((s) => s.role === role);
-      if (roleStats.length === 0) return { role, avg: null };
-
-      const avg = {
-        damage: roleStats.reduce((acc, s) => acc + s.damagePer10, 0) / roleStats.length,
-        healing: roleStats.reduce((acc, s) => acc + s.healingPer10, 0) / roleStats.length,
-        mitigation: roleStats.reduce((acc, s) => acc + s.mitigationPer10, 0) / roleStats.length,
-        kills: roleStats.reduce((acc, s) => acc + s.killsPer10, 0) / roleStats.length,
-        deaths: roleStats.reduce((acc, s) => acc + s.deathsPer10, 0) / roleStats.length,
-      };
-
-      return { role, avg };
-    });
-  }, [stats]);
-
-  const roleOptions = [
-    { value: "all", label: "All Roles" },
-    { value: "TANK", label: "Tank" },
-    { value: "DPS", label: "DPS" },
-    { value: "SUPPORT", label: "Support" },
-  ];
-
-  const mapTypeOptions = [
-    { value: "all", label: "All Map Types" },
-    { value: "CONTROL", label: "Control" },
-    { value: "HYBRID", label: "Hybrid" },
-    { value: "PAYLOAD", label: "Payload" },
-    { value: "PUSH", label: "Push" },
-    { value: "FLASHPOINT", label: "Flashpoint" },
-  ];
-
-  const roleColors: Record<HeroRole, string> = {
-    TANK: "primary",
-    DPS: "danger",
-    SUPPORT: "success",
-  };
+  }, [averages]);
 
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <Skeleton className="h-10 w-48 mb-2" />
-          <Skeleton className="h-5 w-64" variant="text" />
+        <Skeleton className="h-10 w-72 mb-3" />
+        <Skeleton className="h-5 w-[32rem] max-w-full mb-8" variant="text" />
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 mb-8">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
         </div>
-        <Skeleton className="h-64 mb-6" />
-        <Skeleton className="h-96" />
+        <Skeleton className="h-80" />
       </div>
     );
   }
 
   return (
     <div className="container mx-auto px-4 py-8 relative">
-      {/* Decorative background */}
-      <div className="fixed top-28 right-1/3 w-72 h-72 bg-danger/10 rounded-full blur-[110px] pointer-events-none" />
-      <div className="fixed bottom-1/3 left-1/4 w-56 h-56 bg-success/10 rounded-full blur-[90px] pointer-events-none" />
-      
-      {/* Header */}
+      <div className="fixed top-20 left-1/4 w-72 h-72 bg-primary/10 rounded-full blur-[110px] pointer-events-none" />
+      <div className="fixed bottom-24 right-1/4 w-72 h-72 bg-danger/10 rounded-full blur-[120px] pointer-events-none" />
+
       <div className="mb-8 relative">
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-1 h-8 bg-gradient-to-b from-danger to-success rounded-full" />
-          <h1 className="text-3xl font-bold text-foreground">Stats Center</h1>
+          <div className="w-1 h-8 bg-gradient-to-b from-primary to-danger rounded-full" />
+          <h1 className="text-3xl font-bold text-foreground">Top Players Dashboard</h1>
         </div>
-        <p className="text-muted pl-4">Player performance statistics across all matches</p>
+        <p className="text-muted pl-4">
+          Top 10 global por estadistica, filtros rapidos y perfil individual por jugador.
+        </p>
       </div>
 
-      {stats.length > 0 ? (
-        <>
-          {/* Role Averages */}
-          <div className="grid gap-4 md:grid-cols-3 mb-8">
-            {statsByRole.map(({ role, avg }) => (
-              <Card key={role} variant="bordered">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3 mb-4">
-                    <Badge variant={roleColors[role] as "primary" | "danger" | "success"}>
-                      {role}
-                    </Badge>
-                    <span className="text-sm text-muted">Avg per 10 min</span>
-                  </div>
-                  {avg ? (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <p className="text-xl font-bold text-danger font-mono">
-                          {Math.round(avg.damage)}
-                        </p>
-                        <p className="text-xs text-muted">Damage</p>
-                      </div>
-                      <div>
-                        <p className="text-xl font-bold text-success font-mono">
-                          {Math.round(avg.healing)}
-                        </p>
-                        <p className="text-xs text-muted">Healing</p>
-                      </div>
-                      <div>
-                        <p className="text-xl font-bold text-primary font-mono">
-                          {Math.round(avg.mitigation)}
-                        </p>
-                        <p className="text-xs text-muted">Mitigation</p>
-                      </div>
-                      <div>
-                        <p className="text-xl font-bold text-accent font-mono">
-                          {avg.kills.toFixed(1)}
-                        </p>
-                        <p className="text-xs text-muted">Elims</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-muted text-sm">No data</p>
-                  )}
-                </CardContent>
-              </Card>
+      <Card variant="bordered" className="mb-6">
+        <CardHeader>
+          <CardTitle>Buscar jugador por nickname o user ID</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <input
+            list="players-list"
+            className="w-full rounded-md border border-border bg-background px-3 py-2"
+            placeholder="Ej: DECEMBER o 14"
+            value={search}
+            onChange={(e) => {
+              const value = e.target.value;
+              setSearch(value);
+              const exact = averages.find(
+                (p) => p.nickname.toLowerCase() === value.trim().toLowerCase() || String(p.userId) === value.trim()
+              );
+              setSelectedUserId(exact?.userId ?? null);
+            }}
+          />
+          <datalist id="players-list">
+            {filteredPlayers.slice(0, 80).map((p) => (
+              <option key={p.userId} value={p.nickname}>{`ID ${p.userId}`}</option>
             ))}
+          </datalist>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              onClick={() => {
+                if (selectedPlayer) router.push(`/stats/${selectedPlayer.userId}`);
+              }}
+              disabled={!selectedPlayer}
+            >
+              Ver informacion del jugador
+            </Button>
+            {selectedPlayer && (
+              <span className="text-sm text-muted">
+                Seleccionado: {selectedPlayer.nickname} (ID {selectedPlayer.userId})
+              </span>
+            )}
           </div>
+        </CardContent>
+      </Card>
 
-          {/* Filters */}
-          <Card variant="bordered" className="mb-6">
-            <CardContent className="p-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Select
-                  label="Role"
-                  options={roleOptions}
-                  value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value)}
-                />
-                <Select
-                  label="Map Type"
-                  options={mapTypeOptions}
-                  value={mapTypeFilter}
-                  onChange={(e) => setMapTypeFilter(e.target.value)}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Stats Table */}
-          <Card variant="bordered">
-            <CardHeader>
-              <CardTitle>Player Stats</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Player</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Map</TableHead>
-                    <TableHead
-                      sortable
-                      sorted={sortField === "damage" ? sortDirection : false}
-                      onClick={() => handleSort("damage")}
-                      className="text-right"
-                    >
-                      Damage
-                    </TableHead>
-                    <TableHead
-                      sortable
-                      sorted={sortField === "healing" ? sortDirection : false}
-                      onClick={() => handleSort("healing")}
-                      className="text-right"
-                    >
-                      Healing
-                    </TableHead>
-                    <TableHead
-                      sortable
-                      sorted={sortField === "kills" ? sortDirection : false}
-                      onClick={() => handleSort("kills")}
-                      className="text-right"
-                    >
-                      Elims
-                    </TableHead>
-                    <TableHead
-                      sortable
-                      sorted={sortField === "deaths" ? sortDirection : false}
-                      onClick={() => handleSort("deaths")}
-                      className="text-right"
-                    >
-                      Deaths
-                    </TableHead>
-                    <TableHead
-                      sortable
-                      sorted={sortField === "assists" ? sortDirection : false}
-                      onClick={() => handleSort("assists")}
-                      className="text-right"
-                    >
-                      Assists
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortedStats.slice(0, 50).map((stat) => (
-                    <TableRow key={stat.id}>
-                      <TableCell>
-                        <span className="font-medium">Player #{stat.userId}</span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={roleColors[stat.role] as "primary" | "danger" | "success"}>
-                          {stat.role}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-muted text-sm">{stat.mapType}</span>
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {stat.damage.toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {stat.healing.toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-right font-mono">{stat.kills}</TableCell>
-                      <TableCell className="text-right font-mono">{stat.deaths}</TableCell>
-                      <TableCell className="text-right font-mono">{stat.assists}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              {sortedStats.length === 0 && (
-                <div className="p-12 text-center text-muted">
-                  No stats match your filters
-                </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 mb-8">
+        {topByMetricSummary.map((item) => (
+          <Card key={item.key} variant="bordered" className="overflow-hidden">
+            <div className="h-1 w-full bg-gradient-to-r from-primary via-accent to-danger" />
+            <CardContent className="pt-4">
+              <p className="text-xs uppercase tracking-wide text-muted mb-2">{item.label}</p>
+              {item.leader ? (
+                <>
+                  <p className="font-semibold text-foreground">{item.leader.nickname}</p>
+                  <p className="text-sm text-muted mt-1">ID {item.leader.userId} · {item.leader.games} partidas</p>
+                  <p className="text-2xl font-bold mt-2 text-primary font-mono">
+                    {item.leader[item.key].toLocaleString()}
+                  </p>
+                </>
+              ) : (
+                <p className="text-muted">Sin datos</p>
               )}
             </CardContent>
           </Card>
-        </>
-      ) : (
-        <Card variant="bordered">
-          <CardContent className="py-16 text-center">
-            <div className="max-w-md mx-auto">
-              <div className="w-16 h-16 rounded-full bg-surface-elevated flex items-center justify-center mx-auto mb-4">
-                <svg
-                  className="w-8 h-8 text-muted"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                  />
-                </svg>
-              </div>
-              <h2 className="text-xl font-semibold text-foreground mb-2">
-                No Stats Available
-              </h2>
-              <p className="text-muted">
-                {token
-                  ? "No player statistics have been recorded yet."
-                  : "Sign in to view player statistics."}
-              </p>
+        ))}
+      </div>
+
+      <Card variant="bordered" className="mb-6">
+        <CardHeader>
+          <CardTitle>Top 10 por estadistica</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {TOP_METRICS.map((metric) => (
+              <Button
+                key={metric.key}
+                size="sm"
+                variant={selectedMetric === metric.key ? "default" : "ghost"}
+                onClick={() => setSelectedMetric(metric.key)}
+              >
+                Ver informacion: {metric.label.replace("Top ", "")}
+              </Button>
+            ))}
+          </div>
+
+          {metricTop10.length === 0 ? (
+            <p className="text-muted py-6">No hay estadisticas registradas.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-surface border-b border-border">
+                  <tr>
+                    <th className="px-3 py-2 text-left">#</th>
+                    <th className="px-3 py-2 text-left">Jugador</th>
+                    <th className="px-3 py-2 text-left">Rol</th>
+                    <th className="px-3 py-2 text-left">Partidas</th>
+                    <th className="px-3 py-2 text-right">Valor</th>
+                    <th className="px-3 py-2 text-right">Accion</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {metricTop10.map((row, index) => (
+                    <tr key={row.userId} className="border-t border-border">
+                      <td className="px-3 py-2 font-mono text-muted">#{index + 1}</td>
+                      <td className="px-3 py-2 font-medium">{row.nickname}</td>
+                      <td className="px-3 py-2">
+                        <Badge variant={ROLE_COLOR[row.role] || "default"}>{row.role}</Badge>
+                      </td>
+                      <td className="px-3 py-2 text-muted">{row.games}</td>
+                      <td className="px-3 py-2 text-right font-mono">{row[selectedMetric].toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right">
+                        <Button size="sm" variant="ghost" onClick={() => router.push(`/stats/${row.userId}`)}>
+                          Ver jugador
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

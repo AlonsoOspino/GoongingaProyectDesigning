@@ -203,7 +203,10 @@ function MatchesSection({ token }: { token: string }) {
   async function loadData() {
     try {
       const [m, t, tour, mapList] = await Promise.all([
-        getMatches(), getTeams(), getCurrentTournament().catch(() => null), getMaps()
+        getMatches().catch(() => []),
+        getTeams().catch(() => []),
+        getCurrentTournament().catch(() => null),
+        getMaps().catch(() => []),
       ]);
       setMatches(m); setTeams(t); setTournament(tour); setMaps(mapList);
     } catch { } finally { setLoading(false); }

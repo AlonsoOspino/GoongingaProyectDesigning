@@ -134,6 +134,11 @@ export interface PlayerStat {
   mapType: MapType;
   role: HeroRole;
   createdAt: string;
+  user?: {
+    id: number;
+    nickname: string;
+    role?: MemberRole;
+  };
 }
 
 // Payload for adminGenerateRoundRobin API

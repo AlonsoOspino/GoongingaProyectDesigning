@@ -1017,6 +1017,16 @@ const getByUserId = async (userId) => {
   return playerStatRepo.findByUserId(parsed);
 };
 
+const getAllPublic = async () => playerStatRepo.findAllPublic();
+
+const getPublicByUserId = async (userId) => {
+  const parsed = Number(userId);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error("userId must be a positive integer.");
+  }
+  return playerStatRepo.findByUserIdPublic(parsed);
+};
+
 module.exports = {
   create,
   createFromOcrText,
@@ -1024,4 +1034,6 @@ module.exports = {
   createBatchFromPreview,
   getAll,
   getByUserId,
+  getAllPublic,
+  getPublicByUserId,
 };

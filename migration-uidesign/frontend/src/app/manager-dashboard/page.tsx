@@ -12,7 +12,7 @@ import {
   type MatchStatPreviewResponse,
   type MatchStatPreviewRow,
 } from "@/lib/api/playerStat";
-import { finishPendingRegisters } from "@/lib/api/match";
+import { finishPendingRegisters, updateManagerMatch } from "@/lib/api/match";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -29,6 +29,7 @@ type PendingUploadFormState = {
   image: File | null;
   mapType: MapType;
   extraRounds: string;
+  matchTitle: string;
 };
 
 type PlayerCandidate = {
@@ -42,6 +43,7 @@ const DEFAULT_PENDING_UPLOAD_FORM: PendingUploadFormState = {
   image: null,
   mapType: "FLASHPOINT",
   extraRounds: "0",
+  matchTitle: "",
 };
 
 const normalizeNicknameForMatch = (value: string) =>
@@ -258,11 +260,18 @@ export default function ManagerDashboardPage() {
     return uploadForms[matchId] ?? DEFAULT_PENDING_UPLOAD_FORM;
   }
 
-  function openStatForm(matchId: number) {
+  function openStatForm(match: Match) {
+    const matchId = match.id;
     setActiveStatMatchId((prev) => (prev === matchId ? null : matchId));
     setUploadForms((prev) => {
       if (prev[matchId]) return prev;
-      return { ...prev, [matchId]: { ...DEFAULT_PENDING_UPLOAD_FORM } };
+      return {
+        ...prev,
+        [matchId]: {
+          ...DEFAULT_PENDING_UPLOAD_FORM,
+          matchTitle: String(match.title || ""),
+        },
+      };
     });
   }
 
@@ -339,6 +348,16 @@ export default function ManagerDashboardPage() {
 
   async function handleConfirmBatch(matchId: number) {
     if (!token) return;
+    const form = getOrCreateUploadForm(matchId);
+    const title = form.matchTitle.trim();
+    if (!title) {
+      setUploadMessages((prev) => ({
+        ...prev,
+        [matchId]: "Please set a match title first (example: MATCH OF NEPAL).",
+      }));
+      return;
+    }
+
     const previews = matchPreviews[matchId] || [];
     if (!previews.length) {
       setUploadMessages((prev) => ({ ...prev, [matchId]: "Parse a screenshot first." }));
@@ -359,6 +378,8 @@ export default function ManagerDashboardPage() {
     setUploadMessages((prev) => ({ ...prev, [matchId]: "Saving player stats..." }));
 
     try {
+      await updateManagerMatch(token, matchId, { title });
+
       let totalSaved = 0;
       for (const preview of previews) {
         const rows = preview.rows.slice(0, 10);
@@ -380,7 +401,10 @@ export default function ManagerDashboardPage() {
         });
         totalSaved += result.count;
       }
-      setUploadMessages((prev) => ({ ...prev, [matchId]: `Saved ${totalSaved} player stats across ${previews.length} game(s). Mark as finished when done.` }));
+      setUploadMessages((prev) => ({
+        ...prev,
+        [matchId]: `Saved ${totalSaved} player stats across ${previews.length} game(s) for ${title}. Mark as finished when done.`,
+      }));
       setMatchPreviews((prev) => ({ ...prev, [matchId]: [] }));
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to save match stats.";
@@ -537,15 +561,13 @@ export default function ManagerDashboardPage() {
                 <Badge variant={nextMatch.teamBready ? "success" : "default"}>
                   {getTeamName(nextMatch.teamBId).slice(0, 8)}: {nextMatch.teamBready ? "✓" : "—"}
                 </Badge>
-                {nextMatch.teamAready === 1 && nextMatch.teamBready === 1 && (
-                  <Button
-                    onClick={() => handleCreateDraft(nextMatch.id)}
-                    disabled={creatingDraft === nextMatch.id}
-                    size="sm"
-                  >
-                    {creatingDraft === nextMatch.id ? "Creating..." : "Create Draft"}
-                  </Button>
-                )}
+                <Button
+                  onClick={() => handleCreateDraft(nextMatch.id)}
+                  disabled={creatingDraft === nextMatch.id}
+                  size="sm"
+                >
+                  {creatingDraft === nextMatch.id ? "Creating..." : "Create Draft"}
+                </Button>
               </div>
             </div>
           </div>
@@ -620,11 +642,10 @@ export default function ManagerDashboardPage() {
                                     </div>
                                     <Button
                                       onClick={() => handleCreateDraft(match.id)}
-                                      disabled={!bothReady || creatingDraft === match.id}
+                                      disabled={creatingDraft === match.id}
                                       size="sm"
-                                      className={bothReady ? "" : "opacity-50"}
                                     >
-                                      {creatingDraft === match.id ? "Creating..." : bothReady ? "Create Draft" : "Waiting"}
+                                      {creatingDraft === match.id ? "Creating..." : "Create Draft"}
                                     </Button>
                                   </div>
                                 </div>
@@ -712,7 +733,7 @@ export default function ManagerDashboardPage() {
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Button size="sm" variant="secondary" onClick={() => openStatForm(match.id)}>
+                              <Button size="sm" variant="secondary" onClick={() => openStatForm(match)}>
                                 {isOpen ? "Hide Stats Form" : "Register Stats"}
                               </Button>
                               <Link href={`/draft-table/${match.id}`}>
@@ -729,6 +750,17 @@ export default function ManagerDashboardPage() {
                               </p>
 
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <label className="text-sm md:col-span-3">
+                                  <span className="text-muted block mb-1">Match Title</span>
+                                  <input
+                                    type="text"
+                                    className="w-full rounded-md border border-border bg-background px-3 py-2"
+                                    placeholder="MATCH OF NEPAL"
+                                    value={form.matchTitle}
+                                    onChange={(e) => updateUploadForm(match.id, { matchTitle: e.target.value })}
+                                  />
+                                </label>
+
                                 <label className="text-sm">
                                   <span className="text-muted block mb-1">Map Type</span>
                                   <select

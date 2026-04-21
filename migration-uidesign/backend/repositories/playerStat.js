@@ -33,8 +33,39 @@ const findByUserId = (userId) =>
     orderBy: { createdAt: "desc" },
   });
 
+const findAllPublic = () =>
+  prisma.playerStat.findMany({
+    include: {
+      user: {
+        select: {
+          id: true,
+          nickname: true,
+          role: true,
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+const findByUserIdPublic = (userId) =>
+  prisma.playerStat.findMany({
+    where: { userId },
+    include: {
+      user: {
+        select: {
+          id: true,
+          nickname: true,
+          role: true,
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
 module.exports = {
   create,
   findAll,
   findByUserId,
+  findAllPublic,
+  findByUserIdPublic,
 };

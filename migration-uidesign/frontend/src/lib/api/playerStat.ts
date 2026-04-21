@@ -21,6 +21,14 @@ export async function getAllPlayerStats(token: string) {
   return apiRequest<PlayerStat[]>("/playerStat", { token });
 }
 
+export async function getPublicPlayerStats() {
+  return apiRequest<PlayerStat[]>("/playerStat/public");
+}
+
+export async function getPublicPlayerStatsByUserId(userId: number) {
+  return apiRequest<PlayerStat[]>(`/playerStat/public/user/${userId}`);
+}
+
 export async function getMyPlayerStats(token: string) {
   return apiRequest<PlayerStat[]>("/playerStat/mine", { token });
 }

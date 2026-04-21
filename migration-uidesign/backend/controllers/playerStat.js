@@ -105,6 +105,24 @@ const getMine = async (req, res) => {
   }
 };
 
+const getPublic = async (_req, res) => {
+  try {
+    const stats = await playerStatService.getAllPublic();
+    res.json(stats);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const getPublicByUser = async (req, res) => {
+  try {
+    const stats = await playerStatService.getPublicByUserId(req.params.userId);
+    res.json(stats);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
 module.exports = {
   create,
   createFromImage,
@@ -112,4 +130,6 @@ module.exports = {
   confirmBatchFromPreview,
   getAll,
   getMine,
+  getPublic,
+  getPublicByUser,
 };

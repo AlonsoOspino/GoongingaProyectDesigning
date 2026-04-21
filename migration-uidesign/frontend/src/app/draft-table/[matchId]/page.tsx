@@ -482,7 +482,7 @@ function StartingPhase({
             {match.gameNumber === 1 ? "Waiting to Start" : `Ready for Game ${match.gameNumber}?`}
           </h2>
           <p className="text-sm text-muted text-center mb-8">
-            Both captains must confirm they are ready before starting
+            Captains can mark ready; manager can start when match operations are prepared
           </p>
           
           <div className="flex items-center justify-center gap-12 mb-8">
@@ -534,22 +534,18 @@ function StartingPhase({
             <div className="text-center">
               {!bothReady && (
                 <p className="text-muted mb-4 text-sm">
-                  Waiting for both captains to be ready...
+                  One or both captains are not marked ready yet.
                 </p>
               )}
               <Button 
                 size="lg" 
                 onClick={onStart} 
-                disabled={actionLoading || !bothReady} 
+                disabled={actionLoading} 
                 className="px-8"
               >
                 {actionLoading ? "Starting..." : "Start Map Picking"}
               </Button>
-              {!bothReady && (
-                <p className="text-xs text-muted mt-2">
-                  Both captains must be ready before starting
-                </p>
-              )}
+              {!bothReady && <p className="text-xs text-muted mt-2">Manager override is active.</p>}
             </div>
           )}
         </CardContent>

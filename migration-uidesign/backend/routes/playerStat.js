@@ -7,6 +7,8 @@ const playerStatController = require("../controllers/playerStat");
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
+router.get("/public", playerStatController.getPublic);
+router.get("/public/user/:userId", playerStatController.getPublicByUser);
 router.get("/", authMiddleware, managerMiddleware, playerStatController.getAll);
 router.get("/mine", authMiddleware, playerStatController.getMine);
 router.post("/", authMiddleware, playerStatController.create);
