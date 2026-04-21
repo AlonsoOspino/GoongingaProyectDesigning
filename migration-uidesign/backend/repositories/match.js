@@ -47,52 +47,86 @@ const generateRoundRobin = async (tournamentId) => {
     throw new Error("At least 2 teams are required for round robin generation.");
   }
 
-  const maps = await prisma.map.findMany({ select: { id: true } });
+  return prisma.$transaction(async (tx) => {
+    const maps = await tx.map.findMany({ select: { id: true } });
 
-  // Circle (polygon rotation) algorithm
-  // If odd number of teams, add a "bye" placeholder at index 0
-  const teamList = [...teams];
-  const hasBye = teamList.length % 2 !== 0;
-  if (hasBye) {
-    teamList.unshift(null); // null = bye
-  }
-
-  const n = teamList.length; // always even now
-  const numRounds = n - 1;
-  const matchesPerRound = n / 2;
-
-  const created = [];
-
-  for (let round = 0; round < numRounds; round++) {
-    const week = round + 1;
-
-    for (let match = 0; match < matchesPerRound; match++) {
-      const home = teamList[match === 0 ? 0 : ((round + match - 1) % (n - 1)) + 1];
-      const away = teamList[match === 0 ? ((round) % (n - 1)) + 1 : ((round + n - 1 - match) % (n - 1)) + 1];
-
-      // Skip if either team is the "bye" placeholder
-      if (home === null || away === null) continue;
-
-      const created_match = await prisma.match.create({
-        data: {
-          type: "ROUNDROBIN",
-          title: `Week ${week}`,
-          semanas: week,
-          bestOf: 5,
-          status: "SCHEDULED",
-          tournamentId,
-          teamAId: home.id,
-          teamBId: away.id,
-          allowedMaps: {
-            connect: maps.map((m) => ({ id: m.id })),
-          },
-        },
-      });
-      created.push(created_match);
+    const participants = [...teams];
+    if (participants.length % 2 !== 0) {
+      participants.push(null); // null = bye
     }
-  }
 
-  return created;
+    const totalParticipants = participants.length;
+    const totalRounds = totalParticipants - 1;
+    const matchesPerRound = totalParticipants / 2;
+    const expectedPairings = (teams.length * (teams.length - 1)) / 2;
+
+    let rotation = [...participants];
+    const created = [];
+    const pairingKeys = new Set();
+
+    for (let round = 0; round < totalRounds; round++) {
+      const week = round + 1;
+      const teamsScheduledThisWeek = new Set();
+
+      for (let i = 0; i < matchesPerRound; i++) {
+        let home = rotation[i];
+        let away = rotation[totalParticipants - 1 - i];
+
+        // Skip bye pairings for odd team counts.
+        if (home === null || away === null) {
+          continue;
+        }
+
+        // Small home/away balance tweak for the fixed slot.
+        if (i === 0 && round % 2 === 1) {
+          [home, away] = [away, home];
+        }
+
+        if (teamsScheduledThisWeek.has(home.id) || teamsScheduledThisWeek.has(away.id)) {
+          throw new Error(`Round robin generation error: team repeated in week ${week}.`);
+        }
+
+        teamsScheduledThisWeek.add(home.id);
+        teamsScheduledThisWeek.add(away.id);
+
+        const pairKey = home.id < away.id ? `${home.id}-${away.id}` : `${away.id}-${home.id}`;
+        if (pairingKeys.has(pairKey)) {
+          throw new Error("Round robin generation error: duplicate team pairing detected.");
+        }
+        pairingKeys.add(pairKey);
+
+        const createdMatch = await tx.match.create({
+          data: {
+            type: "ROUNDROBIN",
+            title: `Week ${week}`,
+            semanas: week,
+            bestOf: 5,
+            status: "SCHEDULED",
+            tournamentId,
+            teamAId: home.id,
+            teamBId: away.id,
+            allowedMaps: {
+              connect: maps.map((m) => ({ id: m.id })),
+            },
+          },
+        });
+        created.push(createdMatch);
+      }
+
+      const fixed = rotation[0];
+      const moving = rotation.slice(1);
+      moving.unshift(moving.pop());
+      rotation = [fixed, ...moving];
+    }
+
+    if (pairingKeys.size !== expectedPairings) {
+      throw new Error(
+        `Round robin generation error: expected ${expectedPairings} unique pairings, generated ${pairingKeys.size}.`
+      );
+    }
+
+    return created;
+  });
 };
 
 const submitResult = async (id, winnerTeamId) => {
