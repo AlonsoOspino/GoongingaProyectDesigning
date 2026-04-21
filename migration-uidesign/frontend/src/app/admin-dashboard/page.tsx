@@ -17,6 +17,7 @@ import {
   adminCreateMatch, adminUpdateMatch, adminDeleteMatch, adminGenerateRoundRobin,
   adminCreateTeam, adminUpdateTeam, adminDeleteTeam,
   adminRegisterMember, adminUpdateMember, adminBulkImportUsers, getMembers, getMaps,
+  adminDownloadBackupSql, adminRestoreBackupSql,
   type CreateMatchPayload, type CreateTeamPayload, type Member, type AdminGameMap,
 } from "@/lib/api/admin";
 import { convertToISODateTime, formatDateEST, formatForDateInput, formatForDateTimeInput } from "@/lib/dateUtils";
@@ -710,11 +711,16 @@ function UsersSection({ token }: { token: string }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
+  const [showRollbackModal, setShowRollbackModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [bulkScript, setBulkScript] = useState("");
   const [bulkResult, setBulkResult] = useState<string | null>(null);
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [rollbackLoading, setRollbackLoading] = useState(false);
+  const [rollbackScript, setRollbackScript] = useState("");
+  const [rollbackConfirmationText, setRollbackConfirmationText] = useState("");
   const [formData, setFormData] = useState({ nickname: "", user: "", password: "", role: "DEFAULT", teamId: "" });
 
   const showNotif = (type: "success" | "error", message: string) => {
@@ -744,6 +750,52 @@ function UsersSection({ token }: { token: string }) {
     }
   }
 
+  async function handleDownloadBackupSql() {
+    setBackupLoading(true);
+    try {
+      const sql = await adminDownloadBackupSql(token);
+      const now = new Date();
+      const fileName = `db-backup-${now.toISOString().replace(/[:.]/g, "-")}.txt`;
+      const blob = new Blob([sql], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showNotif("success", `Backup exported as ${fileName}`);
+    } catch (err: any) {
+      showNotif("error", err.message || "Failed to export backup SQL.");
+    } finally {
+      setBackupLoading(false);
+    }
+  }
+
+  async function handleRollbackRestore() {
+    if (!rollbackScript.trim()) {
+      showNotif("error", "Paste a backup SQL script first.");
+      return;
+    }
+    setRollbackLoading(true);
+    try {
+      const result = await adminRestoreBackupSql(token, {
+        confirmationText: rollbackConfirmationText,
+        script: rollbackScript,
+      });
+      showNotif("success", `${result.message} (${result.executedStatements} statements)`);
+      setShowRollbackModal(false);
+      setRollbackScript("");
+      setRollbackConfirmationText("");
+      loadData();
+    } catch (err: any) {
+      showNotif("error", err.message || "Failed to restore backup SQL.");
+    } finally {
+      setRollbackLoading(false);
+    }
+  }
+
   const getTeamName = (teamId: number | null) => teamId ? teams.find((t) => t.id === teamId)?.name || "Unknown" : "No Team";
 
   if (loading) return <Card><CardContent className="p-8 text-center text-muted">Loading...</CardContent></Card>;
@@ -755,6 +807,12 @@ function UsersSection({ token }: { token: string }) {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Users ({members.length})</CardTitle>
           <div className="flex gap-2">
+            <Button variant="ghost" onClick={handleDownloadBackupSql} disabled={backupLoading}>
+              {backupLoading ? "Exporting..." : "Download Rollback SQL"}
+            </Button>
+            <Button variant="danger" onClick={() => setShowRollbackModal(true)}>
+              Restore From SQL
+            </Button>
             <Button variant="secondary" onClick={() => { setBulkScript(""); setBulkResult(null); setShowBulkModal(true); }}>Run Script (Bulk Import)</Button>
             <Button onClick={() => setShowCreateModal(true)}>Register User</Button>
           </div>
@@ -816,6 +874,38 @@ function UsersSection({ token }: { token: string }) {
           <Button variant="ghost" onClick={() => setShowBulkModal(false)}>Close</Button>
           <Button onClick={handleBulkImport} disabled={bulkLoading || !bulkScript.trim()}>
             {bulkLoading ? "Importing..." : "Run Import"}
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Rollback Restore Modal */}
+      <Modal isOpen={showRollbackModal} onClose={() => setShowRollbackModal(false)}>
+        <ModalHeader><ModalTitle>Restore Database From Backup SQL</ModalTitle></ModalHeader>
+        <ModalContent>
+          <p className="text-sm text-muted mb-3">
+            Paste the full SQL backup text that you downloaded before. This will overwrite current database data.
+          </p>
+          <textarea
+            className="w-full h-56 rounded-md border border-border bg-background px-3 py-2 font-mono text-xs resize-none"
+            placeholder="Paste backup SQL content here..."
+            value={rollbackScript}
+            onChange={(e) => setRollbackScript(e.target.value)}
+          />
+          <Input
+            label="Confirmation"
+            placeholder="Type RESTORE DATABASE"
+            value={rollbackConfirmationText}
+            onChange={(e) => setRollbackConfirmationText(e.target.value)}
+          />
+        </ModalContent>
+        <ModalFooter>
+          <Button variant="ghost" onClick={() => setShowRollbackModal(false)}>Cancel</Button>
+          <Button
+            variant="danger"
+            onClick={handleRollbackRestore}
+            disabled={rollbackLoading || !rollbackScript.trim() || rollbackConfirmationText !== "RESTORE DATABASE"}
+          >
+            {rollbackLoading ? "Restoring..." : "Restore Database"}
           </Button>
         </ModalFooter>
       </Modal>

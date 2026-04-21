@@ -59,19 +59,19 @@ export default function PlayerStatsDetailPage() {
       const mine = userAverage[metric.key];
       const best = top1?.[metric.key] || 0;
 
-      let message = "Sin referencia";
+      let message = "No benchmark available";
       if (best > 0) {
         if (metric.lowerIsBetter) {
           const percent = Math.max(0, ((mine - best) / best) * 100);
           message = percent <= 1
-            ? "Estas practicamente en el Top 1"
-            : `Estas a ${percent.toFixed(1)}% por encima del Top 1 (menor es mejor)`;
+            ? "You are effectively tied with Top 1"
+            : `You are ${percent.toFixed(1)}% above Top 1 (lower is better)`;
         } else {
           const ratio = mine / best;
           const behind = Math.max(0, (1 - ratio) * 100);
           message = behind <= 1
-            ? "Estas practicamente en el Top 1"
-            : `Estas a ${behind.toFixed(1)}% del Top 1`;
+            ? "You are effectively tied with Top 1"
+            : `You are ${behind.toFixed(1)}% behind Top 1`;
         }
       }
 
@@ -100,9 +100,9 @@ export default function PlayerStatsDetailPage() {
   if (!userAverage) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <Link href="/stats" className="text-sm text-muted hover:text-foreground">Volver a Stats</Link>
+        <Link href="/stats" className="text-sm text-muted hover:text-foreground">Back to Stats</Link>
         <Card variant="bordered" className="mt-4">
-          <CardContent className="py-10 text-center text-muted">No se encontraron stats para este usuario.</CardContent>
+          <CardContent className="py-10 text-center text-muted">No stats were found for this user.</CardContent>
         </Card>
       </div>
     );
@@ -114,7 +114,7 @@ export default function PlayerStatsDetailPage() {
       <div className="fixed bottom-12 left-1/4 w-80 h-80 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
 
       <Link href="/stats" className="inline-flex text-sm text-muted hover:text-foreground mb-4">
-        ← Volver a Stats
+        ← Back to Stats
       </Link>
 
       <Card variant="bordered" className="mb-6 overflow-hidden">
@@ -125,15 +125,15 @@ export default function PlayerStatsDetailPage() {
             <Badge variant="primary">ID {userAverage.userId}</Badge>
             <Badge variant="secondary">{userAverage.role}</Badge>
           </div>
-          <p className="text-muted">Resumen por promedio incremental de {userAverage.games} partidas (normalizado a 10 minutos).</p>
+          <p className="text-muted">Incremental average summary from {userAverage.games} games (normalized to 10 minutes).</p>
         </CardContent>
       </Card>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
         {[
           { label: "Kills/10", value: userAverage.killsPer10 },
-          { label: "Dano/10", value: userAverage.damagePer10 },
-          { label: "Mitigado/10", value: userAverage.mitigationPer10 },
+          { label: "Damage/10", value: userAverage.damagePer10 },
+          { label: "Mitigation/10", value: userAverage.mitigationPer10 },
           { label: "Healing/10", value: userAverage.healingPer10 },
           { label: "Assists/10", value: userAverage.assistsPer10 },
           { label: "Deaths/10", value: userAverage.deathsPer10 },
@@ -149,14 +149,14 @@ export default function PlayerStatsDetailPage() {
 
       <Card variant="bordered">
         <CardHeader>
-          <CardTitle>Menu de comparacion vs Top 1</CardTitle>
+          <CardTitle>Comparison vs Top 1</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid gap-3 md:grid-cols-2">
             {comparison.map((row) => (
               <div key={row.metric} className="rounded-lg border border-border bg-surface/40 p-4">
                 <p className="text-sm font-semibold text-foreground mb-1">{row.label}</p>
-                <p className="text-sm text-muted mb-2">Tu valor: {row.mine.toLocaleString()} | Top 1: {row.top1Value.toLocaleString()} ({row.top1Name})</p>
+                <p className="text-sm text-muted mb-2">Your value: {row.mine.toLocaleString()} | Top 1: {row.top1Value.toLocaleString()} ({row.top1Name})</p>
                 <p className="text-sm text-primary font-medium">{row.message}</p>
               </div>
             ))}

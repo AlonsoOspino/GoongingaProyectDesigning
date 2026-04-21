@@ -93,19 +93,19 @@ export default function StatsPage() {
           <h1 className="text-3xl font-bold text-foreground">Top Players Dashboard</h1>
         </div>
         <p className="text-muted pl-4">
-          Top 10 global por estadistica, filtros rapidos y perfil individual por jugador.
+          Global top 10 by metric, quick filters, and individual player profiles.
         </p>
       </div>
 
       <Card variant="bordered" className="mb-6">
         <CardHeader>
-          <CardTitle>Buscar jugador por nickname o user ID</CardTitle>
+          <CardTitle>Find player by nickname or user ID</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <input
             list="players-list"
             className="w-full rounded-md border border-border bg-background px-3 py-2"
-            placeholder="Ej: DECEMBER o 14"
+            placeholder="Example: DECEMBER or 14"
             value={search}
             onChange={(e) => {
               const value = e.target.value;
@@ -128,11 +128,11 @@ export default function StatsPage() {
               }}
               disabled={!selectedPlayer}
             >
-              Ver informacion del jugador
+              View player profile
             </Button>
             {selectedPlayer && (
               <span className="text-sm text-muted">
-                Seleccionado: {selectedPlayer.nickname} (ID {selectedPlayer.userId})
+                Selected: {selectedPlayer.nickname} (ID {selectedPlayer.userId})
               </span>
             )}
           </div>
@@ -148,13 +148,13 @@ export default function StatsPage() {
               {item.leader ? (
                 <>
                   <p className="font-semibold text-foreground">{item.leader.nickname}</p>
-                  <p className="text-sm text-muted mt-1">ID {item.leader.userId} · {item.leader.games} partidas</p>
+                  <p className="text-sm text-muted mt-1">ID {item.leader.userId} · {item.leader.games} games</p>
                   <p className="text-2xl font-bold mt-2 text-primary font-mono">
                     {item.leader[item.key].toLocaleString()}
                   </p>
                 </>
               ) : (
-                <p className="text-muted">Sin datos</p>
+                <p className="text-muted">No data</p>
               )}
             </CardContent>
           </Card>
@@ -163,7 +163,7 @@ export default function StatsPage() {
 
       <Card variant="bordered" className="mb-6">
         <CardHeader>
-          <CardTitle>Top 10 por estadistica</CardTitle>
+          <CardTitle>Top 10 by metric</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2 mb-4">
@@ -174,24 +174,24 @@ export default function StatsPage() {
                 variant={selectedMetric === metric.key ? "default" : "ghost"}
                 onClick={() => setSelectedMetric(metric.key)}
               >
-                Ver informacion: {metric.label.replace("Top ", "")}
+                View metric: {metric.label.replace("Top ", "")}
               </Button>
             ))}
           </div>
 
           {metricTop10.length === 0 ? (
-            <p className="text-muted py-6">No hay estadisticas registradas.</p>
+            <p className="text-muted py-6">No stats recorded yet.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-surface border-b border-border">
                   <tr>
                     <th className="px-3 py-2 text-left">#</th>
-                    <th className="px-3 py-2 text-left">Jugador</th>
-                    <th className="px-3 py-2 text-left">Rol</th>
-                    <th className="px-3 py-2 text-left">Partidas</th>
-                    <th className="px-3 py-2 text-right">Valor</th>
-                    <th className="px-3 py-2 text-right">Accion</th>
+                    <th className="px-3 py-2 text-left">Player</th>
+                    <th className="px-3 py-2 text-left">Role</th>
+                    <th className="px-3 py-2 text-left">Games</th>
+                    <th className="px-3 py-2 text-right">Value</th>
+                    <th className="px-3 py-2 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -206,7 +206,7 @@ export default function StatsPage() {
                       <td className="px-3 py-2 text-right font-mono">{row[selectedMetric].toLocaleString()}</td>
                       <td className="px-3 py-2 text-right">
                         <Button size="sm" variant="ghost" onClick={() => router.push(`/stats/${row.userId}`)}>
-                          Ver jugador
+                          View player
                         </Button>
                       </td>
                     </tr>

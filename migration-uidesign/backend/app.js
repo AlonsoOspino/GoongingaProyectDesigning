@@ -14,6 +14,7 @@ const playerStatRoutes = require("./routes/playerStat");
 const newsRoutes = require("./routes/news");
 const mapRoutes = require("./routes/map");
 const heroRoutes = require("./routes/hero");
+const systemDbRoutes = require("./routes/systemDb");
 const cors = require("cors");
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -47,6 +48,7 @@ app.use("/playerStat", playerStatRoutes);
 app.use("/news", newsRoutes);
 app.use("/map", mapRoutes);
 app.use("/hero", heroRoutes);
+app.use("/system-db", systemDbRoutes);
 
 const startServer = async () => {
   if (!process.env.DATABASE_URL) {

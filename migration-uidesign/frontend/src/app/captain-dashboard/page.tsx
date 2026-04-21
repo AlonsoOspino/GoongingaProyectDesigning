@@ -276,6 +276,11 @@ export default function CaptainDashboardPage() {
 
   return (
     <main className="min-h-screen bg-background py-8">
+      <div className="fixed bottom-5 right-5 z-20">
+        <Link href="/my-team">
+          <Button className="shadow-lg" variant="secondary">My Team</Button>
+        </Link>
+      </div>
       <div className="container mx-auto px-4 max-w-6xl">
         <div className="mb-8 flex items-center justify-between">
           <div>

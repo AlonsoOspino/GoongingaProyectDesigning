@@ -208,3 +208,21 @@ export async function getMaps() {
 export async function getHeroes() {
   return apiRequest<AdminHero[]>("/hero");
 }
+
+// ==================== DATABASE TOOLS (Admin) ====================
+export async function adminDownloadBackupSql(token: string) {
+  return apiRequest<string>("/system-db/backup", {
+    token,
+  });
+}
+
+export async function adminRestoreBackupSql(
+  token: string,
+  payload: { confirmationText: string; script: string }
+) {
+  return apiRequest<{ message: string; executedStatements: number }>("/system-db/restore", {
+    method: "POST",
+    token,
+    body: payload,
+  });
+}

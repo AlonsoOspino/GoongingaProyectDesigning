@@ -22,12 +22,12 @@ export interface PlayerAverage {
 }
 
 export const TOP_METRICS: Array<{ key: TopMetricKey; label: string; lowerIsBetter?: boolean }> = [
-  { key: "killsPer10", label: "Top mas Kills" },
-  { key: "damagePer10", label: "Top mas dano" },
-  { key: "mitigationPer10", label: "Top mas Mitigado" },
-  { key: "healingPer10", label: "Top mas Healing" },
-  { key: "assistsPer10", label: "Top mas Asistencias" },
-  { key: "deathsPer10", label: "Top menos Muertes", lowerIsBetter: true },
+  { key: "killsPer10", label: "Top Kills" },
+  { key: "damagePer10", label: "Top Damage" },
+  { key: "mitigationPer10", label: "Top Mitigation" },
+  { key: "healingPer10", label: "Top Healing" },
+  { key: "assistsPer10", label: "Top Assists" },
+  { key: "deathsPer10", label: "Lowest Deaths", lowerIsBetter: true },
 ];
 
 function round2(value: number) {
