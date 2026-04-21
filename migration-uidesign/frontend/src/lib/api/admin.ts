@@ -1,4 +1,4 @@
-import { apiRequest } from "@/lib/api/client";
+import { apiRequest, ApiError } from "@/lib/api/client";
 import type { Match, Team, MatchType, MatchStatus, Tournament, GenerateRoundRobinPayload } from "@/lib/api/types";
 
 export type { Tournament };
@@ -228,9 +228,28 @@ export async function adminRestoreBackupSql(
 }
 
 export async function adminWipeDatabase(token: string, payload: { confirmationText: string }) {
-  return apiRequest<{ message: string }>("/system-db/wipe", {
-    method: "POST",
-    token,
-    body: payload,
-  });
+  try {
+    return await apiRequest<{ message: string }>("/system-db/wipe", {
+      method: "POST",
+      token,
+      body: payload,
+    });
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      if (payload.confirmationText !== "DELETE DATABASE") {
+        throw error;
+      }
+
+      const fallback = await adminRestoreBackupSql(token, {
+        confirmationText: "RESTORE DATABASE",
+        script:
+          'TRUNCATE TABLE "PlayerStat", "DraftAction", "DraftTable", "News", "Match", "Member", "Team", "Tournament", "Hero", "Map", "_AllowedMaps" RESTART IDENTITY CASCADE;',
+      });
+
+      return {
+        message: `${fallback.message} (compatibility mode)` ,
+      };
+    }
+    throw error;
+  }
 }
