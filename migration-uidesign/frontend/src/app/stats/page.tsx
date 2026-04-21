@@ -67,6 +67,15 @@ export default function StatsPage() {
     });
   }, [averages]);
 
+  const metricCardTone = (key: TopMetricKey) => {
+    if (key === "killsPer10") return "from-danger/20 via-danger/5 to-transparent border-danger/30";
+    if (key === "damagePer10") return "from-primary/20 via-primary/5 to-transparent border-primary/30";
+    if (key === "mitigationPer10") return "from-accent/20 via-accent/5 to-transparent border-accent/30";
+    if (key === "healingPer10") return "from-success/20 via-success/5 to-transparent border-success/30";
+    if (key === "assistsPer10") return "from-warning/20 via-warning/5 to-transparent border-warning/30";
+    return "from-muted/20 via-muted/5 to-transparent border-border";
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -83,21 +92,25 @@ export default function StatsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 relative">
+    <div className="min-h-screen relative bg-gradient-to-b from-background via-surface/30 to-background">
+      <div className="container mx-auto px-4 py-8 relative">
       <div className="fixed top-20 left-1/4 w-72 h-72 bg-primary/10 rounded-full blur-[110px] pointer-events-none" />
       <div className="fixed bottom-24 right-1/4 w-72 h-72 bg-danger/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="fixed inset-0 bg-grid-pattern-subtle pointer-events-none" />
 
       <div className="mb-8 relative">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-1 h-8 bg-gradient-to-b from-primary to-danger rounded-full" />
-          <h1 className="text-3xl font-bold text-foreground">Top Players Dashboard</h1>
+        <div className="rounded-2xl border border-border bg-gradient-to-r from-surface-elevated/90 to-surface/60 backdrop-blur p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-1 h-8 bg-gradient-to-b from-primary to-danger rounded-full" />
+            <h1 className="text-3xl font-bold text-foreground">Top Players Dashboard</h1>
+          </div>
+          <p className="text-muted pl-4">
+            Global top 10 by metric, quick filters, and individual player profiles.
+          </p>
         </div>
-        <p className="text-muted pl-4">
-          Global top 10 by metric, quick filters, and individual player profiles.
-        </p>
       </div>
 
-      <Card variant="bordered" className="mb-6">
+      <Card variant="bordered" className="mb-6 border-primary/30 bg-surface-elevated/50 backdrop-blur">
         <CardHeader>
           <CardTitle>Find player by nickname or user ID</CardTitle>
         </CardHeader>
@@ -141,8 +154,11 @@ export default function StatsPage() {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 mb-8">
         {topByMetricSummary.map((item) => (
-          <Card key={item.key} variant="bordered" className="overflow-hidden">
-            <div className="h-1 w-full bg-gradient-to-r from-primary via-accent to-danger" />
+          <Card
+            key={item.key}
+            variant="bordered"
+            className={`overflow-hidden border bg-gradient-to-br ${metricCardTone(item.key)}`}
+          >
             <CardContent className="pt-4">
               <p className="text-xs uppercase tracking-wide text-muted mb-2">{item.label}</p>
               {item.leader ? (
@@ -161,7 +177,7 @@ export default function StatsPage() {
         ))}
       </div>
 
-      <Card variant="bordered" className="mb-6">
+      <Card variant="bordered" className="mb-6 border-border/60 bg-surface-elevated/50 backdrop-blur">
         <CardHeader>
           <CardTitle>Top 10 by metric</CardTitle>
         </CardHeader>
@@ -182,9 +198,9 @@ export default function StatsPage() {
           {metricTop10.length === 0 ? (
             <p className="text-muted py-6">No stats recorded yet.</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-xl border border-border/70">
               <table className="w-full text-sm">
-                <thead className="bg-surface border-b border-border">
+                <thead className="bg-gradient-to-r from-surface to-surface-elevated border-b border-border">
                   <tr>
                     <th className="px-3 py-2 text-left">#</th>
                     <th className="px-3 py-2 text-left">Player</th>
@@ -196,7 +212,7 @@ export default function StatsPage() {
                 </thead>
                 <tbody>
                   {metricTop10.map((row, index) => (
-                    <tr key={row.userId} className="border-t border-border">
+                    <tr key={row.userId} className="border-t border-border hover:bg-surface-elevated/50 transition-colors">
                       <td className="px-3 py-2 font-mono text-muted">#{index + 1}</td>
                       <td className="px-3 py-2 font-medium">{row.nickname}</td>
                       <td className="px-3 py-2">
@@ -217,6 +233,7 @@ export default function StatsPage() {
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

@@ -5,6 +5,7 @@ const { generateBackupSql, restoreFromBackupSql } = require("../utils/dbBackupSq
 
 const router = express.Router();
 const RESTORE_CONFIRMATION_TEXT = "RESTORE DATABASE";
+const WIPE_CONFIRMATION_TEXT = "DELETE DATABASE";
 
 router.get("/backup", authMiddleware, adminMiddleware, async (_req, res) => {
   try {
@@ -34,6 +35,25 @@ router.post("/restore", authMiddleware, adminMiddleware, async (req, res) => {
     });
   } catch (error) {
     return res.status(400).json({ message: error?.message || "Failed to restore database." });
+  }
+});
+
+router.post("/wipe", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const confirmationText = String(req.body?.confirmationText || "").trim();
+    if (confirmationText !== WIPE_CONFIRMATION_TEXT) {
+      return res.status(400).json({
+        message: `Invalid confirmation text. Type exactly: ${WIPE_CONFIRMATION_TEXT}`,
+      });
+    }
+
+    await restoreFromBackupSql(
+      'TRUNCATE TABLE "PlayerStat", "DraftAction", "DraftTable", "News", "Match", "Member", "Team", "Tournament", "Hero", "Map", "_AllowedMaps" RESTART IDENTITY CASCADE;'
+    );
+
+    return res.json({ message: "Database deleted successfully. Identities were reset." });
+  } catch (error) {
+    return res.status(400).json({ message: error?.message || "Failed to delete database." });
   }
 });
 

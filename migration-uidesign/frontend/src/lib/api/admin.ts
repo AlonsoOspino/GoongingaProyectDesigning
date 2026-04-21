@@ -226,3 +226,11 @@ export async function adminRestoreBackupSql(
     body: payload,
   });
 }
+
+export async function adminWipeDatabase(token: string, payload: { confirmationText: string }) {
+  return apiRequest<{ message: string }>("/system-db/wipe", {
+    method: "POST",
+    token,
+    body: payload,
+  });
+}

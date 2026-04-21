@@ -109,16 +109,18 @@ export default function PlayerStatsDetailPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 relative">
+    <div className="min-h-screen relative bg-gradient-to-b from-background via-surface/30 to-background">
+      <div className="container mx-auto px-4 py-8 relative">
       <div className="fixed top-20 right-1/4 w-80 h-80 bg-success/10 rounded-full blur-[120px] pointer-events-none" />
       <div className="fixed bottom-12 left-1/4 w-80 h-80 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="fixed inset-0 bg-grid-pattern-subtle pointer-events-none" />
 
       <Link href="/stats" className="inline-flex text-sm text-muted hover:text-foreground mb-4">
         ← Back to Stats
       </Link>
 
-      <Card variant="bordered" className="mb-6 overflow-hidden">
-        <div className="h-1 w-full bg-gradient-to-r from-primary via-success to-accent" />
+      <Card variant="bordered" className="mb-6 overflow-hidden border-primary/30 bg-gradient-to-r from-primary/10 via-surface-elevated/70 to-success/10">
+        <div className="h-1 w-full bg-gradient-to-r from-primary via-warning to-success" />
         <CardContent className="pt-6">
           <div className="flex flex-wrap items-center gap-3 mb-3">
             <h1 className="text-3xl font-bold text-foreground">{userAverage.nickname}</h1>
@@ -138,7 +140,7 @@ export default function PlayerStatsDetailPage() {
           { label: "Assists/10", value: userAverage.assistsPer10 },
           { label: "Deaths/10", value: userAverage.deathsPer10 },
         ].map((item) => (
-          <Card key={item.label} variant="bordered">
+          <Card key={item.label} variant="bordered" className="bg-surface-elevated/60 border-border/70 hover:border-primary/40 transition-colors">
             <CardContent className="p-4 text-center">
               <p className="text-2xl font-bold font-mono text-foreground">{item.value.toLocaleString()}</p>
               <p className="text-xs text-muted">{item.label}</p>
@@ -147,14 +149,14 @@ export default function PlayerStatsDetailPage() {
         ))}
       </div>
 
-      <Card variant="bordered">
+      <Card variant="bordered" className="border-border/60 bg-surface-elevated/50 backdrop-blur">
         <CardHeader>
           <CardTitle>Comparison vs Top 1</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid gap-3 md:grid-cols-2">
             {comparison.map((row) => (
-              <div key={row.metric} className="rounded-lg border border-border bg-surface/40 p-4">
+              <div key={row.metric} className="rounded-lg border border-border bg-gradient-to-br from-surface to-surface-elevated/70 p-4">
                 <p className="text-sm font-semibold text-foreground mb-1">{row.label}</p>
                 <p className="text-sm text-muted mb-2">Your value: {row.mine.toLocaleString()} | Top 1: {row.top1Value.toLocaleString()} ({row.top1Name})</p>
                 <p className="text-sm text-primary font-medium">{row.message}</p>
@@ -163,6 +165,7 @@ export default function PlayerStatsDetailPage() {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

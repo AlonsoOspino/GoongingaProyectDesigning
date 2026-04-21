@@ -17,7 +17,7 @@ import {
   adminCreateMatch, adminUpdateMatch, adminDeleteMatch, adminGenerateRoundRobin,
   adminCreateTeam, adminUpdateTeam, adminDeleteTeam,
   adminRegisterMember, adminUpdateMember, adminBulkImportUsers, getMembers, getMaps,
-  adminDownloadBackupSql, adminRestoreBackupSql,
+  adminDownloadBackupSql, adminRestoreBackupSql, adminWipeDatabase,
   type CreateMatchPayload, type CreateTeamPayload, type Member, type AdminGameMap,
 } from "@/lib/api/admin";
 import { convertToISODateTime, formatDateEST, formatForDateInput, formatForDateTimeInput } from "@/lib/dateUtils";
@@ -712,6 +712,7 @@ function UsersSection({ token }: { token: string }) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [showRollbackModal, setShowRollbackModal] = useState(false);
+  const [showDeleteDbModal, setShowDeleteDbModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [bulkScript, setBulkScript] = useState("");
@@ -719,8 +720,10 @@ function UsersSection({ token }: { token: string }) {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [backupLoading, setBackupLoading] = useState(false);
   const [rollbackLoading, setRollbackLoading] = useState(false);
+  const [wipeLoading, setWipeLoading] = useState(false);
   const [rollbackScript, setRollbackScript] = useState("");
   const [rollbackConfirmationText, setRollbackConfirmationText] = useState("");
+  const [wipeConfirmationText, setWipeConfirmationText] = useState("");
   const [formData, setFormData] = useState({ nickname: "", user: "", password: "", role: "DEFAULT", teamId: "" });
 
   const showNotif = (type: "success" | "error", message: string) => {
@@ -796,6 +799,23 @@ function UsersSection({ token }: { token: string }) {
     }
   }
 
+  async function handleDeleteDatabase() {
+    setWipeLoading(true);
+    try {
+      const result = await adminWipeDatabase(token, {
+        confirmationText: wipeConfirmationText,
+      });
+      showNotif("success", result.message);
+      setShowDeleteDbModal(false);
+      setWipeConfirmationText("");
+      loadData();
+    } catch (err: any) {
+      showNotif("error", err.message || "Failed to delete database.");
+    } finally {
+      setWipeLoading(false);
+    }
+  }
+
   const getTeamName = (teamId: number | null) => teamId ? teams.find((t) => t.id === teamId)?.name || "Unknown" : "No Team";
 
   if (loading) return <Card><CardContent className="p-8 text-center text-muted">Loading...</CardContent></Card>;
@@ -812,6 +832,9 @@ function UsersSection({ token }: { token: string }) {
             </Button>
             <Button variant="danger" onClick={() => setShowRollbackModal(true)}>
               Restore From SQL
+            </Button>
+            <Button variant="danger" onClick={() => setShowDeleteDbModal(true)}>
+              Delete Database
             </Button>
             <Button variant="secondary" onClick={() => { setBulkScript(""); setBulkResult(null); setShowBulkModal(true); }}>Run Script (Bulk Import)</Button>
             <Button onClick={() => setShowCreateModal(true)}>Register User</Button>
@@ -906,6 +929,31 @@ function UsersSection({ token }: { token: string }) {
             disabled={rollbackLoading || !rollbackScript.trim() || rollbackConfirmationText !== "RESTORE DATABASE"}
           >
             {rollbackLoading ? "Restoring..." : "Restore Database"}
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      <Modal isOpen={showDeleteDbModal} onClose={() => setShowDeleteDbModal(false)}>
+        <ModalHeader><ModalTitle>Delete Database</ModalTitle></ModalHeader>
+        <ModalContent>
+          <p className="text-sm text-muted mb-3">
+            This will permanently delete all current data and reset IDs. Type DELETE DATABASE to confirm.
+          </p>
+          <Input
+            label="Confirmation"
+            placeholder="Type DELETE DATABASE"
+            value={wipeConfirmationText}
+            onChange={(e) => setWipeConfirmationText(e.target.value)}
+          />
+        </ModalContent>
+        <ModalFooter>
+          <Button variant="ghost" onClick={() => setShowDeleteDbModal(false)}>Cancel</Button>
+          <Button
+            variant="danger"
+            onClick={handleDeleteDatabase}
+            disabled={wipeLoading || wipeConfirmationText !== "DELETE DATABASE"}
+          >
+            {wipeLoading ? "Deleting..." : "Delete Database"}
           </Button>
         </ModalFooter>
       </Modal>
