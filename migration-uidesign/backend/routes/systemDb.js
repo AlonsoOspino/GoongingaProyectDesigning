@@ -48,10 +48,10 @@ router.post("/wipe", authMiddleware, adminMiddleware, async (req, res) => {
     }
 
     await restoreFromBackupSql(
-      'TRUNCATE TABLE "PlayerStat", "DraftAction", "DraftTable", "News", "Match", "Member", "Team", "Tournament", "Hero", "Map", "_AllowedMaps" RESTART IDENTITY CASCADE;'
+      'TRUNCATE TABLE "PlayerStat", "DraftAction", "DraftTable", "News", "Match", "Member", "Team", "Tournament", "_AllowedMaps" RESTART IDENTITY CASCADE;'
     );
 
-    return res.json({ message: "Database deleted successfully. Identities were reset." });
+    return res.json({ message: "Database deleted successfully. Maps and heroes were preserved." });
   } catch (error) {
     return res.status(400).json({ message: error?.message || "Failed to delete database." });
   }

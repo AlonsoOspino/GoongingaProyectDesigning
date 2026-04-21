@@ -43,9 +43,17 @@ export default function AdminDashboardPage() {
   return (
     <main className="min-h-screen bg-background py-8">
       <div className="container mx-auto px-4">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
-          <p className="text-muted mt-1">Manage tournament, matches, teams, and users</p>
+        <div className="mb-8 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
+            <p className="text-muted mt-1">Manage tournament, matches, teams, and users</p>
+          </div>
+          <Button
+            variant="secondary"
+            onClick={() => router.push("/admin-dashboard/overwatch-content")}
+          >
+            Add Overwatch content
+          </Button>
         </div>
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ActiveTab)}>
           <TabsList className="mb-6">
@@ -250,13 +258,18 @@ function MatchesSection({ token }: { token: string }) {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Matches ({matches.length})</CardTitle>
           <div className="flex gap-2">
-            <Button variant="secondary" onClick={() => setShowRRModal(true)} disabled={!tournament}>Generate Round Robin</Button>
-            <Button onClick={() => { setFormData({ type: "ROUNDROBIN", bestOf: 5, startDate: "", teamAId: 0, teamBId: 0, semanas: 1, title: "", mapsAllowedByRound: {} }); setShowCreateModal(true); }} disabled={!tournament || teams.length < 2}>
+            <Button variant="secondary" onClick={() => setShowRRModal(true)} disabled={!tournament || maps.length === 0}>Generate Round Robin</Button>
+            <Button onClick={() => { setFormData({ type: "ROUNDROBIN", bestOf: 5, startDate: "", teamAId: 0, teamBId: 0, semanas: 1, title: "", mapsAllowedByRound: {} }); setShowCreateModal(true); }} disabled={!tournament || teams.length < 2 || maps.length === 0}>
               Create Match
             </Button>
           </div>
         </CardHeader>
         <CardContent>
+          {maps.length === 0 && (
+            <div className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">
+              No maps found in database. Run backend command: npm run db:seed:maps
+            </div>
+          )}
           {!tournament ? (
             <p className="text-muted text-center py-4">Create a tournament first.</p>
           ) : matches.length === 0 ? (
@@ -359,6 +372,9 @@ function MatchesSection({ token }: { token: string }) {
               {showMapConfig && (
                 <div className="mt-3 space-y-4 border border-border rounded-lg p-4 bg-surface/50">
                   <p className="text-xs text-muted">Select which maps are available for each game. If empty, all maps of that type are allowed.</p>
+                  {maps.length === 0 && (
+                    <p className="text-xs text-danger">Map catalog is empty. Seed maps first with npm run db:seed:maps.</p>
+                  )}
                   {Object.entries(roundMapTypes).map(([round, types]) => (
                     <div key={round}>
                       <p className="text-sm font-medium text-foreground mb-2">
@@ -429,6 +445,9 @@ function MatchesSection({ token }: { token: string }) {
               </button>
               {showMapConfig && (
                 <div className="mt-3 space-y-4 border border-border rounded-lg p-4 bg-surface/50">
+                  {maps.length === 0 && (
+                    <p className="text-xs text-danger">Map catalog is empty. Seed maps first with npm run db:seed:maps.</p>
+                  )}
                   {Object.entries(roundMapTypes).map(([round, types]) => (
                     <div key={round}>
                       <p className="text-sm font-medium text-foreground mb-2">Game {round} — {types.join(" / ")}</p>
@@ -937,7 +956,7 @@ function UsersSection({ token }: { token: string }) {
         <ModalHeader><ModalTitle>Delete Database</ModalTitle></ModalHeader>
         <ModalContent>
           <p className="text-sm text-muted mb-3">
-            This will permanently delete all current data and reset IDs. Type DELETE DATABASE to confirm.
+            This will permanently delete tournament/runtime data and reset IDs. Maps and heroes are preserved. Type DELETE DATABASE to confirm.
           </p>
           <Input
             label="Confirmation"

@@ -19,7 +19,7 @@ async function askConfirmation() {
 
   const rl = readline.createInterface({ input, output });
   const answer = await rl.question(
-    `This will permanently delete ALL data. Type \"${CONFIRM_TEXT}\" to continue: `
+    `This will permanently delete tournament/runtime data (maps and heroes are preserved). Type \"${CONFIRM_TEXT}\" to continue: `
   );
   rl.close();
   return answer.trim();
@@ -43,12 +43,11 @@ async function main() {
       "Member",
       "Team",
       "Tournament",
-      "Hero",
-      "Map"
+      "_AllowedMaps"
     RESTART IDENTITY CASCADE;
   `);
 
-  console.log("Database data wiped successfully.");
+  console.log("Database data wiped successfully. Maps and heroes were preserved.");
 }
 
 main()

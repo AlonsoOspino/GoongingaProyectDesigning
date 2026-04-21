@@ -9,6 +9,20 @@ const getAll = async (_req, res) => {
   }
 };
 
+const create = async (req, res) => {
+  try {
+    const hero = await heroService.create({
+      name: req.body?.name,
+      role: req.body?.role,
+      image: req.file,
+    });
+    res.status(201).json(hero);
+  } catch (error) {
+    res.status(400).json({ message: error?.message || "Failed to create hero." });
+  }
+};
+
 module.exports = {
   getAll,
+  create,
 };

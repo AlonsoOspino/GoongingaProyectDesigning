@@ -8,7 +8,9 @@
     "postinstall": "prisma generate",
     "test": "echo \"Error: no test specified\" && exit 1",
     "db:wipe": "node scripts/db-wipe-confirm.js",
-    "db:backup:txt": "node scripts/db-backup-inserts.js"
+    "db:backup:txt": "node scripts/db-backup-inserts.js",
+    "db:seed:maps": "node scripts/db-seed-maps-from-images.js",
+    "db:refresh:maps-heroes": "node scripts/db-refresh-maps-heroes.js"
   },
   "prisma": {
     "seed": "node prisma/seed.js"

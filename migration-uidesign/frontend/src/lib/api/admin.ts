@@ -209,6 +209,46 @@ export async function getHeroes() {
   return apiRequest<AdminHero[]>("/hero");
 }
 
+export async function adminCreateMap(
+  token: string,
+  payload: {
+    name: string;
+    type: AdminGameMap["type"];
+    image: File;
+  }
+) {
+  const form = new FormData();
+  form.append("name", payload.name);
+  form.append("type", payload.type);
+  form.append("image", payload.image);
+
+  return apiRequest<AdminGameMap>("/map/create", {
+    method: "POST",
+    token,
+    formData: form,
+  });
+}
+
+export async function adminCreateHero(
+  token: string,
+  payload: {
+    name: string;
+    role: AdminHero["role"];
+    image: File;
+  }
+) {
+  const form = new FormData();
+  form.append("name", payload.name);
+  form.append("role", payload.role);
+  form.append("image", payload.image);
+
+  return apiRequest<AdminHero>("/hero/create", {
+    method: "POST",
+    token,
+    formData: form,
+  });
+}
+
 // ==================== DATABASE TOOLS (Admin) ====================
 export async function adminDownloadBackupSql(token: string) {
   return apiRequest<string>("/system-db/backup", {
@@ -243,7 +283,7 @@ export async function adminWipeDatabase(token: string, payload: { confirmationTe
       const fallback = await adminRestoreBackupSql(token, {
         confirmationText: "RESTORE DATABASE",
         script:
-          'TRUNCATE TABLE "PlayerStat", "DraftAction", "DraftTable", "News", "Match", "Member", "Team", "Tournament", "Hero", "Map", "_AllowedMaps" RESTART IDENTITY CASCADE;',
+          'TRUNCATE TABLE "PlayerStat", "DraftAction", "DraftTable", "News", "Match", "Member", "Team", "Tournament", "_AllowedMaps" RESTART IDENTITY CASCADE;',
       });
 
       return {
