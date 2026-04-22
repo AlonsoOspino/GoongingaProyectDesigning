@@ -295,18 +295,6 @@ export default function DraftTablePage() {
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
-
-  if (!isHydrated || loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-muted">Loading draft table...</p>
-        </div>
-      </div>
-    );
-  }
-
   const knownHeroes = useMemo(() => {
     const byId: Record<number, Hero> = { ...heroCacheById };
     for (const hero of draftState?.heroes || []) {
@@ -323,6 +311,17 @@ export default function DraftTablePage() {
     },
     [draftState?.heroes, heroCacheById]
   );
+  if (!isHydrated || loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-muted">Loading draft table...</p>
+        </div>
+      </div>
+    );
+  }
+
 
   if (error || !draftState) {
     return (
