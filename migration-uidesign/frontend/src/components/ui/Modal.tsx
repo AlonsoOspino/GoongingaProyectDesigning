@@ -31,7 +31,7 @@ export function Modal({ isOpen, onClose, title, children, className }: ModalProp
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-6 sm:items-center">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -45,7 +45,7 @@ export function Modal({ isOpen, onClose, title, children, className }: ModalProp
         aria-modal="true"
         aria-labelledby={title ? "modal-title" : undefined}
         className={clsx(
-          "relative z-10 w-full max-w-lg mx-4 bg-card border border-border rounded-xl shadow-2xl animate-fade-in",
+          "relative z-10 w-full max-w-lg bg-card border border-border rounded-xl shadow-2xl animate-fade-in max-h-[calc(100vh-3rem)] overflow-y-auto",
           className
         )}
       >

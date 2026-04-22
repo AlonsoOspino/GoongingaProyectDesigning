@@ -10,10 +10,30 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
 import { MatchCard } from "@/components/matches/MatchCard";
 import type { Match, Team, MatchType, MatchStatus } from "@/lib/api/types";
+import { getCurrentTournament } from "@/lib/api/admin";
+
+const ALL_MATCH_TYPES: MatchType[] = [
+  "ROUNDROBIN",
+  "PLAYINS",
+  "PLAYOFFS",
+  "SEMIFINALS",
+  "FINALS",
+  "PRACTICE",
+];
+
+const ALLOWED_MATCH_TYPES_BY_STATE: Record<string, MatchType[]> = {
+  SCHEDULED: ALL_MATCH_TYPES,
+  ROUNDROBIN: ["ROUNDROBIN"],
+  PLAYOFFS: ["PLAYINS", "PLAYOFFS"],
+  SEMIFINALS: ["SEMIFINALS"],
+  FINALS: ["FINALS"],
+  FINISHED: ["FINALS"],
+};
 
 export default function SchedulePage() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [tournamentState, setTournamentState] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [weekFilter, setWeekFilter] = useState<string>("all");
   const [teamFilter, setTeamFilter] = useState<string>("all");
@@ -28,6 +48,8 @@ export default function SchedulePage() {
         ]);
         setMatches(matchesData);
         setTeams(teamsData);
+        const tournamentData = await getCurrentTournament().catch(() => null);
+        setTournamentState(tournamentData?.state ?? null);
       } catch (error) {
         console.error("Failed to fetch schedule:", error);
       } finally {
@@ -38,31 +60,38 @@ export default function SchedulePage() {
   }, []);
 
   const teamsById = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
+  const visibleMatchTypes = useMemo(() => {
+    if (!tournamentState) return ALL_MATCH_TYPES;
+    return ALLOWED_MATCH_TYPES_BY_STATE[tournamentState] || ALL_MATCH_TYPES;
+  }, [tournamentState]);
+
+  const visibleMatches = useMemo(
+    () => matches.filter((match) => visibleMatchTypes.includes(match.type)),
+    [matches, visibleMatchTypes]
+  );
 
   // Get unique weeks
   const weeks = useMemo(() => {
-    const uniqueWeeks = [...new Set(matches.map((m) => m.semanas))].sort(
-      (a, b) => a - b
-    );
+    const uniqueWeeks = [...new Set(visibleMatches.map((m) => m.semanas).filter((w): w is number => w !== null))].sort((a, b) => a - b);
     return uniqueWeeks;
-  }, [matches]);
+  }, [visibleMatches]);
 
   // Get unique match types
   const matchTypes = useMemo(() => {
-    const types = [...new Set(matches.map((m) => m.type))];
+    const types = [...new Set(visibleMatches.map((m) => m.type))];
     return types;
-  }, [matches]);
+  }, [visibleMatches]);
 
   // Filter matches
   const filteredMatches = useMemo(() => {
-    return matches.filter((match) => {
-      if (weekFilter !== "all" && match.semanas !== parseInt(weekFilter)) {
+    return visibleMatches.filter((match) => {
+      if (weekFilter !== "all" && match.semanas !== Number(weekFilter)) {
         return false;
       }
       if (
         teamFilter !== "all" &&
-        match.teamAId !== parseInt(teamFilter) &&
-        match.teamBId !== parseInt(teamFilter)
+        match.teamAId !== Number(teamFilter) &&
+        match.teamBId !== Number(teamFilter)
       ) {
         return false;
       }
@@ -71,7 +100,7 @@ export default function SchedulePage() {
       }
       return true;
     });
-  }, [matches, weekFilter, teamFilter, typeFilter]);
+  }, [visibleMatches, weekFilter, teamFilter, typeFilter]);
 
   // Group by status
   const liveMatches = filteredMatches.filter((m) => m.status === "ACTIVE");
@@ -246,7 +275,8 @@ export default function SchedulePage() {
                 // Group upcoming matches by week
                 const weekMap = new Map();
                 upcomingMatches.forEach((match) => {
-                  const week = match.semanas || 1;
+                  const week = match.semanas;
+                  if (week === null) return;
                   if (!weekMap.has(week)) weekMap.set(week, []);
                   weekMap.get(week).push(match);
                 });

@@ -49,7 +49,7 @@ export interface Match {
   mapWinsTeamA: number;
   mapWinsTeamB: number;
   gameNumber: number;
-  semanas: number;
+  semanas: number | null;
   title?: string | null;
   mapsAllowedByRound?: Record<string, number[]> | null;
   mapResults?: Array<{

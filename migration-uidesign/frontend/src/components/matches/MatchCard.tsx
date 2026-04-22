@@ -38,6 +38,7 @@ export function MatchCard({ match, teamA, teamB }: MatchCardProps) {
   const isFinished = match.status === "FINISHED";
   const teamAWon = isFinished && match.mapWinsTeamA > match.mapWinsTeamB;
   const teamBWon = isFinished && match.mapWinsTeamB > match.mapWinsTeamA;
+  const isWeeklyMatch = match.type === "ROUNDROBIN" && match.semanas !== null;
 
   return (
     <Link href={`/schedule/${match.id}`}>
@@ -201,12 +202,29 @@ export function MatchCard({ match, teamA, teamB }: MatchCardProps) {
                   </span>
                 </div>
               </>
-            ) : (
+            ) : isWeeklyMatch ? (
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded bg-accent/10 flex items-center justify-center">
                   <span className="text-xs font-bold text-accent">{match.semanas}</span>
                 </div>
                 <span className="text-muted">Week {match.semanas}</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded bg-primary/10 flex items-center justify-center">
+                  <span className="text-[10px] font-bold text-primary">STG</span>
+                </div>
+                <span className="text-muted">
+                  {match.type === "PLAYINS"
+                    ? "Play-ins"
+                    : match.type === "PLAYOFFS"
+                    ? "Playoffs"
+                    : match.type === "SEMIFINALS"
+                    ? "Semifinals"
+                    : match.type === "FINALS"
+                    ? "Finals"
+                    : "Match"}
+                </span>
               </div>
             )}
           </div>

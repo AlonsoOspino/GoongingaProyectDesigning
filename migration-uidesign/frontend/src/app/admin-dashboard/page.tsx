@@ -26,6 +26,38 @@ import type { Tournament } from "@/lib/api/types";
 
 type ActiveTab = "tournament" | "matches" | "teams" | "users";
 
+const ALL_MATCH_TYPES: Match["type"][] = [
+  "ROUNDROBIN",
+  "PLAYINS",
+  "PLAYOFFS",
+  "SEMIFINALS",
+  "FINALS",
+  "PRACTICE",
+];
+
+const ALLOWED_MATCH_TYPES_BY_STATE: Record<Tournament["state"], Match["type"][]> = {
+  SCHEDULED: ALL_MATCH_TYPES,
+  ROUNDROBIN: ["ROUNDROBIN"],
+  PLAYOFFS: ["PLAYINS", "PLAYOFFS"],
+  SEMIFINALS: ["SEMIFINALS"],
+  FINALS: ["FINALS"],
+  FINISHED: ["FINALS"],
+};
+
+const MATCH_TYPE_LABELS: Record<Match["type"], string> = {
+  ROUNDROBIN: "Round Robin",
+  PLAYINS: "Play-ins",
+  PLAYOFFS: "Playoffs",
+  SEMIFINALS: "Semifinals",
+  FINALS: "Finals",
+  PRACTICE: "Practice",
+};
+
+const getAllowedMatchTypesForState = (state?: Tournament["state"] | null) => {
+  if (!state) return ALL_MATCH_TYPES;
+  return ALLOWED_MATCH_TYPES_BY_STATE[state] || ALL_MATCH_TYPES;
+};
+
 export default function AdminDashboardPage() {
   const router = useRouter();
   const { user, token, isAuthenticated, isHydrated } = useSession();
@@ -194,10 +226,20 @@ function MatchesSection({ token }: { token: string }) {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [rrData, setRrData] = useState({ bestOf: 5, confirmationText: "" });
-  const [formData, setFormData] = useState<Partial<CreateMatchPayload>>({
-    type: "ROUNDROBIN", bestOf: 5, startDate: "", teamAId: 0, teamBId: 0, semanas: 1, title: "",
+  const createInitialMatchFormData = (type: Match["type"]): Partial<CreateMatchPayload> => ({
+    type,
+    bestOf: 5,
+    startDate: "",
+    teamAId: 0,
+    teamBId: 0,
+    semanas: type === "ROUNDROBIN" ? 1 : null,
+    title: "",
     mapsAllowedByRound: {},
   });
+
+  const [formData, setFormData] = useState<Partial<CreateMatchPayload>>(
+    createInitialMatchFormData("ROUNDROBIN")
+  );
 
   // Maps selection per round
   const [showMapConfig, setShowMapConfig] = useState(false);
@@ -205,6 +247,7 @@ function MatchesSection({ token }: { token: string }) {
   const showNotif = (type: "success" | "error", message: string) => {
     setNotification({ type, message });
     setTimeout(() => setNotification(null), 3000);
+
   };
 
   useEffect(() => { loadData(); }, []);
@@ -223,12 +266,58 @@ function MatchesSection({ token }: { token: string }) {
 
   const getTeamName = (id: number) => teams.find((t) => t.id === id)?.name || `Team ${id}`;
 
-  const matchesByWeek = matches.reduce((acc, m) => {
-    const w = m.semanas || 1;
-    if (!acc[w]) acc[w] = [];
-    acc[w].push(m);
-    return acc;
-  }, {} as Record<number, Match[]>);
+  const allowedMatchTypes = getAllowedMatchTypesForState(tournament?.state || null);
+
+  const visibleMatches = matches.filter((m) => allowedMatchTypes.includes(m.type));
+
+  const roundRobinMatchesByWeek = visibleMatches
+    .filter((m) => m.type === "ROUNDROBIN")
+    .reduce((acc, m) => {
+      if (m.semanas === null) return acc;
+      const w = m.semanas;
+      if (!acc[w]) acc[w] = [];
+      acc[w].push(m);
+      return acc;
+    }, {} as Record<number, Match[]>);
+
+  const bracketMatchesByType = visibleMatches
+    .filter((m) => m.type !== "ROUNDROBIN")
+    .reduce((acc, m) => {
+      if (!acc[m.type]) acc[m.type] = [];
+      acc[m.type].push(m);
+      return acc;
+    }, {} as Record<string, Match[]>);
+
+  const bracketTypeOrder: Match["type"][] = [
+    "PLAYINS",
+    "PLAYOFFS",
+    "SEMIFINALS",
+    "FINALS",
+    "PRACTICE",
+  ];
+
+  const handleMatchTypeChange = (nextType: Match["type"]) => {
+    setFormData((prev) => ({
+      ...prev,
+      type: nextType,
+      semanas: nextType === "ROUNDROBIN" ? Number(prev.semanas || 1) : null,
+    }));
+  };
+
+  const buildMatchPayload = (data: Partial<CreateMatchPayload>) => {
+    const normalizedType = (data.type || "ROUNDROBIN") as Match["type"];
+    const normalizedStartDate = data.startDate ? convertToISODateTime(data.startDate) : undefined;
+    const normalizedSemanas = normalizedType === "ROUNDROBIN" ? Number(data.semanas || 1) : null;
+
+    return {
+      ...data,
+      type: normalizedType,
+      startDate: normalizedStartDate,
+      semanas: normalizedSemanas,
+    };
+  };
+
+  const isRoundRobinForm = formData.type === "ROUNDROBIN";
 
   // Maps grouped by type for round assignment
   const mapsByType: Record<string, AdminGameMap[]> = {};
@@ -256,10 +345,17 @@ function MatchesSection({ token }: { token: string }) {
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Matches ({matches.length})</CardTitle>
+          <CardTitle>Matches ({visibleMatches.length})</CardTitle>
           <div className="flex gap-2">
             <Button variant="secondary" onClick={() => setShowRRModal(true)} disabled={!tournament || maps.length === 0}>Generate Round Robin</Button>
-            <Button onClick={() => { setFormData({ type: "ROUNDROBIN", bestOf: 5, startDate: "", teamAId: 0, teamBId: 0, semanas: 1, title: "", mapsAllowedByRound: {} }); setShowCreateModal(true); }} disabled={!tournament || teams.length < 2 || maps.length === 0}>
+            <Button
+              onClick={() => {
+                const defaultType = allowedMatchTypes[0] || "ROUNDROBIN";
+                setFormData(createInitialMatchFormData(defaultType));
+                setShowCreateModal(true);
+              }}
+              disabled={!tournament || teams.length < 2 || maps.length === 0}
+            >
               Create Match
             </Button>
           </div>
@@ -272,37 +368,100 @@ function MatchesSection({ token }: { token: string }) {
           )}
           {!tournament ? (
             <p className="text-muted text-center py-4">Create a tournament first.</p>
-          ) : matches.length === 0 ? (
+          ) : visibleMatches.length === 0 ? (
             <p className="text-muted text-center py-4">No matches yet.</p>
           ) : (
             <div className="space-y-8">
-              {Object.entries(matchesByWeek)
-                .sort(([a], [b]) => Number(a) - Number(b))
-                .map(([week, weekMatches]) => (
-                  <div key={week}>
-                    <h3 className="text-sm font-semibold text-muted uppercase tracking-wide mb-3">Week {week}</h3>
+              {roundRobinMatchesByWeek && Object.keys(roundRobinMatchesByWeek).length > 0 && (
+                <div className="space-y-8">
+                  {Object.entries(roundRobinMatchesByWeek)
+                    .sort(([a], [b]) => Number(a) - Number(b))
+                    .map(([week, weekMatches]) => (
+                      <div key={`rr-${week}`}>
+                        <h3 className="text-sm font-semibold text-muted uppercase tracking-wide mb-3">Week {week}</h3>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Match</TableHead>
+                              <TableHead>Type</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>BO</TableHead>
+                              <TableHead>Date</TableHead>
+                              <TableHead>Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {weekMatches.map((match) => (
+                              <TableRow key={match.id}>
+                                <TableCell className="font-medium">{getTeamName(match.teamAId)} vs {getTeamName(match.teamBId)}</TableCell>
+                                <TableCell><Badge variant="secondary">{match.type}</Badge></TableCell>
+                                <TableCell>
+                                  <Badge variant={match.status === "ACTIVE" ? "warning" : match.status === "FINISHED" ? "success" : "default"}>
+                                    {match.status}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>{match.bestOf}</TableCell>
+                                <TableCell className="text-sm text-muted">
+                                  {match.startDate ? new Date(match.startDate).toLocaleDateString() : "—"}
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex gap-2">
+                                    <Button variant="ghost" size="sm" onClick={() => {
+                                      setSelectedMatch(match);
+                                      setFormData({
+                                        type: match.type, bestOf: match.bestOf,
+                                        startDate: match.startDate ? formatForDateTimeInput(match.startDate) : "",
+                                        teamAId: match.teamAId, teamBId: match.teamBId,
+                                        semanas: match.semanas,
+                                        title: match.title || "",
+                                        mapsAllowedByRound: (match.mapsAllowedByRound as any) || {},
+                                      });
+                                      setShowEditModal(true);
+                                    }}>Edit</Button>
+                                    <Button variant="danger" size="sm" onClick={async () => {
+                                      if (!confirm("Delete this match?")) return;
+                                      try { await adminDeleteMatch(token, match.id); showNotif("success", "Match deleted"); loadData(); }
+                                      catch (err: any) { showNotif("error", err.message); }
+                                    }}>Delete</Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    ))}
+                </div>
+              )}
+
+              {bracketTypeOrder.map((type) => {
+                const typeMatches = bracketMatchesByType[type] || [];
+                if (typeMatches.length === 0) return null;
+                return (
+                  <div key={type}>
+                    <h3 className="text-sm font-semibold text-muted uppercase tracking-wide mb-3">{MATCH_TYPE_LABELS[type]}</h3>
                     <Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead>Match</TableHead>
-                          <TableHead>Type</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead>BO</TableHead>
+                          <TableHead>Week</TableHead>
                           <TableHead>Date</TableHead>
                           <TableHead>Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {weekMatches.map((match) => (
+                        {typeMatches.map((match) => (
                           <TableRow key={match.id}>
                             <TableCell className="font-medium">{getTeamName(match.teamAId)} vs {getTeamName(match.teamBId)}</TableCell>
-                            <TableCell><Badge variant="secondary">{match.type}</Badge></TableCell>
                             <TableCell>
                               <Badge variant={match.status === "ACTIVE" ? "warning" : match.status === "FINISHED" ? "success" : "default"}>
                                 {match.status}
                               </Badge>
                             </TableCell>
                             <TableCell>{match.bestOf}</TableCell>
+                            <TableCell className="text-sm text-muted">—</TableCell>
                             <TableCell className="text-sm text-muted">
                               {match.startDate ? new Date(match.startDate).toLocaleDateString() : "—"}
                             </TableCell>
@@ -311,10 +470,13 @@ function MatchesSection({ token }: { token: string }) {
                                 <Button variant="ghost" size="sm" onClick={() => {
                                   setSelectedMatch(match);
                                   setFormData({
-                                    type: match.type, bestOf: match.bestOf,
+                                    type: match.type,
+                                    bestOf: match.bestOf,
                                     startDate: match.startDate ? formatForDateTimeInput(match.startDate) : "",
-                                    teamAId: match.teamAId, teamBId: match.teamBId,
-                                    semanas: match.semanas, title: match.title || "",
+                                    teamAId: match.teamAId,
+                                    teamBId: match.teamBId,
+                                    semanas: match.semanas,
+                                    title: match.title || "",
                                     mapsAllowedByRound: (match.mapsAllowedByRound as any) || {},
                                   });
                                   setShowEditModal(true);
@@ -331,7 +493,8 @@ function MatchesSection({ token }: { token: string }) {
                       </TableBody>
                     </Table>
                   </div>
-                ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
@@ -341,9 +504,9 @@ function MatchesSection({ token }: { token: string }) {
       <Modal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)}>
         <ModalHeader><ModalTitle>Create Match</ModalTitle></ModalHeader>
         <ModalContent>
-          <div className="space-y-4">
-            <Select label="Match Type" value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value as Match["type"] })}
-              options={["ROUNDROBIN", "PLAYINS", "PLAYOFFS", "SEMIFINALS", "FINALS", "PRACTICE"].map((v) => ({ value: v, label: v }))}
+          <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-2">
+            <Select label="Match Type" value={formData.type} onChange={(e) => handleMatchTypeChange(e.target.value as Match["type"])}
+              options={allowedMatchTypes.map((v) => ({ value: v, label: MATCH_TYPE_LABELS[v] }))}
             />
             <div className="grid grid-cols-2 gap-4">
               <Select label="Team A" value={formData.teamAId?.toString()} onChange={(e) => setFormData({ ...formData, teamAId: parseInt(e.target.value) })}
@@ -355,22 +518,28 @@ function MatchesSection({ token }: { token: string }) {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <Input label="Best Of" type="number" value={formData.bestOf} onChange={(e) => setFormData({ ...formData, bestOf: parseInt(e.target.value) })} min={1} max={9} />
-              <Input label="Week" type="number" value={formData.semanas} onChange={(e) => setFormData({ ...formData, semanas: parseInt(e.target.value) })} min={1} />
+              {isRoundRobinForm ? (
+                <Input
+                  label="Week"
+                  type="number"
+                  value={formData.semanas ?? 1}
+                  onChange={(e) => setFormData({ ...formData, semanas: parseInt(e.target.value) })}
+                  min={1}
+                />
+              ) : (
+                <Input label="Week" value="No week for this stage" disabled />
+              )}
             </div>
             <Input label="Start Date" type="datetime-local" value={formData.startDate} onChange={(e) => setFormData({ ...formData, startDate: e.target.value })} />
             <Input label="Title (optional)" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Week 1 Match" />
 
             {/* Map selection per game */}
             <div>
-              <button
-                type="button"
-                className="text-sm text-primary font-medium flex items-center gap-1"
-                onClick={() => setShowMapConfig(!showMapConfig)}
-              >
+              <button type="button" className="text-sm text-primary font-medium flex items-center gap-1" onClick={() => setShowMapConfig(!showMapConfig)}>
                 {showMapConfig ? "▼" : "▶"} Configure maps per game round (optional)
               </button>
               {showMapConfig && (
-                <div className="mt-3 space-y-4 border border-border rounded-lg p-4 bg-surface/50">
+                <div className="mt-3 space-y-4 border border-border rounded-lg p-4 bg-surface/50 max-h-80 overflow-y-auto pr-2">
                   <p className="text-xs text-muted">Select which maps are available for each game. If empty, all maps of that type are allowed.</p>
                   {maps.length === 0 && (
                     <p className="text-xs text-danger">Map catalog is empty. Seed maps first with npm run db:seed:maps.</p>
@@ -411,8 +580,7 @@ function MatchesSection({ token }: { token: string }) {
               const mapsConfig = formData.mapsAllowedByRound && Object.keys(formData.mapsAllowedByRound).some((k) => (formData.mapsAllowedByRound![k] || []).length > 0)
                 ? formData.mapsAllowedByRound : undefined;
               await adminCreateMatch(token, {
-                ...formData,
-                startDate: formData.startDate ? convertToISODateTime(formData.startDate) : "",
+                ...buildMatchPayload(formData),
                 tournamentId: tournament.id,
                 mapsAllowedByRound: mapsConfig,
               } as CreateMatchPayload);
@@ -428,13 +596,23 @@ function MatchesSection({ token }: { token: string }) {
       <Modal isOpen={showEditModal} onClose={() => setShowEditModal(false)}>
         <ModalHeader><ModalTitle>Edit Match</ModalTitle></ModalHeader>
         <ModalContent>
-          <div className="space-y-4">
-            <Select label="Match Type" value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value as Match["type"] })}
-              options={["ROUNDROBIN", "PLAYINS", "PLAYOFFS", "SEMIFINALS", "FINALS", "PRACTICE"].map((v) => ({ value: v, label: v }))}
+          <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-2">
+            <Select label="Match Type" value={formData.type} onChange={(e) => handleMatchTypeChange(e.target.value as Match["type"])}
+              options={allowedMatchTypes.map((v) => ({ value: v, label: MATCH_TYPE_LABELS[v] }))}
             />
             <div className="grid grid-cols-2 gap-4">
               <Input label="Best Of" type="number" value={formData.bestOf} onChange={(e) => setFormData({ ...formData, bestOf: parseInt(e.target.value) })} min={1} max={9} />
-              <Input label="Week" type="number" value={formData.semanas} onChange={(e) => setFormData({ ...formData, semanas: parseInt(e.target.value) })} min={1} />
+              {isRoundRobinForm ? (
+                <Input
+                  label="Week"
+                  type="number"
+                  value={formData.semanas ?? 1}
+                  onChange={(e) => setFormData({ ...formData, semanas: parseInt(e.target.value) })}
+                  min={1}
+                />
+              ) : (
+                <Input label="Week" value="No week for this stage" disabled />
+              )}
             </div>
             <Input label="Start Date" type="datetime-local" value={formData.startDate} onChange={(e) => setFormData({ ...formData, startDate: e.target.value })} />
             <Input label="Title (optional)" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} />
@@ -444,7 +622,7 @@ function MatchesSection({ token }: { token: string }) {
                 {showMapConfig ? "▼" : "▶"} Configure maps per game round
               </button>
               {showMapConfig && (
-                <div className="mt-3 space-y-4 border border-border rounded-lg p-4 bg-surface/50">
+                <div className="mt-3 space-y-4 border border-border rounded-lg p-4 bg-surface/50 max-h-80 overflow-y-auto pr-2">
                   {maps.length === 0 && (
                     <p className="text-xs text-danger">Map catalog is empty. Seed maps first with npm run db:seed:maps.</p>
                   )}
@@ -477,8 +655,10 @@ function MatchesSection({ token }: { token: string }) {
             try {
               const mapsConfig = formData.mapsAllowedByRound && Object.keys(formData.mapsAllowedByRound).some((k) => (formData.mapsAllowedByRound![k] || []).length > 0)
                 ? formData.mapsAllowedByRound : undefined;
-              const isoDate = formData.startDate ? convertToISODateTime(formData.startDate) : formData.startDate;
-              await adminUpdateMatch(token, selectedMatch.id, { ...formData, startDate: isoDate, mapsAllowedByRound: mapsConfig } as Partial<Match>);
+              await adminUpdateMatch(token, selectedMatch.id, {
+                ...buildMatchPayload(formData),
+                mapsAllowedByRound: mapsConfig,
+              } as Partial<Match>);
               setShowEditModal(false);
               showNotif("success", "Match updated");
               loadData();

@@ -51,7 +51,7 @@ export interface CreateMatchPayload {
   teamAId: number;
   teamBId: number;
   tournamentId: number;
-  semanas?: number;
+  semanas?: number | null;
   title?: string;
   mapsAllowedByRound?: Record<string, number[]>;
 }

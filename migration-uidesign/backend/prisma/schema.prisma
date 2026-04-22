@@ -154,7 +154,7 @@ model Match {
   mapWinsTeamB Int @default(0)
 
   gameNumber Int @default(0)
-  semanas Int @default(1)
+  semanas Int?
   title  String?
   mapsAllowedByRound Json?
   mapResults Json?

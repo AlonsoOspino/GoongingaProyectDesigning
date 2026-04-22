@@ -11,6 +11,16 @@ const parsePositiveInt = (value, fieldName) => {
 
 const normalizeMatchType = (value) => String(value || "").trim().toUpperCase();
 
+const ALLOWED_MATCH_TYPES_BY_STATE = {
+  ROUNDROBIN: ["ROUNDROBIN"],
+  PLAYOFFS: ["PLAYINS", "PLAYOFFS"],
+  SEMIFINALS: ["SEMIFINALS"],
+  FINALS: ["FINALS"],
+};
+
+const getAllowedMatchTypesForState = (state) =>
+  ALLOWED_MATCH_TYPES_BY_STATE[String(state || "").trim().toUpperCase()] || null;
+
 const ensureDistinctTeams = (teamAId, teamBId) => {
   const parsedTeamAId = parsePositiveInt(teamAId, "teamAId");
   const parsedTeamBId = parsePositiveInt(teamBId, "teamBId");
@@ -62,7 +72,7 @@ const ensureNoRoundRobinWeekConflict = async ({
   }
 };
 
-const validateRoundRobinWeekRules = async ({ type, tournamentId, semanas }) => {
+const validateMatchRules = async ({ type, tournamentId, semanas }) => {
   const normalizedTournamentId = parsePositiveInt(tournamentId, "tournamentId");
   const tournament = await tournamentRepo.findById(normalizedTournamentId);
 
@@ -71,18 +81,19 @@ const validateRoundRobinWeekRules = async ({ type, tournamentId, semanas }) => {
   }
 
   const normalizedType = normalizeMatchType(type);
-  const isRoundRobinType = normalizedType === "ROUNDROBIN";
-  const isRoundRobinState = tournament.state === "ROUNDROBIN";
-
-  if (isRoundRobinState && !isRoundRobinType) {
-    throw new Error("When tournament state is ROUNDROBIN, match type must be ROUNDROBIN.");
+  const allowedTypes = getAllowedMatchTypesForState(tournament.state);
+  if (allowedTypes && !allowedTypes.includes(normalizedType)) {
+    throw new Error(
+      `When tournament state is ${tournament.state}, match type must be one of: ${allowedTypes.join(", ")}.`
+    );
   }
 
-  if (isRoundRobinType) {
+  if (normalizedType === "ROUNDROBIN") {
     return parsePositiveInt(semanas, "semanas");
   }
 
-  return semanas === undefined ? undefined : parsePositiveInt(semanas, "semanas");
+  // Non-round-robin matches are stage/bracket matches and do not belong to a week.
+  return null;
 };
 
 const getById = async (id) => {
@@ -94,17 +105,16 @@ const getAll = async () => {
 };
 const create = async (data) => {
   const normalizedData = { ...data };
-  normalizedData.semanas = await validateRoundRobinWeekRules({
-    type: normalizedData.type,
+  const normalizedType = normalizeMatchType(normalizedData.type);
+  normalizedData.type = normalizedType;
+
+  normalizedData.semanas = await validateMatchRules({
+    type: normalizedType,
     tournamentId: normalizedData.tournamentId,
     semanas: normalizedData.semanas,
   });
 
-  if (normalizedData.semanas === undefined) {
-    normalizedData.semanas = 1;
-  }
-
-  if (normalizeMatchType(normalizedData.type) === "ROUNDROBIN") {
+  if (normalizedType === "ROUNDROBIN") {
     await ensureNoRoundRobinWeekConflict({
       tournamentId: normalizedData.tournamentId,
       semanas: normalizedData.semanas,
@@ -122,23 +132,25 @@ const update = async (id, data) => {
   }
 
   const normalizedData = { ...data };
-  const nextType = normalizedData.type ?? existing.type;
+  const nextType = normalizeMatchType(normalizedData.type ?? existing.type);
   const nextTournamentId = normalizedData.tournamentId ?? existing.tournamentId;
-  const nextSemanas = normalizedData.semanas ?? existing.semanas;
+  const nextSemanas =
+    Object.prototype.hasOwnProperty.call(normalizedData, "semanas")
+      ? normalizedData.semanas
+      : existing.semanas;
   const nextTeamAId = normalizedData.teamAId ?? existing.teamAId;
   const nextTeamBId = normalizedData.teamBId ?? existing.teamBId;
 
-  const validatedWeek = await validateRoundRobinWeekRules({
+  const validatedWeek = await validateMatchRules({
     type: nextType,
     tournamentId: nextTournamentId,
     semanas: nextSemanas,
   });
 
-  if (validatedWeek !== undefined) {
-    normalizedData.semanas = validatedWeek;
-  }
+  normalizedData.type = nextType;
+  normalizedData.semanas = validatedWeek;
 
-  if (normalizeMatchType(nextType) === "ROUNDROBIN") {
+  if (nextType === "ROUNDROBIN") {
     await ensureNoRoundRobinWeekConflict({
       tournamentId: nextTournamentId,
       semanas: validatedWeek,
