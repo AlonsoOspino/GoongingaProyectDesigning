@@ -187,8 +187,7 @@ const submitResult = async (id, winnerTeamId) => {
     // Match is finished when someone reaches required wins OR we've played all bestOf games
     const isFinished =
       nextMapWinsA >= requiredWins ||
-      nextMapWinsB >= requiredWins ||
-      currentGameBeingReported >= match.bestOf;
+      nextMapWinsB >= requiredWins;
 
     // For next turn: loser picks next map. On draw, alternate.
     const pickForCurrentGame = match.draft?.actions?.find(

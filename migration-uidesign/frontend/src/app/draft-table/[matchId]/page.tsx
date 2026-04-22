@@ -1498,7 +1498,10 @@ function FinishedPhase({
   const teamB = teams.find((t) => t.id === draftState.match.teamBId);
   const teamAWins = draftState.match.mapWinsTeamA;
   const teamBWins = draftState.match.mapWinsTeamB;
-  const winner = teamAWins > teamBWins ? teamA : teamB;
+  let winner = null;
+
+  if (teamAWins > teamBWins) winner = teamA;
+  else if (teamBWins > teamAWins) winner = teamB;
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[50vh]">
