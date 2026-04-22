@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "@/features/session/SessionProvider";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
@@ -43,6 +43,7 @@ export default function DraftTablePage() {
   const [timeLeft, setTimeLeft] = useState(TURN_DURATION);
   const [selectedRole, setSelectedRole] = useState<"ALL" | "TANK" | "DPS" | "SUPPORT">("ALL");
   const [banWarning, setBanWarning] = useState<string | null>(null);
+  const [heroCacheById, setHeroCacheById] = useState<Record<number, Hero>>({});
 
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -56,6 +57,7 @@ export default function DraftTablePage() {
   const teamA = teams.find((t) => t.id === draftState?.match?.teamAId);
   const teamB = teams.find((t) => t.id === draftState?.match?.teamBId);
   const matchStatus = draftState?.match?.status;
+  const currentGameNumber = (draftState?.match?.gameNumber || 0) + 1;
 
   // Show draft history only when match is PENDINGRESULT or FINISHED
   const showDraftHistory = matchStatus === "PENDINGREGISTERS" || matchStatus === "FINISHED" || currentPhase === "FINISHED";
@@ -109,6 +111,18 @@ export default function DraftTablePage() {
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [draftState?.phaseStartedAt, currentPhase]);
+
+  useEffect(() => {
+    const heroes = draftState?.heroes || [];
+    if (!heroes.length) return;
+    setHeroCacheById((prev) => {
+      const next = { ...prev };
+      for (const hero of heroes) {
+        next[hero.id] = hero;
+      }
+      return next;
+    });
+  }, [draftState?.heroes]);
 
   async function loadData() {
     try {
@@ -233,7 +247,7 @@ export default function DraftTablePage() {
   const getBannedHeroesByTeam = (teamId: number): (number | null)[] => {
     if (!draftState?.actions) return [];
     return draftState.actions
-      .filter((a) => a.teamId === teamId && a.action === "BAN" && a.gameNumber === draftState.match.gameNumber)
+      .filter((a) => a.teamId === teamId && a.action === "BAN" && a.gameNumber === currentGameNumber)
       .map((a) => a.value); // Keep nulls to show "NO BAN" slots
   };
 
@@ -251,7 +265,7 @@ export default function DraftTablePage() {
       (a) =>
         a.teamId === teamId &&
         a.action === "BAN" &&
-        a.gameNumber === draftState.match.gameNumber
+        a.gameNumber === currentGameNumber
     ).length;
   };
 
@@ -262,7 +276,7 @@ export default function DraftTablePage() {
       (a) =>
         a.teamId === teamId &&
         a.action === "BAN" &&
-        a.gameNumber === draftState.match.gameNumber &&
+        a.gameNumber === currentGameNumber &&
         a.value !== null &&
         heroesOfRole.includes(a.value)
     ).length;
@@ -292,6 +306,23 @@ export default function DraftTablePage() {
       </div>
     );
   }
+
+  const knownHeroes = useMemo(() => {
+    const byId: Record<number, Hero> = { ...heroCacheById };
+    for (const hero of draftState?.heroes || []) {
+      byId[hero.id] = hero;
+    }
+    return Object.values(byId).sort((a, b) => a.id - b.id);
+  }, [heroCacheById, draftState?.heroes]);
+
+  const getHeroById = useCallback(
+    (heroId: number) => {
+      const liveHero = draftState?.heroes?.find((hero) => hero.id === heroId);
+      if (liveHero) return liveHero;
+      return heroCacheById[heroId] || null;
+    },
+    [draftState?.heroes, heroCacheById]
+  );
 
   if (error || !draftState) {
     return (
@@ -325,7 +356,7 @@ export default function DraftTablePage() {
                 <span className="text-lg font-semibold text-[color:var(--color-team-b)]">{teamB?.name}</span>
               </div>
               <Badge variant="outline" className="text-xs">
-                Game {draftState.match.gameNumber}
+                Game {currentGameNumber}
               </Badge>
             </div>
             <div className="flex items-center gap-4">
@@ -406,6 +437,8 @@ export default function DraftTablePage() {
             isMyTurn={isMyTurn}
             draftState={draftState}
             teams={teams}
+            heroes={knownHeroes}
+            getHeroById={getHeroById}
             myTeamId={myTeamId}
             banWarning={banWarning}
             setBanWarning={setBanWarning}
@@ -429,6 +462,7 @@ export default function DraftTablePage() {
             myTeamId={myTeamId}
             draftState={draftState}
             teams={teams}
+            getHeroById={getHeroById}
             amIReady={amIReady}
             onStartMapPicking={handleStartMapPicking}
             onSubmitResult={handleSubmitResult}
@@ -443,7 +477,7 @@ export default function DraftTablePage() {
         )}
 
         {/* Draft History - Only shown after PENDINGRESULT/FINISHED */}
-        {showDraftHistory && <DraftHistory draftState={draftState} teams={teams} />}
+        {showDraftHistory && <DraftHistory draftState={draftState} teams={teams} getHeroById={getHeroById} />}
       </div>
     </main>
   );
@@ -479,7 +513,7 @@ function StartingPhase({
       <Card className="w-full max-w-2xl">
         <CardContent className="p-8">
           <h2 className="text-2xl font-bold text-center text-foreground mb-2">
-            {match.gameNumber === 1 ? "Waiting to Start" : `Ready for Game ${match.gameNumber}?`}
+            {match.gameNumber === 0 ? "Waiting to Start" : `Ready for Game ${match.gameNumber + 1}?`}
           </h2>
           <p className="text-sm text-muted text-center mb-8">
             Captains can mark ready; manager can start when match operations are prepared
@@ -778,6 +812,8 @@ function BanPhase({
   isMyTurn,
   draftState,
   teams,
+  heroes,
+  getHeroById,
   myTeamId,
   selectedRole,
   setSelectedRole,
@@ -797,6 +833,8 @@ function BanPhase({
   isMyTurn: boolean;
   draftState: DraftState;
   teams: Team[];
+  heroes: Hero[];
+  getHeroById: (heroId: number) => Hero | null;
   myTeamId?: number | null;
   selectedRole: "ALL" | "TANK" | "DPS" | "SUPPORT";
   setSelectedRole: (role: "ALL" | "TANK" | "DPS" | "SUPPORT") => void;
@@ -814,7 +852,6 @@ function BanPhase({
   const currentTeam = teams.find((t) => t.id === draftState.currentTurnTeamId);
   const teamA = teams.find((t) => t.id === draftState.match.teamAId);
   const teamB = teams.find((t) => t.id === draftState.match.teamBId);
-  const heroes = draftState.heroes || [];
   const currentMap = draftState.allMaps?.find((m) => m.id === draftState.currentMapId);
 
   const teamABans = teamA ? getBannedHeroesByTeam(teamA.id) : [];
@@ -841,7 +878,7 @@ function BanPhase({
       );
     }
     
-    const hero = heroes.find((h) => h.id === heroId);
+    const hero = getHeroById(heroId);
     return (
       <div
         key={heroId}
@@ -1170,6 +1207,7 @@ function EndMapPhase({
   myTeamId,
   draftState,
   teams,
+  getHeroById,
   amIReady,
   onStartMapPicking,
   onSubmitResult,
@@ -1182,6 +1220,7 @@ function EndMapPhase({
   myTeamId?: number | null;
   draftState: DraftState;
   teams: Team[];
+  getHeroById: (heroId: number) => Hero | null;
   amIReady: boolean;
   onStartMapPicking: () => void;
   onSubmitResult: (winnerTeamId: number | null) => void;
@@ -1195,7 +1234,7 @@ function EndMapPhase({
   const teamA = teams.find((t) => t.id === draftState.match.teamAId);
   const teamB = teams.find((t) => t.id === draftState.match.teamBId);
   const currentMap = draftState.allMaps?.find((m) => m.id === draftState.currentMapId);
-  const heroes = draftState.heroes || [];
+  const currentGameNumber = (draftState.match.gameNumber || 0) + 1;
 
   // Get banned heroes for this game
   const teamABans = teamA ? getBannedHeroesByTeam(teamA.id) : [];
@@ -1203,7 +1242,7 @@ function EndMapPhase({
 
   // Check if result has been registered for current game
   const currentMapResult = draftState.match.mapResults?.find(
-    (r) => r.gameNumber === draftState.match.gameNumber
+    (r) => r.gameNumber === currentGameNumber
   );
   const resultRegistered = !!currentMapResult;
 
@@ -1225,7 +1264,7 @@ function EndMapPhase({
       );
     }
     
-    const hero = heroes.find((h) => h.id === heroId);
+    const hero = getHeroById(heroId);
     return (
       <div
         key={heroId}
@@ -1251,7 +1290,7 @@ function EndMapPhase({
       {currentMap && (
         <div className="text-center">
           <div className="inline-flex items-center gap-4 bg-surface border border-border rounded-lg px-6 py-3">
-            <span className="text-sm text-muted uppercase tracking-wide">Game {draftState.match.gameNumber} Map</span>
+            <span className="text-sm text-muted uppercase tracking-wide">Game {currentGameNumber} Map</span>
             <span className="text-xl font-bold text-foreground">{currentMap.description}</span>
             <Badge variant="primary">{currentMap.type}</Badge>
           </div>
@@ -1332,7 +1371,7 @@ function EndMapPhase({
             {isManager && !resultRegistered && !matchIsFinished && (
               <div>
                 <h3 className="text-xl font-bold text-foreground mb-2 text-center">
-                  Register Game {draftState.match.gameNumber} Result
+                  Register Game {currentGameNumber} Result
                 </h3>
                 <p className="text-sm text-muted text-center mb-6">
                   Select the winner of {currentMap?.description || "this map"}
@@ -1378,7 +1417,7 @@ function EndMapPhase({
             {/* Manager: Result registered, wait for captains */}
             {isManager && resultRegistered && !matchIsFinished && (
               <div className="text-center">
-                <Badge variant="success" className="mb-4">Game {draftState.match.gameNumber} Result Registered</Badge>
+                <Badge variant="success" className="mb-4">Game {currentGameNumber} Result Registered</Badge>
                 <p className="text-sm text-muted mb-6">
                   Waiting for both captains to be ready for the next map.
                 </p>
@@ -1495,12 +1534,13 @@ function FinishedPhase({
 function DraftHistory({
   draftState,
   teams,
+  getHeroById,
 }: {
   draftState: DraftState;
   teams: Team[];
+  getHeroById: (heroId: number) => Hero | null;
 }) {
   const actions = draftState.actions || [];
-  const heroes = draftState.heroes || [];
   const maps = draftState.allMaps || [];
 
   if (actions.length === 0) return null;
@@ -1517,7 +1557,7 @@ function DraftHistory({
       return map ? `Picked ${map.description}` : `Picked Map #${action.value}`;
     }
     if (action.action === "BAN" && action.value) {
-      const hero = heroes.find((h) => h.id === action.value);
+      const hero = getHeroById(action.value);
       return hero ? `Banned ${hero.name}` : `Banned Hero #${action.value}`;
     }
     return action.action;
