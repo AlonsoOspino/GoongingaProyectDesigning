@@ -45,8 +45,12 @@ export function MatchCard({ match, teamA, teamB }: MatchCardProps) {
       <Card
         variant="bordered"
         className={clsx(
-          "transition-all duration-200 hover:border-primary/50 hover:bg-surface-elevated/50 overflow-hidden",
-          isLive && "border-primary/50 animate-pulse-glow"
+          "transition-all duration-300 hover:border-primary hover:shadow-lg hover:shadow-primary/20 overflow-hidden border-l-4",
+          isLive && "border-primary animate-pulse-glow shadow-lg shadow-primary/30",
+          isFinished && "border-l-success",
+          match.status === "SCHEDULED" && "border-l-primary/50",
+          match.status === "PENDINGREGISTERS" && "border-l-warning",
+          !isLive && !isFinished && match.status !== "PENDINGREGISTERS" && "border-l-accent"
         )}
       >
         {/* Colored top accent bar based on status */}
