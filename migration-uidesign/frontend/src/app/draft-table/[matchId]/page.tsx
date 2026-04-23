@@ -1017,16 +1017,16 @@ function BanPhase({
       {/* Current Map - Top */}
       <div className="text-center">
         {currentMap && (
-          <div className="inline-flex items-center gap-4 bg-surface border-2 border-primary/30 rounded-lg px-6 py-3">
-            <span className="text-sm text-muted uppercase tracking-wide">Current Map</span>
-            <span className="text-2xl font-bold text-foreground">{currentMap.description}</span>
-            <Badge variant="primary" className="text-sm">{currentMap.type}</Badge>
+          <div className="inline-flex items-center gap-6 bg-gradient-to-r from-primary/10 to-accent/10 border-2 border-primary/50 rounded-lg px-8 py-5 shadow-lg shadow-primary/20">
+            <span className="text-xs text-primary uppercase tracking-widest font-bold">Current Map</span>
+            <span className="text-4xl font-black text-foreground">{currentMap.description}</span>
+            <Badge variant="primary" className="text-base px-4 py-2">{currentMap.type}</Badge>
           </div>
         )}
       </div>
 
       {/* Three Column Layout - Team A | Heroes | Team B */}
-      <div className="grid grid-cols-1 md:grid-cols-[280px_1fr_280px] gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr_300px] gap-6 items-stretch min-h-[600px]">
         {/* LEFT - Team A Panel */}
         <Card className={clsx(
           "border-2 transition-all duration-300",
@@ -1064,17 +1064,17 @@ function BanPhase({
               <div className="space-y-2">
                 {teamABans.length === 0 ? (
                   <>
-                    <div className="w-full h-16 rounded-lg border-2 border-dashed border-border flex items-center justify-center bg-surface-elevated/50">
-                      <span className="text-xs text-muted font-semibold">Slot 1</span>
+                    <div className="w-full h-24 rounded-lg border-2 border-dashed border-border flex items-center justify-center bg-surface-elevated/50">
+                      <span className="text-sm text-muted font-semibold">Slot 1</span>
                     </div>
-                    <div className="w-full h-16 rounded-lg border-2 border-dashed border-border flex items-center justify-center bg-surface-elevated/50">
-                      <span className="text-xs text-muted font-semibold">Slot 2</span>
+                    <div className="w-full h-24 rounded-lg border-2 border-dashed border-border flex items-center justify-center bg-surface-elevated/50">
+                      <span className="text-sm text-muted font-semibold">Slot 2</span>
                     </div>
                   </>
                 ) : (
                   <>
                     {teamABans.map((heroId, idx) => (
-                      <div key={`team-a-ban-${idx}`} className="w-full h-16 rounded-lg overflow-hidden border-2 border-danger/50 bg-danger/5 flex items-center justify-center animate-fade-in">
+                      <div key={`team-a-ban-${idx}`} className="w-full h-24 rounded-lg overflow-hidden border-2 border-danger/50 bg-danger/5 flex items-center justify-center animate-fade-in">
                         {heroId === null ? (
                           <span className="text-xs text-muted font-semibold">No Ban</span>
                         ) : (
@@ -1158,7 +1158,7 @@ function BanPhase({
                   {renderHeroSection("Support", supportHeroes, "bg-green-500")}
                 </div>
               ) : (
-                <div className="grid grid-cols-6 sm:grid-cols-8 gap-3">
+                <div className="grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-6 gap-4">
                   {heroes.filter((h) => h.role === selectedRole).map((hero) => {
                     const banned = isHeroBanned(hero.id);
                     const canSelect = isCaptain && isMyTurn && !banned && canBanRole(hero.role);
@@ -1222,17 +1222,17 @@ function BanPhase({
               <div className="space-y-2">
                 {teamBBans.length === 0 ? (
                   <>
-                    <div className="w-full h-16 rounded-lg border-2 border-dashed border-border flex items-center justify-center bg-surface-elevated/50">
-                      <span className="text-xs text-muted font-semibold">Slot 1</span>
+                    <div className="w-full h-24 rounded-lg border-2 border-dashed border-border flex items-center justify-center bg-surface-elevated/50">
+                      <span className="text-sm text-muted font-semibold">Slot 1</span>
                     </div>
-                    <div className="w-full h-16 rounded-lg border-2 border-dashed border-border flex items-center justify-center bg-surface-elevated/50">
-                      <span className="text-xs text-muted font-semibold">Slot 2</span>
+                    <div className="w-full h-24 rounded-lg border-2 border-dashed border-border flex items-center justify-center bg-surface-elevated/50">
+                      <span className="text-sm text-muted font-semibold">Slot 2</span>
                     </div>
                   </>
                 ) : (
                   <>
                     {teamBBans.map((heroId, idx) => (
-                      <div key={`team-b-ban-${idx}`} className="w-full h-16 rounded-lg overflow-hidden border-2 border-danger/50 bg-danger/5 flex items-center justify-center animate-fade-in">
+                      <div key={`team-b-ban-${idx}`} className="w-full h-24 rounded-lg overflow-hidden border-2 border-danger/50 bg-danger/5 flex items-center justify-center animate-fade-in">
                         {heroId === null ? (
                           <span className="text-xs text-muted font-semibold">No Ban</span>
                         ) : (
