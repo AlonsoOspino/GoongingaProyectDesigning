@@ -251,8 +251,12 @@ export default function DraftTablePage() {
       .map((a) => a.value); // Keep nulls to show "NO BAN" slots
   };
 
+  // Check if hero is banned by ANY team in the current game (computed from actions)
   const isHeroBanned = (heroId: number) => {
-    return draftState?.bannedHeroes?.includes(heroId) || false;
+    if (!draftState?.actions) return false;
+    return draftState.actions.some(
+      (a) => a.action === "BAN" && a.value === heroId && a.gameNumber === currentGameNumber
+    );
   };
 
   // Get which team(s) banned a specific hero in current game
