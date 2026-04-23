@@ -255,6 +255,20 @@ export default function DraftTablePage() {
     return draftState?.bannedHeroes?.includes(heroId) || false;
   };
 
+  // Get which team(s) banned a specific hero in current game
+  const getHeroBanInfo = (heroId: number): { bannedByTeamA: boolean; bannedByTeamB: boolean } => {
+    if (!draftState?.actions) return { bannedByTeamA: false, bannedByTeamB: false };
+    const bansForHero = draftState.actions.filter(
+      (a) => a.action === "BAN" && a.value === heroId && a.gameNumber === currentGameNumber
+    );
+    const teamAId = draftState.match.teamAId;
+    const teamBId = draftState.match.teamBId;
+    return {
+      bannedByTeamA: bansForHero.some((a) => a.teamId === teamAId),
+      bannedByTeamB: bansForHero.some((a) => a.teamId === teamBId),
+    };
+  };
+
   const isMapPicked = (mapId: number) => {
     return draftState?.pickedMaps?.includes(mapId) || false;
   };
@@ -446,6 +460,7 @@ export default function DraftTablePage() {
             onBanHero={handleBanHero}
             onEndMap={handleEndMap}
             isHeroBanned={isHeroBanned}
+            getHeroBanInfo={getHeroBanInfo}
             getBannedHeroesByTeam={getBannedHeroesByTeam}
             getTeamTotalBans={getTeamTotalBans}
             getBanCountByRole={getBanCountByRole}
@@ -509,7 +524,7 @@ function StartingPhase({
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh]">
-      <Card className="w-full max-w-2xl">
+      <Card variant="featured" className="w-full max-w-2xl">
         <CardContent className="p-8">
           <h2 className="text-2xl font-bold text-center text-foreground mb-2">
             {match.gameNumber === 0 ? "Waiting to Start" : `Ready for Game ${match.gameNumber + 1}?`}
@@ -677,7 +692,7 @@ function MapPickingPhase({
           )}
 
           {/* Map Grid */}
-          <Card className="border-border">
+          <Card variant="featured">
             <CardHeader className="pb-2 pt-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base">Available Maps</CardTitle>
@@ -780,6 +795,7 @@ function BanPhase({
   onBanHero,
   onEndMap,
   isHeroBanned,
+  getHeroBanInfo,
   getBannedHeroesByTeam,
   getTeamTotalBans,
   getBanCountByRole,
@@ -801,6 +817,7 @@ function BanPhase({
   onBanHero: (heroId: number | null) => void;
   onEndMap: () => void;
   isHeroBanned: (heroId: number) => boolean;
+  getHeroBanInfo: (heroId: number) => { bannedByTeamA: boolean; bannedByTeamB: boolean };
   getBannedHeroesByTeam: (teamId: number) => (number | null)[];
   getTeamTotalBans: (teamId: number) => number;
   getBanCountByRole: (teamId: number, role: "TANK" | "DPS" | "SUPPORT") => number;
@@ -860,6 +877,13 @@ function BanPhase({
 
   // Handle hero click with role limit warning - blocks backend call entirely
   const handleHeroClick = (hero: Hero) => {
+    // Check if hero is already banned by either team
+    if (isHeroBanned(hero.id)) {
+      setBanWarning("This hero is already banned.");
+      setTimeout(() => setBanWarning(null), 3000);
+      return;
+    }
+    
     // Check if team already has 2 total bans
     if (myTeamId && getTeamTotalBans(myTeamId) >= 2) {
       setBanWarning("Your team has already completed both bans.");
@@ -883,6 +907,12 @@ function BanPhase({
     const teamDone = myTeamId ? getTeamTotalBans(myTeamId) >= 2 : false;
     const isDisabled = banned || actionLoading || roleAtLimit || teamDone;
     
+    // Get ban info for manager visual distinction
+    const banInfo = banned ? getHeroBanInfo(hero.id) : null;
+    const bannedByBoth = banInfo?.bannedByTeamA && banInfo?.bannedByTeamB;
+    const bannedByTeamAOnly = banInfo?.bannedByTeamA && !banInfo?.bannedByTeamB;
+    const bannedByTeamBOnly = !banInfo?.bannedByTeamA && banInfo?.bannedByTeamB;
+    
     return (
       <button
         key={hero.id}
@@ -892,7 +922,11 @@ function BanPhase({
           "relative rounded-xl overflow-hidden border-2 transition-all flex flex-col group",
           banned
             ? isManager 
-              ? "border-danger cursor-not-allowed" 
+              ? bannedByBoth
+                ? "border-muted cursor-not-allowed" // Gray for both teams
+                : bannedByTeamAOnly
+                ? "border-[color:var(--color-team-a)] cursor-not-allowed" // Team A color
+                : "border-[color:var(--color-team-b)] cursor-not-allowed" // Team B color
               : "border-muted/50 cursor-not-allowed grayscale"
             : teamDone
             ? "border-border cursor-not-allowed opacity-40"
@@ -911,6 +945,8 @@ function BanPhase({
               className={clsx(
                 "w-full h-full object-cover", 
                 banned && isCaptain && "grayscale opacity-50",
+                banned && isManager && bannedByBoth && "grayscale opacity-40",
+                banned && isManager && !bannedByBoth && "grayscale opacity-60",
                 canSelect && "group-hover:brightness-110"
               )}
             />
@@ -927,10 +963,17 @@ function BanPhase({
             {hero.name}
           </span>
         </div>
-        {/* Banned overlay */}
+        {/* Banned overlay - Manager sees team colors, gray for both */}
         {banned && isManager && (
-          <div className="absolute inset-0 bg-danger/70 flex items-center justify-center">
-            <span className="text-white font-bold text-2xl">X</span>
+          <div className={clsx(
+            "absolute inset-0 flex items-center justify-center",
+            bannedByBoth 
+              ? "bg-muted/70" 
+              : bannedByTeamAOnly 
+              ? "bg-[color:var(--color-team-a)]/60" 
+              : "bg-[color:var(--color-team-b)]/60"
+          )}>
+            <span className="text-white font-bold text-xl">X</span>
           </div>
         )}
         {banned && isCaptain && (
