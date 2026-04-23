@@ -101,7 +101,7 @@ export default function PlayerStatsDetailPage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <Link href="/stats" className="text-sm text-muted hover:text-foreground">Back to Stats</Link>
-        <Card variant="bordered" className="mt-4">
+        <Card variant="featured" className="mt-4">
           <CardContent className="py-10 text-center text-muted">No stats were found for this user.</CardContent>
         </Card>
       </div>
@@ -119,7 +119,7 @@ export default function PlayerStatsDetailPage() {
         ← Back to Stats
       </Link>
 
-      <Card variant="bordered" className="mb-6 overflow-hidden border-primary/30 bg-gradient-to-r from-primary/10 via-surface-elevated/70 to-success/10">
+      <Card variant="featured" className="mb-6 overflow-hidden border-primary/30 bg-gradient-to-r from-primary/10 via-surface-elevated/70 to-success/10">
         <div className="h-1 w-full bg-gradient-to-r from-primary via-warning to-success" />
         <CardContent className="pt-6">
           <div className="flex flex-wrap items-center gap-3 mb-3">
@@ -140,7 +140,7 @@ export default function PlayerStatsDetailPage() {
           { label: "Assists/10", value: userAverage.assistsPer10 },
           { label: "Deaths/10", value: userAverage.deathsPer10 },
         ].map((item) => (
-          <Card key={item.label} variant="bordered" className="bg-surface-elevated/60 border-border/70 hover:border-primary/40 transition-colors">
+          <Card key={item.label} variant="featured" className="bg-surface-elevated/60 border-border/70 hover:border-primary/40 transition-colors">
             <CardContent className="p-4 text-center">
               <p className="text-2xl font-bold font-mono text-foreground">{item.value.toLocaleString()}</p>
               <p className="text-xs text-muted">{item.label}</p>
@@ -149,7 +149,7 @@ export default function PlayerStatsDetailPage() {
         ))}
       </div>
 
-      <Card variant="bordered" className="border-border/60 bg-surface-elevated/50 backdrop-blur">
+      <Card variant="featured" className="border-border/60 bg-surface-elevated/50 backdrop-blur">
         <CardHeader>
           <CardTitle>Comparison vs Top 1</CardTitle>
         </CardHeader>

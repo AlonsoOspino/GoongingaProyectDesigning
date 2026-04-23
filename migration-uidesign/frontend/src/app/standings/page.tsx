@@ -143,7 +143,7 @@ export default function StandingsPage() {
         )}
 
         {/* Standings Table */}
-        <Card variant="bordered" className="border-border/50 bg-surface/50 backdrop-blur overflow-hidden">
+        <Card variant="featured" className="border-border/50 bg-surface/50 backdrop-blur overflow-hidden">
           <CardHeader className="border-b border-border/50">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">

@@ -5,5 +5,10 @@
     "dev": "cd migration-uidesign/frontend && npm run dev",
     "build": "cd migration-uidesign/frontend && npm run build",
     "start": "cd migration-uidesign/frontend && npm run start"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "next": "^16.2.4",
+    "react": "^19.2.5"
   }
 }

@@ -40,8 +40,8 @@ export function NewsCard({ article, variant = "default" }: NewsCardProps) {
   return (
     <Link href={`/news/${article.id}`}>
       <Card
-        variant="bordered"
-        className="overflow-hidden transition-all duration-200 hover:border-primary/50 hover:bg-surface-elevated/50"
+        variant="featured"
+        className="overflow-hidden hover:scale-[1.02]"
       >
         {article.imageUrl && (
           <div className="aspect-video bg-surface-elevated overflow-hidden">

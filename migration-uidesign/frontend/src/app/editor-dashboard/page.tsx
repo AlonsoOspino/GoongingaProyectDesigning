@@ -124,7 +124,7 @@ export default function EditorDashboardPage() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
-          <Card variant="bordered">
+          <Card variant="featured">
             <CardHeader>
               <CardTitle>Create News</CardTitle>
             </CardHeader>
@@ -176,7 +176,7 @@ export default function EditorDashboardPage() {
           </Card>
 
           <div className="space-y-6">
-            <Card variant="bordered">
+            <Card variant="featured">
               <CardHeader>
                 <CardTitle>Image Preview</CardTitle>
               </CardHeader>
@@ -197,7 +197,7 @@ export default function EditorDashboardPage() {
               </CardContent>
             </Card>
 
-            <Card variant="bordered">
+            <Card variant="featured">
               <CardHeader>
                 <CardTitle>Latest News</CardTitle>
               </CardHeader>

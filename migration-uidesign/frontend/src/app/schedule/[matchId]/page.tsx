@@ -101,7 +101,7 @@ export default async function MatchPage({ params }: MatchPageProps) {
       </Link>
 
       {/* Match Header */}
-      <Card variant="bordered" className="mb-8">
+      <Card variant="featured" className="mb-8">
         <CardContent className="p-8">
           {/* Status & Type */}
           <div className="flex items-center justify-center gap-4 mb-8">
@@ -225,7 +225,7 @@ export default async function MatchPage({ params }: MatchPageProps) {
       <div className="grid gap-8 lg:grid-cols-2">
         {/* Map Results */}
         {match.mapResults && match.mapResults.length > 0 && (
-          <Card variant="bordered">
+          <Card variant="featured">
             <CardHeader>
               <CardTitle>Map Results</CardTitle>
             </CardHeader>
@@ -263,7 +263,7 @@ export default async function MatchPage({ params }: MatchPageProps) {
         )}
 
         {/* Ready Status */}
-        <Card variant="bordered">
+        <Card variant="featured">
           <CardHeader>
             <CardTitle>Team Status</CardTitle>
           </CardHeader>
@@ -298,7 +298,7 @@ export default async function MatchPage({ params }: MatchPageProps) {
 
       {/* Actions */}
       {isLive && (
-        <Card variant="bordered" className="mt-8">
+        <Card variant="featured" className="mt-8">
           <CardContent className="p-6 text-center">
             <p className="text-muted mb-4">This match is currently live!</p>
             <Link href="/draft">

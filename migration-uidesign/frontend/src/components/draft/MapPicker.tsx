@@ -34,7 +34,7 @@ export function MapPicker({
   selectedMapId,
 }: MapPickerProps) {
   return (
-    <Card variant="bordered" className="h-full">
+    <Card variant="featured" className="h-full">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>Available Maps</CardTitle>

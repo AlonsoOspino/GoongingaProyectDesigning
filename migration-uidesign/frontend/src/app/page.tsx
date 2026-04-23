@@ -154,7 +154,7 @@ export default async function HomePage() {
           <div className="grid gap-8 lg:grid-cols-3">
             {/* Upcoming Matches */}
             <div className="lg:col-span-2">
-              <Card variant="bordered">
+              <Card variant="featured">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>Upcoming Matches</CardTitle>
                   <Link href="/schedule">
@@ -183,7 +183,7 @@ export default async function HomePage() {
 
               {/* Recent Results */}
               {data.recentMatches.length > 0 && (
-                <Card variant="bordered" className="mt-8">
+                <Card variant="featured" className="mt-8">
                   <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>Recent Results</CardTitle>
                     <Link href="/schedule">
@@ -209,7 +209,7 @@ export default async function HomePage() {
             {/* Sidebar */}
             <div className="space-y-8">
               {/* Standings Preview */}
-              <Card variant="bordered">
+              <Card variant="featured">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>Standings</CardTitle>
                   <Link href="/standings">
@@ -232,7 +232,7 @@ export default async function HomePage() {
               </Card>
 
               {/* Quick Links */}
-              <Card variant="bordered">
+              <Card variant="featured">
                 <CardHeader>
                   <CardTitle>Quick Links</CardTitle>
                 </CardHeader>

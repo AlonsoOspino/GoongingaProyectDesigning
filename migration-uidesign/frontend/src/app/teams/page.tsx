@@ -49,7 +49,7 @@ export default async function TeamsPage() {
           ))}
         </div>
       ) : (
-        <Card variant="bordered">
+        <Card variant="featured">
           <CardContent className="py-12 text-center">
             <p className="text-muted">No teams found</p>
           </CardContent>
@@ -68,8 +68,8 @@ function TeamCardLarge({ team, rank }: { team: Team; rank: number }) {
   return (
     <Link href={`/teams/${team.id}`}>
       <Card
-        variant="bordered"
-        className="h-full transition-all duration-200 hover:border-primary/50 hover:bg-surface-elevated/50"
+        variant="featured"
+        className="h-full hover:scale-[1.02]"
       >
         <CardContent className="p-6">
           {/* Rank Badge */}

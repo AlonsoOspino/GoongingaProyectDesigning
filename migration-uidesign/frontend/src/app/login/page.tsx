@@ -50,7 +50,7 @@ export default function LoginPage() {
           </Link>
         </div>
 
-        <Card variant="bordered">
+        <Card variant="featured">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Welcome Back</CardTitle>
             <p className="text-muted text-sm mt-1">Sign in to your account</p>

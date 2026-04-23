@@ -198,7 +198,7 @@ export default function SchedulePage() {
         </div>
 
         {/* Filters */}
-        <Card variant="bordered" className="mb-6 border-border/50 bg-surface/50 backdrop-blur">
+        <Card variant="featured" className="mb-6 border-border/50 bg-surface/50 backdrop-blur">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-4">
               <svg className="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -308,7 +308,7 @@ export default function SchedulePage() {
                 );
               })()
             ) : (
-              <Card variant="bordered" className="border-border/50">
+              <Card variant="featured" className="border-border/50">
                 <CardContent className="py-12 text-center">
                   <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-4">
                     <svg className="w-8 h-8 text-accent/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -334,7 +334,7 @@ export default function SchedulePage() {
                 ))}
               </div>
             ) : (
-              <Card variant="bordered" className="border-border/50">
+              <Card variant="featured" className="border-border/50">
                 <CardContent className="py-12 text-center">
                   <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-4">
                     <svg className="w-8 h-8 text-success/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -110,7 +110,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         )}
 
         {/* Content */}
-        <Card variant="bordered">
+        <Card variant="featured">
           <CardContent className="p-6 md:p-8">
             <div className="prose prose-invert max-w-none">
               {article.content.split("\n").map((paragraph, idx) => (

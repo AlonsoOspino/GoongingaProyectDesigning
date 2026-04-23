@@ -59,7 +59,7 @@ export function DraftBoard({ actions, teamA, teamB, heroes, maps, currentGameNum
   };
 
   return (
-    <Card variant="bordered" className="h-full">
+    <Card variant="featured" className="h-full">
       <CardHeader>
         <CardTitle className="text-lg">Draft History</CardTitle>
       </CardHeader>

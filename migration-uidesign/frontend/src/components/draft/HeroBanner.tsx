@@ -41,7 +41,7 @@ export function HeroBanner({
   const roleOrder: HeroRole[] = ["TANK", "DPS", "SUPPORT"];
 
   return (
-    <Card variant="bordered" className="h-full">
+    <Card variant="featured" className="h-full">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Hero Bans</CardTitle>
         {isMyTurn && !disabled && onSkip && (

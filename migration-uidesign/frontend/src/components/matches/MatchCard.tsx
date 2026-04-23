@@ -43,10 +43,10 @@ export function MatchCard({ match, teamA, teamB }: MatchCardProps) {
   return (
     <Link href={`/schedule/${match.id}`}>
       <Card
-        variant="bordered"
+        variant="featured"
         className={clsx(
-          "transition-all duration-300 hover:border-primary hover:shadow-lg hover:shadow-primary/20 overflow-hidden border-l-4",
-          isLive && "border-primary animate-pulse-glow shadow-lg shadow-primary/30",
+          "overflow-hidden border-l-4 hover:scale-[1.02]",
+          isLive && "border-primary animate-pulse-glow",
           isFinished && "border-l-success",
           match.status === "SCHEDULED" && "border-l-primary/50",
           match.status === "PENDINGREGISTERS" && "border-l-warning",

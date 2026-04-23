@@ -49,7 +49,7 @@ export default async function NewsPage() {
           ))}
         </div>
       ) : (
-        <Card variant="bordered">
+        <Card variant="featured">
           <CardContent className="py-12 text-center">
             <div className="max-w-md mx-auto">
               <div className="w-16 h-16 rounded-full bg-surface-elevated flex items-center justify-center mx-auto mb-4">

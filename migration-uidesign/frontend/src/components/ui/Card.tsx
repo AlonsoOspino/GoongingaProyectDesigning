@@ -2,7 +2,7 @@ import { forwardRef, type HTMLAttributes } from "react";
 import { clsx } from "clsx";
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
-  variant?: "default" | "elevated" | "bordered" | "gradient";
+  variant?: "default" | "elevated" | "bordered" | "gradient" | "featured";
 }
 
 export const Card = forwardRef<HTMLDivElement, CardProps>(
@@ -17,6 +17,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
             "bg-surface-elevated shadow-lg shadow-black/20": variant === "elevated",
             "bg-card border border-border hover:border-border/80 transition-colors": variant === "bordered",
             "bg-card border border-border before:absolute before:inset-0 before:bg-gradient-to-br before:from-primary/5 before:to-accent/5 before:pointer-events-none": variant === "gradient",
+            "bg-gradient-to-r from-primary/10 to-accent/10 border-2 border-primary/50 shadow-lg shadow-primary/20 hover:border-primary/70 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300": variant === "featured",
           },
           className
         )}

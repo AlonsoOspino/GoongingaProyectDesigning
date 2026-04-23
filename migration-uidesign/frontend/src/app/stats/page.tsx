@@ -110,7 +110,7 @@ export default function StatsPage() {
         </div>
       </div>
 
-      <Card variant="bordered" className="mb-6 border-primary/30 bg-surface-elevated/50 backdrop-blur">
+      <Card variant="featured" className="mb-6 border-primary/30 bg-surface-elevated/50 backdrop-blur">
         <CardHeader>
           <CardTitle>Find player by nickname or user ID</CardTitle>
         </CardHeader>
@@ -156,7 +156,7 @@ export default function StatsPage() {
         {topByMetricSummary.map((item) => (
           <Card
             key={item.key}
-            variant="bordered"
+            variant="featured"
             className={`overflow-hidden border bg-gradient-to-br ${metricCardTone(item.key)}`}
           >
             <CardContent className="pt-4">
@@ -177,7 +177,7 @@ export default function StatsPage() {
         ))}
       </div>
 
-      <Card variant="bordered" className="mb-6 border-border/60 bg-surface-elevated/50 backdrop-blur">
+      <Card variant="featured" className="mb-6 border-border/60 bg-surface-elevated/50 backdrop-blur">
         <CardHeader>
           <CardTitle>Top 10 by metric</CardTitle>
         </CardHeader>

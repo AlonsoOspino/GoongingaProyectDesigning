@@ -116,7 +116,7 @@ export default function MyTeamPage() {
   if (!isAuthenticated) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <Card variant="bordered">
+        <Card variant="featured">
           <CardContent className="py-16 text-center">
             <div className="max-w-md mx-auto">
               <div className="w-16 h-16 rounded-full bg-surface-elevated flex items-center justify-center mx-auto mb-4">
@@ -153,7 +153,7 @@ export default function MyTeamPage() {
   if (!team) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <Card variant="bordered">
+        <Card variant="featured">
           <CardContent className="py-16 text-center">
             <div className="max-w-md mx-auto">
               <div className="w-16 h-16 rounded-full bg-surface-elevated flex items-center justify-center mx-auto mb-4">
@@ -207,7 +207,7 @@ export default function MyTeamPage() {
 
       <div className="grid gap-8 lg:grid-cols-3">
         {/* Team Info Card */}
-        <Card variant="bordered">
+        <Card variant="featured">
           <CardContent className="p-6">
             <div className="flex flex-col items-center text-center">
               <Avatar
@@ -259,7 +259,7 @@ export default function MyTeamPage() {
         {/* Matches */}
         <div className="lg:col-span-2 space-y-6">
           {/* Upcoming */}
-          <Card variant="bordered">
+          <Card variant="featured">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Upcoming Matches</CardTitle>
               <Link href="/schedule">
@@ -286,7 +286,7 @@ export default function MyTeamPage() {
 
           {/* Recent */}
           {recentMatches.length > 0 && (
-            <Card variant="bordered">
+            <Card variant="featured">
               <CardHeader>
                 <CardTitle>Recent Results</CardTitle>
               </CardHeader>
@@ -307,7 +307,7 @@ export default function MyTeamPage() {
 
       {/* Roster Section */}
       {team.roster && (
-        <Card variant="bordered" className="mt-8">
+        <Card variant="featured" className="mt-8">
           <CardHeader>
             <CardTitle>Roster</CardTitle>
           </CardHeader>

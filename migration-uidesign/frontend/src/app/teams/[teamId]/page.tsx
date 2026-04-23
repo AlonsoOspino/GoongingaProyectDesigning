@@ -138,25 +138,25 @@ export default async function TeamPage({ params }: TeamPageProps) {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <Card variant="bordered">
+        <Card variant="featured">
           <CardContent className="p-4 text-center">
             <p className="text-3xl font-bold text-success font-mono">{team.victories}</p>
             <p className="text-sm text-muted">Match Victories</p>
           </CardContent>
         </Card>
-        <Card variant="bordered">
+        <Card variant="featured">
           <CardContent className="p-4 text-center">
             <p className="text-3xl font-bold text-primary font-mono">{team.mapWins}</p>
             <p className="text-sm text-muted">Maps Won</p>
           </CardContent>
         </Card>
-        <Card variant="bordered">
+        <Card variant="featured">
           <CardContent className="p-4 text-center">
             <p className="text-3xl font-bold text-danger font-mono">{team.mapLoses}</p>
             <p className="text-sm text-muted">Maps Lost</p>
           </CardContent>
         </Card>
-        <Card variant="bordered">
+        <Card variant="featured">
           <CardContent className="p-4 text-center">
             <p className="text-3xl font-bold text-accent font-mono">{winRate}%</p>
             <p className="text-sm text-muted">Map Win Rate</p>
@@ -167,7 +167,7 @@ export default async function TeamPage({ params }: TeamPageProps) {
       {/* Content Grid */}
       <div className="grid gap-8 lg:grid-cols-2">
         {/* Upcoming Matches */}
-        <Card variant="bordered">
+        <Card variant="featured">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Upcoming Matches</CardTitle>
             <Link href="/schedule">
@@ -193,7 +193,7 @@ export default async function TeamPage({ params }: TeamPageProps) {
         </Card>
 
         {/* Recent Results */}
-        <Card variant="bordered">
+        <Card variant="featured">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Recent Results</CardTitle>
             <Link href="/schedule">
@@ -221,7 +221,7 @@ export default async function TeamPage({ params }: TeamPageProps) {
 
       {/* Roster Section (if available) */}
       {team.roster && (
-        <Card variant="bordered" className="mt-8">
+        <Card variant="featured" className="mt-8">
           <CardHeader>
             <CardTitle>Roster</CardTitle>
           </CardHeader>
