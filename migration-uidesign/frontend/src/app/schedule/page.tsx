@@ -102,13 +102,13 @@ export default function SchedulePage() {
     });
   }, [visibleMatches, weekFilter, teamFilter, typeFilter]);
 
-  // Group by status
+  // Group by status - PENDINGREGISTERS treated as completed (not active)
   const liveMatches = filteredMatches.filter((m) => m.status === "ACTIVE");
   const upcomingMatches = filteredMatches
-    .filter((m) => m.status === "SCHEDULED" || m.status === "PENDINGREGISTERS")
+    .filter((m) => m.status === "SCHEDULED")
     .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
   const completedMatches = filteredMatches
-    .filter((m) => m.status === "FINISHED")
+    .filter((m) => m.status === "FINISHED" || m.status === "PENDINGREGISTERS")
     .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
 
   const weekOptions = [

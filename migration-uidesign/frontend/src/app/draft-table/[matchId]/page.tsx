@@ -344,7 +344,7 @@ export default function DraftTablePage() {
   if (error || !draftState) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Card className="max-w-md">
+        <Card variant="featured" className="max-w-md">
           <CardContent className="p-8 text-center">
             <p className="text-danger mb-4">{error || "Draft not found"}</p>
             {!isAuthenticated ? (
@@ -1492,7 +1492,7 @@ function FinishedPhase({
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[50vh]">
-      <Card className="w-full max-w-lg">
+      <Card variant="featured" className="w-full max-w-lg">
         <CardContent className="p-8 text-center">
           <Badge variant="success" className="mb-4">MATCH COMPLETE</Badge>
           
@@ -1559,7 +1559,7 @@ function DraftHistory({
   }, {} as Record<number, typeof actions>);
 
   return (
-    <Card className="mt-8">
+    <Card variant="featured" className="mt-8">
       <CardHeader>
         <CardTitle className="text-lg">Draft History</CardTitle>
       </CardHeader>

@@ -97,7 +97,7 @@ export default function CaptainDashboardPage() {
       setMatches(matchesData);
       setTeams(teamsData);
 
-      const activeMyMatches = myMatches.filter((m) => m.status === "ACTIVE" || m.status === "PENDINGREGISTERS");
+        const activeMyMatches = myMatches.filter((m) => m.status === "ACTIVE");
       const draftPromises = activeMyMatches.map(async (match) => {
         try {
           const draft = await getDraftByMatchId(match.id);
@@ -147,8 +147,8 @@ export default function CaptainDashboardPage() {
   const myTeam = teams.find((t) => t.id === user?.teamId);
   const myMatches = matches.filter((m) => m.teamAId === user?.teamId || m.teamBId === user?.teamId);
   const upcomingMatches = myMatches.filter((m) => m.status === "SCHEDULED");
-  const activeMatches = myMatches.filter((m) => m.status === "ACTIVE" || m.status === "PENDINGREGISTERS");
-  const historyMatches = myMatches.filter((m) => m.status === "FINISHED");
+  const activeMatches = myMatches.filter((m) => m.status === "ACTIVE");
+  const historyMatches = myMatches.filter((m) => m.status === "FINISHED" || m.status === "PENDINGREGISTERS");
 
   const getTeamName = (teamId: number) => teams.find((t) => t.id === teamId)?.name || `Team ${teamId}`;
   const isTeamA = (match: Match) => match.teamAId === user?.teamId;
@@ -300,7 +300,7 @@ export default function CaptainDashboardPage() {
         )}
 
         {myTeam && (
-          <Card className="mb-8 border-primary/30">
+          <Card variant="featured" className="mb-8">
             <CardContent className="p-6">
               <div className="flex items-center justify-between flex-wrap gap-4">
                 <div className="flex items-center gap-4">
@@ -390,7 +390,7 @@ export default function CaptainDashboardPage() {
             {loading ? (
               <p className="text-muted text-center py-8">Loading...</p>
             ) : upcomingMatches.length === 0 ? (
-              <Card><CardContent className="py-8 text-center text-muted">No upcoming matches scheduled.</CardContent></Card>
+              <Card variant="featured"><CardContent className="py-8 text-center text-muted">No upcoming matches scheduled.</CardContent></Card>
             ) : (
               <div className="space-y-8">
                 {Object.entries(upcomingByWeek)
@@ -480,7 +480,7 @@ export default function CaptainDashboardPage() {
 
           {/* ACTIVE */}
           <TabsContent value="active">
-            <Card>
+            <Card variant="featured">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   Active Matches
@@ -551,7 +551,7 @@ export default function CaptainDashboardPage() {
 
           {/* HISTORY */}
           <TabsContent value="history">
-            <Card>
+            <Card variant="featured">
               <CardHeader><CardTitle>Match History</CardTitle></CardHeader>
               <CardContent>
                 {loading ? (

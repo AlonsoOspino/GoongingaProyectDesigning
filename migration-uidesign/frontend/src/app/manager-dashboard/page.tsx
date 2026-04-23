@@ -196,7 +196,7 @@ export default function ManagerDashboardPage() {
       setTeams(teamsData);
       setMembers(membersData);
 
-      const activeMatches = matchesData.filter((m) => m.status === "ACTIVE" || m.status === "PENDINGREGISTERS");
+        const activeMatches = matchesData.filter((m) => m.status === "ACTIVE");
       const draftPromises = activeMatches.map(async (match) => {
         try {
           const draft = await getDraftByMatchId(match.id);
@@ -529,7 +529,7 @@ export default function ManagerDashboardPage() {
             { label: "Active", count: activeMatches.length, color: "text-accent" },
             { label: "Pending Results", count: pendingMatches.length, color: "text-warning" },
           ].map(({ label, count, color }) => (
-            <Card key={label}>
+            <Card key={label} variant="featured">
               <CardContent className="p-6">
                 <p className="text-sm text-muted">{label}</p>
                 <p className={`text-3xl font-bold ${color}`}>{count}</p>
@@ -661,7 +661,7 @@ export default function ManagerDashboardPage() {
 
           {/* ACTIVE TAB */}
           <TabsContent value="active">
-            <Card>
+            <Card variant="featured">
               <CardHeader><CardTitle>Active Matches</CardTitle></CardHeader>
               <CardContent>
                 {loading ? (
@@ -701,7 +701,7 @@ export default function ManagerDashboardPage() {
 
           {/* PENDING TAB */}
           <TabsContent value="pending">
-            <Card>
+            <Card variant="featured">
               <CardHeader><CardTitle>Pending Results</CardTitle></CardHeader>
               <CardContent>
                 {loading ? (
@@ -932,7 +932,7 @@ export default function ManagerDashboardPage() {
           <TabsContent value="stats">
             <div className="space-y-6">
               {/* Search bar */}
-              <Card>
+              <Card variant="featured">
                 <CardContent className="p-4">
                   <Input
                     label="Search player"
@@ -945,7 +945,7 @@ export default function ManagerDashboardPage() {
 
               {/* If searching, show player summary card first */}
               {searchedPlayer && (
-                <Card className="border-primary/30">
+                <Card variant="featured">
                   <CardContent className="p-6">
                     <p className="text-xs text-primary uppercase tracking-wide font-semibold mb-2">Player Average Stats / 10 min</p>
                     <p className="text-xl font-bold text-foreground mb-4">{searchedPlayer.nickname} <span className="text-sm text-muted font-normal">({searchedPlayer.games} games)</span></p>
@@ -999,7 +999,7 @@ export default function ManagerDashboardPage() {
               </div>
 
               {/* Stats table */}
-              <Card>
+              <Card variant="featured">
                 <CardHeader>
                   <CardTitle>
                     {statsTopFilter
