@@ -1017,90 +1017,81 @@ function BanPhase({
       {/* Current Map - Top */}
       <div className="text-center">
         {currentMap && (
-          <div className="inline-flex items-center gap-4 bg-surface border border-border rounded-lg px-6 py-3">
+          <div className="inline-flex items-center gap-4 bg-surface border-2 border-primary/30 rounded-lg px-6 py-3">
             <span className="text-sm text-muted uppercase tracking-wide">Current Map</span>
-            <span className="text-xl font-bold text-foreground">{currentMap.description}</span>
-            <Badge variant="primary">{currentMap.type}</Badge>
+            <span className="text-2xl font-bold text-foreground">{currentMap.description}</span>
+            <Badge variant="primary" className="text-sm">{currentMap.type}</Badge>
           </div>
         )}
       </div>
 
-      {/* Two Column Layout - Teams Panel + Hero Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-6">
-        {/* Left - Combined Teams Panel */}
-        <Card className="border-border h-fit">
+      {/* Three Column Layout - Team A | Heroes | Team B */}
+      <div className="grid grid-cols-1 md:grid-cols-[280px_1fr_280px] gap-4 items-start">
+        {/* LEFT - Team A Panel */}
+        <Card className={clsx(
+          "border-2 transition-all duration-300",
+          isTeamATurn 
+            ? "border-[color:var(--color-team-a)] ring-2 ring-[color:var(--color-team-a)]/30 shadow-lg shadow-[color:var(--color-team-a)]/10" 
+            : "border-border"
+        )}>
+          <CardHeader className="pb-2">
+            <div className="flex items-center gap-2">
+              <div className={clsx("w-4 h-4 rounded-full", isTeamATurn && "animate-pulse")} style={{backgroundColor: "var(--color-team-a)"}} />
+              <CardTitle className="text-lg text-[color:var(--color-team-a)]">{teamA?.name}</CardTitle>
+            </div>
+          </CardHeader>
           <CardContent className="p-4">
-            {/* Team A */}
-            <div className={clsx(
-              "rounded-lg p-3 mb-4 transition-all",
-              isTeamATurn ? "bg-[color:var(--color-team-a)]/10 ring-2 ring-[color:var(--color-team-a)]" : "bg-surface-elevated"
-            )}>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-3 h-3 rounded-full bg-[color:var(--color-team-a)]" />
-                <h3 className="font-semibold text-foreground text-sm flex-1">{teamA?.name}</h3>
-                {teamABans.length >= 2 ? (
-                  <Badge variant="success" className="text-[10px]">Done</Badge>
-                ) : isTeamATurn ? (
-                  <Badge variant="danger" className="text-[10px]">Banning</Badge>
-                ) : null}
-              </div>
-              <p className="text-[10px] text-muted mb-2 uppercase tracking-wide">Banned Heroes</p>
-              <div className="flex gap-2">
-                {teamABans.length === 0 ? (
-                  <>
-                    <div className="w-12 h-12 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
-                      <span className="text-[10px] text-muted">1</span>
-                    </div>
-                    <div className="w-12 h-12 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
-                      <span className="text-[10px] text-muted">2</span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    {teamABans.map((heroId, idx) => renderBannedHero(heroId, idx))}
-                    {teamABans.length < 2 && (
-                      <div className="w-12 h-12 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
-                        <span className="text-[10px] text-muted">{teamABans.length + 1}</span>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
+            {/* Status Badge */}
+            <div className="mb-4">
+              {teamABans.length >= 2 ? (
+                <Badge variant="success" className="w-full justify-center py-2 text-sm">
+                  ✓ Bans Complete
+                </Badge>
+              ) : isTeamATurn ? (
+                <Badge variant="danger" className="w-full justify-center py-2 text-sm animate-pulse">
+                  Banning Now...
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="w-full justify-center py-2 text-sm">
+                  Waiting
+                </Badge>
+              )}
             </div>
 
-            <div className="border-t border-border my-3" />
-
-            {/* Team B */}
-            <div className={clsx(
-              "rounded-lg p-3 transition-all",
-              isTeamBTurn ? "bg-[color:var(--color-team-b)]/10 ring-2 ring-[color:var(--color-team-b)]" : "bg-surface-elevated"
-            )}>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-3 h-3 rounded-full bg-[color:var(--color-team-b)]" />
-                <h3 className="font-semibold text-foreground text-sm flex-1">{teamB?.name}</h3>
-                {teamBBans.length >= 2 ? (
-                  <Badge variant="success" className="text-[10px]">Done</Badge>
-                ) : isTeamBTurn ? (
-                  <Badge variant="danger" className="text-[10px]">Banning</Badge>
-                ) : null}
-              </div>
-              <p className="text-[10px] text-muted mb-2 uppercase tracking-wide">Banned Heroes</p>
-              <div className="flex gap-2">
-                {teamBBans.length === 0 ? (
+            {/* Banned Heroes Section */}
+            <div className="space-y-2">
+              <p className="text-xs text-muted uppercase tracking-wider font-semibold">Banned Heroes</p>
+              <div className="space-y-2">
+                {teamABans.length === 0 ? (
                   <>
-                    <div className="w-12 h-12 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
-                      <span className="text-[10px] text-muted">1</span>
+                    <div className="w-full h-16 rounded-lg border-2 border-dashed border-border flex items-center justify-center bg-surface-elevated/50">
+                      <span className="text-xs text-muted font-semibold">Slot 1</span>
                     </div>
-                    <div className="w-12 h-12 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
-                      <span className="text-[10px] text-muted">2</span>
+                    <div className="w-full h-16 rounded-lg border-2 border-dashed border-border flex items-center justify-center bg-surface-elevated/50">
+                      <span className="text-xs text-muted font-semibold">Slot 2</span>
                     </div>
                   </>
                 ) : (
                   <>
-                    {teamBBans.map((heroId, idx) => renderBannedHero(heroId, idx))}
-                    {teamBBans.length < 2 && (
-                      <div className="w-12 h-12 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
-                        <span className="text-[10px] text-muted">{teamBBans.length + 1}</span>
+                    {teamABans.map((heroId, idx) => (
+                      <div key={`team-a-ban-${idx}`} className="w-full h-16 rounded-lg overflow-hidden border-2 border-danger/50 bg-danger/5 flex items-center justify-center animate-fade-in">
+                        {heroId === null ? (
+                          <span className="text-xs text-muted font-semibold">No Ban</span>
+                        ) : (
+                          (() => {
+                            const hero = getHeroById(heroId);
+                            return hero?.imgPath ? (
+                              <img src={resolveHeroImageUrl(hero.imgPath)} alt={hero.name} className="w-full h-full object-cover grayscale" />
+                            ) : (
+                              <span className="text-xs text-danger font-bold">Hero #{heroId}</span>
+                            );
+                          })()
+                        )}
+                      </div>
+                    ))}
+                    {teamABans.length < 2 && (
+                      <div className="w-full h-16 rounded-lg border-2 border-dashed border-border flex items-center justify-center bg-surface-elevated/50">
+                        <span className="text-xs text-muted font-semibold">Slot {teamABans.length + 1}</span>
                       </div>
                     )}
                   </>
@@ -1110,87 +1101,161 @@ function BanPhase({
           </CardContent>
         </Card>
 
-        {/* Right - Hero Grid (now has more space) */}
-        <Card className="border-border">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Hero Bans</CardTitle>
-              <div className="flex items-center gap-2">
-                {isCaptain && myTeamId && getTeamTotalBans(myTeamId) >= 2 && (
-                  <Badge variant="success">Your bans complete</Badge>
-                )}
-                {isCaptain && isMyTurn && myTeamId && getTeamTotalBans(myTeamId) < 2 && (
-                  <Badge variant="warning" className="animate-pulse">Your Turn to Ban</Badge>
-                )}
-                {isManager && (
-                  <Button size="sm" variant="secondary" onClick={onEndMap} disabled={actionLoading}>
-                    End Map (Skip)
-                  </Button>
-                )}
+        {/* CENTER - Hero Grid */}
+        <div className="space-y-4">
+          <Card className="border-border">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xl">Hero Bans</CardTitle>
+                <div className="flex items-center gap-2">
+                  {isCaptain && isMyTurn && myTeamId && getTeamTotalBans(myTeamId) < 2 && (
+                    <Badge variant="warning" className="animate-pulse-glow">Your Turn</Badge>
+                  )}
+                  {isManager && (
+                    <Button size="sm" variant="secondary" onClick={onEndMap} disabled={actionLoading}>
+                      End Map
+                    </Button>
+                  )}
+                </div>
               </div>
+            </CardHeader>
+            <CardContent className="p-4">
+              {/* Role Tabs */}
+              <div className="flex gap-2 mb-6">
+                {(["ALL", "TANK", "DPS", "SUPPORT"] as const).map((role) => (
+                  <Button
+                    key={role}
+                    variant={selectedRole === role ? "default" : "ghost"}
+                    onClick={() => setSelectedRole(role)}
+                    className="flex-1"
+                    size="sm"
+                  >
+                    {role === "ALL" ? "All" : role}
+                    {isCaptain && isMyTurn && role !== "ALL" && !canBanRole(role) && (
+                      <span className="ml-1.5 text-[10px] opacity-60">(Max)</span>
+                    )}
+                  </Button>
+                ))}
+              </div>
+
+              {isCaptain && myTeamId && getTeamTotalBans(myTeamId) >= 2 && (
+                <div className="mb-4 p-4 rounded-lg bg-success/10 border-2 border-success/30 text-center animate-fade-in">
+                  <p className="text-sm text-success font-semibold">✓ Your team has completed both bans</p>
+                </div>
+              )}
+              
+              {isCaptain && !isMyTurn && myTeamId && getTeamTotalBans(myTeamId) < 2 && (
+                <div className="mb-4 p-4 rounded-lg bg-surface-elevated border-2 border-border text-center animate-fade-in">
+                  <p className="text-sm text-muted font-semibold">Waiting for {currentTeam?.name} to ban...</p>
+                </div>
+              )}
+
+              {/* Render heroes by role */}
+              {selectedRole === "ALL" ? (
+                <div className="space-y-6 max-h-[600px] overflow-y-auto pr-2">
+                  {renderHeroSection("Tank", tankHeroes, "bg-yellow-500")}
+                  {renderHeroSection("DPS", dpsHeroes, "bg-red-500")}
+                  {renderHeroSection("Support", supportHeroes, "bg-green-500")}
+                </div>
+              ) : (
+                <div className="grid grid-cols-6 sm:grid-cols-8 gap-3">
+                  {heroes.filter((h) => h.role === selectedRole).map((hero) => {
+                    const banned = isHeroBanned(hero.id);
+                    const canSelect = isCaptain && isMyTurn && !banned && canBanRole(hero.role);
+                    return renderHeroCard(hero, canSelect, banned);
+                  })}
+                </div>
+              )}
+
+              {/* Skip Ban Button */}
+              {isCaptain && isMyTurn && myTeamId && getTeamTotalBans(myTeamId) < 2 && (
+                <div className="mt-6 text-center">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onBanHero(null)}
+                    disabled={actionLoading}
+                    className="text-muted hover:text-foreground"
+                  >
+                    Skip Ban (No Hero)
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* RIGHT - Team B Panel */}
+        <Card className={clsx(
+          "border-2 transition-all duration-300",
+          isTeamBTurn 
+            ? "border-[color:var(--color-team-b)] ring-2 ring-[color:var(--color-team-b)]/30 shadow-lg shadow-[color:var(--color-team-b)]/10" 
+            : "border-border"
+        )}>
+          <CardHeader className="pb-2">
+            <div className="flex items-center gap-2">
+              <div className={clsx("w-4 h-4 rounded-full", isTeamBTurn && "animate-pulse")} style={{backgroundColor: "var(--color-team-b)"}} />
+              <CardTitle className="text-lg text-[color:var(--color-team-b)]">{teamB?.name}</CardTitle>
             </div>
           </CardHeader>
-          <CardContent>
-            {/* Role Tabs */}
-            <div className="flex gap-2 mb-6">
-              {(["ALL", "TANK", "DPS", "SUPPORT"] as const).map((role) => (
-                <Button
-                  key={role}
-                  variant={selectedRole === role ? "default" : "ghost"}
-                  onClick={() => setSelectedRole(role)}
-                  className="flex-1"
-                  size="sm"
-                >
-                  {role === "ALL" ? "All" : role}
-                  {isCaptain && isMyTurn && role !== "ALL" && !canBanRole(role) && (
-                    <span className="ml-1.5 text-[10px] opacity-60">(Max)</span>
-                  )}
-                </Button>
-              ))}
+          <CardContent className="p-4">
+            {/* Status Badge */}
+            <div className="mb-4">
+              {teamBBans.length >= 2 ? (
+                <Badge variant="success" className="w-full justify-center py-2 text-sm">
+                  ✓ Bans Complete
+                </Badge>
+              ) : isTeamBTurn ? (
+                <Badge variant="danger" className="w-full justify-center py-2 text-sm animate-pulse">
+                  Banning Now...
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="w-full justify-center py-2 text-sm">
+                  Waiting
+                </Badge>
+              )}
             </div>
 
-            {isCaptain && myTeamId && getTeamTotalBans(myTeamId) >= 2 && (
-              <div className="mb-4 p-3 rounded-lg bg-success/10 border border-success/30 text-center">
-                <p className="text-sm text-success font-medium">Your team has completed both bans. Waiting for other team...</p>
+            {/* Banned Heroes Section */}
+            <div className="space-y-2">
+              <p className="text-xs text-muted uppercase tracking-wider font-semibold">Banned Heroes</p>
+              <div className="space-y-2">
+                {teamBBans.length === 0 ? (
+                  <>
+                    <div className="w-full h-16 rounded-lg border-2 border-dashed border-border flex items-center justify-center bg-surface-elevated/50">
+                      <span className="text-xs text-muted font-semibold">Slot 1</span>
+                    </div>
+                    <div className="w-full h-16 rounded-lg border-2 border-dashed border-border flex items-center justify-center bg-surface-elevated/50">
+                      <span className="text-xs text-muted font-semibold">Slot 2</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {teamBBans.map((heroId, idx) => (
+                      <div key={`team-b-ban-${idx}`} className="w-full h-16 rounded-lg overflow-hidden border-2 border-danger/50 bg-danger/5 flex items-center justify-center animate-fade-in">
+                        {heroId === null ? (
+                          <span className="text-xs text-muted font-semibold">No Ban</span>
+                        ) : (
+                          (() => {
+                            const hero = getHeroById(heroId);
+                            return hero?.imgPath ? (
+                              <img src={resolveHeroImageUrl(hero.imgPath)} alt={hero.name} className="w-full h-full object-cover grayscale" />
+                            ) : (
+                              <span className="text-xs text-danger font-bold">Hero #{heroId}</span>
+                            );
+                          })()
+                        )}
+                      </div>
+                    ))}
+                    {teamBBans.length < 2 && (
+                      <div className="w-full h-16 rounded-lg border-2 border-dashed border-border flex items-center justify-center bg-surface-elevated/50">
+                        <span className="text-xs text-muted font-semibold">Slot {teamBBans.length + 1}</span>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
-            )}
-            
-            {isCaptain && !isMyTurn && myTeamId && getTeamTotalBans(myTeamId) < 2 && (
-              <div className="mb-4 p-3 rounded-lg bg-surface-elevated text-center">
-                <p className="text-sm text-muted">Waiting for {currentTeam?.name} to ban...</p>
-              </div>
-            )}
-
-            {/* Render heroes by role when ALL is selected */}
-            {selectedRole === "ALL" ? (
-              <div className="space-y-6 max-h-[500px] overflow-y-auto pr-2">
-                {renderHeroSection("Tank", tankHeroes, "bg-yellow-500")}
-                {renderHeroSection("DPS", dpsHeroes, "bg-red-500")}
-                {renderHeroSection("Support", supportHeroes, "bg-green-500")}
-              </div>
-            ) : (
-              <div className="grid grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-2">
-                {heroes.filter((h) => h.role === selectedRole).map((hero) => {
-                  const banned = isHeroBanned(hero.id);
-                  const canSelect = isCaptain && isMyTurn && !banned && canBanRole(hero.role);
-                  return renderHeroCard(hero, canSelect, banned);
-                })}
-              </div>
-            )}
-
-            {/* Skip Ban Button - only show if team hasn't completed bans */}
-            {isCaptain && isMyTurn && myTeamId && getTeamTotalBans(myTeamId) < 2 && (
-              <div className="mt-6 text-center">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onBanHero(null)}
-                  disabled={actionLoading}
-                >
-                  Skip Ban (No Hero)
-                </Button>
-              </div>
-            )}
+            </div>
           </CardContent>
         </Card>
       </div>

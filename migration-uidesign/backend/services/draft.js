@@ -533,17 +533,18 @@ const banHero = async (draftId, payload, user) => {
     }
 
     if (!hasNoBan && heroId !== null) {
-      const alreadyBannedInGame = await tx.draftAction.findFirst({
+      const alreadyBannedByThisTeam = await tx.draftAction.findFirst({
         where: {
           draftId: freshDraft.id,
           action: "BAN",
           gameNumber: currentGame,
           value: heroId,
+          teamId: actingTeamId,
         },
       });
 
-      if (alreadyBannedInGame) {
-        throw new Error("Hero already banned in this game.");
+      if (alreadyBannedByThisTeam) {
+        throw new Error("Your team already banned this hero in this game.");
       }
 
       const bannedHeroIdsThisGame = bansThisGame
