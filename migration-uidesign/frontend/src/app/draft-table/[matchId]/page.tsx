@@ -1105,17 +1105,12 @@ function BanPhase({
             {/* Red overlay for previous game bans - Manager view (shows always for manager to track) */}
             {isManager && wasBannedBefore && (
               prevBannedByBoth ? (
-                // Full red for both teams - both teams have banned this hero before
-                <div className="absolute inset-0 bg-danger/50 flex items-center justify-center">
-                  <div className="bg-danger/80 rounded px-1">
-                    <span className="text-white font-bold text-[10px]">2 TEAMS</span>
-                  </div>
-                </div>
+                // Full red overlay for both teams
+                <div className="absolute inset-0 bg-danger/40" />
               ) : (
-                // Exact half red for one team - vertical split with clear dividing line
+                // Vertical line in the middle for one team banned
                 <div className="absolute inset-0">
-                  <div className="absolute top-0 bottom-0 left-0 w-1/2 bg-danger/50" />
-                  <div className="absolute top-0 bottom-0 left-1/2 w-[2px] bg-danger" />
+                  <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-1 bg-danger/60" />
                 </div>
               )
             )}
@@ -1141,10 +1136,15 @@ function BanPhase({
               <span className="text-white font-semibold text-[10px] uppercase">Banned</span>
             </div>
           )}
-          {/* Previous game banned overlay for captain - RED X (only the X icon, bg is in image area) */}
+          {/* Previous game banned overlay for captain - diagonal red lines (ban indicator) */}
           {!banned && isCaptain && myTeamBannedBefore && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <span className="text-danger font-bold text-lg drop-shadow-lg">X</span>
+              <div className="relative w-full h-full flex items-center justify-center">
+                <svg className="absolute w-6 h-6 text-danger" fill="currentColor" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.8" />
+                  <path d="M8 8l8 8M16 8l-8 8" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                </svg>
+              </div>
             </div>
           )}
         </button>
