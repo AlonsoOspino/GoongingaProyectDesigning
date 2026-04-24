@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { getDraftState } from "@/lib/api/draft";
 import type { DraftState } from "@/lib/api/types";
+import { getServerNow } from "@/lib/serverTime";
 
 interface UseDraftPollingOptions {
   draftId: number | null;
@@ -48,9 +49,12 @@ export function useDraftPolling({
         lastPhaseRef.current = state.phase;
         lastPhaseStartRef.current = state.phaseStartedAt;
 
-        // Calculate time remaining from phaseStartedAt
+        // Calculate time remaining from phaseStartedAt using server time.
+        // phaseStartedAt comes from the backend; mixing it with the client clock
+        // (Date.now) introduces skew if the user's machine clock is off. Using
+        // getServerNow() aligns both sides of the subtraction.
         const phaseStart = new Date(state.phaseStartedAt).getTime();
-        const now = Date.now();
+        const now = getServerNow();
         const elapsed = Math.floor((now - phaseStart) / 1000);
         const remaining = Math.max(0, PHASE_DURATION - elapsed);
         setTimeRemaining(remaining);

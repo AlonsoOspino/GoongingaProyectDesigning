@@ -1,3 +1,5 @@
+import { setServerTimeFromDateHeader } from "@/lib/serverTime";
+
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
@@ -42,6 +44,10 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     body: options.formData ?? (options.body !== undefined ? JSON.stringify(options.body) : undefined),
     cache: options.cache,
   });
+
+  // Piggy-back on the standard HTTP `Date` response header to keep the
+  // client↔server clock offset in sync. See src/lib/serverTime.ts.
+  setServerTimeFromDateHeader(response.headers.get("date"));
 
   const contentType = response.headers.get("content-type") ?? "";
   const payload = contentType.includes("application/json")

@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/Input";
 import { Modal, ModalHeader, ModalTitle, ModalContent, ModalFooter } from "@/components/ui/Modal";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
 import { getMatches, getTeams, updateCaptainMatch, updateCaptainTeam, getDraftByMatchId, type Match, type Team, type DraftState } from "@/lib/api";
+import { formatRelativeEST, formatTimeEST, isWithinNextHoursEST } from "@/lib/dateUtils";
 import { clsx } from "clsx";
 
 type TabValue = "upcoming" | "active" | "history";
@@ -254,19 +255,12 @@ export default function CaptainDashboardPage() {
     }
   }
 
-  const isMatchSoon = (dateStr: string) => {
-    const diffHours = (new Date(dateStr).getTime() - Date.now()) / (1000 * 60 * 60);
-    return diffHours <= 24 && diffHours >= 0;
-  };
-
-  const formatMatchDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const diffDays = Math.ceil((date.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-    if (diffDays === 0) return "Today";
-    if (diffDays === 1) return "Tomorrow";
-    if (diffDays < 7) return `In ${diffDays} days`;
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  };
+  // All time labels in this dashboard are measured against server time (via
+  // the HTTP Date response header) and rendered in EST. See src/lib/serverTime.ts
+  // and src/lib/dateUtils.ts. This keeps labels correct regardless of the
+  // captain's local timezone or a skewed machine clock.
+  const isMatchSoon = (dateStr: string) => isWithinNextHoursEST(dateStr, 24);
+  const formatMatchDate = (dateStr: string) => formatRelativeEST(dateStr);
 
   if (!isHydrated) {
     return <div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-muted">Loading...</div></div>;
@@ -352,7 +346,7 @@ export default function CaptainDashboardPage() {
                 </p>
                 <p className="text-sm text-muted mt-1">
                   Week {nextMatch.semanas} · BO{nextMatch.bestOf} · {formatMatchDate(nextMatch.startDate)}
-                  {" at "}{new Date(nextMatch.startDate).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  {" at "}{formatTimeEST(nextMatch.startDate)}
                 </p>
               </div>
               <div className="flex items-center gap-3">
@@ -431,7 +425,7 @@ export default function CaptainDashboardPage() {
                                         <>
                                           <span className={isSoon ? "text-warning font-medium" : ""}>{formatMatchDate(match.startDate)}</span>
                                           <span>·</span>
-                                          <span>{new Date(match.startDate).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                                          <span>{formatTimeEST(match.startDate)}</span>
                                           <span>·</span>
                                           <span>Best of {match.bestOf}</span>
                                         </>
