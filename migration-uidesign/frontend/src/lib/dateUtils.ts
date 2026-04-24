@@ -89,37 +89,88 @@ export function isWithinNextHoursEST(isoString: string, hours = 24): boolean {
 }
 
 /**
- * Convert a date input (from HTML date/datetime-local input) to ISO-8601 DateTime in EST
- * @param dateString - Date string from input (YYYY-MM-DD or YYYY-MM-DDTHH:MM)
- * @returns ISO-8601 DateTime string
+ * Number of minutes that `America/New_York` is behind UTC at the given
+ * instant. 300 during EST (winter), 240 during EDT (summer). Used to
+ * convert wall-clock times that the admin types into an input labelled
+ * "(EST)" into the absolute UTC instant we store in the database.
+ */
+function getNyOffsetMinutesAt(utcMs: number): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(new Date(utcMs));
+
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value);
+  // `hour` may come through as "24" at midnight; normalize to 0.
+  const hour = get("hour") % 24;
+  const nyAsUtc = Date.UTC(
+    get("year"),
+    get("month") - 1,
+    get("day"),
+    hour,
+    get("minute"),
+    get("second"),
+  );
+  return Math.round((utcMs - nyAsUtc) / 60_000);
+}
+
+/**
+ * Convert a wall-clock time in `America/New_York` (EST/EDT) into the
+ * absolute UTC instant, honouring DST. We iterate once near transitions so
+ * e.g. "2026-03-08 02:30" (nonexistent during the spring-forward) still
+ * resolves consistently.
+ */
+function nyWallTimeToUtc(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+): Date {
+  // Start by pretending the wall time is UTC, then shift by the NY offset
+  // at that approximate instant.
+  const approx = Date.UTC(year, month - 1, day, hour, minute, 0);
+  const offset1 = getNyOffsetMinutesAt(approx);
+  const candidate = approx + offset1 * 60_000;
+  const offset2 = getNyOffsetMinutesAt(candidate);
+  const utcMs = offset1 === offset2 ? candidate : approx + offset2 * 60_000;
+  return new Date(utcMs);
+}
+
+/**
+ * Convert a date input (from HTML date/datetime-local input) to an ISO-8601
+ * UTC string, interpreting the value as wall-clock time in EST/EDT.
+ *
+ * The admin-facing inputs are labelled "(EST)", but the browser's
+ * `datetime-local` control produces the raw string the user typed without
+ * any timezone attached. A previous implementation fed those digits straight
+ * into `Date.UTC(...)`, which silently stored them as UTC — so a tournament
+ * scheduled for "8:00 PM EST" ended up saved as 8:00 PM UTC (4-5h earlier
+ * than intended), and the header countdown reflected that wrong instant.
+ *
+ * @param dateString - "YYYY-MM-DD" or "YYYY-MM-DDTHH:MM"
  */
 export function convertToISODateTime(dateString: string): string {
   if (!dateString) {
     throw new Error("Date string is required");
   }
 
-  const date = new Date(dateString);
-  
-  // If datetime-local input, parse it correctly
   if (dateString.includes("T")) {
     const [datePart, timePart] = dateString.split("T");
     const [year, month, day] = datePart.split("-").map(Number);
     const [hours, minutes] = timePart.split(":").map(Number);
-    
-    // Create date in UTC first, then adjust for EST
-    const dateUtc = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0));
-    
-    // Convert to ISO string (this will be in UTC)
-    return dateUtc.toISOString();
-  } else {
-    // For date-only input, set to 00:00 EST and convert to ISO
-    const [year, month, day] = dateString.split("-").map(Number);
-    
-    // EST is UTC-5, so 00:00 EST = 05:00 UTC
-    const dateUtc = new Date(Date.UTC(year, month - 1, day, 5, 0, 0));
-    
-    return dateUtc.toISOString();
+    return nyWallTimeToUtc(year, month, day, hours, minutes).toISOString();
   }
+
+  // Date-only input → interpret as 00:00 America/New_York wall time.
+  const [year, month, day] = dateString.split("-").map(Number);
+  return nyWallTimeToUtc(year, month, day, 0, 0).toISOString();
 }
 
 /**
