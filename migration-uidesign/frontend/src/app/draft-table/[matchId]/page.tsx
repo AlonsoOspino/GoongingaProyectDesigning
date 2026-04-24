@@ -1032,13 +1032,31 @@ function BanPhase({
     // Disable if banned this game, OR if captain and their team banned it before
     const isDisabled = banned || actionLoading || roleAtLimit || teamDone || (isCaptain && myTeamBannedBefore);
     
+    // Handle click - show warning for role limit even if disabled
+    const handleCardClick = () => {
+      if (banned) return;
+      if (!isCaptain || !isMyTurn) return;
+      
+      // Show warning for role limit
+      if (roleAtLimit) {
+        const roleName = hero.role.charAt(0) + hero.role.slice(1).toLowerCase();
+        setBanWarning(`Maximum 2 ${roleName} heroes can be banned per game. Choose a different role.`);
+        setTimeout(() => setBanWarning(null), 3000);
+        return;
+      }
+      
+      // Otherwise use normal handler
+      if (!isDisabled) {
+        handleHeroClick(hero);
+      }
+    };
+
     return (
       <div key={hero.id} className="relative">
         <button
-          onClick={() => !isDisabled && isCaptain && isMyTurn && handleHeroClick(hero)}
+          onClick={handleCardClick}
           onMouseEnter={() => setHoveredHero(hero.id)}
           onMouseLeave={() => setHoveredHero(null)}
-          disabled={isDisabled}
           className={clsx(
             "relative rounded-xl overflow-hidden border-2 transition-all flex flex-col group w-full",
             // Current game banned - GRAY tones
@@ -1055,7 +1073,7 @@ function BanPhase({
               : teamDone
               ? "border-border cursor-not-allowed opacity-40"
               : roleAtLimit && isCaptain
-              ? "border-warning/50 cursor-not-allowed opacity-60"
+              ? "border-warning/50 cursor-pointer opacity-60"
               : canSelect
               ? "border-border hover:border-danger hover:ring-2 hover:ring-danger/30 cursor-pointer hover:scale-110 hover:z-10"
               : "border-border cursor-default opacity-60"
@@ -1084,14 +1102,22 @@ function BanPhase({
                 </span>
               </div>
             )}
-            {/* Red overlay for previous game bans (not current game) */}
-            {!banned && wasBannedBefore && (
-              <div className={clsx(
-                "absolute inset-0",
-                prevBannedByBoth 
-                  ? "bg-danger/40" // Full red for both teams
-                  : "bg-gradient-to-r from-danger/40 to-transparent" // Half red for one team
-              )} />
+            {/* Red overlay for previous game bans (not current game) - Manager view */}
+            {!banned && isManager && wasBannedBefore && (
+              prevBannedByBoth ? (
+                // Full red for both teams
+                <div className="absolute inset-0 bg-danger/40" />
+              ) : (
+                // Exact half red for one team - split down the middle
+                <div className="absolute inset-0 flex">
+                  <div className="w-1/2 bg-danger/50" />
+                  <div className="w-1/2 bg-transparent" />
+                </div>
+              )
+            )}
+            {/* Red overlay for captain - previous game ban by their team */}
+            {!banned && isCaptain && myTeamBannedBefore && (
+              <div className="absolute inset-0 bg-danger/30" />
             )}
           </div>
           <div className={clsx(
@@ -1111,10 +1137,10 @@ function BanPhase({
               <span className="text-white font-semibold text-[10px] uppercase">Banned</span>
             </div>
           )}
-          {/* Previous game banned overlay for captain - RED X */}
+          {/* Previous game banned overlay for captain - RED X (only the X icon, bg is in image area) */}
           {!banned && isCaptain && myTeamBannedBefore && (
-            <div className="absolute inset-0 bg-danger/30 flex items-center justify-center">
-              <span className="text-danger font-bold text-lg">X</span>
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <span className="text-danger font-bold text-lg drop-shadow-lg">X</span>
             </div>
           )}
         </button>
