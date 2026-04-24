@@ -21,6 +21,7 @@ import {
 import { getTeams, submitMatchResult, updateCaptainMatch, type Team } from "@/lib/api";
 import { clsx } from "clsx";
 import { resolveHeroImageUrl, resolveMapImageUrl } from "@/lib/assetUrls";
+import { getServerNow } from "@/lib/serverTime";
 import { HeroCard, type HeroRole } from "./HeroCard";
 
 const POLL_INTERVAL = 3000;
@@ -104,7 +105,9 @@ export default function DraftTablePage() {
     }
     const startTime = new Date(draftState.phaseStartedAt).getTime();
     const updateTimer = () => {
-      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      // Use server-synced "now" so the timer matches phaseStartedAt regardless
+      // of client clock skew. See src/lib/serverTime.ts.
+      const elapsed = Math.floor((getServerNow() - startTime) / 1000);
       const remaining = Math.max(0, TURN_DURATION - elapsed);
       setTimeLeft(remaining);
     };

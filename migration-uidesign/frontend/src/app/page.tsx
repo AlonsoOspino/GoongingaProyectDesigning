@@ -21,10 +21,14 @@ async function getHomeData() {
     // Get active matches
     const activeMatches = matches.filter((m) => m.status === "ACTIVE");
 
-    // Get upcoming matches (scheduled and in the future)
-    const now = new Date();
+    // Get upcoming matches (any match still in SCHEDULED status).
+    //
+    // We deliberately do NOT filter by "startDate > now" here: a match that is
+    // still SCHEDULED should be surfaced to users even if its date has just
+    // passed (e.g. clock drift, pending admin transition to ACTIVE). Otherwise
+    // the landing page can appear empty right around match time.
     const upcomingMatches = matches
-      .filter((m) => m.status === "SCHEDULED" && new Date(m.startDate) > now)
+      .filter((m) => m.status === "SCHEDULED" && m.startDate)
       .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
       .slice(0, 3);
 

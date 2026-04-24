@@ -58,6 +58,15 @@ function HeroCardImpl({
   const wasBannedBefore = prevBannedByTeamA || prevBannedByTeamB;
   const prevBannedByBoth = prevBannedByTeamA && prevBannedByTeamB;
 
+  // Manager view with exactly ONE team having banned this hero in a previous
+  // game: show only the red frame (border), no red name label. The name label
+  // stays red for captains seeing their own prior ban and for the both-teams
+  // case in the manager view, where the extra visual weight is warranted.
+  const managerSingleTeamPrevBan =
+    isManager && wasBannedBefore && !prevBannedByBoth;
+  const showRedNameLabel =
+    !banned && wasBannedBefore && !managerSingleTeamPrevBan;
+
   const isDisabled =
     banned ||
     actionLoading ||
@@ -153,13 +162,13 @@ function HeroCardImpl({
         <div
           className={clsx(
             "px-1 py-1 text-center",
-            !banned && wasBannedBefore ? "bg-danger/20" : "bg-background",
+            showRedNameLabel ? "bg-danger/20" : "bg-background",
           )}
         >
           <span
             className={clsx(
               "text-[10px] truncate block font-medium",
-              !banned && wasBannedBefore ? "text-danger" : "text-foreground",
+              showRedNameLabel ? "text-danger" : "text-foreground",
             )}
           >
             {heroName}

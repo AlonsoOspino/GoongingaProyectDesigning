@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSession } from "@/features/session/SessionProvider";
 import { getCurrentTournament } from "@/lib/api/admin";
 import type { Tournament } from "@/lib/api/admin";
+import { useServerNow } from "@/hooks/useServerNow";
 
 interface TimeRemaining {
   days: number;
@@ -15,45 +16,38 @@ interface TimeRemaining {
 export function TournamentTimer() {
   const { isHydrated } = useSession();
   const [tournament, setTournament] = useState<Tournament | null>(null);
-  const [timeRemaining, setTimeRemaining] = useState<TimeRemaining | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Server-synced "now" that ticks every second.
+  // Immune to client clock skew / manual clock changes.
+  const serverNow = useServerNow(1000);
 
   useEffect(() => {
     if (!isHydrated) return;
-    
+
     loadTournament();
   }, [isHydrated]);
 
+  const timeRemaining = useMemo<TimeRemaining | null>(() => {
+    if (!tournament || tournament.state !== "SCHEDULED") return null;
+
+    const targetDate = new Date(tournament.startDate).getTime();
+    const distance = targetDate - serverNow;
+
+    if (distance <= 0) return null;
+
+    const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+    return { days, hours, minutes, seconds };
+  }, [tournament, serverNow]);
+
   useEffect(() => {
-    if (!tournament || tournament.state !== "SCHEDULED") {
-      setLoading(false);
-      return;
-    }
-
-    const updateCountdown = () => {
-      const now = new Date().getTime();
-      const targetDate = new Date(tournament.startDate).getTime();
-      const distance = targetDate - now;
-
-      if (distance <= 0) {
-        setTimeRemaining(null);
-        setLoading(false);
-        return;
-      }
-
-      const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-
-      setTimeRemaining({ days, hours, minutes, seconds });
-      setLoading(false);
-    };
-
-    updateCountdown();
-    const timer = setInterval(updateCountdown, 1000);
-
-    return () => clearInterval(timer);
+    // Stop the loading skeleton once we know either the tournament state or that there's no countdown.
+    if (tournament === null) return;
+    setLoading(false);
   }, [tournament]);
 
   async function loadTournament() {
