@@ -164,6 +164,29 @@ const finishPendingRegisters = async (req, res) => {
   }
 };
 
+const adminUpdateWeekMaps = async (req, res) => {
+  try {
+    const { tournamentId, semanas, mapsAllowedByRound } = req.body;
+    const updatedMatches = await matchService.updateWeekMaps(tournamentId, semanas, mapsAllowedByRound);
+    res.json({ 
+      message: `Updated ${updatedMatches.length} matches in week ${semanas}`,
+      matches: updatedMatches 
+    });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+const adminGetWeekMapsConfig = async (req, res) => {
+  try {
+    const { tournamentId, semanas } = req.params;
+    const config = await matchService.getWeekMapsConfig(Number(tournamentId), Number(semanas));
+    res.json({ mapsAllowedByRound: config });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
 module.exports = {
   getById,
   getAll,
@@ -176,6 +199,8 @@ module.exports = {
   findSoonest,
   getActiveMatches,
   submitResult,
-  finishPendingRegisters
+  finishPendingRegisters,
+  adminUpdateWeekMaps,
+  adminGetWeekMapsConfig,
 };
 

@@ -94,6 +94,28 @@ export async function adminGenerateRoundRobin(
   });
 }
 
+export async function adminUpdateWeekMaps(
+  token: string,
+  payload: { tournamentId: number; semanas: number; mapsAllowedByRound: Record<string, number[]> }
+) {
+  return apiRequest<{ message: string; matches: Match[] }>("/match/admin/week-maps", {
+    method: "PUT",
+    token,
+    body: payload,
+  });
+}
+
+export async function adminGetWeekMapsConfig(
+  token: string,
+  tournamentId: number,
+  semanas: number
+) {
+  return apiRequest<{ mapsAllowedByRound: Record<string, number[]> | null }>(
+    `/match/admin/week-maps/${tournamentId}/${semanas}`,
+    { token }
+  );
+}
+
 export async function getMatchById(matchId: number) {
   return apiRequest<Match>(`/match/${matchId}`);
 }

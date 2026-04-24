@@ -225,6 +225,59 @@ const finishPendingRegisters = async (id) => {
   return matchRepo.finishPendingRegisters(parsedId);
 };
 
+const updateWeekMaps = async (tournamentId, semanas, mapsAllowedByRound) => {
+  const parsedTournamentId = parsePositiveInt(tournamentId, "tournamentId");
+  const parsedWeek = parsePositiveInt(semanas, "semanas");
+
+  // Validate mapsAllowedByRound format
+  if (mapsAllowedByRound && typeof mapsAllowedByRound !== "object") {
+    throw new Error("mapsAllowedByRound must be an object.");
+  }
+
+  // Find all matches in this week
+  const matchesToUpdate = await matchRepo.findAll({
+    where: {
+      tournamentId: parsedTournamentId,
+      type: "ROUNDROBIN",
+      semanas: parsedWeek,
+    },
+  });
+
+  if (matchesToUpdate.length === 0) {
+    throw new Error(`No matches found for week ${parsedWeek}.`);
+  }
+
+  // Update each match with the new maps configuration
+  const updatedMatches = await Promise.all(
+    matchesToUpdate.map((match) =>
+      matchRepo.update(match.id, { mapsAllowedByRound })
+    )
+  );
+
+  return updatedMatches;
+};
+
+const getWeekMapsConfig = async (tournamentId, semanas) => {
+  const parsedTournamentId = parsePositiveInt(tournamentId, "tournamentId");
+  const parsedWeek = parsePositiveInt(semanas, "semanas");
+
+  // Get first match in this week to get current maps config
+  const matches = await matchRepo.findAll({
+    where: {
+      tournamentId: parsedTournamentId,
+      type: "ROUNDROBIN",
+      semanas: parsedWeek,
+    },
+    take: 1,
+  });
+
+  if (matches.length === 0) {
+    return null;
+  }
+
+  return matches[0].mapsAllowedByRound || null;
+};
+
 module.exports = {
   getById,
   getAll,
@@ -235,5 +288,7 @@ module.exports = {
   create,
   findSoonest,
   getActiveMatches,
-  finishPendingRegisters
+  finishPendingRegisters,
+  updateWeekMaps,
+  getWeekMapsConfig,
 };

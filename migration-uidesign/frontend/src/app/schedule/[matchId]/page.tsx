@@ -262,38 +262,40 @@ export default async function MatchPage({ params }: MatchPageProps) {
           </Card>
         )}
 
-        {/* Ready Status */}
-        <Card variant="featured">
-          <CardHeader>
-            <CardTitle>Team Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 rounded-lg border border-border">
-                <div className="flex items-center gap-3">
-                  <Avatar size="md" src={teamA?.logo || undefined} fallback={teamAName} />
-                  <span className="font-medium text-foreground">{teamAName}</span>
+        {/* Ready Status - Only show if match is not finished */}
+        {!isFinished && (
+          <Card variant="featured">
+            <CardHeader>
+              <CardTitle>Team Status</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 rounded-lg border border-border">
+                  <div className="flex items-center gap-3">
+                    <Avatar size="md" src={teamA?.logo || undefined} fallback={teamAName} />
+                    <span className="font-medium text-foreground">{teamAName}</span>
+                  </div>
+                  {match.teamAready ? (
+                    <Badge variant="success">Ready</Badge>
+                  ) : (
+                    <Badge variant="default">Not Ready</Badge>
+                  )}
                 </div>
-                {match.teamAready ? (
-                  <Badge variant="success">Ready</Badge>
-                ) : (
-                  <Badge variant="default">Not Ready</Badge>
-                )}
-              </div>
-              <div className="flex items-center justify-between p-4 rounded-lg border border-border">
-                <div className="flex items-center gap-3">
-                  <Avatar size="md" src={teamB?.logo || undefined} fallback={teamBName} />
-                  <span className="font-medium text-foreground">{teamBName}</span>
+                <div className="flex items-center justify-between p-4 rounded-lg border border-border">
+                  <div className="flex items-center gap-3">
+                    <Avatar size="md" src={teamB?.logo || undefined} fallback={teamBName} />
+                    <span className="font-medium text-foreground">{teamBName}</span>
+                  </div>
+                  {match.teamBready ? (
+                    <Badge variant="success">Ready</Badge>
+                  ) : (
+                    <Badge variant="default">Not Ready</Badge>
+                  )}
                 </div>
-                {match.teamBready ? (
-                  <Badge variant="success">Ready</Badge>
-                ) : (
-                  <Badge variant="default">Not Ready</Badge>
-                )}
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Actions */}

@@ -18,13 +18,14 @@ import {
   adminCreateTeam, adminUpdateTeam, adminDeleteTeam,
   adminRegisterMember, adminUpdateMember, adminBulkImportUsers, getMembers, getMaps,
   adminDownloadBackupSql, adminRestoreBackupSql, adminWipeDatabase,
+  adminUpdateWeekMaps,
   type CreateMatchPayload, type CreateTeamPayload, type Member, type AdminGameMap,
 } from "@/lib/api/admin";
 import { convertToISODateTime, formatDateEST, formatForDateInput, formatForDateTimeInput } from "@/lib/dateUtils";
 import { getMatches, getTeams, type Match, type Team } from "@/lib/api";
 import type { Tournament } from "@/lib/api/types";
 
-type ActiveTab = "tournament" | "matches" | "teams" | "users";
+type ActiveTab = "tournament" | "matches" | "weekMaps" | "teams" | "users";
 
 const ALL_MATCH_TYPES: Match["type"][] = [
   "ROUNDROBIN",
@@ -91,11 +92,13 @@ export default function AdminDashboardPage() {
           <TabsList className="mb-6">
             <TabsTrigger value="tournament">Tournament</TabsTrigger>
             <TabsTrigger value="matches">Matches</TabsTrigger>
+            <TabsTrigger value="weekMaps">Week Maps</TabsTrigger>
             <TabsTrigger value="teams">Teams</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
           </TabsList>
           <TabsContent value="tournament"><TournamentSection token={token!} /></TabsContent>
           <TabsContent value="matches"><MatchesSection token={token!} /></TabsContent>
+          <TabsContent value="weekMaps"><WeekMapsSection token={token!} /></TabsContent>
           <TabsContent value="teams"><TeamsSection token={token!} /></TabsContent>
           <TabsContent value="users"><UsersSection token={token!} /></TabsContent>
         </Tabs>
@@ -126,13 +129,13 @@ function TournamentSection({ token }: { token: string }) {
     finally { setLoading(false); }
   }
 
-  if (loading) return <Card><CardContent className="p-8 text-center text-muted">Loading...</CardContent></Card>;
+  if (loading) return <Card variant="bordered"><CardContent className="p-8 text-center text-muted">Loading...</CardContent></Card>;
 
   return (
     <div className="space-y-6">
-      {notification && <div className={`p-4 rounded-lg ${notification.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>{notification.message}</div>}
+      {notification && <div className={`p-4 rounded-lg border ${notification.type === "success" ? "bg-success/10 text-success border-success/30" : "bg-danger/10 text-danger border-danger/30"}`}>{notification.message}</div>}
       {tournament ? (
-        <Card>
+        <Card variant="bordered">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>{tournament.name}</CardTitle>
             <div className="flex gap-2">
@@ -153,7 +156,7 @@ function TournamentSection({ token }: { token: string }) {
           </CardContent>
         </Card>
       ) : (
-        <Card>
+        <Card variant="bordered">
           <CardContent className="p-8 text-center">
             <p className="text-muted mb-4">No tournament exists yet.</p>
             <Button onClick={() => setShowCreateModal(true)}>Create Tournament</Button>
@@ -337,13 +340,13 @@ function MatchesSection({ token }: { token: string }) {
     setFormData({ ...formData, mapsAllowedByRound: { ...formData.mapsAllowedByRound, [round]: next } });
   }
 
-  if (loading) return <Card><CardContent className="p-8 text-center text-muted">Loading...</CardContent></Card>;
+  if (loading) return <Card variant="bordered"><CardContent className="p-8 text-center text-muted">Loading...</CardContent></Card>;
 
   return (
     <div className="space-y-6">
-      {notification && <div className={`p-4 rounded-lg ${notification.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>{notification.message}</div>}
+      {notification && <div className={`p-4 rounded-lg border ${notification.type === "success" ? "bg-success/10 text-success border-success/30" : "bg-danger/10 text-danger border-danger/30"}`}>{notification.message}</div>}
 
-      <Card>
+      <Card variant="bordered">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Matches ({visibleMatches.length})</CardTitle>
           <div className="flex gap-2">
@@ -697,6 +700,188 @@ function MatchesSection({ token }: { token: string }) {
   );
 }
 
+// ==================== WEEK MAPS ====================
+function WeekMapsSection({ token }: { token: string }) {
+  const [tournament, setTournament] = useState<Tournament | null>(null);
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [maps, setMaps] = useState<AdminGameMap[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
+  const [weekMapsConfig, setWeekMapsConfig] = useState<Record<string, number[]>>({});
+  const [saving, setSaving] = useState(false);
+  const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const roundMapTypes: Record<string, string[]> = {
+    "1": ["CONTROL"], "2": ["HYBRID"], "3": ["PAYLOAD"], "4": ["PUSH"], "5": ["FLASHPOINT", "CONTROL"],
+  };
+
+  const showNotif = (type: "success" | "error", message: string) => {
+    setNotification({ type, message });
+    setTimeout(() => setNotification(null), 3000);
+  };
+
+  useEffect(() => { loadData(); }, []);
+
+  async function loadData() {
+    try {
+      const [tour, m, mapList] = await Promise.all([
+        getCurrentTournament().catch(() => null),
+        getMatches().catch(() => []),
+        getMaps().catch(() => []),
+      ]);
+      setTournament(tour);
+      setMatches(m);
+      setMaps(mapList);
+    } catch { } finally { setLoading(false); }
+  }
+
+  // Get unique weeks from matches
+  const weeks = [...new Set(
+    matches
+      .filter((m) => m.type === "ROUNDROBIN" && m.semanas !== null)
+      .map((m) => m.semanas as number)
+  )].sort((a, b) => a - b);
+
+  function toggleMapForRound(round: string, mapId: number) {
+    const current = weekMapsConfig[round] || [];
+    const next = current.includes(mapId) ? current.filter((id) => id !== mapId) : [...current, mapId];
+    setWeekMapsConfig({ ...weekMapsConfig, [round]: next });
+  }
+
+  async function handleSaveWeekMaps() {
+    if (!tournament || selectedWeek === null) return;
+    setSaving(true);
+    try {
+      await adminUpdateWeekMaps(token, {
+        tournamentId: tournament.id,
+        semanas: selectedWeek,
+        mapsAllowedByRound: weekMapsConfig,
+      });
+      showNotif("success", `Maps updated for Week ${selectedWeek}`);
+    } catch (err: any) {
+      showNotif("error", err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const hasSelectedMaps = Object.values(weekMapsConfig).some((arr) => arr.length > 0);
+
+  if (loading) return <Card variant="bordered"><CardContent className="p-8 text-center text-muted">Loading...</CardContent></Card>;
+
+  return (
+    <div className="space-y-6">
+      {notification && <div className={`p-4 rounded-lg border ${notification.type === "success" ? "bg-success/10 text-success border-success/30" : "bg-danger/10 text-danger border-danger/30"}`}>{notification.message}</div>}
+      
+      <Card variant="bordered">
+        <CardHeader>
+          <CardTitle>Week Map Configuration</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!tournament ? (
+            <p className="text-muted text-center py-4">Create a tournament first.</p>
+          ) : weeks.length === 0 ? (
+            <p className="text-muted text-center py-4">No round robin matches with weeks found. Generate a round robin schedule first.</p>
+          ) : (
+            <div className="space-y-6">
+              <div>
+                <p className="text-sm text-muted mb-3">Select a week to configure the available maps for all matches in that week:</p>
+                <div className="flex flex-wrap gap-2">
+                  {weeks.map((week) => (
+                    <Button
+                      key={week}
+                      variant={selectedWeek === week ? "default" : "outline"}
+                      onClick={() => {
+                        setSelectedWeek(week);
+                        // Load existing config for this week from first match
+                        const weekMatch = matches.find((m) => m.type === "ROUNDROBIN" && m.semanas === week);
+                        setWeekMapsConfig((weekMatch?.mapsAllowedByRound as Record<string, number[]>) || {});
+                      }}
+                      className="min-w-[80px]"
+                    >
+                      Week {week}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {selectedWeek !== null && (
+                <div className="space-y-4 border-t border-border pt-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-foreground">Week {selectedWeek} Maps</h3>
+                    <Button onClick={handleSaveWeekMaps} disabled={saving || !hasSelectedMaps}>
+                      {saving ? "Saving..." : "Save Week Maps"}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted">Select which maps are available for each game round. These settings will apply to all matches in Week {selectedWeek}.</p>
+                  
+                  {maps.length === 0 ? (
+                    <p className="text-xs text-danger">Map catalog is empty. Add maps first in Overwatch Content.</p>
+                  ) : (
+                    <div className="space-y-6">
+                      {Object.entries(roundMapTypes).map(([round, types]) => {
+                        const roundMaps = maps.filter((m) => types.includes(m.type));
+                        return (
+                          <div key={round} className="bg-surface-elevated/50 rounded-lg p-4">
+                            <p className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                              <Badge variant="primary">Game {round}</Badge>
+                              <span className="text-muted font-normal">{types.join(" / ")}</span>
+                            </p>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                              {roundMaps.map((map) => {
+                                const selected = (weekMapsConfig[round] || []).includes(map.id);
+                                return (
+                                  <button
+                                    key={map.id}
+                                    type="button"
+                                    onClick={() => toggleMapForRound(round, map.id)}
+                                    className={`relative rounded-lg overflow-hidden border-2 transition-all ${
+                                      selected 
+                                        ? "border-primary bg-primary/10 ring-2 ring-primary/30" 
+                                        : "border-border hover:border-primary/50"
+                                    }`}
+                                  >
+                                    {map.imgPath && (
+                                      <div className="aspect-video bg-surface">
+                                        <img 
+                                          src={map.imgPath.startsWith("http") ? map.imgPath : `${process.env.NEXT_PUBLIC_API_URL}${map.imgPath}`}
+                                          alt={map.description}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      </div>
+                                    )}
+                                    <div className="p-2 bg-background">
+                                      <p className="text-xs font-medium text-foreground truncate">{map.description}</p>
+                                      <p className="text-[10px] text-muted">{map.type}</p>
+                                    </div>
+                                    {selected && (
+                                      <div className="absolute top-1 right-1">
+                                        <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                                          <svg className="w-3 h-3 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                          </svg>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 // ==================== TEAMS ====================
 function TeamsSection({ token }: { token: string }) {
   const [teams, setTeams] = useState<Team[]>([]);
@@ -741,12 +926,12 @@ function TeamsSection({ token }: { token: string }) {
   const availableMembers = members.filter((m) => !m.teamId || m.teamId === null)
     .filter((m) => !memberSearch || m.nickname.toLowerCase().includes(memberSearch.toLowerCase()) || m.user.toLowerCase().includes(memberSearch.toLowerCase()));
 
-  if (loading) return <Card><CardContent className="p-8 text-center text-muted">Loading...</CardContent></Card>;
+  if (loading) return <Card variant="bordered"><CardContent className="p-8 text-center text-muted">Loading...</CardContent></Card>;
 
   return (
     <div className="space-y-6">
-      {notification && <div className={`p-4 rounded-lg ${notification.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>{notification.message}</div>}
-      <Card>
+      {notification && <div className={`p-4 rounded-lg border ${notification.type === "success" ? "bg-success/10 text-success border-success/30" : "bg-danger/10 text-danger border-danger/30"}`}>{notification.message}</div>}
+      <Card variant="bordered">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Teams ({teams.length})</CardTitle>
           <Button onClick={() => setShowCreateModal(true)} disabled={!tournament}>Create Team</Button>
@@ -1017,12 +1202,12 @@ function UsersSection({ token }: { token: string }) {
 
   const getTeamName = (teamId: number | null) => teamId ? teams.find((t) => t.id === teamId)?.name || "Unknown" : "No Team";
 
-  if (loading) return <Card><CardContent className="p-8 text-center text-muted">Loading...</CardContent></Card>;
+  if (loading) return <Card variant="bordered"><CardContent className="p-8 text-center text-muted">Loading...</CardContent></Card>;
 
   return (
     <div className="space-y-6">
-      {notification && <div className={`p-4 rounded-lg ${notification.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>{notification.message}</div>}
-      <Card>
+      {notification && <div className={`p-4 rounded-lg border ${notification.type === "success" ? "bg-success/10 text-success border-success/30" : "bg-danger/10 text-danger border-danger/30"}`}>{notification.message}</div>}
+      <Card variant="bordered">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Users ({members.length})</CardTitle>
           <div className="flex gap-2">

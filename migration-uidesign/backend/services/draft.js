@@ -533,6 +533,22 @@ const banHero = async (draftId, payload, user) => {
     }
 
     if (!hasNoBan && heroId !== null) {
+      // Check if this team banned this hero in any previous game
+      const bannedByTeamInPreviousGame = await tx.draftAction.findFirst({
+        where: {
+          draftId: freshDraft.id,
+          action: "BAN",
+          value: heroId,
+          teamId: actingTeamId,
+          gameNumber: { lt: currentGame },
+        },
+      });
+
+      if (bannedByTeamInPreviousGame) {
+        throw new Error("Your team cannot ban the same hero in consecutive games.");
+      }
+
+      // Check if this team banned this hero in current game
       const alreadyBannedByThisTeam = await tx.draftAction.findFirst({
         where: {
           draftId: freshDraft.id,

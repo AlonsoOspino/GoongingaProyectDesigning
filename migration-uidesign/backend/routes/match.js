@@ -11,6 +11,8 @@ router.post("/admin/create", authMiddleware, adminMiddleware, matchController.ad
 router.post("/admin/generate-round-robin", authMiddleware, adminMiddleware, matchController.adminGenerateRoundRobin);
 router.put("/admin/update/:id", authMiddleware, adminMiddleware, matchController.adminUpdate);
 router.delete("/admin/delete/:id", authMiddleware, adminMiddleware, matchController.adminRemove);
+router.put("/admin/week-maps", authMiddleware, adminMiddleware, matchController.adminUpdateWeekMaps);
+router.get("/admin/week-maps/:tournamentId/:semanas", authMiddleware, adminMiddleware, matchController.adminGetWeekMapsConfig);
 router.put("/captain/update/:id", authMiddleware, captainMatchMiddleware, matchController.captainUpdate);
 router.put("/manager/update/:id", authMiddleware, managerMiddleware, matchController.managerUpdate);
 router.post("/:id/result", authMiddleware, managerMiddleware, matchController.submitResult);

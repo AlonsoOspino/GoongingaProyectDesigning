@@ -174,10 +174,10 @@ export default function AddOverwatchContentPage() {
 
         {notification && (
           <div
-            className={`mb-6 rounded-lg px-4 py-3 ${
+            className={`mb-6 rounded-lg px-4 py-3 border ${
               notification.type === "success"
-                ? "bg-green-100 text-green-800"
-                : "bg-red-100 text-red-800"
+                ? "bg-success/10 text-success border-success/30"
+                : "bg-danger/10 text-danger border-danger/30"
             }`}
           >
             {notification.message}
@@ -185,7 +185,7 @@ export default function AddOverwatchContentPage() {
         )}
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <Card>
+          <Card variant="bordered">
             <CardHeader>
               <CardTitle>Add Map</CardTitle>
             </CardHeader>
@@ -238,7 +238,7 @@ export default function AddOverwatchContentPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card variant="bordered">
             <CardHeader>
               <CardTitle>Add Hero</CardTitle>
             </CardHeader>

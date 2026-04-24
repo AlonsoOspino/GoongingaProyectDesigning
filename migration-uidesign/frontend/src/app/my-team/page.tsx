@@ -198,11 +198,21 @@ export default function MyTeamPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">My Team</h1>
-        <p className="text-muted">
-          Manage your team and view upcoming matches
-        </p>
+      <div className="mb-8 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground mb-2">My Team</h1>
+          <p className="text-muted">
+            Manage your team and view upcoming matches
+          </p>
+        </div>
+        {canEdit && (
+          <Button onClick={() => setEditModalOpen(true)} className="md:self-start">
+            <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            Edit Team
+          </Button>
+        )}
       </div>
 
       <div className="grid gap-8 lg:grid-cols-3">

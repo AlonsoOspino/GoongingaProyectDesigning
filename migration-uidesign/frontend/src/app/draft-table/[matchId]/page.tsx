@@ -44,6 +44,8 @@ export default function DraftTablePage() {
   const [selectedRole, setSelectedRole] = useState<"ALL" | "TANK" | "DPS" | "SUPPORT">("ALL");
   const [banWarning, setBanWarning] = useState<string | null>(null);
   const [heroCacheById, setHeroCacheById] = useState<Record<number, Hero>>({});
+  const [isPaused, setIsPaused] = useState(false);
+  const [pausedBy, setPausedBy] = useState<string | null>(null);
 
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -259,6 +261,14 @@ export default function DraftTablePage() {
     );
   };
 
+  // Check if my team banned this hero in any previous game
+  const wasHeroBannedByMyTeamBefore = (heroId: number) => {
+    if (!draftState?.actions || !myTeamId) return false;
+    return draftState.actions.some(
+      (a) => a.action === "BAN" && a.value === heroId && a.teamId === myTeamId && a.gameNumber < currentGameNumber
+    );
+  };
+
   // Get which team(s) banned a specific hero in current game
   const getHeroBanInfo = (heroId: number): { bannedByTeamA: boolean; bannedByTeamB: boolean } => {
     if (!draftState?.actions) return { bannedByTeamA: false, bannedByTeamB: false };
@@ -464,6 +474,7 @@ export default function DraftTablePage() {
             onBanHero={handleBanHero}
             onEndMap={handleEndMap}
             isHeroBanned={isHeroBanned}
+            wasHeroBannedByMyTeamBefore={wasHeroBannedByMyTeamBefore}
             getHeroBanInfo={getHeroBanInfo}
             getBannedHeroesByTeam={getBannedHeroesByTeam}
             getTeamTotalBans={getTeamTotalBans}
@@ -497,6 +508,59 @@ export default function DraftTablePage() {
         {/* Draft History - Only shown after PENDINGRESULT/FINISHED */}
         {showDraftHistory && <DraftHistory draftState={draftState} teams={teams} getHeroById={getHeroById} />}
       </div>
+
+      {/* Pause Button - Bottom Left, only during MAPPICKING or BAN phases */}
+      {(currentPhase === "MAPPICKING" || currentPhase === "BAN") && isCaptain && (
+        <button
+          onClick={() => {
+            setIsPaused(true);
+            setPausedBy(user?.nickname || "Captain");
+          }}
+          className="fixed bottom-6 left-6 z-40 px-6 py-3 bg-warning text-warning-foreground font-bold rounded-lg shadow-lg hover:bg-warning/90 transition-all flex items-center gap-2"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          PAUSE!
+        </button>
+      )}
+
+      {/* Pause Overlay - Shows for Manager when someone pauses */}
+      {isPaused && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-surface border-2 border-warning rounded-2xl p-8 max-w-md text-center shadow-2xl shadow-warning/20 animate-fade-in">
+            <div className="w-20 h-20 rounded-full bg-warning/20 border-4 border-warning mx-auto mb-6 flex items-center justify-center">
+              <svg className="w-10 h-10 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h2 className="text-3xl font-black text-foreground mb-2">GAME PAUSED</h2>
+            <div className="flex items-center justify-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center">
+                <span className="text-lg font-bold text-primary">
+                  {pausedBy?.charAt(0)?.toUpperCase() || "?"}
+                </span>
+              </div>
+              <div className="text-left">
+                <p className="text-sm text-muted">Paused by</p>
+                <p className="text-lg font-semibold text-foreground">{pausedBy || "A Captain"}</p>
+              </div>
+            </div>
+            <p className="text-muted mb-6 italic">
+              &quot;Please wait while we sort things out...&quot;
+            </p>
+            <Button
+              onClick={() => {
+                setIsPaused(false);
+                setPausedBy(null);
+              }}
+              className="px-8"
+            >
+              Resume Match
+            </Button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
@@ -712,7 +776,7 @@ function MapPickingPhase({
                 </div>
               )}
 
-              <div className="grid grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                 {availableMaps.map((map) => {
                   const picked = isMapPicked(map.id);
                   const isCurrentMap = map.id === draftState.currentMapId;
@@ -747,8 +811,8 @@ function MapPickingPhase({
                           </div>
                         )}
                       </div>
-                      <div className="p-1 bg-background">
-                        <p className="text-[10px] font-medium text-foreground truncate text-center">{map.description}</p>
+                      <div className="p-2 bg-background">
+                        <p className="text-xs font-medium text-foreground truncate text-center">{map.description}</p>
                       </div>
                       {picked && (
                         <div className="absolute inset-0 bg-background/70 flex items-center justify-center">
@@ -799,6 +863,7 @@ function BanPhase({
   onBanHero,
   onEndMap,
   isHeroBanned,
+  wasHeroBannedByMyTeamBefore,
   getHeroBanInfo,
   getBannedHeroesByTeam,
   getTeamTotalBans,
@@ -821,6 +886,7 @@ function BanPhase({
   onBanHero: (heroId: number | null) => void;
   onEndMap: () => void;
   isHeroBanned: (heroId: number) => boolean;
+  wasHeroBannedByMyTeamBefore: (heroId: number) => boolean;
   getHeroBanInfo: (heroId: number) => { bannedByTeamA: boolean; bannedByTeamB: boolean };
   getBannedHeroesByTeam: (teamId: number) => (number | null)[];
   getTeamTotalBans: (teamId: number) => number;
@@ -881,9 +947,16 @@ function BanPhase({
 
   // Handle hero click with role limit warning - blocks backend call entirely
   const handleHeroClick = (hero: Hero) => {
-    // Check if hero is already banned by either team
+    // Check if hero is already banned by either team in current game
     if (isHeroBanned(hero.id)) {
-      setBanWarning("This hero is already banned.");
+      setBanWarning("This hero is already banned in this game.");
+      setTimeout(() => setBanWarning(null), 3000);
+      return;
+    }
+    
+    // Check if my team banned this hero in a previous game
+    if (wasHeroBannedByMyTeamBefore(hero.id)) {
+      setBanWarning("You cannot ban the same hero in consecutive games.");
       setTimeout(() => setBanWarning(null), 3000);
       return;
     }
@@ -895,10 +968,10 @@ function BanPhase({
       return;
     }
     
-    // Check role-specific limit
+    // Check role-specific limit (max 2 per role counting both teams)
     if (!canBanRole(hero.role)) {
       const roleName = hero.role.charAt(0) + hero.role.slice(1).toLowerCase();
-      setBanWarning(`You already banned 2 ${roleName} heroes. Choose a different role.`);
+      setBanWarning(`Maximum 2 ${roleName} heroes can be banned per game. Choose a different role.`);
       setTimeout(() => setBanWarning(null), 3000);
       return;
     }
