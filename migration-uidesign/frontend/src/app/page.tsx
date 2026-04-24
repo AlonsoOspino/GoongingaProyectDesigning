@@ -313,7 +313,7 @@ export default async function HomePage() {
               The Goonginga League Story
             </h2>
             <p className="text-muted max-w-2xl mx-auto text-pretty">
-              Building a community of passionate Overwatch players since 2023
+              Building a community of passionate Overwatch players since 2022
             </p>
           </div>
 
@@ -428,7 +428,7 @@ export default async function HomePage() {
               {/* Stats Row */}
               <div className="grid grid-cols-3 gap-4">
                 <div className="p-4 rounded-xl bg-card border border-border text-center group hover:border-primary/30 transition-colors">
-                  <div className="text-2xl font-bold text-primary mb-1">2024</div>
+                  <div className="text-2xl font-bold text-primary mb-1">2022</div>
                   <div className="text-xs text-muted">Founded</div>
                 </div>
                 <div className="p-4 rounded-xl bg-card border border-border text-center group hover:border-accent/30 transition-colors">

@@ -50,7 +50,7 @@ export function Footer() {
               </div>
               <div className="flex flex-col">
                 <span className="font-bold text-foreground">Goonginga League</span>
-                <span className="text-xs text-primary/70 font-medium">EST. 202</span>
+                <span className="text-xs text-primary/70 font-medium">EST. 2022</span>
               </div>
             </div>
             <p className="text-sm text-muted leading-relaxed">

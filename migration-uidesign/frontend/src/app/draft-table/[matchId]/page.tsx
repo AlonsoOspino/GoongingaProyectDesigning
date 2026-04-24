@@ -1110,9 +1110,9 @@ function BanPhase({
                 // Full red overlay for both teams
                 <div className="absolute inset-0 bg-danger/40" />
               ) : (
-                // Vertical line in the middle for one team banned
-                <div className="absolute inset-0">
-                  <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-1 bg-danger/60" />
+                // Vertical line in the middle for one team banned, lets eliminate the middle line
+                <div className="">
+                  <div className="" />
                 </div>
               )
             )}
