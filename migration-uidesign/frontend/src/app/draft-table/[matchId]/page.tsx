@@ -271,10 +271,10 @@ export default function DraftTablePage() {
 
   // Get info about which teams banned this hero in previous games
   const getPreviousGameBanInfo = (heroId: number) => {
-    if (!draftState?.actions || !teams.length) return { bannedByTeamA: false, bannedByTeamB: false, teamNames: [] as string[] };
+    if (!draftState?.actions) return { bannedByTeamA: false, bannedByTeamB: false, teamNames: [] as string[] };
     
-    const teamAId = teams[0]?.id;
-    const teamBId = teams[1]?.id;
+    const teamAId = draftState.match.teamAId;
+    const teamBId = draftState.match.teamBId;
     
     const bannedByTeamA = draftState.actions.some(
       (a) => a.action === "BAN" && a.value === heroId && a.teamId === teamAId && a.gameNumber < currentGameNumber
@@ -284,8 +284,10 @@ export default function DraftTablePage() {
     );
     
     const teamNames: string[] = [];
-    if (bannedByTeamA) teamNames.push(teams[0]?.name || "Team A");
-    if (bannedByTeamB) teamNames.push(teams[1]?.name || "Team B");
+    const teamAName = teams.find((t) => t.id === teamAId)?.name || "Team A";
+    const teamBName = teams.find((t) => t.id === teamBId)?.name || "Team B";
+    if (bannedByTeamA) teamNames.push(teamAName);
+    if (bannedByTeamB) teamNames.push(teamBName);
     
     return { bannedByTeamA, bannedByTeamB, teamNames };
   };
