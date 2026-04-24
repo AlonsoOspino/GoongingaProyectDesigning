@@ -1102,16 +1102,20 @@ function BanPhase({
                 </span>
               </div>
             )}
-            {/* Red overlay for previous game bans (not current game) - Manager view */}
-            {!banned && isManager && wasBannedBefore && (
+            {/* Red overlay for previous game bans - Manager view (shows always for manager to track) */}
+            {isManager && wasBannedBefore && (
               prevBannedByBoth ? (
-                // Full red for both teams
-                <div className="absolute inset-0 bg-danger/40" />
+                // Full red for both teams - both teams have banned this hero before
+                <div className="absolute inset-0 bg-danger/50 flex items-center justify-center">
+                  <div className="bg-danger/80 rounded px-1">
+                    <span className="text-white font-bold text-[10px]">2 TEAMS</span>
+                  </div>
+                </div>
               ) : (
-                // Exact half red for one team - split down the middle
-                <div className="absolute inset-0 flex">
-                  <div className="w-1/2 bg-danger/50" />
-                  <div className="w-1/2 bg-transparent" />
+                // Exact half red for one team - vertical split with clear dividing line
+                <div className="absolute inset-0">
+                  <div className="absolute top-0 bottom-0 left-0 w-1/2 bg-danger/50" />
+                  <div className="absolute top-0 bottom-0 left-1/2 w-[2px] bg-danger" />
                 </div>
               )
             )}
