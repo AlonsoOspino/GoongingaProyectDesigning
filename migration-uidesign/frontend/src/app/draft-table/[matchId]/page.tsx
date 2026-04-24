@@ -21,6 +21,7 @@ import {
 import { getTeams, submitMatchResult, updateCaptainMatch, type Team } from "@/lib/api";
 import { clsx } from "clsx";
 import { resolveHeroImageUrl, resolveMapImageUrl } from "@/lib/assetUrls";
+import { HeroCard, type HeroRole } from "./HeroCard";
 
 const POLL_INTERVAL = 3000;
 const TURN_DURATION = 75;
@@ -980,185 +981,101 @@ function BanPhase({
     );
   };
 
-  // Handle hero click with role limit warning - blocks backend call entirely
-  const handleHeroClick = (hero: Hero) => {
-    // Check if hero is already banned by either team in current game
-    if (isHeroBanned(hero.id)) {
+  // Stable callback refs so <HeroCard> (React.memo) isn't re-rendered
+  // just because BanPhase re-rendered (e.g. banWarning/timeLeft changes).
+  // The refs always point to the latest closure, but the exposed callback
+  // identity never changes.
+  const heroClickRef = useRef<(heroId: number, heroRole: HeroRole) => void>(
+    () => {},
+  );
+  heroClickRef.current = (heroId: number, heroRole: HeroRole) => {
+    // Already banned by either team in current game
+    if (isHeroBanned(heroId)) {
       setBanWarning("This hero is already banned in this game.");
       setTimeout(() => setBanWarning(null), 3000);
       return;
     }
-    
-    // Check if my team banned this hero in a previous game (visual feedback via red tones, but also block)
-    if (wasHeroBannedByMyTeamBefore(hero.id)) {
-      // Hero is shown in red, click is blocked by isDisabled, no alert needed
+
+    // My team banned this hero in a previous game - silently block
+    if (wasHeroBannedByMyTeamBefore(heroId)) {
       return;
     }
-    
-    // Check if team already has 2 total bans
+
+    // Team already has 2 total bans
     if (myTeamId && getTeamTotalBans(myTeamId) >= 2) {
       setBanWarning("Your team has already completed both bans.");
       setTimeout(() => setBanWarning(null), 3000);
       return;
     }
-    
-    // Check role-specific limit (max 2 per role counting both teams)
-    if (!canBanRole(hero.role)) {
-      const roleName = hero.role.charAt(0) + hero.role.slice(1).toLowerCase();
-      setBanWarning(`Maximum 2 ${roleName} heroes can be banned per game. Choose a different role.`);
+
+    // Role-specific limit (max 2 per role per game)
+    if (!canBanRole(heroRole)) {
+      const roleName =
+        heroRole.charAt(0) + heroRole.slice(1).toLowerCase();
+      setBanWarning(
+        `Maximum 2 ${roleName} heroes can be banned per game. Choose a different role.`,
+      );
       setTimeout(() => setBanWarning(null), 3000);
       return;
     }
-    
-    onBanHero(hero.id);
+
+    onBanHero(heroId);
   };
 
-  const [hoveredHero, setHoveredHero] = useState<number | null>(null);
+  const onHeroCardClick = useCallback(
+    (heroId: number, heroRole: HeroRole) => {
+      heroClickRef.current(heroId, heroRole);
+    },
+    [],
+  );
+
+  const onHeroRoleLimitWarning = useCallback(
+    (heroRole: HeroRole) => {
+      const roleName =
+        heroRole.charAt(0) + heroRole.slice(1).toLowerCase();
+      setBanWarning(
+        `Maximum 2 ${roleName} heroes can be banned per game. Choose a different role.`,
+      );
+      setTimeout(() => setBanWarning(null), 3000);
+    },
+    [setBanWarning],
+  );
+
+  const teamAName = teamA?.name ?? "Team A";
+  const teamBName = teamB?.name ?? "Team B";
 
   const renderHeroCard = (hero: Hero, canSelect: boolean, banned: boolean) => {
     const roleAtLimit = !canBanRole(hero.role);
     const teamDone = myTeamId ? getTeamTotalBans(myTeamId) >= 2 : false;
-    
-    // Check if hero was banned in previous games
     const prevBanInfo = getPreviousGameBanInfo(hero.id);
-    const wasBannedBefore = prevBanInfo.bannedByTeamA || prevBanInfo.bannedByTeamB;
-    const prevBannedByBoth = prevBanInfo.bannedByTeamA && prevBanInfo.bannedByTeamB;
     const myTeamBannedBefore = wasHeroBannedByMyTeamBefore(hero.id);
-    
-    // Current game ban info (gray tones)
     const banInfo = banned ? getHeroBanInfo(hero.id) : null;
-    const bannedByBoth = banInfo?.bannedByTeamA && banInfo?.bannedByTeamB;
-    const bannedByTeamAOnly = banInfo?.bannedByTeamA && !banInfo?.bannedByTeamB;
-    const bannedByTeamBOnly = !banInfo?.bannedByTeamA && banInfo?.bannedByTeamB;
-    
-    // Disable if banned this game, OR if captain and their team banned it before
-    const isDisabled = banned || actionLoading || roleAtLimit || teamDone || (isCaptain && myTeamBannedBefore);
-    
-    // Handle click - show warning for role limit even if disabled
-    const handleCardClick = () => {
-      if (banned) return;
-      if (!isCaptain || !isMyTurn) return;
-      
-      // Show warning for role limit
-      if (roleAtLimit) {
-        const roleName = hero.role.charAt(0) + hero.role.slice(1).toLowerCase();
-        setBanWarning(`Maximum 2 ${roleName} heroes can be banned per game. Choose a different role.`);
-        setTimeout(() => setBanWarning(null), 3000);
-        return;
-      }
-      
-      // Otherwise use normal handler
-      if (!isDisabled) {
-        handleHeroClick(hero);
-      }
-    };
 
     return (
-      <div key={hero.id} className="relative">
-        <button
-          onClick={handleCardClick}
-          onMouseEnter={() => setHoveredHero(hero.id)}
-          onMouseLeave={() => setHoveredHero(null)}
-          className={clsx(
-            "relative rounded-xl overflow-hidden border-2 transition-all flex flex-col group w-full",
-            // Current game banned - GRAY tones
-            banned
-              ? "border-muted/50 cursor-not-allowed grayscale"
-              // Previous game banned by my team (captain view) - RED tones
-              : isCaptain && myTeamBannedBefore
-              ? "border-danger/70 cursor-not-allowed"
-              // Previous game banned (manager view)
-              : isManager && wasBannedBefore
-              ? prevBannedByBoth
-                ? "border-danger cursor-not-allowed" // Full red border for both
-                : "border-danger/50 cursor-not-allowed" // Half intensity for one team
-              : teamDone
-              ? "border-border cursor-not-allowed opacity-40"
-              : roleAtLimit && isCaptain
-              ? "border-warning/50 cursor-pointer opacity-60"
-              : canSelect
-              ? "border-border hover:border-danger hover:ring-2 hover:ring-danger/30 cursor-pointer hover:scale-110 hover:z-10"
-              : "border-border cursor-default opacity-60"
-          )}
-        >
-          <div className="aspect-square bg-surface w-full relative">
-            {hero.imgPath ? (
-              <img
-                src={resolveHeroImageUrl(hero.imgPath)}
-                alt={hero.name}
-                className={clsx(
-                  "w-full h-full object-cover", 
-                  // Current game banned - grayscale
-                  banned && "grayscale opacity-50",
-                  // Previous game banned by my team (captain) - red tint
-                  !banned && isCaptain && myTeamBannedBefore && "opacity-60",
-                  // Previous game banned (manager) - red tint based on teams
-                  !banned && isManager && wasBannedBefore && (prevBannedByBoth ? "opacity-50" : "opacity-70"),
-                  canSelect && "group-hover:brightness-110"
-                )}
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-surface-elevated">
-                <span className="text-sm font-bold text-muted">
-                  {hero.role.charAt(0)}{hero.id}
-                </span>
-              </div>
-            )}
-            {/* Red overlay for previous game bans - Manager view (shows always for manager to track) */}
-            {isManager && wasBannedBefore && (
-              prevBannedByBoth ? (
-                // Full red overlay for both teams
-                <div className="absolute inset-0 bg-danger/40" />
-              ) : (
-                // Vertical line in the middle for one team banned, lets eliminate the middle line
-                <div className="">
-                  <div className="" />
-                </div>
-              )
-            )}
-            {/* Red overlay for captain - previous game ban by their team */}
-            {!banned && isCaptain && myTeamBannedBefore && (
-              <div className="absolute inset-0 bg-danger/30" />
-            )}
-          </div>
-          <div className={clsx(
-            "px-1 py-1 text-center",
-            !banned && wasBannedBefore ? "bg-danger/20" : "bg-background"
-          )}>
-            <span className={clsx(
-              "text-[10px] truncate block font-medium",
-              !banned && wasBannedBefore ? "text-danger" : "text-foreground"
-            )}>
-              {hero.name}
-            </span>
-          </div>
-          {/* Current game banned overlay - GRAY */}
-          {banned && (
-            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-              <span className="text-white font-semibold text-[10px] uppercase">Banned</span>
-            </div>
-          )}
-          {/* Previous game banned overlay for captain - diagonal red lines (ban indicator) */}
-          {!banned && isCaptain && myTeamBannedBefore && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="relative w-full h-full flex items-center justify-center">
-                <svg className="absolute w-6 h-6 text-danger" fill="currentColor" viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.8" />
-                  <path d="M8 8l8 8M16 8l-8 8" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-                </svg>
-              </div>
-            </div>
-          )}
-        </button>
-        {/* Tooltip for manager showing which team banned */}
-        {isManager && wasBannedBefore && !banned && hoveredHero === hero.id && (
-          <div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-surface-elevated border border-danger/50 rounded text-[10px] whitespace-nowrap shadow-lg">
-            <span className="text-danger font-medium">Banned by: </span>
-            <span className="text-foreground">{prevBanInfo.teamNames.join(" & ")}</span>
-            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-surface-elevated" />
-          </div>
-        )}
-      </div>
+      <HeroCard
+        key={hero.id}
+        heroId={hero.id}
+        heroName={hero.name}
+        heroImgPath={hero.imgPath}
+        heroRole={hero.role as HeroRole}
+        canSelect={canSelect}
+        banned={banned}
+        isCaptain={isCaptain}
+        isManager={isManager}
+        isMyTurn={isMyTurn}
+        actionLoading={actionLoading}
+        roleAtLimit={roleAtLimit}
+        teamDone={teamDone}
+        myTeamBannedBefore={myTeamBannedBefore}
+        prevBannedByTeamA={prevBanInfo.bannedByTeamA}
+        prevBannedByTeamB={prevBanInfo.bannedByTeamB}
+        teamAName={teamAName}
+        teamBName={teamBName}
+        bannedByTeamA={banInfo?.bannedByTeamA ?? false}
+        bannedByTeamB={banInfo?.bannedByTeamB ?? false}
+        onClick={onHeroCardClick}
+        onRoleLimitWarning={onHeroRoleLimitWarning}
+      />
     );
   };
 
