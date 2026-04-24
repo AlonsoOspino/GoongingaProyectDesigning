@@ -85,22 +85,96 @@ async function generateBackupSql() {
   return `${lines.join("\n")}\n`;
 }
 
+/**
+ * Split a SQL backup script into individual executable statements.
+ *
+ * A previous implementation split by newline and assumed every line was a
+ * full statement. That broke as soon as any exported value (News bodies,
+ * rosters, JSON fields, etc.) contained a literal newline character: the
+ * statement got shredded across lines and the parser rejected it with
+ * "Each statement must end with ';'".
+ *
+ * This parser walks the script character by character and respects:
+ *   - Single-quoted string literals with `''` as the SQL-standard escape for
+ *     a literal quote. Newlines and semicolons inside strings are preserved
+ *     and do not terminate a statement.
+ *   - `-- ...` line comments (skipped entirely).
+ *   - `BEGIN` / `COMMIT` control statements (ignored; the caller runs the
+ *     whole batch inside a single transaction already).
+ *   - Only `TRUNCATE TABLE` and `INSERT INTO` are whitelisted. Anything else
+ *     is rejected to avoid executing arbitrary SQL from pasted input.
+ */
 function parseExecutableStatements(script) {
-  const lines = String(script || "").split(/\r?\n/);
+  const input = String(script || "");
   const statements = [];
+  let current = "";
+  let inString = false;
+  let i = 0;
 
-  for (const raw of lines) {
-    const line = raw.trim();
-    if (!line || line.startsWith("--")) continue;
-    if (line === "BEGIN;" || line === "COMMIT;") continue;
-    if (!line.endsWith(";")) {
-      throw new Error("Invalid SQL format. Each statement must end with ';'.");
-    }
-    const upper = line.toUpperCase();
+  const pushStatement = () => {
+    const stmt = current.trim();
+    current = "";
+    if (!stmt) return;
+
+    const upper = stmt.toUpperCase();
+    if (upper === "BEGIN" || upper === "COMMIT") return;
+
     if (!upper.startsWith("TRUNCATE TABLE") && !upper.startsWith("INSERT INTO")) {
       throw new Error("Only TRUNCATE TABLE and INSERT INTO statements are allowed.");
     }
-    statements.push(line);
+
+    statements.push(`${stmt};`);
+  };
+
+  while (i < input.length) {
+    const ch = input[i];
+    const next = input[i + 1];
+
+    if (inString) {
+      // Inside '...': only ' ends the string (with '' escaping a literal ').
+      if (ch === "'") {
+        if (next === "'") {
+          current += "''";
+          i += 2;
+          continue;
+        }
+        inString = false;
+      }
+      current += ch;
+      i += 1;
+      continue;
+    }
+
+    // Line comment: skip until newline (not included in output).
+    if (ch === "-" && next === "-") {
+      while (i < input.length && input[i] !== "\n") i += 1;
+      continue;
+    }
+
+    if (ch === "'") {
+      inString = true;
+      current += ch;
+      i += 1;
+      continue;
+    }
+
+    if (ch === ";") {
+      pushStatement();
+      i += 1;
+      continue;
+    }
+
+    current += ch;
+    i += 1;
+  }
+
+  if (inString) {
+    throw new Error("Invalid SQL format. Unterminated string literal in script.");
+  }
+
+  const tail = current.trim();
+  if (tail) {
+    throw new Error("Invalid SQL format. Last statement is missing a ';' terminator.");
   }
 
   if (!statements.length) {
