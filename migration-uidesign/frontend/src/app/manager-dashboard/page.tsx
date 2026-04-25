@@ -4,21 +4,14 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "@/features/session/SessionProvider";
-import { getMembers, type Member } from "@/lib/api/admin";
-import {
-  uploadMatchStatsScreenshotPreview,
-  confirmMatchStatsUpload,
-  getAllPlayerStats,
-  type MatchStatPreviewResponse,
-  type MatchStatPreviewRow,
-} from "@/lib/api/playerStat";
-import { finishPendingRegisters, updateManagerMatch } from "@/lib/api/match";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { MapTimer } from "@/components/match/MapTimer";
+import { PauseRequestNotification } from "@/components/match/PauseRequestNotification";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
 import { Input } from "@/components/ui/Input";
-import { getMatches, getTeams, createDraft, getDraftByMatchId, type Match, type Team, type DraftState } from "@/lib/api";
+import { getMatches, getTeams, createDraft, getDraftByMatchId, managerTogglePause, managerClearPauseRequest, type Match, type Team, type DraftState } from "@/lib/api";
 import type { PlayerStat } from "@/lib/api/types";
 
 type TabValue = "scheduled" | "active" | "pending" | "stats";
@@ -672,23 +665,55 @@ export default function ManagerDashboardPage() {
                   <div className="space-y-4">
                     {activeMatches.map((match) => {
                       const draft = drafts[match.id];
+                      const hasMapStarted = match.mapStartedAt;
                       return (
                         <div key={match.id} className="border border-accent/30 rounded-lg p-4 bg-accent/5">
-                          <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <span className="text-lg font-semibold text-foreground">{getTeamName(match.teamAId)}</span>
-                                <span className="font-mono text-xl text-accent">{match.mapWinsTeamA} - {match.mapWinsTeamB}</span>
-                                <span className="text-lg font-semibold text-foreground">{getTeamName(match.teamBId)}</span>
+                          <div className="flex flex-col gap-4">
+                            <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <span className="text-lg font-semibold text-foreground">{getTeamName(match.teamAId)}</span>
+                                  <span className="font-mono text-xl text-accent">{match.mapWinsTeamA} - {match.mapWinsTeamB}</span>
+                                  <span className="text-lg font-semibold text-foreground">{getTeamName(match.teamBId)}</span>
+                                </div>
+                                <div className="flex items-center gap-3 text-sm">
+                                  <Badge variant="primary">Game {(match.gameNumber || 0) + 1}</Badge>
+                                  {draft && <Badge variant="secondary">{draft.phase}</Badge>}
+                                </div>
                               </div>
-                              <div className="flex items-center gap-3 text-sm">
-                                <Badge variant="primary">Game {(match.gameNumber || 0) + 1}</Badge>
-                                {draft && <Badge variant="secondary">{draft.phase}</Badge>}
-                              </div>
+                              <Link href={`/draft-table/${match.id}`}>
+                                <Button variant="secondary">View Draft</Button>
+                              </Link>
                             </div>
-                            <Link href={`/draft-table/${match.id}`}>
-                              <Button variant="secondary">View Draft</Button>
-                            </Link>
+
+                            {/* Map Timer */}
+                            {hasMapStarted && (
+                              <div className="border-t border-accent/20 pt-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm text-muted">Map Timer</span>
+                                  <MapTimer
+                                    mapStartedAt={match.mapStartedAt}
+                                    isPaused={match.mapTimerPaused || false}
+                                    onPauseToggle={(paused) => managerTogglePause(token, match.id, paused)}
+                                    showPauseButton
+                                    size="sm"
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Pause Request Notification */}
+                            {match.pauseRequestedBy && (
+                              <div className="border-t border-warning/20 pt-3">
+                                <PauseRequestNotification
+                                  captainName={match.pauseRequestedBy === match.teamAId ? getTeamName(match.teamAId) : getTeamName(match.teamBId)}
+                                  teamName={match.pauseRequestedBy === match.teamAId ? getTeamName(match.teamAId) : getTeamName(match.teamBId)}
+                                  isManager
+                                  onAccept={() => managerTogglePause(token, match.id, true)}
+                                  onDeny={() => managerClearPauseRequest(token, match.id)}
+                                />
+                              </div>
+                            )}
                           </div>
                         </div>
                       );

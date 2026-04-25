@@ -47,3 +47,25 @@ export async function finishPendingRegisters(token: string, matchId: number) {
     token,
   });
 }
+
+export async function captainRequestPause(token: string, matchId: number) {
+  return apiRequest<Match>(`/match/captain/${matchId}/request-pause`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function managerTogglePause(token: string, matchId: number, paused: boolean) {
+  return apiRequest<Match>(`/match/manager/${matchId}/toggle-pause`, {
+    method: "POST",
+    token,
+    body: { paused },
+  });
+}
+
+export async function managerClearPauseRequest(token: string, matchId: number) {
+  return apiRequest<Match>(`/match/manager/${matchId}/clear-pause-request`, {
+    method: "POST",
+    token,
+  });
+}
