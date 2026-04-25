@@ -184,23 +184,73 @@ function parseExecutableStatements(script) {
   return statements;
 }
 
-async function restoreFromBackupSql(script) {
-  const statements = parseExecutableStatements(script);
+const RESTORE_INSERT_ORDER = [
+  "Tournament",
+  "Map",
+  "Hero",
+  "Team",
+  "Member",
+  "Match",
+  "_AllowedMaps",
+  "DraftTable",
+  "DraftAction",
+  "News",
+  "PlayerStat",
+];
 
-  await prisma.$transaction(async (tx) => {
-    // Disable foreign key constraint checking during restore. The statements
-    // are ordered carefully (teams before members, etc.) but the insert order
-    // may not always respect the dependency graph, especially when restoring
-    // partial data. Re-enable after all inserts are done.
-    await tx.$executeRawUnsafe("SET CONSTRAINTS ALL DEFERRED;");
+const RESTORE_INSERT_RANK = RESTORE_INSERT_ORDER.reduce((acc, table, index) => {
+  acc[table] = index;
+  return acc;
+}, {});
 
-    for (const statement of statements) {
-      await tx.$executeRawUnsafe(statement);
+function getInsertTableName(statement) {
+  const match = statement.match(/^INSERT\s+INTO\s+(?:"([^"]+)"|([a-zA-Z_][a-zA-Z0-9_]*))/i);
+  return match ? (match[1] || match[2]) : null;
+}
+
+function reorderStatementsForRestore(statements) {
+  const truncates = [];
+  const inserts = [];
+
+  for (const statement of statements) {
+    const upper = statement.trim().toUpperCase();
+    if (upper.startsWith("TRUNCATE TABLE")) {
+      truncates.push(statement);
+    } else {
+      inserts.push(statement);
     }
+  }
 
-    // Constraints are automatically checked at transaction commit.
-    // If there are any violations, the transaction will roll back.
+  inserts.sort((left, right) => {
+    const leftTable = getInsertTableName(left);
+    const rightTable = getInsertTableName(right);
+    const leftRank = leftTable in RESTORE_INSERT_RANK ? RESTORE_INSERT_RANK[leftTable] : Number.MAX_SAFE_INTEGER;
+    const rightRank = rightTable in RESTORE_INSERT_RANK ? RESTORE_INSERT_RANK[rightTable] : Number.MAX_SAFE_INTEGER;
+    return leftRank - rightRank;
   });
+
+  return [...truncates, ...inserts];
+}
+
+async function restoreFromBackupSql(script) {
+  const parsedStatements = parseExecutableStatements(script);
+  const statements = reorderStatementsForRestore(parsedStatements);
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      for (const statement of statements) {
+        await tx.$executeRawUnsafe(statement);
+      }
+    });
+  } catch (error) {
+    const message = String(error?.message || "");
+    if (message.includes("Member_teamId_fkey") || message.includes("Code: `23503`")) {
+      throw new Error(
+        "Restore failed: one or more Member rows reference a teamId that does not exist in the script. Include the related Team INSERT rows (or set teamId to NULL) and retry."
+      );
+    }
+    throw error;
+  }
 
   return { executedStatements: statements.length };
 }

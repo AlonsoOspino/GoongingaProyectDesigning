@@ -1,6 +1,24 @@
 const memberService = require("../services/authUser");
 const memberRepo = require("../repositories/member");
+const teamRepo = require("../repositories/team");
 const bcrypt = require("bcrypt");
+
+async function normalizeAdminTeamId(rawTeamId) {
+  if (rawTeamId === undefined) return undefined;
+  if (rawTeamId === null || rawTeamId === "") return null;
+
+  const parsed = Number(rawTeamId);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error("teamId must be a positive integer or null.");
+  }
+
+  const team = await teamRepo.findById(parsed);
+  if (!team) {
+    throw new Error(`Team with id ${parsed} does not exist.`);
+  }
+
+  return parsed;
+}
 
 const register = async (req, res) => {
   try {
@@ -63,7 +81,7 @@ const adminUpdate = async (req, res) => {
   try {
     const { team, password, ...safeBody } = req.body;
     if (req.body.teamId !== undefined) {
-      safeBody.teamId = req.body.teamId === null ? null : Number(req.body.teamId);
+      safeBody.teamId = await normalizeAdminTeamId(req.body.teamId);
     }
     if (password) {
       safeBody.passwordHash = await bcrypt.hash(password, 10);
@@ -107,10 +125,12 @@ const bulkImport = async (req, res) => {
       }
 
       const [nickname, user, password, teamIdStr] = parts;
-      const teamId = Number(teamIdStr);
+      let teamId;
 
-      if (!Number.isInteger(teamId) || teamId <= 0) {
-        errors.push(`Line ${i + 1}: invalid teamId "${teamIdStr}"`);
+      try {
+        teamId = await normalizeAdminTeamId(teamIdStr);
+      } catch (validationErr) {
+        errors.push(`Line ${i + 1}: ${validationErr.message}`);
         continue;
       }
 
