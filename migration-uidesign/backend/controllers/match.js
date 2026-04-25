@@ -187,6 +187,76 @@ const adminGetWeekMapsConfig = async (req, res) => {
   }
 };
 
+const captainRequestPause = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const match = await matchService.getById(Number(id));
+    
+    if (!match) {
+      return res.status(404).json({ message: "Match not found" });
+    }
+
+    const captainTeamId = Number(req.user.teamId);
+    if (captainTeamId !== match.teamAId && captainTeamId !== match.teamBId) {
+      return res.status(403).json({ message: "You are not part of this match" });
+    }
+
+    // Store pause request with captain info (in match's pauseRequestedBy and pauseRequestedAt fields)
+    const updatedMatch = await matchService.update(Number(id), {
+      pauseRequestedBy: captainTeamId,
+      pauseRequestedAt: new Date(),
+    });
+
+    res.json({
+      message: "Pause requested",
+      match: updatedMatch,
+    });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+const managerTogglePause = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { paused } = req.body;
+
+    if (typeof paused !== "boolean") {
+      return res.status(400).json({ message: "paused must be a boolean" });
+    }
+
+    const updatedMatch = await matchService.update(Number(id), {
+      mapTimerPaused: paused,
+      mapTimerPausedAt: paused ? new Date() : null,
+    });
+
+    res.json({
+      message: paused ? "Timer paused" : "Timer resumed",
+      match: updatedMatch,
+    });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+const managerClearPauseRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const updatedMatch = await matchService.update(Number(id), {
+      pauseRequestedBy: null,
+      pauseRequestedAt: null,
+    });
+
+    res.json({
+      message: "Pause request cleared",
+      match: updatedMatch,
+    });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
 module.exports = {
   getById,
   getAll,
@@ -202,5 +272,8 @@ module.exports = {
   finishPendingRegisters,
   adminUpdateWeekMaps,
   adminGetWeekMapsConfig,
+  captainRequestPause,
+  managerTogglePause,
+  managerClearPauseRequest,
 };
 

@@ -188,9 +188,18 @@ async function restoreFromBackupSql(script) {
   const statements = parseExecutableStatements(script);
 
   await prisma.$transaction(async (tx) => {
+    // Disable foreign key constraint checking during restore. The statements
+    // are ordered carefully (teams before members, etc.) but the insert order
+    // may not always respect the dependency graph, especially when restoring
+    // partial data. Re-enable after all inserts are done.
+    await tx.$executeRawUnsafe("SET CONSTRAINTS ALL DEFERRED;");
+
     for (const statement of statements) {
       await tx.$executeRawUnsafe(statement);
     }
+
+    // Constraints are automatically checked at transaction commit.
+    // If there are any violations, the transaction will roll back.
   });
 
   return { executedStatements: statements.length };

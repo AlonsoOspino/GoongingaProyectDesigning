@@ -14,7 +14,10 @@ router.delete("/admin/delete/:id", authMiddleware, adminMiddleware, matchControl
 router.put("/admin/week-maps", authMiddleware, adminMiddleware, matchController.adminUpdateWeekMaps);
 router.get("/admin/week-maps/:tournamentId/:semanas", authMiddleware, adminMiddleware, matchController.adminGetWeekMapsConfig);
 router.put("/captain/update/:id", authMiddleware, captainMatchMiddleware, matchController.captainUpdate);
+router.post("/captain/:id/request-pause", authMiddleware, captainMatchMiddleware, matchController.captainRequestPause);
 router.put("/manager/update/:id", authMiddleware, managerMiddleware, matchController.managerUpdate);
+router.post("/manager/:id/toggle-pause", authMiddleware, managerMiddleware, matchController.managerTogglePause);
+router.post("/manager/:id/clear-pause-request", authMiddleware, managerMiddleware, matchController.managerClearPauseRequest);
 router.post("/:id/result", authMiddleware, managerMiddleware, matchController.submitResult);
 router.post("/:id/finish-registers", authMiddleware, managerMiddleware, matchController.finishPendingRegisters);
 router.get("/soonest", matchController.findSoonest);
