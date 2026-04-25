@@ -10,6 +10,12 @@ import { TeamCard } from "@/components/teams/TeamCard";
 import { NewsCard } from "@/components/news/NewsCard";
 import type { Match, Team, NewsItem } from "@/lib/api/types";
 
+// Revalidate every 60 seconds. This makes the page semi-dynamic, so when you
+// delete matches from the admin dashboard and refresh, they disappear within
+// a minute instead of staying cached indefinitely. See:
+// https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#revalidate
+export const revalidate = 60;
+
 async function getHomeData() {
   try {
     const [matches, teams, news] = await Promise.all([
