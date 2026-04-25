@@ -500,6 +500,7 @@ export default function CaptainDashboardPage() {
                       const [pauseRequested, setPauseRequested] = useState(match.pauseRequestedBy === user?.teamId);
 
                       const handleRequestPause = async () => {
+                        if (!token) return;
                         setRequestingPause(true);
                         try {
                           await captainRequestPause(token, match.id);
@@ -559,7 +560,7 @@ export default function CaptainDashboardPage() {
                                 <div className="flex items-center gap-3">
                                   <span className="text-sm text-muted">Map Timer:</span>
                                   <MapTimer
-                                    mapStartedAt={match.mapStartedAt}
+                                    mapStartedAt={match.mapStartedAt ?? null}
                                     isPaused={match.mapTimerPaused || false}
                                     size="sm"
                                   />

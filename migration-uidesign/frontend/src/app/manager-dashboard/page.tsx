@@ -11,7 +11,26 @@ import { MapTimer } from "@/components/match/MapTimer";
 import { PauseRequestNotification } from "@/components/match/PauseRequestNotification";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
 import { Input } from "@/components/ui/Input";
-import { getMatches, getTeams, createDraft, getDraftByMatchId, managerTogglePause, managerClearPauseRequest, type Match, type Team, type DraftState } from "@/lib/api";
+import {
+  getMatches,
+  getTeams,
+  getMembers,
+  createDraft,
+  getDraftByMatchId,
+  updateManagerMatch,
+  finishPendingRegisters,
+  getAllPlayerStats,
+  uploadMatchStatsScreenshotPreview,
+  confirmMatchStatsUpload,
+  managerTogglePause,
+  managerClearPauseRequest,
+  type Match,
+  type Team,
+  type DraftState,
+  type Member,
+  type MatchStatPreviewResponse,
+  type MatchStatPreviewRow,
+} from "@/lib/api";
 import type { PlayerStat } from "@/lib/api/types";
 
 type TabValue = "scheduled" | "active" | "pending" | "stats";
@@ -692,9 +711,9 @@ export default function ManagerDashboardPage() {
                                 <div className="flex items-center justify-between">
                                   <span className="text-sm text-muted">Map Timer</span>
                                   <MapTimer
-                                    mapStartedAt={match.mapStartedAt}
+                                    mapStartedAt={match.mapStartedAt ?? null}
                                     isPaused={match.mapTimerPaused || false}
-                                    onPauseToggle={(paused) => managerTogglePause(token, match.id, paused)}
+                                    onPauseToggle={(paused) => managerTogglePause(token!, match.id, paused)}
                                     showPauseButton
                                     size="sm"
                                   />
@@ -709,8 +728,8 @@ export default function ManagerDashboardPage() {
                                   captainName={match.pauseRequestedBy === match.teamAId ? getTeamName(match.teamAId) : getTeamName(match.teamBId)}
                                   teamName={match.pauseRequestedBy === match.teamAId ? getTeamName(match.teamAId) : getTeamName(match.teamBId)}
                                   isManager
-                                  onAccept={() => managerTogglePause(token, match.id, true)}
-                                  onDeny={() => managerClearPauseRequest(token, match.id)}
+                                  onAccept={() => managerTogglePause(token!, match.id, true)}
+                                  onDeny={() => managerClearPauseRequest(token!, match.id)}
                                 />
                               </div>
                             )}
