@@ -159,6 +159,15 @@ model Match {
   mapsAllowedByRound Json?
   mapResults Json?
 
+  // Map timer and pause control (for live matches)
+  mapStartedAt DateTime?
+  mapTimerPaused Boolean @default(false)
+  mapTimerPausedAt DateTime?
+
+  // Pause request from captain to manager
+  pauseRequestedBy Int? // teamId requesting pause
+  pauseRequestedAt DateTime?
+
   allowedMaps Map[] @relation("AllowedMaps")
   
   draft DraftTable?

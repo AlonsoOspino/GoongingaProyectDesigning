@@ -58,6 +58,11 @@ export interface Match {
     winnerTeamId: number | null;
     isDraw: boolean;
   }> | null;
+  mapStartedAt?: string | null;
+  mapTimerPaused?: boolean;
+  mapTimerPausedAt?: string | null;
+  pauseRequestedBy?: number | null;
+  pauseRequestedAt?: string | null;
 }
 
 export interface DraftAction {
