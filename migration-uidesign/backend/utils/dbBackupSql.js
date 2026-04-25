@@ -244,11 +244,33 @@ async function restoreFromBackupSql(script) {
     });
   } catch (error) {
     const message = String(error?.message || "");
-    if (message.includes("Member_teamId_fkey") || message.includes("Code: `23503`")) {
+    const fkMatch = message.match(/constraint\s+"([^"]+)"/i);
+    const fkName = fkMatch ? fkMatch[1] : null;
+
+    if (fkName === "Member_teamId_fkey") {
       throw new Error(
         "Restore failed: one or more Member rows reference a teamId that does not exist in the script. Include the related Team INSERT rows (or set teamId to NULL) and retry."
       );
     }
+
+    if (fkName === "Team_tournamentId_fkey") {
+      throw new Error(
+        "Restore failed: one or more Team rows reference a tournamentId that does not exist in the script. Make sure the Tournament INSERT rows (for those ids) appear before Team INSERT rows."
+      );
+    }
+
+    if (fkName === "Match_tournamentId_fkey" || fkName === "Match_teamAId_fkey" || fkName === "Match_teamBId_fkey") {
+      throw new Error(
+        `Restore failed: Match rows reference missing parent records (${fkName}). Verify Tournament/Team rows exist in the script for all referenced IDs.`
+      );
+    }
+
+    if (message.includes("Code: `23503`")) {
+      throw new Error(
+        `Restore failed due to a foreign key violation${fkName ? ` (${fkName})` : ""}. Check parent rows are present earlier in the script.`
+      );
+    }
+
     throw error;
   }
 
