@@ -208,6 +208,29 @@ function getInsertTableName(statement) {
   return match ? (match[1] || match[2]) : null;
 }
 
+function containsInsertForTable(statements, tableName) {
+  const pattern = new RegExp(`^INSERT\\s+INTO\\s+(?:"${tableName}"|${tableName})\\b`, "i");
+  return statements.some((statement) => pattern.test(statement.trim()));
+}
+
+function normalizeTruncateStatement(statement, tablesToKeep) {
+  const match = statement.match(/^TRUNCATE\s+TABLE\s+(.+?)\s+RESTART\s+IDENTITY\s+CASCADE;?$/i);
+  if (!match) return statement;
+
+  const tableList = match[1]
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .filter((part) => {
+      const unquoted = part.replace(/^"|"$/g, "");
+      return !tablesToKeep.has(unquoted);
+    });
+
+  if (!tableList.length) return null;
+
+  return `TRUNCATE TABLE ${tableList.join(", ")} RESTART IDENTITY CASCADE;`;
+}
+
 function reorderStatementsForRestore(statements) {
   const truncates = [];
   const inserts = [];
@@ -234,7 +257,21 @@ function reorderStatementsForRestore(statements) {
 
 async function restoreFromBackupSql(script) {
   const parsedStatements = parseExecutableStatements(script);
-  const statements = reorderStatementsForRestore(parsedStatements);
+  const hasMapInserts = containsInsertForTable(parsedStatements, "Map");
+  const hasHeroInserts = containsInsertForTable(parsedStatements, "Hero");
+
+  const tablesToKeep = new Set();
+  if (!hasMapInserts) tablesToKeep.add("Map");
+  if (!hasHeroInserts) tablesToKeep.add("Hero");
+
+  const adjustedStatements = parsedStatements
+    .map((statement) => {
+      if (!statement.trim().toUpperCase().startsWith("TRUNCATE TABLE")) return statement;
+      return normalizeTruncateStatement(statement, tablesToKeep);
+    })
+    .filter(Boolean);
+
+  const statements = reorderStatementsForRestore(adjustedStatements);
 
   try {
     await prisma.$transaction(async (tx) => {
