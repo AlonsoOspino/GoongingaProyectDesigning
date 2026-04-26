@@ -5,11 +5,11 @@ import Link from "next/link";
 import Image from "next/image";
 import useSWR from "swr";
 import { getTeams } from "@/lib/api/team";
-import { getMembers } from "@/lib/api/admin";
+import { getMembers, type Member } from "@/lib/api/admin";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import type { Team, Member } from "@/lib/api/types";
+import type { Team } from "@/lib/api/types";
 
 // Role colors for badges
 const ROLE_COLORS: Record<string, string> = {
