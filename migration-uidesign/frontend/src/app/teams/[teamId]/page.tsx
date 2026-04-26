@@ -108,7 +108,9 @@ export default async function TeamPage({ params }: TeamPageProps) {
   const rosterSrc = team.roster
     ? team.roster.startsWith("http")
       ? team.roster
-      : `${process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}${team.roster.startsWith("/") ? "" : "/"}${team.roster}`
+      : team.roster.startsWith("/")
+        ? team.roster
+        : `/${team.roster}`
     : null;
 
   return (

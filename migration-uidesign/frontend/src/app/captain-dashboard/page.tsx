@@ -15,7 +15,6 @@ import { getMatches, getTeams, updateCaptainMatch, updateCaptainTeam, getDraftBy
 import { convertToISODateTime, formatForDateTimeInput, formatRelativeEST, formatTimeEST, isWithinNextHoursEST } from "@/lib/dateUtils";
 import { MapTimer } from "@/components/match/MapTimer";
 import { clsx } from "clsx";
-import { uploadTeamMedia } from "@/lib/teamMediaUpload";
 
 type TabValue = "upcoming" | "active" | "history";
 
@@ -36,13 +35,9 @@ export default function CaptainDashboardPage() {
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
   const [teamFormData, setTeamFormData] = useState({ name: "", logo: "", roster: "" });
-  const [logoUploading, setLogoUploading] = useState(false);
-  const [rosterUploading, setRosterUploading] = useState(false);
   const [teamNotification, setTeamNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   const pollRef = useRef<NodeJS.Timeout | null>(null);
-  const logoInputRef = useRef<HTMLInputElement>(null);
-  const rosterInputRef = useRef<HTMLInputElement>(null);
   const prevMatchesRef = useRef<Match[]>([]);
   const prevDraftsRef = useRef<Record<number, DraftState | null>>({});
 
@@ -204,32 +199,6 @@ export default function CaptainDashboardPage() {
     setTeamNotification({ type, message });
     setTimeout(() => setTeamNotification(null), 3000);
   };
-
-  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setLogoUploading(true);
-    try {
-      const url = await uploadTeamMedia(file, "logo");
-      setTeamFormData((prev) => ({ ...prev, logo: url }));
-    } catch (error: any) {
-      showTeamNotification("error", error.message || "Failed to upload logo");
-    }
-    setLogoUploading(false);
-  }
-
-  async function handleRosterUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setRosterUploading(true);
-    try {
-      const url = await uploadTeamMedia(file, "roster");
-      setTeamFormData((prev) => ({ ...prev, roster: url }));
-    } catch (error: any) {
-      showTeamNotification("error", error.message || "Failed to upload roster");
-    }
-    setRosterUploading(false);
-  }
 
   async function handleUpdateTeam() {
     if (!token || !myTeam) return;
@@ -647,43 +616,18 @@ export default function CaptainDashboardPage() {
           <ModalContent>
             <div className="space-y-4">
               <Input label="Team Name" value={teamFormData.name} onChange={(e) => setTeamFormData({ ...teamFormData, name: e.target.value })} />
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Team Logo</label>
-                <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
-                <div className="flex items-center gap-4">
-                  {teamFormData.logo ? (
-                    <div className="relative w-20 h-20 rounded-lg overflow-hidden border border-border">
-                      <Image src={teamFormData.logo} alt="Logo" fill className="object-cover" unoptimized />
-                    </div>
-                  ) : (
-                    <div className="w-20 h-20 rounded-lg bg-surface border-2 border-dashed border-border flex items-center justify-center">
-                      <span className="text-xs text-muted">No logo</span>
-                    </div>
-                  )}
-                  <Button type="button" variant="secondary" size="sm" onClick={() => logoInputRef.current?.click()} disabled={logoUploading}>
-                    {logoUploading ? "Uploading..." : "Upload Logo"}
-                  </Button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Roster Image</label>
-                <input ref={rosterInputRef} type="file" accept="image/*" onChange={handleRosterUpload} className="hidden" />
-                <div className="space-y-3">
-                  {teamFormData.roster ? (
-                    <div className="relative w-full h-40 rounded-lg overflow-hidden border border-border bg-surface">
-                      <Image src={teamFormData.roster} alt="Roster" fill className="object-contain" unoptimized />
-                    </div>
-                  ) : (
-                    <div className="w-full h-32 rounded-lg bg-surface border-2 border-dashed border-border flex items-center justify-center">
-                      <span className="text-sm text-muted">No roster image</span>
-                    </div>
-                  )}
-                  <Button type="button" variant="secondary" size="sm" onClick={() => rosterInputRef.current?.click()} disabled={rosterUploading}>
-                    {rosterUploading ? "Uploading..." : "Upload Roster"}
-                  </Button>
-                </div>
-              </div>
+              <Input
+                label="Team Logo URL"
+                value={teamFormData.logo}
+                onChange={(e) => setTeamFormData({ ...teamFormData, logo: e.target.value })}
+                placeholder="https://example.com/team-logo.png"
+              />
+              <Input
+                label="Roster Image URL"
+                value={teamFormData.roster}
+                onChange={(e) => setTeamFormData({ ...teamFormData, roster: e.target.value })}
+                placeholder="https://example.com/team-roster.png"
+              />
             </div>
           </ModalContent>
           <ModalFooter>

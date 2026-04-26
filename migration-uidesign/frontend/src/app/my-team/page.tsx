@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSession } from "@/features/session/SessionProvider";
 import { getTeams, updateCaptainTeam } from "@/lib/api/team";
 import { getMatches } from "@/lib/api/match";
-import { uploadTeamMedia } from "@/lib/teamMediaUpload";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -26,11 +25,6 @@ export default function MyTeamPage() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [editForm, setEditForm] = useState({ name: "", logo: "", roster: "" });
-  const [logoUploading, setLogoUploading] = useState(false);
-  const [rosterUploading, setRosterUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const logoInputRef = useRef<HTMLInputElement>(null);
-  const rosterInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -90,38 +84,6 @@ export default function MyTeamPage() {
       console.error("Failed to update team:", error);
     } finally {
       setEditLoading(false);
-    }
-  };
-
-  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setUploadError(null);
-    setLogoUploading(true);
-    try {
-      const url = await uploadTeamMedia(file, "logo");
-      setEditForm((prev) => ({ ...prev, logo: url }));
-    } catch (error: any) {
-      setUploadError(error?.message || "Failed to upload logo");
-    } finally {
-      setLogoUploading(false);
-    }
-  };
-
-  const handleRosterUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setUploadError(null);
-    setRosterUploading(true);
-    try {
-      const url = await uploadTeamMedia(file, "roster");
-      setEditForm((prev) => ({ ...prev, roster: url }));
-    } catch (error: any) {
-      setUploadError(error?.message || "Failed to upload roster");
-    } finally {
-      setRosterUploading(false);
     }
   };
 
@@ -266,7 +228,7 @@ export default function MyTeamPage() {
                 className="w-24 h-24 text-2xl mb-4"
               />
               <h2 className="text-xl font-bold text-foreground mb-1">{team.name}</h2>
-              <p className="text-sm text-muted mb-4">Tournament #{team.tournamentId}</p>
+              <p className="text-sm text-muted mb-4">Goonginga League</p>
 
               <div className="flex items-center gap-3 mb-6">
                 <Badge variant={mapDiff >= 0 ? "success" : "danger"}>
@@ -317,7 +279,7 @@ export default function MyTeamPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {upcomingMatches.length > 0 ? (
-                upcomingMatches.map((match) => (
+                upcomingMatches.slice(0, 2).map((match) => (
                   <MatchCard
                     key={match.id}
                     match={match}
@@ -394,66 +356,18 @@ export default function MyTeamPage() {
             onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
             placeholder="Enter team name"
           />
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">Team Logo</label>
-            <input
-              ref={logoInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleLogoUpload}
-              className="hidden"
-            />
-            <div className="flex items-center gap-4">
-              {editForm.logo ? (
-                <div className="relative h-20 w-20 overflow-hidden rounded-lg border border-border">
-                  <Image src={editForm.logo} alt="Team logo" fill className="object-cover" unoptimized />
-                </div>
-              ) : (
-                <div className="flex h-20 w-20 items-center justify-center rounded-lg border-2 border-dashed border-border bg-surface text-xs text-muted">
-                  No logo
-                </div>
-              )}
-              <Button type="button" variant="secondary" size="sm" onClick={() => logoInputRef.current?.click()} disabled={logoUploading}>
-                {logoUploading ? "Uploading..." : "Upload Logo"}
-              </Button>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">Roster Image</label>
-            <input
-              ref={rosterInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleRosterUpload}
-              className="hidden"
-            />
-            <div className="space-y-3">
-              <div className="overflow-hidden rounded-lg border border-border bg-surface">
-                {editForm.roster ? (
-                  <Image
-                    src={editForm.roster}
-                    alt="Roster preview"
-                    width={1200}
-                    height={700}
-                    className="h-auto w-full object-contain"
-                    unoptimized
-                  />
-                ) : (
-                  <div className="flex h-32 items-center justify-center text-sm text-muted">
-                    No roster image uploaded
-                  </div>
-                )}
-              </div>
-              <Button type="button" variant="secondary" size="sm" onClick={() => rosterInputRef.current?.click()} disabled={rosterUploading}>
-                {rosterUploading ? "Uploading..." : "Upload Roster"}
-              </Button>
-            </div>
-          </div>
-
-          {uploadError && (
-            <p className="text-sm text-danger">{uploadError}</p>
-          )}
+          <Input
+            label="Team Logo URL"
+            value={editForm.logo}
+            onChange={(e) => setEditForm({ ...editForm, logo: e.target.value })}
+            placeholder="https://example.com/team-logo.png"
+          />
+          <Input
+            label="Roster Image URL"
+            value={editForm.roster}
+            onChange={(e) => setEditForm({ ...editForm, roster: e.target.value })}
+            placeholder="https://example.com/team-roster.png"
+          />
           <div className="flex gap-3 pt-4">
             <Button
               type="button"

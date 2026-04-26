@@ -97,7 +97,7 @@ export default function LoginPage() {
 
               <p className="text-sm text-center text-muted">
                 Don&apos;t have an account?{" "}
-                <Link href="/register" className="text-primary hover:underline">
+                <Link href="https://discord.gg/QMukTWr32f" className="text-primary hover:underline">
                   Register
                 </Link>
               </p>

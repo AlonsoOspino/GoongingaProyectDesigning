@@ -19,6 +19,16 @@ export interface AuthUser {
   teamId: number | null;
 }
 
+export interface MemberProfile {
+  id: number;
+  nickname: string;
+  user: string;
+  role: MemberRole;
+  profilePic?: string | null;
+  rank: number;
+  teamId: number | null;
+}
+
 export interface LoginResponse {
   token: string;
   user: AuthUser;

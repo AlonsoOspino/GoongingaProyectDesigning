@@ -113,14 +113,22 @@ export function Navbar() {
                   </Link>
                 )}
                 
-                {/* Profile dropdown */}
-                <div className="flex items-center gap-2 px-2 py-1 rounded-md bg-surface">
+                {/* Profile shortcut */}
+                <Link
+                  href="/profile"
+                  className={clsx(
+                    "flex items-center gap-2 px-2 py-1 rounded-md transition-colors",
+                    pathname.startsWith("/profile")
+                      ? "bg-primary/15"
+                      : "bg-surface hover:bg-surface-elevated"
+                  )}
+                >
                   <Avatar size="sm" fallback={user.nickname} />
                   <div className="flex flex-col">
                     <span className="text-sm font-medium text-foreground">{user.nickname}</span>
                     <span className="text-xs text-muted capitalize">{user.role.toLowerCase()}</span>
                   </div>
-                </div>
+                </Link>
                 <Button variant="ghost" size="sm" onClick={clearSession}>
                   Logout
                 </Button>
@@ -211,13 +219,17 @@ export function Navbar() {
                       {dashboardLink.label}
                     </Link>
                   )}
-                  <div className="flex items-center gap-2 px-3 py-2 mt-2 border-t border-border">
+                  <Link
+                    href="/profile"
+                    className="flex items-center gap-2 px-3 py-2 mt-2 border-t border-border rounded-md hover:bg-surface"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
                     <Avatar size="sm" fallback={user.nickname} />
                     <div className="flex flex-col">
                       <span className="text-sm font-medium text-foreground">{user.nickname}</span>
                       <span className="text-xs text-muted capitalize">{user.role.toLowerCase()}</span>
                     </div>
-                  </div>
+                  </Link>
                   <button
                     type="button"
                     className="px-3 py-2 text-sm font-medium text-left text-danger hover:bg-surface rounded-md"
