@@ -113,7 +113,7 @@ export function Navbar() {
                   </Link>
                 )}
                 
-                {/* Profile shortcut */}
+                {/* Profile shortcut with profile picture of the user */}
                 <Link
                   href="/profile"
                   className={clsx(
@@ -123,7 +123,7 @@ export function Navbar() {
                       : "bg-surface hover:bg-surface-elevated"
                   )}
                 >
-                  <Avatar size="sm" fallback={user.nickname} />
+                  <Avatar size="sm" src={user.profilePic || undefined} fallback={user.nickname} />
                   <div className="flex flex-col">
                     <span className="text-sm font-medium text-foreground">{user.nickname}</span>
                     <span className="text-xs text-muted capitalize">{user.role.toLowerCase()}</span>
@@ -224,7 +224,7 @@ export function Navbar() {
                     className="flex items-center gap-2 px-3 py-2 mt-2 border-t border-border rounded-md hover:bg-surface"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    <Avatar size="sm" fallback={user.nickname} />
+                    <Avatar size="sm" src={user.profilePic || undefined} fallback={user.nickname} />
                     <div className="flex flex-col">
                       <span className="text-sm font-medium text-foreground">{user.nickname}</span>
                       <span className="text-xs text-muted capitalize">{user.role.toLowerCase()}</span>

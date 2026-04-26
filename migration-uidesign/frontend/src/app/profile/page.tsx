@@ -80,6 +80,7 @@ export default function ProfilePage() {
         nickname: updated.nickname,
         role: updated.role,
         teamId: updated.teamId,
+        profilePic: updated.profilePic ?? null,
       });
 
       setForm((prev) => ({ ...prev, password: "" }));
@@ -174,13 +175,7 @@ export default function ProfilePage() {
             placeholder="https://example.com/avatar.png"
           />
 
-          <Input
-            label="Rank"
-            type="number"
-            value={form.rank}
-            onChange={(e) => setForm((prev) => ({ ...prev, rank: e.target.value }))}
-            placeholder="0"
-          />
+          
 
           {error && <p className="text-sm text-danger">{error}</p>}
           {success && <p className="text-sm text-success">{success}</p>}

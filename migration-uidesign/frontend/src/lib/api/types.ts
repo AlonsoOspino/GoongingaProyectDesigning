@@ -17,6 +17,7 @@ export interface AuthUser {
   nickname: string;
   role: MemberRole;
   teamId: number | null;
+  profilePic?: string | null;
 }
 
 export interface MemberProfile {

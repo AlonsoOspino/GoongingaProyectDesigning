@@ -68,6 +68,7 @@ const login = async (data) => {
       nickname: member.nickname,
       role: member.role,
       teamId: member.teamId,
+      profilePic: member.profilePic ?? null,
     },
   };
 };
