@@ -88,7 +88,7 @@ export default function TeamsPage() {
           <div className="flex items-center gap-3 mb-2">
             <div className="w-1 h-8 bg-gradient-to-b from-success to-primary rounded-full" />
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Season 2024
+              Goonginga League
             </span>
           </div>
           <h1 className="text-4xl sm:text-5xl font-bold text-foreground mb-3">

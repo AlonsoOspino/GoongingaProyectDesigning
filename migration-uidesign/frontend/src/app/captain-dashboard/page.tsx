@@ -15,6 +15,7 @@ import { getMatches, getTeams, updateCaptainMatch, updateCaptainTeam, getDraftBy
 import { convertToISODateTime, formatForDateTimeInput, formatRelativeEST, formatTimeEST, isWithinNextHoursEST } from "@/lib/dateUtils";
 import { MapTimer } from "@/components/match/MapTimer";
 import { clsx } from "clsx";
+import { uploadTeamMedia } from "@/lib/teamMediaUpload";
 
 type TabValue = "upcoming" | "active" | "history";
 
@@ -204,30 +205,16 @@ export default function CaptainDashboardPage() {
     setTimeout(() => setTeamNotification(null), 3000);
   };
 
-  async function uploadImage(file: File, type: "logo" | "roster"): Promise<string | null> {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("type", type);
-    try {
-      const response = await fetch("/api/upload", { method: "POST", body: formData });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Upload failed");
-      }
-      const result = await response.json();
-      return result.url;
-    } catch (error: any) {
-      showTeamNotification("error", error.message || "Failed to upload image");
-      return null;
-    }
-  }
-
   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setLogoUploading(true);
-    const url = await uploadImage(file, "logo");
-    if (url) setTeamFormData({ ...teamFormData, logo: url });
+    try {
+      const url = await uploadTeamMedia(file, "logo");
+      setTeamFormData((prev) => ({ ...prev, logo: url }));
+    } catch (error: any) {
+      showTeamNotification("error", error.message || "Failed to upload logo");
+    }
     setLogoUploading(false);
   }
 
@@ -235,8 +222,12 @@ export default function CaptainDashboardPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     setRosterUploading(true);
-    const url = await uploadImage(file, "roster");
-    if (url) setTeamFormData({ ...teamFormData, roster: url });
+    try {
+      const url = await uploadTeamMedia(file, "roster");
+      setTeamFormData((prev) => ({ ...prev, roster: url }));
+    } catch (error: any) {
+      showTeamNotification("error", error.message || "Failed to upload roster");
+    }
     setRosterUploading(false);
   }
 
@@ -671,6 +662,25 @@ export default function CaptainDashboardPage() {
                   )}
                   <Button type="button" variant="secondary" size="sm" onClick={() => logoInputRef.current?.click()} disabled={logoUploading}>
                     {logoUploading ? "Uploading..." : "Upload Logo"}
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">Roster Image</label>
+                <input ref={rosterInputRef} type="file" accept="image/*" onChange={handleRosterUpload} className="hidden" />
+                <div className="space-y-3">
+                  {teamFormData.roster ? (
+                    <div className="relative w-full h-40 rounded-lg overflow-hidden border border-border bg-surface">
+                      <Image src={teamFormData.roster} alt="Roster" fill className="object-contain" unoptimized />
+                    </div>
+                  ) : (
+                    <div className="w-full h-32 rounded-lg bg-surface border-2 border-dashed border-border flex items-center justify-center">
+                      <span className="text-sm text-muted">No roster image</span>
+                    </div>
+                  )}
+                  <Button type="button" variant="secondary" size="sm" onClick={() => rosterInputRef.current?.click()} disabled={rosterUploading}>
+                    {rosterUploading ? "Uploading..." : "Upload Roster"}
                   </Button>
                 </div>
               </div>

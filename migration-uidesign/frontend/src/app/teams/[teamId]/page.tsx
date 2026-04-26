@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getTeams } from "@/lib/api/team";
 import { getMatches } from "@/lib/api/match";
@@ -104,6 +105,12 @@ export default async function TeamPage({ params }: TeamPageProps) {
   const totalMaps = team.mapWins + team.mapLoses;
   const winRate = totalMaps > 0 ? Math.round((team.mapWins / totalMaps) * 100) : 0;
 
+  const rosterSrc = team.roster
+    ? team.roster.startsWith("http")
+      ? team.roster
+      : `${process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}${team.roster.startsWith("/") ? "" : "/"}${team.roster}`
+    : null;
+
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Back Link */}
@@ -132,7 +139,7 @@ export default async function TeamPage({ params }: TeamPageProps) {
               </Badge>
             )}
           </div>
-          <p className="text-muted">Tournament #{team.tournamentId} • Founded 2023</p>
+          <p className="text-muted">Roaster!</p>
         </div>
       </div>
 
@@ -164,9 +171,30 @@ export default async function TeamPage({ params }: TeamPageProps) {
         </Card>
       </div>
 
+      {/* Roster Section (if available) */}
+      {rosterSrc && (
+        <Card variant="featured" className="mb-8">
+          <CardHeader>
+            <CardTitle>Roster</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="relative w-full overflow-hidden rounded-lg border border-border bg-surface">
+              <Image
+                src={rosterSrc}
+                alt={`${team.name} roster`}
+                width={1400}
+                height={900}
+                className="h-auto w-full object-contain"
+                unoptimized
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Content Grid */}
       <div className="grid gap-8 lg:grid-cols-2">
-        {/* Upcoming Matches */}
+        {/* Upcoming Matches, limited to 2 */ }
         <Card variant="featured">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Upcoming Matches</CardTitle>
@@ -176,7 +204,7 @@ export default async function TeamPage({ params }: TeamPageProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             {upcomingMatches.length > 0 ? (
-              upcomingMatches.map((match) => (
+              upcomingMatches.slice(0, 2).map((match) => (
                 <MatchCard
                   key={match.id}
                   match={match}
@@ -202,7 +230,7 @@ export default async function TeamPage({ params }: TeamPageProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             {recentMatches.length > 0 ? (
-              recentMatches.map((match) => (
+              recentMatches.slice(0, 2).map((match) => (
                 <MatchCard
                   key={match.id}
                   match={match}
@@ -219,17 +247,6 @@ export default async function TeamPage({ params }: TeamPageProps) {
         </Card>
       </div>
 
-      {/* Roster Section (if available) */}
-      {team.roster && (
-        <Card variant="featured" className="mt-8">
-          <CardHeader>
-            <CardTitle>Roster</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted whitespace-pre-wrap">{team.roster}</p>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
