@@ -14,6 +14,7 @@ const publicNavLinks = [
   { href: "/news", label: "News" },
   { href: "/standings", label: "Leaderboard" },
   { href: "/stats", label: "Top Players" },
+  { href: "/teams", label: "Teams" },
 ];
 
 export function Navbar() {
