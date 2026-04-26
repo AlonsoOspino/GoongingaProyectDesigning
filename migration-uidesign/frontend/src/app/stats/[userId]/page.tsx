@@ -174,10 +174,10 @@ export default function PlayerStatsDetailPage() {
 
   const globalAverages = useMemo(() => buildPlayerAverages(allStats), [allStats]);
 
-  const rankings = useMemo(() => {
+  const rankings = useMemo((): Partial<Record<TopMetricKey, { rank: number; total: number; percentile: number }>> => {
     if (!userAverage || !globalAverages.length) return {};
 
-    const result: Record<TopMetricKey, { rank: number; total: number; percentile: number }> = {} as Record<TopMetricKey, { rank: number; total: number; percentile: number }>;
+    const result: Partial<Record<TopMetricKey, { rank: number; total: number; percentile: number }>> = {};
     
     for (const metric of TOP_METRICS) {
       const sorted = sortByMetric(globalAverages, metric.key);
