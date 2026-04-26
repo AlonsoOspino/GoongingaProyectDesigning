@@ -31,6 +31,7 @@ import {
   type MatchStatPreviewResponse,
   type MatchStatPreviewRow,
 } from "@/lib/api";
+import { formatDateEST, formatDateTimeEST } from "@/lib/dateUtils";
 import type { PlayerStat } from "@/lib/api/types";
 
 type TabValue = "scheduled" | "active" | "pending" | "stats";
@@ -562,7 +563,7 @@ export default function ManagerDashboardPage() {
                 <p className="text-sm text-muted mt-1">
                   Week {nextMatch.semanas} · BO{nextMatch.bestOf} ·{" "}
                   {nextMatch.startDate
-                    ? new Date(nextMatch.startDate).toLocaleString()
+                    ? formatDateTimeEST(nextMatch.startDate)
                     : "No date set"}
                 </p>
               </div>
@@ -640,7 +641,7 @@ export default function ManagerDashboardPage() {
                                       <Badge variant="secondary">{match.type}</Badge>
                                       <span>BO{match.bestOf}</span>
                                       {match.startDate && (
-                                        <span>{new Date(match.startDate).toLocaleString()}</span>
+                                        <span>{formatDateTimeEST(match.startDate)}</span>
                                       )}
                                     </div>
                                   </div>

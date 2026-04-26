@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/Input";
 import { Modal, ModalHeader, ModalTitle, ModalContent, ModalFooter } from "@/components/ui/Modal";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
 import { getMatches, getTeams, updateCaptainMatch, updateCaptainTeam, getDraftByMatchId, captainRequestPause, type Match, type Team, type DraftState } from "@/lib/api";
-import { formatRelativeEST, formatTimeEST, isWithinNextHoursEST } from "@/lib/dateUtils";
+import { convertToISODateTime, formatForDateTimeInput, formatRelativeEST, formatTimeEST, isWithinNextHoursEST } from "@/lib/dateUtils";
 import { MapTimer } from "@/components/match/MapTimer";
 import { clsx } from "clsx";
 
@@ -189,7 +189,7 @@ export default function CaptainDashboardPage() {
   async function handleReschedule() {
     if (!token || !selectedMatch || !newDate) return;
     try {
-      await updateCaptainMatch(token, selectedMatch.id, { startDate: newDate });
+      await updateCaptainMatch(token, selectedMatch.id, { startDate: convertToISODateTime(newDate) });
       setShowRescheduleModal(false);
       setSelectedMatch(null);
       setNewDate("");
@@ -454,7 +454,7 @@ export default function CaptainDashboardPage() {
                                         size="sm" variant="ghost"
                                         onClick={() => {
                                           setSelectedMatch(match);
-                                          setNewDate(match.startDate ? match.startDate.slice(0, 16) : "");
+                                          setNewDate(match.startDate ? formatForDateTimeInput(match.startDate) : "");
                                           setShowRescheduleModal(true);
                                         }}
                                       >
@@ -621,7 +621,7 @@ export default function CaptainDashboardPage() {
                               </Badge>
                               <div>
                                 <p className="font-medium text-foreground">vs {getTeamName(opponentId)}</p>
-                                <p className="text-xs text-muted">Week {match.semanas} · {new Date(match.startDate).toLocaleDateString()}</p>
+                                <p className="text-xs text-muted">Week {match.semanas} · {new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(match.startDate))}</p>
                               </div>
                             </div>
                             <div className="flex items-center gap-4">

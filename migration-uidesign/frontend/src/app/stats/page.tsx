@@ -118,7 +118,7 @@ export default function StatsPage() {
           <input
             list="players-list"
             className="w-full rounded-md border border-border bg-background px-3 py-2"
-            placeholder="Example: DECEMBER or 14"
+            placeholder="Example:  Arterrat is the goat"
             value={search}
             onChange={(e) => {
               const value = e.target.value;
