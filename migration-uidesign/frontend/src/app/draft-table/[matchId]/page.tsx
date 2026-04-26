@@ -97,8 +97,9 @@ export default function DraftTablePage() {
   }, [draftState, currentPhase]);
 
   useEffect(() => {
-    // Timer only runs during BAN phase (map picking doesn't need timer - waiting for captain to pick)
-    if (!draftState?.phaseStartedAt || currentPhase !== "BAN") {
+    // Timer runs during both BAN and MAPPICKING phases
+    // If no selection is made, random selection occurs on timeout
+    if (!draftState?.phaseStartedAt || (currentPhase !== "BAN" && currentPhase !== "MAPPICKING")) {
       setTimeLeft(TURN_DURATION);
       if (timerRef.current) clearInterval(timerRef.current);
       return;
@@ -439,7 +440,7 @@ export default function DraftTablePage() {
               >
                 {currentPhase}
               </Badge>
-              {currentPhase === "BAN" && (
+              {(currentPhase === "BAN" || currentPhase === "MAPPICKING") && (
                 <div
                   className={clsx(
                     "text-2xl font-mono font-bold tabular-nums",
@@ -449,9 +450,9 @@ export default function DraftTablePage() {
                   {formatTime(timeLeft)}
                 </div>
               )}
-              {currentPhase === "MAPPICKING" && (
-                <div className="text-sm text-muted font-medium">
-                  Waiting for map pick...
+              {currentPhase === "MAPPICKING" && timeLeft > 0 && (
+                <div className="text-xs text-muted font-medium">
+                  Random if timeout
                 </div>
               )}
             </div>
@@ -487,6 +488,8 @@ export default function DraftTablePage() {
             onStartBan={handleStartBan}
             isMapPicked={isMapPicked}
             actionLoading={actionLoading}
+            timeLeft={timeLeft}
+            formatTime={formatTime}
           />
         )}
 
@@ -718,6 +721,8 @@ function MapPickingPhase({
   onStartBan,
   isMapPicked,
   actionLoading,
+  timeLeft,
+  formatTime,
 }: {
   isManager: boolean;
   isCaptain: boolean;
@@ -729,6 +734,8 @@ function MapPickingPhase({
   onStartBan: () => void;
   isMapPicked: (mapId: number) => boolean;
   actionLoading: boolean;
+  timeLeft: number;
+  formatTime: (seconds: number) => string;
 }) {
   const currentTeam = teams.find((t) => t.id === draftState.currentTurnTeamId);
   const teamA = teams.find((t) => t.id === draftState.match.teamAId);
@@ -740,21 +747,39 @@ function MapPickingPhase({
 
   return (
     <div className="min-h-[80vh] flex flex-col">
+      {/* Timer Display - Centered above the grid */}
+      <div className="text-center mb-6">
+        <div className="inline-flex flex-col items-center gap-2 bg-surface-elevated/80 border-2 border-border rounded-xl px-8 py-4">
+          <span className="text-xs text-muted uppercase tracking-widest font-bold">Time Remaining</span>
+          <div
+            className={clsx(
+              "text-4xl font-mono font-bold tabular-nums",
+              timeLeft <= 15 ? "text-danger animate-timer-pulse" : timeLeft <= 30 ? "text-warning" : "text-foreground"
+            )}
+          >
+            {formatTime(timeLeft)}
+          </div>
+          <span className="text-xs text-muted">Random map if no selection</span>
+        </div>
+      </div>
+
       {/* Three Column Layout - Team A | Map Selection | Team B */}
-      <div className="flex-1 grid grid-cols-[120px_1fr_120px] gap-4 items-start">
-        {/* Left - Team A (compact) */}
+      <div className="flex-1 grid grid-cols-[140px_1fr_140px] gap-4 items-start">
+        {/* Left - Team A - with prominent red styling */}
         <div className={clsx(
-          "rounded-lg p-3 transition-all h-fit",
-          isTeamATurn ? "bg-[color:var(--color-team-a)]/20 ring-2 ring-[color:var(--color-team-a)]" : "bg-surface-elevated/50 border border-border"
+          "rounded-xl p-3 transition-all h-fit border-4",
+          isTeamATurn 
+            ? "bg-[color:var(--color-team-a)]/30 border-[color:var(--color-team-a)] ring-4 ring-[color:var(--color-team-a)]/30" 
+            : "bg-[color:var(--color-team-a)]/10 border-[color:var(--color-team-a)]/50"
         )}>
-          <div className="flex flex-col items-center gap-2">
-            <div className="w-10 h-10 rounded-full bg-[color:var(--color-team-a)]/30 border-2 border-[color:var(--color-team-a)] flex items-center justify-center">
-              <span className="text-sm font-bold text-[color:var(--color-team-a)]">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-[color:var(--color-team-a)]/30 border-4 border-[color:var(--color-team-a)] flex items-center justify-center">
+              <span className="text-lg font-bold text-[color:var(--color-team-a)]">
                 {teamA?.name?.charAt(0) || "A"}
               </span>
             </div>
-            <span className="text-xs font-semibold text-foreground text-center leading-tight">{teamA?.name}</span>
-            {isTeamATurn && <Badge variant="primary" className="text-[9px] px-2">Turn</Badge>}
+            <span className="text-sm font-bold text-[color:var(--color-team-a)] text-center leading-tight">{teamA?.name}</span>
+            {isTeamATurn && <Badge variant="primary" className="text-xs px-3 py-1 animate-pulse">Picking</Badge>}
           </div>
         </div>
 
@@ -862,19 +887,21 @@ function MapPickingPhase({
           </Card>
         </div>
 
-        {/* Right - Team B (compact) */}
+        {/* Right - Team B - with prominent blue styling */}
         <div className={clsx(
-          "rounded-lg p-3 transition-all h-fit",
-          isTeamBTurn ? "bg-[color:var(--color-team-b)]/20 ring-2 ring-[color:var(--color-team-b)]" : "bg-surface-elevated/50 border border-border"
+          "rounded-xl p-3 transition-all h-fit border-4",
+          isTeamBTurn 
+            ? "bg-[color:var(--color-team-b)]/30 border-[color:var(--color-team-b)] ring-4 ring-[color:var(--color-team-b)]/30" 
+            : "bg-[color:var(--color-team-b)]/10 border-[color:var(--color-team-b)]/50"
         )}>
-          <div className="flex flex-col items-center gap-2">
-            <div className="w-10 h-10 rounded-full bg-[color:var(--color-team-b)]/30 border-2 border-[color:var(--color-team-b)] flex items-center justify-center">
-              <span className="text-sm font-bold text-[color:var(--color-team-b)]">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-[color:var(--color-team-b)]/30 border-4 border-[color:var(--color-team-b)] flex items-center justify-center">
+              <span className="text-lg font-bold text-[color:var(--color-team-b)]">
                 {teamB?.name?.charAt(0) || "B"}
               </span>
             </div>
-            <span className="text-xs font-semibold text-foreground text-center leading-tight">{teamB?.name}</span>
-            {isTeamBTurn && <Badge variant="primary" className="text-[9px] px-2">Turn</Badge>}
+            <span className="text-sm font-bold text-[color:var(--color-team-b)] text-center leading-tight">{teamB?.name}</span>
+            {isTeamBTurn && <Badge variant="primary" className="text-xs px-3 py-1 animate-pulse">Picking</Badge>}
           </div>
         </div>
       </div>
@@ -1101,40 +1128,62 @@ function BanPhase({
     </div>
   );
 
-  // Render compact ban slot (square)
-  const renderBanSlot = (heroId: number | null, index: number, teamColor: string) => {
+  // Render compact ban slot (square) - BIGGER SIZE (w-20 h-24)
+  const renderBanSlot = (heroId: number | null, index: number, teamSide: "team-a" | "team-b") => {
     if (heroId === null) {
       return (
         <div
           key={`noban-${index}`}
-          className="w-14 h-14 rounded-lg bg-muted/20 border border-muted/50 flex items-center justify-center"
+          className="w-20 h-24 rounded-lg bg-muted/20 border-2 border-muted/50 flex items-center justify-center"
         >
-          <span className="text-[8px] text-muted font-semibold uppercase">Skip</span>
+          <span className="text-xs text-muted font-semibold uppercase">Skip</span>
         </div>
       );
     }
     
     const hero = getHeroById(heroId);
+    const teamBorderColor = teamSide === "team-a" 
+      ? "border-[color:var(--color-team-a)]" 
+      : "border-[color:var(--color-team-b)]";
+    const teamBgColor = teamSide === "team-a"
+      ? "bg-[color:var(--color-team-a)]/20"
+      : "bg-[color:var(--color-team-b)]/20";
+    
     return (
       <div
         key={heroId}
-        className="w-14 h-14 rounded-lg overflow-hidden border-2 border-danger/50 bg-danger/10"
+        className={clsx(
+          "w-20 h-24 rounded-lg overflow-hidden border-4 flex flex-col",
+          teamBorderColor,
+          teamBgColor
+        )}
       >
         {hero?.imgPath ? (
-          <img src={resolveHeroImageUrl(hero.imgPath)} alt={hero.name} className="w-full h-full object-cover grayscale" />
+          <>
+            <img 
+              src={resolveHeroImageUrl(hero.imgPath)} 
+              alt={hero.name} 
+              className="w-full h-16 object-cover grayscale-[50%]" 
+            />
+            <div className="flex-1 flex items-center justify-center bg-black/60 px-1">
+              <span className="text-[10px] text-white font-bold truncate text-center">
+                {hero.name}
+              </span>
+            </div>
+          </>
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <span className="text-xs text-danger font-bold">#{heroId}</span>
+            <span className="text-sm text-foreground font-bold">#{heroId}</span>
           </div>
         )}
       </div>
     );
   };
 
-  // Render empty ban slot (square)
+  // Render empty ban slot (square) - BIGGER SIZE (w-20 h-24)
   const renderEmptySlot = (slotNum: number) => (
-    <div className="w-14 h-14 rounded-lg border-2 border-dashed border-border flex items-center justify-center bg-surface-elevated/30">
-      <span className="text-[10px] text-muted">{slotNum}</span>
+    <div className="w-20 h-24 rounded-lg border-2 border-dashed border-border flex items-center justify-center bg-surface-elevated/30">
+      <span className="text-sm text-muted font-medium">{slotNum}</span>
     </div>
   );
 
@@ -1164,27 +1213,27 @@ function BanPhase({
       </div>
 
       {/* Full Width Layout - Team A Bans | Hero Grid | Team B Bans */}
-      <div className="flex-1 grid grid-cols-[100px_1fr_100px] gap-3">
-        {/* LEFT - Team A Compact Panel */}
+      <div className="flex-1 grid grid-cols-[140px_1fr_140px] gap-4">
+        {/* LEFT - Team A Panel - BIGGER with prominent red styling */}
         <div className={clsx(
-          "rounded-lg p-2 transition-all h-fit",
+          "rounded-xl p-3 transition-all h-fit border-4",
           isTeamATurn 
-            ? "bg-[color:var(--color-team-a)]/20 ring-2 ring-[color:var(--color-team-a)]" 
-            : "bg-surface-elevated/50 border border-border"
+            ? "bg-[color:var(--color-team-a)]/30 border-[color:var(--color-team-a)] ring-4 ring-[color:var(--color-team-a)]/30" 
+            : "bg-[color:var(--color-team-a)]/10 border-[color:var(--color-team-a)]/50"
         )}>
           {/* Team Name */}
-          <div className="flex flex-col items-center gap-1 mb-3">
-            <div className="w-8 h-8 rounded-full bg-[color:var(--color-team-a)]/30 border-2 border-[color:var(--color-team-a)] flex items-center justify-center">
-              <span className="text-xs font-bold text-[color:var(--color-team-a)]">
+          <div className="flex flex-col items-center gap-2 mb-4">
+            <div className="w-12 h-12 rounded-full bg-[color:var(--color-team-a)]/30 border-4 border-[color:var(--color-team-a)] flex items-center justify-center">
+              <span className="text-lg font-bold text-[color:var(--color-team-a)]">
                 {teamA?.name?.charAt(0) || "A"}
               </span>
             </div>
-            <span className="text-[10px] font-semibold text-foreground text-center leading-tight">{teamA?.name}</span>
-            {isTeamATurn && <Badge variant="danger" className="text-[8px] px-1.5 animate-pulse">Banning</Badge>}
+            <span className="text-sm font-bold text-[color:var(--color-team-a)] text-center leading-tight">{teamA?.name}</span>
+            {isTeamATurn && <Badge variant="danger" className="text-xs px-2 py-1 animate-pulse">Banning</Badge>}
           </div>
           
-          {/* Ban Slots - Vertical Stack */}
-          <div className="flex flex-col items-center gap-2">
+          {/* Ban Slots - Vertical Stack - BIGGER */}
+          <div className="flex flex-col items-center gap-3">
             {teamABans.length === 0 ? (
               <>
                 {renderEmptySlot(1)}
@@ -1278,26 +1327,26 @@ function BanPhase({
           )}
         </div>
 
-        {/* RIGHT - Team B Compact Panel */}
+        {/* RIGHT - Team B Panel - BIGGER with prominent blue styling */}
         <div className={clsx(
-          "rounded-lg p-2 transition-all h-fit",
+          "rounded-xl p-3 transition-all h-fit border-4",
           isTeamBTurn 
-            ? "bg-[color:var(--color-team-b)]/20 ring-2 ring-[color:var(--color-team-b)]" 
-            : "bg-surface-elevated/50 border border-border"
+            ? "bg-[color:var(--color-team-b)]/30 border-[color:var(--color-team-b)] ring-4 ring-[color:var(--color-team-b)]/30" 
+            : "bg-[color:var(--color-team-b)]/10 border-[color:var(--color-team-b)]/50"
         )}>
           {/* Team Name */}
-          <div className="flex flex-col items-center gap-1 mb-3">
-            <div className="w-8 h-8 rounded-full bg-[color:var(--color-team-b)]/30 border-2 border-[color:var(--color-team-b)] flex items-center justify-center">
-              <span className="text-xs font-bold text-[color:var(--color-team-b)]">
+          <div className="flex flex-col items-center gap-2 mb-4">
+            <div className="w-12 h-12 rounded-full bg-[color:var(--color-team-b)]/30 border-4 border-[color:var(--color-team-b)] flex items-center justify-center">
+              <span className="text-lg font-bold text-[color:var(--color-team-b)]">
                 {teamB?.name?.charAt(0) || "B"}
               </span>
             </div>
-            <span className="text-[10px] font-semibold text-foreground text-center leading-tight">{teamB?.name}</span>
-            {isTeamBTurn && <Badge variant="danger" className="text-[8px] px-1.5 animate-pulse">Banning</Badge>}
+            <span className="text-sm font-bold text-[color:var(--color-team-b)] text-center leading-tight">{teamB?.name}</span>
+            {isTeamBTurn && <Badge variant="danger" className="text-xs px-2 py-1 animate-pulse">Banning</Badge>}
           </div>
           
-          {/* Ban Slots - Vertical Stack */}
-          <div className="flex flex-col items-center gap-2">
+          {/* Ban Slots - Vertical Stack - BIGGER */}
+          <div className="flex flex-col items-center gap-3">
             {teamBBans.length === 0 ? (
               <>
                 {renderEmptySlot(1)}
@@ -1369,33 +1418,52 @@ function EndMapPhase({
   // Check if both teams are ready for next map
   const bothReady = draftState.match.teamAready === 1 && draftState.match.teamBready === 1;
 
-  const renderBannedHeroEndMap = (heroId: number | null, index: number) => {
+  const renderBannedHeroEndMap = (heroId: number | null, index: number, teamSide: "team-a" | "team-b") => {
     if (heroId === null) {
       return (
         <div
           key={`noban-${index}`}
-          className="w-12 h-12 rounded-lg bg-muted/20 border border-muted/50 flex items-center justify-center"
+          className="w-20 h-24 rounded-lg bg-muted/20 border-2 border-muted/50 flex items-center justify-center"
         >
-          <span className="text-[8px] text-muted font-semibold uppercase">No Ban</span>
+          <span className="text-xs text-muted font-semibold uppercase">Skip</span>
         </div>
       );
     }
     
     const hero = getHeroById(heroId);
+    const teamBorderColor = teamSide === "team-a" 
+      ? "border-[color:var(--color-team-a)]" 
+      : "border-[color:var(--color-team-b)]";
+    const teamBgColor = teamSide === "team-a"
+      ? "bg-[color:var(--color-team-a)]/20"
+      : "bg-[color:var(--color-team-b)]/20";
+    
     return (
       <div
         key={heroId}
-        className="w-12 h-12 rounded-lg bg-danger/20 border border-danger/50 flex flex-col items-center justify-center overflow-hidden"
+        className={clsx(
+          "w-20 h-24 rounded-lg overflow-hidden border-4 flex flex-col",
+          teamBorderColor,
+          teamBgColor
+        )}
       >
         {hero?.imgPath ? (
           <>
-            <img src={resolveHeroImageUrl(hero.imgPath)} alt="" className="w-full h-8 object-cover grayscale" />
-            <span className="text-[7px] text-danger truncate w-full text-center">
-              {hero.name}
-            </span>
+            <img 
+              src={resolveHeroImageUrl(hero.imgPath)} 
+              alt={hero.name} 
+              className="w-full h-16 object-cover grayscale-[50%]" 
+            />
+            <div className="flex-1 flex items-center justify-center bg-black/60 px-1">
+              <span className="text-[10px] text-white font-bold truncate text-center">
+                {hero.name}
+              </span>
+            </div>
           </>
         ) : (
-          <span className="text-xs text-danger font-bold">#{heroId}</span>
+          <div className="w-full h-full flex items-center justify-center">
+            <span className="text-sm text-foreground font-bold">#{heroId}</span>
+          </div>
         )}
       </div>
     );

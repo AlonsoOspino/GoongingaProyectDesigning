@@ -24,7 +24,9 @@ export type HeroCardProps = {
   prevBannedByTeamB: boolean;
   teamAName: string;
   teamBName: string;
+  /** Current game - hero banned by team A */
   bannedByTeamA: boolean;
+  /** Current game - hero banned by team B */
   bannedByTeamB: boolean;
   onClick: (heroId: number, heroRole: HeroRole) => void;
   onRoleLimitWarning: (heroRole: HeroRole) => void;
@@ -48,6 +50,8 @@ function HeroCardImpl({
   prevBannedByTeamB,
   teamAName,
   teamBName,
+  bannedByTeamA,
+  bannedByTeamB,
   onClick,
   onRoleLimitWarning,
 }: HeroCardProps) {
@@ -104,9 +108,18 @@ function HeroCardImpl({
         onMouseLeave={handleMouseLeave}
         className={clsx(
           "relative rounded-xl overflow-hidden border-2 transition-all flex flex-col group w-full",
-          // Current game banned - GRAY tones
+          // Current game banned - team color border based on who banned
           banned
-            ? "border-muted/50 cursor-not-allowed grayscale"
+            ? clsx(
+                "cursor-not-allowed",
+                bannedByTeamA && bannedByTeamB 
+                  ? "border-black grayscale" // Both teams - full grayscale, black border
+                  : bannedByTeamA 
+                    ? "border-[color:var(--color-team-a)] grayscale-[50%]" // Team A only - 50% grayscale, red border
+                    : bannedByTeamB 
+                      ? "border-[color:var(--color-team-b)] grayscale-[50%]" // Team B only - 50% grayscale, blue border
+                      : "border-muted/50 grayscale-[50%]"
+              )
             : // Previous game banned by my team (captain view) - RED tones
             isCaptain && myTeamBannedBefore
             ? "border-danger/70 cursor-not-allowed"
@@ -133,7 +146,11 @@ function HeroCardImpl({
               decoding="async"
               className={clsx(
                 "w-full h-full object-cover",
-                banned && "grayscale opacity-50",
+                // Current game banned - grayscale based on who banned
+                banned && (bannedByTeamA && bannedByTeamB 
+                  ? "grayscale opacity-40" // Both teams - 100% grayscale
+                  : "grayscale-[50%] opacity-60" // Single team - 50% grayscale
+                ),
                 !banned && isCaptain && myTeamBannedBefore && "opacity-60",
                 !banned &&
                   isManager &&
@@ -174,10 +191,34 @@ function HeroCardImpl({
             {heroName}
           </span>
         </div>
-        {/* Current game banned overlay - GRAY */}
+        {/* Current game banned overlay with team color marks */}
         {banned && (
-          <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-            <span className="text-white font-semibold text-[10px] uppercase">
+          <div className="absolute inset-0 flex items-center justify-center">
+            {/* Gray overlay - 50% for single team, 100% for both teams */}
+            <div 
+              className={clsx(
+                "absolute inset-0",
+                bannedByTeamA && bannedByTeamB 
+                  ? "bg-black/80" 
+                  : "bg-black/50"
+              )} 
+            />
+            {/* Team color marks - doubled width (8px each) */}
+            <div className="absolute left-0 top-0 bottom-0 flex">
+              {bannedByTeamA && (
+                <div className="w-4 h-full bg-[color:var(--color-team-a)]" />
+              )}
+            </div>
+            <div className="absolute right-0 top-0 bottom-0 flex">
+              {bannedByTeamB && (
+                <div className="w-4 h-full bg-[color:var(--color-team-b)]" />
+              )}
+            </div>
+            {/* Both teams banned - black center mark */}
+            {bannedByTeamA && bannedByTeamB && (
+              <div className="absolute inset-x-4 top-0 bottom-0 bg-black/40" />
+            )}
+            <span className="relative z-10 text-white font-semibold text-[10px] uppercase">
               Banned
             </span>
           </div>
