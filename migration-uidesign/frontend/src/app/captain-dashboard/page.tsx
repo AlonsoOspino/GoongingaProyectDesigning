@@ -449,96 +449,17 @@ export default function CaptainDashboardPage() {
                   <p className="text-muted text-center py-8">No active matches.</p>
                 ) : (
                   <div className="space-y-4">
-                    {activeMatches.map((match) => {
-                      const opponentId = isTeamA(match) ? match.teamBId : match.teamAId;
-                      const myScore = isTeamA(match) ? match.mapWinsTeamA : match.mapWinsTeamB;
-                      const oppScore = isTeamA(match) ? match.mapWinsTeamB : match.mapWinsTeamA;
-                      const draft = drafts[match.id];
-
-                      const hasMapStarted = match.mapStartedAt;
-                      const [requestingPause, setRequestingPause] = useState(false);
-                      const [pauseRequested, setPauseRequested] = useState(match.pauseRequestedBy === user?.teamId);
-
-                      const handleRequestPause = async () => {
-                        if (!token) return;
-                        setRequestingPause(true);
-                        try {
-                          await captainRequestPause(token, match.id);
-                          setPauseRequested(true);
-                        } catch (err) {
-                          console.error("Failed to request pause:", err);
-                        } finally {
-                          setRequestingPause(false);
-                        }
-                      };
-
-                      return (
-                        <div key={match.id} className="p-6 border-2 border-primary rounded-lg bg-primary/5">
-                          <div className="flex flex-col gap-4">
-                            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-3">
-                                  <Badge variant="success" className="animate-pulse">LIVE</Badge>
-                                  <Badge variant="outline">{match.type}</Badge>
-                                  {draft && <Badge variant="primary">Phase: {draft.phase}</Badge>}
-                                </div>
-                                <h3 className="text-xl font-bold text-foreground mb-2">vs {getTeamName(opponentId)}</h3>
-                                <div className="flex items-center gap-6">
-                                  <div className="flex items-center gap-4">
-                                    <div className="text-center">
-                                      <p className="text-3xl font-bold text-primary">{myScore}</p>
-                                      <p className="text-xs text-muted">Your Maps</p>
-                                    </div>
-                                    <span className="text-2xl text-muted">-</span>
-                                    <div className="text-center">
-                                      <p className="text-3xl font-bold text-foreground">{oppScore}</p>
-                                      <p className="text-xs text-muted">Opponent</p>
-                                    </div>
-                                  </div>
-                                  <div className="text-sm text-muted">
-                                    Game {(match.gameNumber || 0) + 1} | Best of {match.bestOf}
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="flex flex-col gap-2">
-                                {draft ? (
-                                  <Link href={`/draft-table/${match.id}`}>
-                                    <Button size="lg" className="w-full animate-pulse">Join Draft Table</Button>
-                                  </Link>
-                                ) : (
-                                  <div className="text-center p-4 bg-surface rounded-lg border border-border">
-                                    <p className="text-sm text-muted">Waiting for manager to create draft table...</p>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Map Timer & Pause Request */}
-                            {hasMapStarted && (
-                              <div className="border-t border-primary/20 pt-4 flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                  <span className="text-sm text-muted">Map Timer:</span>
-                                  <MapTimer
-                                    mapStartedAt={match.mapStartedAt ?? null}
-                                    isPaused={match.mapTimerPaused || false}
-                                    size="sm"
-                                  />
-                                </div>
-                                <Button
-                                  size="sm"
-                                  variant={pauseRequested ? "secondary" : "primary"}
-                                  onClick={handleRequestPause}
-                                  disabled={requestingPause || pauseRequested}
-                                >
-                                  {pauseRequested ? "Pause Requested ⏱️" : "Request Pause"}
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
+                    {activeMatches.map((match) => (
+                      <ActiveMatchCard
+                        key={match.id}
+                        match={match}
+                        draft={drafts[match.id]}
+                        isTeamA={isTeamA(match)}
+                        opponentName={getTeamName(isTeamA(match) ? match.teamBId : match.teamAId)}
+                        currentTeamId={user?.teamId}
+                        token={token}
+                      />
+                    ))}
                   </div>
                 )}
               </CardContent>
@@ -637,5 +558,108 @@ export default function CaptainDashboardPage() {
         </Modal>
       </div>
     </main>
+  );
+}
+
+interface ActiveMatchCardProps {
+  match: Match;
+  draft: DraftState | null | undefined;
+  isTeamA: boolean;
+  opponentName: string;
+  currentTeamId: number | undefined;
+  token: string | null;
+}
+
+function ActiveMatchCard({ match, draft, isTeamA, opponentName, currentTeamId, token }: ActiveMatchCardProps) {
+  const [requestingPause, setRequestingPause] = useState(false);
+  const [pauseRequested, setPauseRequested] = useState(match.pauseRequestedBy === currentTeamId);
+
+  // Keep local state in sync with the latest server snapshot, in case
+  // the manager rejects a pause request or another captain requests it.
+  useEffect(() => {
+    setPauseRequested(match.pauseRequestedBy === currentTeamId);
+  }, [match.pauseRequestedBy, currentTeamId]);
+
+  const myScore = isTeamA ? match.mapWinsTeamA : match.mapWinsTeamB;
+  const oppScore = isTeamA ? match.mapWinsTeamB : match.mapWinsTeamA;
+  const hasMapStarted = match.mapStartedAt;
+
+  const handleRequestPause = async () => {
+    if (!token) return;
+    setRequestingPause(true);
+    try {
+      await captainRequestPause(token, match.id);
+      setPauseRequested(true);
+    } catch (err) {
+      console.error("Failed to request pause:", err);
+    } finally {
+      setRequestingPause(false);
+    }
+  };
+
+  return (
+    <div className="p-6 border-2 border-primary rounded-lg bg-primary/5">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-3">
+              <Badge variant="success" className="animate-pulse">LIVE</Badge>
+              <Badge variant="outline">{match.type}</Badge>
+              {draft && <Badge variant="primary">Phase: {draft.phase}</Badge>}
+            </div>
+            <h3 className="text-xl font-bold text-foreground mb-2">vs {opponentName}</h3>
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-4">
+                <div className="text-center">
+                  <p className="text-3xl font-bold text-primary">{myScore}</p>
+                  <p className="text-xs text-muted">Your Maps</p>
+                </div>
+                <span className="text-2xl text-muted">-</span>
+                <div className="text-center">
+                  <p className="text-3xl font-bold text-foreground">{oppScore}</p>
+                  <p className="text-xs text-muted">Opponent</p>
+                </div>
+              </div>
+              <div className="text-sm text-muted">
+                Game {(match.gameNumber || 0) + 1} | Best of {match.bestOf}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            {draft ? (
+              <Link href={`/draft-table/${match.id}`}>
+                <Button size="lg" className="w-full animate-pulse">Join Draft Table</Button>
+              </Link>
+            ) : (
+              <div className="text-center p-4 bg-surface rounded-lg border border-border">
+                <p className="text-sm text-muted">Waiting for manager to create draft table...</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {hasMapStarted && (
+          <div className="border-t border-primary/20 pt-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-muted">Map Timer:</span>
+              <MapTimer
+                mapStartedAt={match.mapStartedAt ?? null}
+                isPaused={match.mapTimerPaused || false}
+                size="sm"
+              />
+            </div>
+            <Button
+              size="sm"
+              variant={pauseRequested ? "secondary" : "primary"}
+              onClick={handleRequestPause}
+              disabled={requestingPause || pauseRequested}
+            >
+              {pauseRequested ? "Pause Requested" : "Request Pause"}
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
