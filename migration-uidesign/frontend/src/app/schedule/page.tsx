@@ -110,6 +110,8 @@ export default function SchedulePage() {
   const completedMatches = filteredMatches
     .filter((m) => m.status === "FINISHED" || m.status === "PENDINGREGISTERS")
     .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+  const upcomingWeeklyMatches = upcomingMatches.filter((m) => m.semanas !== null);
+  const upcomingStageMatches = upcomingMatches.filter((m) => m.semanas === null);
 
   const weekOptions = [
     { value: "all", label: "All Weeks" },
@@ -274,7 +276,7 @@ export default function SchedulePage() {
               (() => {
                 // Group upcoming matches by week
                 const weekMap = new Map();
-                upcomingMatches.forEach((match) => {
+                upcomingWeeklyMatches.forEach((match) => {
                   const week = match.semanas;
                   if (week === null) return;
                   if (!weekMap.has(week)) weekMap.set(week, []);
@@ -304,6 +306,28 @@ export default function SchedulePage() {
                         </div>
                       </div>
                     ))}
+
+                    {upcomingStageMatches.length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+                            <span className="text-sm font-bold text-primary">S</span>
+                          </div>
+                          <h3 className="text-lg font-bold text-foreground">Stage Matches</h3>
+                          <div className="flex-1 h-px bg-gradient-to-r from-primary/30 to-transparent" />
+                        </div>
+                        <div className="space-y-4">
+                          {upcomingStageMatches.map((match) => (
+                            <MatchCard
+                              key={match.id}
+                              match={match}
+                              teamA={teamsById.get(match.teamAId)}
+                              teamB={teamsById.get(match.teamBId)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })()

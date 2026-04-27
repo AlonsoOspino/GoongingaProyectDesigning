@@ -86,6 +86,8 @@ function resolveRosterSrc(roster?: string | null) {
 
 export default async function HomePage() {
   const data = await getHomeData();
+  const hasRecentResults = data.recentMatches.length > 0;
+  const rosterTeams = data.allTeams.filter((team) => Boolean(team.roster));
 
   return (
     <div className="min-h-screen relative">
@@ -173,7 +175,7 @@ export default async function HomePage() {
         <div className="container mx-auto px-4">
           <div className="grid gap-8 lg:grid-cols-3">
             {/* Upcoming Matches */}
-            <div className="lg:col-span-2">
+            <div className="lg:col-span-2 flex flex-col h-full">
               <Card variant="featured">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>Upcoming Matches</CardTitle>
@@ -202,7 +204,10 @@ export default async function HomePage() {
               </Card>
 
               {/* Team Rosters */}
-              <Card variant="featured" className="mt-8">
+              <Card
+                variant="featured"
+                className={`mt-8 flex flex-col ${hasRecentResults ? "" : "lg:flex-1"}`}
+              >
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>Team Rosters</CardTitle>
                   <Link href="/teams">
@@ -211,46 +216,49 @@ export default async function HomePage() {
                     </Button>
                   </Link>
                 </CardHeader>
-                <CardContent>
+                <CardContent className={hasRecentResults ? undefined : "flex-1"}>
                   <div className="space-y-4">
-                    {data.allTeams
-                      .filter((team) => Boolean(team.roster))
-                      .slice(0, 5)
-                      .map((team, index) => {
-                        const rosterSrc = resolveRosterSrc(team.roster);
-                        if (!rosterSrc) return null;
+                    {rosterTeams.map((team, index) => {
+                      const rosterSrc = resolveRosterSrc(team.roster);
+                      if (!rosterSrc) return null;
+                      const cascadeOffset = (index % 7) * 10;
 
-                        return (
-                          <Link
-                            key={team.id}
-                            href={`/teams/${team.id}`}
-                            className="group block animate-fade-in"
-                            style={{ marginLeft: `${index * 12}px` }}
-                          >
-                            <div className="relative overflow-hidden rounded-xl border border-border/60 bg-surface/70 transition-transform group-hover:-translate-y-1">
-                              <div
-                                className="relative h-56 md:h-64 w-full bg-surface-elevated"
-                                style={{ animationDelay: `${index * 80}ms` }}
-                              >
-                                <Image
-                                  src={rosterSrc}
-                                  alt={`${team.name} roster`}
-                                  fill
-                                  className="object-contain"
-                                  unoptimized
-                                />
-                                <div className="absolute inset-0 bg-gradient-to-r from-background/80 via-background/25 to-transparent" />
-                              </div>
-                              <div className="absolute inset-0 p-4 flex items-end">
-                                <div>
-                                  <p className="text-sm text-muted">Roster</p>
-                                  <p className="text-lg font-semibold text-foreground">{team.name}</p>
-                                </div>
+                      return (
+                        <Link
+                          key={team.id}
+                          href={`/teams/${team.id}`}
+                          className="group block animate-cascade-in"
+                          style={{
+                            marginLeft: `${cascadeOffset}px`,
+                            animationDelay: `${index * 70}ms`,
+                          }}
+                        >
+                          <div className="relative overflow-hidden rounded-xl border border-border/60 bg-surface/70 transition-transform group-hover:-translate-y-1">
+                            <div className="relative h-56 md:h-64 w-full bg-surface-elevated">
+                              <Image
+                                src={rosterSrc}
+                                alt={`${team.name} roster`}
+                                fill
+                                className="object-contain"
+                                unoptimized
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-r from-background/80 via-background/25 to-transparent" />
+                            </div>
+                            <div className="absolute inset-0 p-4 flex items-end">
+                              <div>
+                                <p className="text-sm text-muted">Roster</p>
+                                <p className="text-lg font-semibold text-foreground">{team.name}</p>
                               </div>
                             </div>
-                          </Link>
-                        );
-                      })}
+                          </div>
+                        </Link>
+                      );
+                    })}
+                    {rosterTeams.length === 0 && (
+                      <div className="text-center py-8 text-muted">
+                        <p>No roster images available</p>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
