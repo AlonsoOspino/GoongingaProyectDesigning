@@ -512,15 +512,6 @@ export default function DraftTablePage() {
                   </div>
                 )}
               </div>
-              {isManager && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => toggleNavbar(!isNavHidden)}
-                >
-                  {isNavHidden ? "Show header" : "Hide header"}
-                </Button>
-              )}
             </div>
           </div>
         </header>
@@ -611,6 +602,14 @@ export default function DraftTablePage() {
         {showDraftHistory && <DraftHistory draftState={draftState} teams={teams} getHeroById={getHeroById} />}
       </div>
 
+      {isManager && (
+        <div className="fixed bottom-6 right-6 z-40">
+          <Button size="sm" variant="secondary" onClick={() => toggleNavbar(!isNavHidden)}>
+            {isNavHidden ? "Show header" : "Hide header"}
+          </Button>
+        </div>
+      )}
+
       {/* Captain pause request button — wired to backend */}
       {(currentPhase === "MAPPICKING" || currentPhase === "BAN") && isCaptain && !isMatchPaused && (
         <button
@@ -628,17 +627,17 @@ export default function DraftTablePage() {
           }}
           disabled={pauseActionPending || pauseRequestedBy === myTeamId}
           className={clsx(
-            "fixed bottom-6 left-6 z-40 px-4 py-2 text-sm font-semibold rounded-lg shadow-md transition-all flex items-center gap-2",
+            "fixed bottom-6 left-6 z-40 px-3 py-1.5 text-xs font-semibold rounded-lg shadow-md transition-all flex items-center gap-1.5",
             pauseRequestedBy === myTeamId
               ? "bg-surface border border-warning/50 text-warning cursor-not-allowed"
               : "bg-warning text-warning-foreground hover:bg-warning/90",
             pauseActionPending && "opacity-70 cursor-wait"
           )}
         >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          {pauseRequestedBy === myTeamId ? "Pause sent" : "Request pause"}
+          {pauseRequestedBy === myTeamId ? "Pause sent" : "Pause"}
         </button>
       )}
 
