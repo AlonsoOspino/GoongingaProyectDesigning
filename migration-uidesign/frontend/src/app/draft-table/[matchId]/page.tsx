@@ -1066,10 +1066,10 @@ function BanPhase({
       ? "text-blue-300"
       : "text-muted";
 
+    // Manager-only: previous-game bans are shown "turned off" (full grayscale).
+    // The colored top stripe + tooltip still identify which team banned them.
     const managerGrayFilter = !banned && isManager && wasBannedBefore
-      ? prevBannedByBoth
-        ? "grayscale(100%)"
-        : "grayscale(50%)"
+      ? "grayscale(100%)"
       : undefined;
 
     return (
@@ -1099,7 +1099,8 @@ function BanPhase({
               ? "border-warning/50 cursor-pointer opacity-60"
               : canSelect
               ? "border-border hover:border-danger hover:ring-2 hover:ring-danger/30 cursor-pointer hover:scale-110 hover:z-10"
-              : "border-border cursor-default opacity-60"
+              // Manager: available heroes stay fully lit. Captain (not their turn): keep dimmed.
+              : clsx("border-border cursor-default", !isManager && "opacity-60")
           )}
         >
           {!banned && isManager && wasBannedBefore && (
@@ -1116,6 +1117,8 @@ function BanPhase({
                   banned && "grayscale opacity-50",
                   // Previous game banned by my team (captain) - red tint
                   !banned && isCaptain && myTeamBannedBefore && "opacity-60",
+                  // Manager: previously-banned heroes look "turned off"
+                  !banned && isManager && wasBannedBefore && "opacity-40",
                   canSelect && "group-hover:brightness-110"
                 )}
                 style={managerGrayFilter ? { filter: managerGrayFilter } : undefined}
