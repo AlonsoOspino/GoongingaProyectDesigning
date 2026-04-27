@@ -143,6 +143,15 @@ const parseHeroNameFromImgPath = (imgPath) => {
     .replace(/_/g, " ");
 };
 
+const reloadDraft = (tx, draftId) =>
+  tx.draftTable.findUnique({
+    where: { id: draftId },
+    include: {
+      match: true,
+      actions: { orderBy: { order: "asc" } },
+    },
+  });
+
 const applyTimeoutIfNeeded = async (draft) => {
   if (!draft.currentTurnTeamId) return draft;
   if (!["MAPPICKING", "BAN"].includes(draft.phase)) return draft;
@@ -152,7 +161,12 @@ const applyTimeoutIfNeeded = async (draft) => {
 
   // Use gameNumber+1 for current game being played
   const currentGame = (draft.match.gameNumber || 0) + 1;
-  const nextOrder = getNextOrder(draft.actions);
+
+  // Snapshot the values we will compare-and-swap against to prevent
+  // concurrent timeout writers from each registering their own skip.
+  const originalPhase = draft.phase;
+  const originalTurnTeamId = draft.currentTurnTeamId;
+  const originalPhaseStartedAt = draft.phaseStartedAt;
 
   if (draft.phase === "MAPPICKING") {
     const alreadyPicked = draft.actions.some(
@@ -169,24 +183,48 @@ const applyTimeoutIfNeeded = async (draft) => {
     const randomMap = availableMaps[Math.floor(Math.random() * availableMaps.length)];
 
     return prisma.$transaction(async (tx) => {
+      // Atomic claim: only one concurrent timeout writer wins. The where
+      // clause includes the original phaseStartedAt so racing requests that
+      // already see an updated timestamp will match 0 rows and bail out.
+      const claim = await tx.draftTable.updateMany({
+        where: {
+          id: draft.id,
+          phase: originalPhase,
+          currentTurnTeamId: originalTurnTeamId,
+          phaseStartedAt: originalPhaseStartedAt,
+        },
+        data: { phaseStartedAt: new Date() },
+      });
+
+      if (claim.count === 0) {
+        return reloadDraft(tx, draft.id);
+      }
+
+      const fresh = await reloadDraft(tx, draft.id);
+      const alreadyPickedFresh = fresh.actions.some(
+        (a) => a.action === "PICK" && a.gameNumber === currentGame
+      );
+      if (alreadyPickedFresh) return fresh;
+
+      const freshPickedMapIds = Array.isArray(fresh.pickedMaps) ? fresh.pickedMaps : [];
+
       await tx.draftAction.create({
         data: {
           draftId: draft.id,
-          teamId: draft.currentTurnTeamId,
+          teamId: originalTurnTeamId,
           action: "PICK",
           value: randomMap.id,
           gameNumber: currentGame,
-          order: nextOrder,
+          order: getNextOrder(fresh.actions),
         },
       });
 
       return tx.draftTable.update({
         where: { id: draft.id },
         data: {
-          pickedMaps: [...pickedMapIds, randomMap.id],
+          pickedMaps: [...freshPickedMapIds, randomMap.id],
           currentMapId: randomMap.id,
-          currentTurnTeamId: draft.currentTurnTeamId,
-          phaseStartedAt: new Date(),
+          currentTurnTeamId: originalTurnTeamId,
         },
         include: {
           match: true,
@@ -202,27 +240,51 @@ const applyTimeoutIfNeeded = async (draft) => {
   if (bansThisGame.length >= 4) return draft;
 
   return prisma.$transaction(async (tx) => {
+    // Atomic claim: only one concurrent timeout writer wins. Racing
+    // requests will see an updated phaseStartedAt and match 0 rows here.
+    const claim = await tx.draftTable.updateMany({
+      where: {
+        id: draft.id,
+        phase: originalPhase,
+        currentTurnTeamId: originalTurnTeamId,
+        phaseStartedAt: originalPhaseStartedAt,
+      },
+      data: { phaseStartedAt: new Date() },
+    });
+
+    if (claim.count === 0) {
+      return reloadDraft(tx, draft.id);
+    }
+
+    const fresh = await reloadDraft(tx, draft.id);
+    const freshBans = fresh.actions.filter(
+      (a) => a.action === "BAN" && a.gameNumber === currentGame
+    );
+
+    if (freshBans.length >= 4) {
+      return fresh;
+    }
+
     await tx.draftAction.create({
       data: {
         draftId: draft.id,
-        teamId: draft.currentTurnTeamId,
+        teamId: originalTurnTeamId,
         action: "BAN",
         value: null,
         gameNumber: currentGame,
-        order: nextOrder,
+        order: getNextOrder(fresh.actions),
       },
     });
 
-    const totalBansAfter = bansThisGame.length + 1;
+    const totalBansAfter = freshBans.length + 1;
     return tx.draftTable.update({
       where: { id: draft.id },
       data: {
         phase: totalBansAfter >= 4 ? "ENDMAP" : "BAN",
         currentTurnTeamId:
           totalBansAfter >= 4
-            ? draft.currentTurnTeamId
-            : getOtherTeamId(draft.match, draft.currentTurnTeamId),
-        phaseStartedAt: new Date(),
+            ? originalTurnTeamId
+            : getOtherTeamId(fresh.match, originalTurnTeamId),
       },
       include: {
         match: true,
