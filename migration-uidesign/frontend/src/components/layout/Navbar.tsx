@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { clsx } from "clsx";
 import { useSession } from "@/features/session/SessionProvider";
 import { Button } from "@/components/ui/Button";
@@ -21,6 +21,37 @@ export function Navbar() {
   const pathname = usePathname();
   const { isAuthenticated, user, clearSession, isHydrated } = useSession();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isNavHidden, setIsNavHidden] = useState(false);
+  const isDraftTable = pathname.startsWith("/draft-table");
+  const NAVBAR_STORAGE_KEY = "draftTableHideNavbar";
+
+  useEffect(() => {
+    if (!isDraftTable) {
+      setIsNavHidden(false);
+      return;
+    }
+
+    const readHidden = () => {
+      const stored = localStorage.getItem(NAVBAR_STORAGE_KEY);
+      setIsNavHidden(stored === "true");
+    };
+
+    readHidden();
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === NAVBAR_STORAGE_KEY) readHidden();
+    };
+
+    const handleCustom = () => readHidden();
+
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("draft-navbar-toggle", handleCustom);
+
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("draft-navbar-toggle", handleCustom);
+    };
+  }, [isDraftTable]);
 
   // Get role-based dashboard link
   const getDashboardLink = () => {
@@ -40,6 +71,8 @@ export function Navbar() {
   };
 
   const dashboardLink = getDashboardLink();
+
+  if (isDraftTable && isNavHidden) return null;
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 relative">

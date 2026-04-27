@@ -54,7 +54,7 @@ export default function DraftTablePage() {
   const [banWarning, setBanWarning] = useState<string | null>(null);
   const [heroCacheById, setHeroCacheById] = useState<Record<number, Hero>>({});
   const [pauseActionPending, setPauseActionPending] = useState(false);
-  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  const [isNavHidden, setIsNavHidden] = useState(false);
 
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -105,6 +105,18 @@ export default function DraftTablePage() {
 
   const isMatchPaused = !!draftState?.match?.mapTimerPaused;
   const pauseRequestedBy = draftState?.match?.pauseRequestedBy ?? null;
+  const NAVBAR_STORAGE_KEY = "draftTableHideNavbar";
+
+  useEffect(() => {
+    const stored = localStorage.getItem(NAVBAR_STORAGE_KEY);
+    setIsNavHidden(stored === "true");
+  }, []);
+
+  const toggleNavbar = (nextHidden: boolean) => {
+    setIsNavHidden(nextHidden);
+    localStorage.setItem(NAVBAR_STORAGE_KEY, nextHidden ? "true" : "false");
+    window.dispatchEvent(new Event("draft-navbar-toggle"));
+  };
 
   useEffect(() => {
     // Timer runs during map picking and ban phases.
@@ -454,7 +466,6 @@ export default function DraftTablePage() {
       )}
       <div className="relative z-10">
       {/* Compact Header */}
-      {isHeaderVisible && (
         <header className="border-b border-border bg-surface/50 backdrop-blur-sm sticky top-0 z-10">
           <div className="max-w-7xl mx-auto px-4 py-3">
             <div className="flex items-center justify-between">
@@ -505,23 +516,14 @@ export default function DraftTablePage() {
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => setIsHeaderVisible(false)}
+                  onClick={() => toggleNavbar(!isNavHidden)}
                 >
-                  Hide header
+                  {isNavHidden ? "Show header" : "Hide header"}
                 </Button>
               )}
             </div>
           </div>
         </header>
-      )}
-
-      {!isHeaderVisible && isManager && (
-        <div className="fixed top-4 right-4 z-40">
-          <Button size="sm" variant="secondary" onClick={() => setIsHeaderVisible(true)}>
-            Show header
-          </Button>
-        </div>
-      )}
 
       <div className="w-full px-3 md:px-6 py-6">
         {/* Phase Content */}
