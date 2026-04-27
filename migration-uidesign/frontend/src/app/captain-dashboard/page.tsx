@@ -566,7 +566,7 @@ interface ActiveMatchCardProps {
   draft: DraftState | null | undefined;
   isTeamA: boolean;
   opponentName: string;
-  currentTeamId: number | undefined;
+  currentTeamId: number | null | undefined;
   token: string | null;
 }
 
