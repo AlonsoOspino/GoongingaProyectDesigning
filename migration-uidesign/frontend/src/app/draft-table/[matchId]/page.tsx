@@ -397,8 +397,25 @@ export default function DraftTablePage() {
     );
   }
 
+  // Use the currently-selected map as the page backdrop for captains and managers.
+  const backgroundMap = draftState.allMaps?.find((m) => m.id === draftState.currentMapId);
+  const backgroundMapUrl = backgroundMap?.imgPath ? resolveMapImageUrl(backgroundMap.imgPath) : null;
+
   return (
-    <main className="min-h-screen bg-background">
+    <main className="relative min-h-screen bg-background">
+      {/* Map background — only the visual backdrop, never interactive */}
+      {backgroundMapUrl && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: `url(${backgroundMapUrl})` }}
+        />
+      )}
+      {/* Dark overlay keeps cards and text readable on top of the map */}
+      {backgroundMapUrl && (
+        <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 bg-background/75" />
+      )}
+      <div className="relative z-10">
       {/* Compact Header */}
       <header className="border-b border-border bg-surface/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-3">
@@ -592,6 +609,7 @@ export default function DraftTablePage() {
           </div>
         </div>
       )}
+      </div>
     </main>
   );
 }
