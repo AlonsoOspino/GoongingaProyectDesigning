@@ -893,11 +893,11 @@ function MapPickingPhase({
       {/* Three Column Layout - Team A | Map Selection | Team B */}
       <div className="flex-1 grid grid-cols-[140px_1fr_140px] xl:grid-cols-[160px_1fr_160px] gap-4 items-start">
         {/* Left - Team A: big logo on top, rectangle (name) below */}
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-4">
           <div className={clsx(
-            "w-full aspect-square rounded-full overflow-hidden border-4 transition-all bg-surface-elevated",
+            "w-full aspect-square rounded-full overflow-hidden border-2 transition-all bg-surface-elevated",
             isTeamATurn
-              ? "border-[color:var(--color-team-a)] ring-4 ring-[color:var(--color-team-a)]/40 shadow-lg shadow-[color:var(--color-team-a)]/30"
+              ? "border-[color:var(--color-team-a)] animate-turn-glow-teal"
               : "border-[color:var(--color-team-a)]/40"
           )}>
             {teamA?.logo ? (
@@ -911,10 +911,10 @@ function MapPickingPhase({
             )}
           </div>
           <div className={clsx(
-            "rounded-lg p-3 transition-all flex flex-col items-center gap-2",
+            "rounded-lg p-3 transition-all flex flex-col items-center gap-2 border",
             isTeamATurn
-              ? "bg-[color:var(--color-team-a)]/20 ring-2 ring-[color:var(--color-team-a)] border-2 border-[color:var(--color-team-a)]/70"
-              : "bg-surface-elevated/50 border-2 border-border"
+              ? "bg-[color:var(--color-team-a)]/20 border-[color:var(--color-team-a)] animate-turn-glow-teal"
+              : "bg-surface-elevated/50 border-border"
           )}>
             <span className="text-base font-bold text-foreground text-center leading-tight uppercase tracking-wide break-words">
               {teamA?.name}
@@ -1028,11 +1028,11 @@ function MapPickingPhase({
         </div>
 
         {/* Right - Team B: big logo on top, rectangle (name) below */}
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-4">
           <div className={clsx(
-            "w-full aspect-square rounded-full overflow-hidden border-4 transition-all bg-surface-elevated",
+            "w-full aspect-square rounded-full overflow-hidden border-2 transition-all bg-surface-elevated",
             isTeamBTurn
-              ? "border-[color:var(--color-team-b)] ring-4 ring-[color:var(--color-team-b)]/40 shadow-lg shadow-[color:var(--color-team-b)]/30"
+              ? "border-[color:var(--color-team-b)] animate-turn-glow-cyan"
               : "border-[color:var(--color-team-b)]/40"
           )}>
             {teamB?.logo ? (
@@ -1046,10 +1046,10 @@ function MapPickingPhase({
             )}
           </div>
           <div className={clsx(
-            "rounded-lg p-3 transition-all flex flex-col items-center gap-2",
+            "rounded-lg p-3 transition-all flex flex-col items-center gap-2 border",
             isTeamBTurn
-              ? "bg-[color:var(--color-team-b)]/20 ring-2 ring-[color:var(--color-team-b)] border-2 border-[color:var(--color-team-b)]/70"
-              : "bg-surface-elevated/50 border-2 border-border"
+              ? "bg-[color:var(--color-team-b)]/20 border-[color:var(--color-team-b)] animate-turn-glow-cyan"
+              : "bg-surface-elevated/50 border-border"
           )}>
             <span className="text-base font-bold text-foreground text-center leading-tight uppercase tracking-wide break-words">
               {teamB?.name}
@@ -1468,11 +1468,11 @@ function BanPhase({
       {/* Full Width Layout - Team A Bans | Hero Grid | Team B Bans */}
       <div className="flex-1 grid grid-cols-[140px_minmax(0,1fr)_140px] xl:grid-cols-[180px_minmax(0,1fr)_180px] gap-4">
         {/* LEFT - Team A: big logo on top, rectangle with name + bans below */}
-        <div className="flex flex-col gap-2 h-fit">
+        <div className="flex flex-col gap-4 h-fit">
           <div className={clsx(
-            "w-full aspect-square rounded-full overflow-hidden border-4 transition-all bg-surface-elevated",
+            "w-full aspect-square rounded-full overflow-hidden border-2 transition-all bg-surface-elevated",
             isTeamATurn
-              ? "border-red-500 ring-4 ring-red-500/40 shadow-lg shadow-red-500/30"
+              ? "border-red-500 animate-turn-glow-red"
               : "border-red-500/50"
           )}>
             {teamA?.logo ? (
@@ -1486,9 +1486,9 @@ function BanPhase({
             )}
           </div>
           <div className={clsx(
-            "rounded-xl p-3 transition-all border-2 flex flex-col items-center gap-3",
+            "rounded-xl p-3 transition-all border flex flex-col items-center gap-3",
             isTeamATurn
-              ? "bg-red-500/20 ring-2 ring-red-500 border-red-500/70"
+              ? "bg-red-500/20 border-red-500 animate-turn-glow-red"
               : "bg-red-500/10 border-red-500/40"
           )}>
             <div className="flex flex-col items-center gap-1">
@@ -1593,11 +1593,11 @@ function BanPhase({
         </div>
 
         {/* RIGHT - Team B: big logo on top, rectangle with name + bans below */}
-        <div className="flex flex-col gap-2 h-fit">
+        <div className="flex flex-col gap-4 h-fit">
           <div className={clsx(
-            "w-full aspect-square rounded-full overflow-hidden border-4 transition-all bg-surface-elevated",
+            "w-full aspect-square rounded-full overflow-hidden border-2 transition-all bg-surface-elevated",
             isTeamBTurn
-              ? "border-blue-500 ring-4 ring-blue-500/40 shadow-lg shadow-blue-500/30"
+              ? "border-blue-500 animate-turn-glow-blue"
               : "border-blue-500/50"
           )}>
             {teamB?.logo ? (
@@ -1611,9 +1611,9 @@ function BanPhase({
             )}
           </div>
           <div className={clsx(
-            "rounded-xl p-3 transition-all border-2 flex flex-col items-center gap-3",
+            "rounded-xl p-3 transition-all border flex flex-col items-center gap-3",
             isTeamBTurn
-              ? "bg-blue-500/20 ring-2 ring-blue-500 border-blue-500/70"
+              ? "bg-blue-500/20 border-blue-500 animate-turn-glow-blue"
               : "bg-blue-500/10 border-blue-500/40"
           )}>
             <div className="flex flex-col items-center gap-1">

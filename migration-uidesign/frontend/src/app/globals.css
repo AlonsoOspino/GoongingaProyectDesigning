@@ -277,3 +277,56 @@ body {
 .animate-turn-glow {
   animation: turn-glow 2s ease-in-out infinite;
 }
+
+/* Team-specific blinking turn indicators */
+@keyframes turn-glow-red {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55), 0 0 0 0 rgba(239, 68, 68, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 18px 4px rgba(239, 68, 68, 0.55), 0 0 36px 8px rgba(239, 68, 68, 0.25);
+  }
+}
+
+.animate-turn-glow-red {
+  animation: turn-glow-red 1.4s ease-in-out infinite;
+}
+
+@keyframes turn-glow-blue {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.55), 0 0 0 0 rgba(59, 130, 246, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 18px 4px rgba(59, 130, 246, 0.55), 0 0 36px 8px rgba(59, 130, 246, 0.25);
+  }
+}
+
+.animate-turn-glow-blue {
+  animation: turn-glow-blue 1.4s ease-in-out infinite;
+}
+
+@keyframes turn-glow-teal {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(20, 184, 166, 0.55), 0 0 0 0 rgba(20, 184, 166, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 18px 4px rgba(20, 184, 166, 0.55), 0 0 36px 8px rgba(20, 184, 166, 0.25);
+  }
+}
+
+.animate-turn-glow-teal {
+  animation: turn-glow-teal 1.4s ease-in-out infinite;
+}
+
+@keyframes turn-glow-cyan {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.55), 0 0 0 0 rgba(56, 189, 248, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 18px 4px rgba(56, 189, 248, 0.55), 0 0 36px 8px rgba(56, 189, 248, 0.25);
+  }
+}
+
+.animate-turn-glow-cyan {
+  animation: turn-glow-cyan 1.4s ease-in-out infinite;
+}
