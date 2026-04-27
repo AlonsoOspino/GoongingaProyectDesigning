@@ -224,11 +224,14 @@ export default async function HomePage() {
                           <Link
                             key={team.id}
                             href={`/teams/${team.id}`}
-                            className="group block"
+                            className="group block animate-fade-in"
                             style={{ marginLeft: `${index * 12}px` }}
                           >
                             <div className="relative overflow-hidden rounded-xl border border-border/60 bg-surface/70 transition-transform group-hover:-translate-y-1">
-                              <div className="relative h-44 w-full bg-surface-elevated">
+                              <div
+                                className="relative h-56 md:h-64 w-full bg-surface-elevated"
+                                style={{ animationDelay: `${index * 80}ms` }}
+                              >
                                 <Image
                                   src={rosterSrc}
                                   alt={`${team.name} roster`}
