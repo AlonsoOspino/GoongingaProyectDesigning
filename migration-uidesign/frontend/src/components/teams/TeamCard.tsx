@@ -22,7 +22,7 @@ export function TeamCard({ team, rank }: TeamCardProps) {
             {/* Rank */}
             {rank !== undefined && (
               <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-surface-elevated flex items-center justify-center">
-                <span className="text-sm font-bold text-muted">#{rank}</span>
+                <span className="text-sm font-bold text-foreground">#{rank}</span>
               </div>
             )}
 
@@ -34,8 +34,11 @@ export function TeamCard({ team, rank }: TeamCardProps) {
               <h3 className="font-semibold text-foreground truncate">{team.name}</h3>
               <div className="flex items-center gap-3 mt-1">
                 <span className="text-sm text-success font-medium">{team.victories}W</span>
-                <span className="text-sm text-muted">
-                  {team.mapWins}-{team.mapLoses} Maps
+                <span className="text-sm">
+                  <span className="text-primary font-medium">{team.mapWins}</span>
+                  <span className="text-muted">-</span>
+                  <span className="text-danger font-medium">{team.mapLoses}</span>
+                  <span className="text-muted"> Maps</span>
                 </span>
               </div>
             </div>

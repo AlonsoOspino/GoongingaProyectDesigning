@@ -228,15 +228,15 @@ export default async function HomePage() {
                             style={{ marginLeft: `${index * 12}px` }}
                           >
                             <div className="relative overflow-hidden rounded-xl border border-border/60 bg-surface/70 transition-transform group-hover:-translate-y-1">
-                              <div className="relative h-36 w-full">
+                              <div className="relative h-44 w-full bg-surface-elevated">
                                 <Image
                                   src={rosterSrc}
                                   alt={`${team.name} roster`}
                                   fill
-                                  className="object-cover"
+                                  className="object-contain"
                                   unoptimized
                                 />
-                                <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/40 to-transparent" />
+                                <div className="absolute inset-0 bg-gradient-to-r from-background/80 via-background/25 to-transparent" />
                               </div>
                               <div className="absolute inset-0 p-4 flex items-end">
                                 <div>
