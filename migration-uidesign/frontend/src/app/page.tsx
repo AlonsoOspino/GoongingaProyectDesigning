@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { getMatches, getSoonestMatch, getActiveMatches } from "@/lib/api/match";
 import { getLeaderboard } from "@/lib/api/team";
 import { getNews } from "@/lib/api/news";
@@ -36,7 +37,7 @@ async function getHomeData() {
     const upcomingMatches = matches
       .filter((m) => m.status === "SCHEDULED" && m.startDate)
       .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
-      .slice(0, 3);
+      .slice(0, 1);
 
     // Get recent matches (finished)
     const recentMatches = matches
@@ -57,6 +58,7 @@ async function getHomeData() {
       activeMatches,
       upcomingMatches,
       recentMatches,
+      allTeams: teams,
       topTeams,
       teamsById,
       recentNews,
@@ -67,11 +69,19 @@ async function getHomeData() {
       activeMatches: [],
       upcomingMatches: [],
       recentMatches: [],
+      allTeams: [],
       topTeams: [],
       teamsById: new Map(),
       recentNews: [],
     };
   }
+}
+
+function resolveRosterSrc(roster?: string | null) {
+  if (!roster) return null;
+  if (roster.startsWith("http")) return roster;
+  if (roster.startsWith("/")) return roster;
+  return `/${roster}`;
 }
 
 export default async function HomePage() {
@@ -144,7 +154,7 @@ export default async function HomePage() {
               <h2 className="text-xl font-bold text-foreground">Live Now</h2>
               <div className="h-px flex-1 bg-gradient-to-r from-danger/30 to-transparent" />
             </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className={data.activeMatches.length === 1 ? "grid gap-4 grid-cols-1" : "grid gap-4 md:grid-cols-2 lg:grid-cols-3"}>
               {data.activeMatches.map((match) => (
                 <MatchCard
                   key={match.id}
@@ -188,6 +198,57 @@ export default async function HomePage() {
                       <p>No upcoming matches scheduled</p>
                     </div>
                   )}
+                </CardContent>
+              </Card>
+
+              {/* Team Rosters */}
+              <Card variant="featured" className="mt-8">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle>Team Rosters</CardTitle>
+                  <Link href="/teams">
+                    <Button variant="ghost" size="sm">
+                      View Teams
+                    </Button>
+                  </Link>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {data.allTeams
+                      .filter((team) => Boolean(team.roster))
+                      .slice(0, 5)
+                      .map((team, index) => {
+                        const rosterSrc = resolveRosterSrc(team.roster);
+                        if (!rosterSrc) return null;
+
+                        return (
+                          <Link
+                            key={team.id}
+                            href={`/teams/${team.id}`}
+                            className="group block"
+                            style={{ marginLeft: `${index * 12}px` }}
+                          >
+                            <div className="relative overflow-hidden rounded-xl border border-border/60 bg-surface/70 transition-transform group-hover:-translate-y-1">
+                              <div className="relative h-36 w-full">
+                                <Image
+                                  src={rosterSrc}
+                                  alt={`${team.name} roster`}
+                                  fill
+                                  className="object-cover"
+                                  unoptimized
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/40 to-transparent" />
+                              </div>
+                              <div className="absolute inset-0 p-4 flex items-end">
+                                <div>
+                                  <p className="text-sm text-muted">Roster</p>
+                                  <p className="text-lg font-semibold text-foreground">{team.name}</p>
+                                </div>
+                              </div>
+                            </div>
+                          </Link>
+                        );
+                      })}
+                  </div>
                 </CardContent>
               </Card>
 

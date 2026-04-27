@@ -205,6 +205,13 @@ const submitResult = async (id, winnerTeamId) => {
     winnerTeamId === null || winnerTeamId === undefined ? null : Number(winnerTeamId);
   return await matchRepo.submitResult(id, normalizedWinnerTeamId);
 }
+const undoLastResult = async (id) => {
+  const parsedId = Number(id);
+  if (!Number.isInteger(parsedId) || parsedId <= 0) {
+    throw new Error("id must be a positive integer.");
+  }
+  return await matchRepo.undoLastResult(parsedId);
+};
 const findSoonest = async () => {
   return await matchRepo.findSoonest();
 }
@@ -284,6 +291,7 @@ module.exports = {
   remove,
   generateRoundRobin,
   submitResult,
+  undoLastResult,
   update,
   create,
   findSoonest,

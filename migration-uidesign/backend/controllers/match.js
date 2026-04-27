@@ -156,6 +156,15 @@ const submitResult = async (req, res) => {
   }
 };
 
+const undoLastResult = async (req, res) => {
+  try {
+    const updatedMatch = await matchService.undoLastResult(Number(req.params.id));
+    res.json(updatedMatch);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
 const finishPendingRegisters = async (req, res) => {
   try {
     const updatedMatch = await matchService.finishPendingRegisters(Number(req.params.id));
@@ -307,6 +316,7 @@ module.exports = {
   adminUpdate,
   adminRemove,
   captainUpdate,
+  undoLastResult,
   managerUpdate,
   findSoonest,
   getActiveMatches,

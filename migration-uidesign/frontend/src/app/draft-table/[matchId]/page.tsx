@@ -21,6 +21,7 @@ import {
 import {
   getTeams,
   submitMatchResult,
+  undoMatchResult,
   updateCaptainMatch,
   captainRequestPause,
   managerTogglePause,
@@ -53,6 +54,7 @@ export default function DraftTablePage() {
   const [banWarning, setBanWarning] = useState<string | null>(null);
   const [heroCacheById, setHeroCacheById] = useState<Record<number, Hero>>({});
   const [pauseActionPending, setPauseActionPending] = useState(false);
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
 
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -105,8 +107,8 @@ export default function DraftTablePage() {
   const pauseRequestedBy = draftState?.match?.pauseRequestedBy ?? null;
 
   useEffect(() => {
-    // Timer only runs during BAN phase (map picking doesn't need timer - waiting for captain to pick)
-    if (!draftState?.phaseStartedAt || currentPhase !== "BAN") {
+    // Timer runs during map picking and ban phases.
+    if (!draftState?.phaseStartedAt || !["MAPPICKING", "BAN"].includes(currentPhase ?? "")) {
       setTimeLeft(TURN_DURATION);
       if (timerRef.current) clearInterval(timerRef.current);
       return;
@@ -247,6 +249,19 @@ export default function DraftTablePage() {
       fetchDraftState();
     } catch (err) {
       console.error("Failed to submit result:", err);
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleUndoResult() {
+    if (!token || !draftState) return;
+    setActionLoading(true);
+    try {
+      await undoMatchResult(token, matchId);
+      fetchDraftState();
+    } catch (err) {
+      console.error("Failed to undo result:", err);
     } finally {
       setActionLoading(false);
     }
@@ -439,60 +454,74 @@ export default function DraftTablePage() {
       )}
       <div className="relative z-10">
       {/* Compact Header */}
-      <header className="border-b border-border bg-surface/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-3">
-                <span className="text-lg font-semibold text-[color:var(--color-team-a)]">{teamA?.name}</span>
-                <span className="text-2xl font-bold text-foreground">{draftState.match.mapWinsTeamA}</span>
-                <span className="text-muted">-</span>
-                <span className="text-2xl font-bold text-foreground">{draftState.match.mapWinsTeamB}</span>
-                <span className="text-lg font-semibold text-[color:var(--color-team-b)]">{teamB?.name}</span>
+      {isHeaderVisible && (
+        <header className="border-b border-border bg-surface/50 backdrop-blur-sm sticky top-0 z-10">
+          <div className="max-w-7xl mx-auto px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-3">
+                  <span className="text-lg font-semibold text-[color:var(--color-team-a)]">{teamA?.name}</span>
+                  <span className="text-2xl font-bold text-foreground">{draftState.match.mapWinsTeamA}</span>
+                  <span className="text-muted">-</span>
+                  <span className="text-2xl font-bold text-foreground">{draftState.match.mapWinsTeamB}</span>
+                  <span className="text-lg font-semibold text-[color:var(--color-team-b)]">{teamB?.name}</span>
+                </div>
+                <Badge variant="outline" className="text-xs">
+                  Game {currentGameNumber}
+                </Badge>
               </div>
-              <Badge variant="outline" className="text-xs">
-                Game {currentGameNumber}
-              </Badge>
-            </div>
-            <div className="flex items-center gap-4">
-              {/* Ready Status for Manager */}
-              {isManager && currentPhase === "STARTING" && (
-                <div className="flex items-center gap-2 text-xs">
-                  <div className={clsx("w-2 h-2 rounded-full", draftState.match.teamAready ? "bg-success" : "bg-muted")} />
-                  <span className="text-muted">{teamA?.name?.substring(0, 8)}</span>
-                  <div className={clsx("w-2 h-2 rounded-full ml-2", draftState.match.teamBready ? "bg-success" : "bg-muted")} />
-                  <span className="text-muted">{teamB?.name?.substring(0, 8)}</span>
-                </div>
-              )}
-              <Badge
-                variant={
-                  currentPhase === "STARTING" ? "default" :
-                  currentPhase === "FINISHED" ? "success" :
-                  currentPhase === "BAN" ? "danger" : "primary"
-                }
-                className="px-3 py-1"
-              >
-                {currentPhase}
-              </Badge>
-              {currentPhase === "BAN" && (
-                <div
-                  className={clsx(
-                    "text-2xl font-mono font-bold tabular-nums",
-                    timeLeft <= 15 ? "text-danger animate-timer-pulse" : "text-foreground"
-                  )}
+              <div className="flex items-center gap-4">
+                {/* Ready Status for Manager */}
+                {isManager && currentPhase === "STARTING" && (
+                  <div className="flex items-center gap-2 text-xs">
+                    <div className={clsx("w-2 h-2 rounded-full", draftState.match.teamAready ? "bg-success" : "bg-muted")} />
+                    <span className="text-muted">{teamA?.name?.substring(0, 8)}</span>
+                    <div className={clsx("w-2 h-2 rounded-full ml-2", draftState.match.teamBready ? "bg-success" : "bg-muted")} />
+                    <span className="text-muted">{teamB?.name?.substring(0, 8)}</span>
+                  </div>
+                )}
+                <Badge
+                  variant={
+                    currentPhase === "STARTING" ? "default" :
+                    currentPhase === "FINISHED" ? "success" :
+                    currentPhase === "BAN" ? "danger" : "primary"
+                  }
+                  className="px-3 py-1"
                 >
-                  {formatTime(timeLeft)}
-                </div>
-              )}
-              {currentPhase === "MAPPICKING" && (
-                <div className="text-sm text-muted font-medium">
-                  Waiting for map pick...
-                </div>
+                  {currentPhase}
+                </Badge>
+                {(currentPhase === "BAN" || currentPhase === "MAPPICKING") && (
+                  <div
+                    className={clsx(
+                      "text-2xl font-mono font-bold tabular-nums",
+                      timeLeft <= 15 ? "text-danger animate-timer-pulse" : "text-foreground"
+                    )}
+                  >
+                    {formatTime(timeLeft)}
+                  </div>
+                )}
+              </div>
+              {isManager && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setIsHeaderVisible(false)}
+                >
+                  Hide header
+                </Button>
               )}
             </div>
           </div>
+        </header>
+      )}
+
+      {!isHeaderVisible && isManager && (
+        <div className="fixed top-4 right-4 z-40">
+          <Button size="sm" variant="secondary" onClick={() => setIsHeaderVisible(true)}>
+            Show header
+          </Button>
         </div>
-      </header>
+      )}
 
       <div className="w-full px-3 md:px-6 py-6">
         {/* Phase Content */}
@@ -506,6 +535,7 @@ export default function DraftTablePage() {
             amIReady={amIReady}
             onStart={handleStartMapPicking}
             onSetReady={handleSetReady}
+            onUndoResult={handleUndoResult}
             actionLoading={actionLoading}
           />
         )}
@@ -596,7 +626,7 @@ export default function DraftTablePage() {
           }}
           disabled={pauseActionPending || pauseRequestedBy === myTeamId}
           className={clsx(
-            "fixed bottom-6 left-6 z-40 px-6 py-3 font-bold rounded-lg shadow-lg transition-all flex items-center gap-2",
+            "fixed bottom-6 left-6 z-40 px-4 py-2 text-sm font-semibold rounded-lg shadow-md transition-all flex items-center gap-2",
             pauseRequestedBy === myTeamId
               ? "bg-surface border border-warning/50 text-warning cursor-not-allowed"
               : "bg-warning text-warning-foreground hover:bg-warning/90",
@@ -606,7 +636,7 @@ export default function DraftTablePage() {
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          {pauseRequestedBy === myTeamId ? "PAUSE REQUESTED" : "REQUEST PAUSE"}
+          {pauseRequestedBy === myTeamId ? "Pause sent" : "Request pause"}
         </button>
       )}
 
@@ -627,7 +657,7 @@ export default function DraftTablePage() {
           }}
           disabled={pauseActionPending}
           className={clsx(
-            "fixed bottom-6 left-6 z-40 px-6 py-3 font-bold rounded-lg shadow-lg transition-all flex items-center gap-2",
+            "fixed bottom-6 left-6 z-40 px-4 py-2 text-sm font-semibold rounded-lg shadow-md transition-all flex items-center gap-2",
             isMatchPaused
               ? "bg-accent text-accent-foreground hover:bg-accent/90"
               : "bg-warning text-warning-foreground hover:bg-warning/90",
@@ -641,7 +671,7 @@ export default function DraftTablePage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             )}
           </svg>
-          {isMatchPaused ? "RESUME TIMER" : "PAUSE TIMER"}
+          {isMatchPaused ? "Resume" : "Pause"}
         </button>
       )}
 
@@ -761,6 +791,7 @@ function StartingPhase({
   amIReady,
   onStart,
   onSetReady,
+  onUndoResult,
   actionLoading,
 }: {
   isManager: boolean;
@@ -771,9 +802,11 @@ function StartingPhase({
   amIReady: boolean;
   onStart: () => void;
   onSetReady: () => void;
+  onUndoResult: () => void;
   actionLoading: boolean;
 }) {
   const bothReady = match.teamAready === 1 && match.teamBready === 1;
+  const canUndoResult = isManager && match.status !== "FINISHED" && (match.mapResults?.length || 0) > 0;
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh]">
@@ -838,14 +871,27 @@ function StartingPhase({
                   One or both captains are not marked ready yet.
                 </p>
               )}
-              <Button 
-                size="lg" 
-                onClick={onStart} 
-                disabled={actionLoading} 
-                className="px-8"
-              >
-                {actionLoading ? "Starting..." : "Start Map Picking"}
-              </Button>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                {canUndoResult && (
+                  <Button
+                    size="lg"
+                    variant="secondary"
+                    onClick={onUndoResult}
+                    disabled={actionLoading}
+                    className="px-8"
+                  >
+                    Fix Last Result
+                  </Button>
+                )}
+                <Button 
+                  size="lg" 
+                  onClick={onStart} 
+                  disabled={actionLoading} 
+                  className="px-8"
+                >
+                  {actionLoading ? "Starting..." : "Start Map Picking"}
+                </Button>
+              </div>
               {!bothReady && <p className="text-xs text-muted mt-2">Manager override is active.</p>}
             </div>
           )}

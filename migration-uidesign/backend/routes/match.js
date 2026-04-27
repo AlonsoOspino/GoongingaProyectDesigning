@@ -19,6 +19,7 @@ router.put("/manager/update/:id", authMiddleware, managerMiddleware, matchContro
 router.post("/manager/:id/toggle-pause", authMiddleware, managerMiddleware, matchController.managerTogglePause);
 router.post("/manager/:id/clear-pause-request", authMiddleware, managerMiddleware, matchController.managerClearPauseRequest);
 router.post("/:id/result", authMiddleware, managerMiddleware, matchController.submitResult);
+router.post("/:id/undo-result", authMiddleware, managerMiddleware, matchController.undoLastResult);
 router.post("/:id/finish-registers", authMiddleware, managerMiddleware, matchController.finishPendingRegisters);
 router.get("/soonest", matchController.findSoonest);
 router.get("/active", matchController.getActiveMatches);

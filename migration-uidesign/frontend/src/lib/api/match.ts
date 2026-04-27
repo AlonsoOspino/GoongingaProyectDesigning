@@ -41,6 +41,13 @@ export async function submitMatchResult(token: string, matchId: number, winnerTe
   });
 }
 
+export async function undoMatchResult(token: string, matchId: number) {
+  return apiRequest<Match>(`/match/${matchId}/undo-result`, {
+    method: "POST",
+    token,
+  });
+}
+
 export async function finishPendingRegisters(token: string, matchId: number) {
   return apiRequest<Match>(`/match/${matchId}/finish-registers`, {
     method: "POST",

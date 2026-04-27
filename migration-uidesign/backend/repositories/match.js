@@ -280,6 +280,122 @@ const submitResult = async (id, winnerTeamId) => {
   });
 };
 
+const undoLastResult = async (id) => {
+  return prisma.$transaction(async (tx) => {
+    const match = await tx.match.findUnique({
+      where: { id },
+      include: {
+        draft: {
+          include: {
+            actions: {
+              orderBy: { order: "asc" },
+            },
+          },
+        },
+      },
+    });
+
+    if (!match) {
+      throw new Error("Match not found.");
+    }
+
+    if (match.status === "FINISHED") {
+      throw new Error("Cannot undo results for a finished match.");
+    }
+
+    const mapResults = Array.isArray(match.mapResults) ? match.mapResults : [];
+    if (mapResults.length === 0) {
+      throw new Error("No results to undo.");
+    }
+
+    if (!match.draft) {
+      throw new Error("Draft table not found for this match.");
+    }
+
+    if (!["STARTING", "FINISHED"].includes(match.draft.phase)) {
+      throw new Error("Can only undo before map picking starts.");
+    }
+
+    const lastResult = mapResults[mapResults.length - 1];
+    const nextMapResults = mapResults.slice(0, -1);
+    const hasWinner = !!lastResult.winnerTeamId;
+
+    const winsNeeded = Math.ceil(match.bestOf / 2);
+    const matchWinnerTeamId =
+      match.mapWinsTeamA > match.mapWinsTeamB
+        ? match.teamAId
+        : match.mapWinsTeamB > match.mapWinsTeamA
+        ? match.teamBId
+        : null;
+
+    if (match.status === "PENDINGREGISTERS" && matchWinnerTeamId) {
+      await tx.team.update({
+        where: { id: matchWinnerTeamId },
+        data: { victories: { decrement: 1 } },
+      });
+    }
+
+    let nextMapWinsA = match.mapWinsTeamA;
+    let nextMapWinsB = match.mapWinsTeamB;
+
+    if (hasWinner) {
+      if (lastResult.winnerTeamId === match.teamAId) {
+        nextMapWinsA = Math.max(0, nextMapWinsA - 1);
+      } else if (lastResult.winnerTeamId === match.teamBId) {
+        nextMapWinsB = Math.max(0, nextMapWinsB - 1);
+      }
+
+      const losingTeamId =
+        lastResult.winnerTeamId === match.teamAId ? match.teamBId : match.teamAId;
+
+      await tx.team.update({
+        where: { id: lastResult.winnerTeamId },
+        data: { mapWins: { decrement: 1 } },
+      });
+      await tx.team.update({
+        where: { id: losingTeamId },
+        data: { mapLoses: { decrement: 1 } },
+      });
+    }
+
+    const nextGameNumber = Math.max(0, (match.gameNumber || 0) - 1);
+
+    const updatedMatch = await tx.match.update({
+      where: { id: match.id },
+      data: {
+        mapWinsTeamA: nextMapWinsA,
+        mapWinsTeamB: nextMapWinsB,
+        gameNumber: nextGameNumber,
+        teamAready: 0,
+        teamBready: 0,
+        mapResults: nextMapResults,
+        status: "ACTIVE",
+      },
+      include: {
+        draft: {
+          include: {
+            actions: {
+              orderBy: { order: "asc" },
+            },
+          },
+        },
+      },
+    });
+
+    await tx.draftTable.update({
+      where: { id: match.draft.id },
+      data: {
+        phase: "ENDMAP",
+        phaseStartedAt: new Date(),
+        currentMapId: lastResult.mapId,
+        currentTurnTeamId: null,
+      },
+    });
+
+    return updatedMatch;
+  });
+};
+
 const findSoonest = () => {
   return prisma.match.findFirst({
     orderBy: { startDate: "asc" },
@@ -320,6 +436,7 @@ module.exports = {
   remove,
   generateRoundRobin,
   submitResult,
+  undoLastResult,
   findSoonest,
   finishPendingRegisters,
   bulkCreateUsers,
