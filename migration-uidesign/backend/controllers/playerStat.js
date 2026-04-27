@@ -1,12 +1,47 @@
 const playerStatService = require("../services/playerStat");
 const googleVisionService = require("../services/googleVision");
+const PRIVILEGED_STAT_ROLES = new Set(["MANAGER", "ADMIN"]);
+
+function resolveEffectiveUserId(req) {
+  const requesterId = Number(req.user?.id);
+  if (!Number.isInteger(requesterId) || requesterId <= 0) {
+    const err = new Error("Unauthorized user.");
+    err.statusCode = 401;
+    throw err;
+  }
+
+  const requestedUserIdRaw = req.body?.userId;
+  if (requestedUserIdRaw === undefined || requestedUserIdRaw === null || requestedUserIdRaw === "") {
+    return requesterId;
+  }
+
+  const requestedUserId = Number(requestedUserIdRaw);
+  if (!Number.isInteger(requestedUserId) || requestedUserId <= 0) {
+    const err = new Error("userId must be a positive integer.");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const canSubmitForOthers = PRIVILEGED_STAT_ROLES.has(String(req.user?.role || "").toUpperCase());
+  if (!canSubmitForOthers && requestedUserId !== requesterId) {
+    const err = new Error("Forbidden: You can only submit stats for your own user.");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  return requestedUserId;
+}
 
 const create = async (req, res) => {
   try {
-    const stat = await playerStatService.create(req.body);
+    const userId = resolveEffectiveUserId(req);
+    const stat = await playerStatService.create({
+      ...req.body,
+      userId,
+    });
     res.status(201).json(stat);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    res.status(err.statusCode || 400).json({ message: err.message });
   }
 };
 
@@ -16,10 +51,7 @@ const createFromImage = async (req, res) => {
       return res.status(400).json({ message: "image file is required (multipart/form-data, field: image)." });
     }
 
-    const userId = req.body.userId || req.user?.id;
-    if (!userId) {
-      return res.status(400).json({ message: "userId is required." });
-    }
+    const userId = resolveEffectiveUserId(req);
 
     const text = await googleVisionService.extractTextFromBuffer(req.file.buffer);
 
@@ -45,7 +77,7 @@ const createFromImage = async (req, res) => {
       ocrPreview: text.slice(0, 400),
     });
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    res.status(err.statusCode || 400).json({ message: err.message });
   }
 };
 

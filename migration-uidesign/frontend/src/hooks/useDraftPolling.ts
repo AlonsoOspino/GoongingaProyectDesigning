@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { getDraftState } from "@/lib/api/draft";
 import type { DraftState } from "@/lib/api/types";
 import { getServerNow } from "@/lib/serverTime";
@@ -19,7 +19,29 @@ interface UseDraftPollingResult {
   timeRemaining: number;
 }
 
-const PHASE_DURATION = 30; // 30 seconds per phase
+const TURN_DURATION = 75;
+const TURN_PHASES = new Set(["MAPPICKING", "BAN"]);
+
+const isTurnPhase = (phase: string) => TURN_PHASES.has(phase);
+
+const getTimeRemaining = (state: DraftState) => {
+  if (!isTurnPhase(state.phase)) return TURN_DURATION;
+  if (!state.phaseStartedAt) return TURN_DURATION;
+
+  const phaseStart = new Date(state.phaseStartedAt).getTime();
+  if (!Number.isFinite(phaseStart)) return TURN_DURATION;
+
+  // Freeze countdown while the manager pause is active.
+  const referenceNow =
+    state.match?.mapTimerPaused && state.match?.mapTimerPausedAt
+      ? new Date(state.match.mapTimerPausedAt).getTime()
+      : getServerNow();
+
+  if (!Number.isFinite(referenceNow)) return TURN_DURATION;
+
+  const elapsed = Math.floor((referenceNow - phaseStart) / 1000);
+  return Math.max(0, TURN_DURATION - elapsed);
+};
 
 export function useDraftPolling({
   draftId,
@@ -29,9 +51,7 @@ export function useDraftPolling({
   const [draftState, setDraftState] = useState<DraftState | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [timeRemaining, setTimeRemaining] = useState(PHASE_DURATION);
-  const lastPhaseRef = useRef<string | null>(null);
-  const lastPhaseStartRef = useRef<string | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState(TURN_DURATION);
 
   const fetchDraftState = useCallback(async () => {
     if (!draftId) return;
@@ -40,25 +60,7 @@ export function useDraftPolling({
       const state = await getDraftState(draftId);
       setDraftState(state);
       setError(null);
-
-      // Reset timer if phase changed
-      if (
-        state.phase !== lastPhaseRef.current ||
-        state.phaseStartedAt !== lastPhaseStartRef.current
-      ) {
-        lastPhaseRef.current = state.phase;
-        lastPhaseStartRef.current = state.phaseStartedAt;
-
-        // Calculate time remaining from phaseStartedAt using server time.
-        // phaseStartedAt comes from the backend; mixing it with the client clock
-        // (Date.now) introduces skew if the user's machine clock is off. Using
-        // getServerNow() aligns both sides of the subtraction.
-        const phaseStart = new Date(state.phaseStartedAt).getTime();
-        const now = getServerNow();
-        const elapsed = Math.floor((now - phaseStart) / 1000);
-        const remaining = Math.max(0, PHASE_DURATION - elapsed);
-        setTimeRemaining(remaining);
-      }
+      setTimeRemaining(getTimeRemaining(state));
     } catch (err) {
       setError(err instanceof Error ? err : new Error("Failed to fetch draft state"));
     } finally {
@@ -82,7 +84,7 @@ export function useDraftPolling({
 
   // Local timer countdown
   useEffect(() => {
-    if (!draftState || draftState.phase === "FINISHED" || draftState.phase === "IDLE") {
+    if (!draftState || !isTurnPhase(draftState.phase) || draftState.match?.mapTimerPaused) {
       return;
     }
 

@@ -3,6 +3,12 @@ const memberRepo = require("../repositories/member");
 const teamRepo = require("../repositories/team");
 const bcrypt = require("bcrypt");
 
+function sanitizeMember(member) {
+  if (!member || typeof member !== "object") return member;
+  const { passwordHash, ...safeMember } = member;
+  return safeMember;
+}
+
 async function normalizeAdminTeamId(rawTeamId) {
   if (rawTeamId === undefined) return undefined;
   if (rawTeamId === null || rawTeamId === "") return null;
@@ -71,7 +77,7 @@ const update = async (req, res) => {
       safeBody.passwordHash = await bcrypt.hash(password, 10);
     }
     const updatedMember = await memberRepo.update(Number(req.params.id), safeBody);
-    res.json(updatedMember);
+    res.json(sanitizeMember(updatedMember));
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
@@ -87,7 +93,7 @@ const adminUpdate = async (req, res) => {
       safeBody.passwordHash = await bcrypt.hash(password, 10);
     }
     const updatedMember = await memberRepo.update(Number(req.params.id), safeBody);
-    res.json(updatedMember);
+    res.json(sanitizeMember(updatedMember));
   } catch (err) {
     res.status(400).json({ message: err.message });
   }

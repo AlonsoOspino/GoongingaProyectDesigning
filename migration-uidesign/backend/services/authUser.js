@@ -2,7 +2,11 @@ const memberRepo = require("../repositories/member");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
-const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET is not set");
+}
 
 /**
  * REGISTER
@@ -47,7 +51,7 @@ const login = async (data) => {
 
   if (!member) throw new Error("User not found");
 
-  const isValid = await bcrypt.compare(password, member.passwordHash) || member.passwordHash === password;
+  const isValid = await bcrypt.compare(password, member.passwordHash);
 
   if (!isValid) throw new Error("Invalid password");
 
