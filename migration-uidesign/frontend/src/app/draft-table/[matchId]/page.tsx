@@ -1133,11 +1133,11 @@ function BanPhase({
             )}
           </div>
           <div className={clsx(
-            "px-1.5 py-1.5 text-center",
+            "px-1 py-0.5 text-center",
             !banned && wasBannedBefore ? "bg-surface-elevated" : "bg-background"
           )}>
             <span className={clsx(
-              "text-xs truncate block font-semibold",
+              "text-[10px] truncate block font-semibold leading-tight",
               !banned && wasBannedBefore ? managerLabelTone : "text-foreground"
             )}>
               {hero.name}
@@ -1174,14 +1174,14 @@ function BanPhase({
   };
 
   const renderHeroSection = (title: string, heroList: Hero[], roleColor: string) => (
-    <div className="mb-3">
-      <div className="flex items-center gap-2 mb-2 border-b border-border pb-1">
-        <div className={clsx("w-1 h-4 rounded-full", roleColor)} />
-        <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">{title}</h4>
+    <div className="mb-1.5">
+      <div className="flex items-center gap-2 mb-1 border-b border-border pb-0.5">
+        <div className={clsx("w-1 h-3 rounded-full", roleColor)} />
+        <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider">{title}</h4>
         <div className="flex-1 h-px bg-border" />
         <span className="text-[10px] text-muted">{heroList.length}</span>
       </div>
-      <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-7 lg:grid-cols-8 xl:grid-cols-9 2xl:grid-cols-10 gap-3">
+      <div className="grid grid-cols-7 sm:grid-cols-9 md:grid-cols-10 lg:grid-cols-12 xl:grid-cols-14 2xl:grid-cols-16 gap-1.5">
         {heroList.map((hero) => {
           const banned = isHeroBanned(hero.id);
           const myTeamBannedBefore = wasHeroBannedByMyTeamBefore(hero.id);
@@ -1358,16 +1358,16 @@ function BanPhase({
             </div>
           )}
 
-          {/* Hero Grid - LARGER heroes */}
-          <div className="flex-1 overflow-y-auto">
+          {/* Hero Grid - compact so every hero fits on screen */}
+          <div className="flex-1 min-h-0">
             {selectedRole === "ALL" ? (
-              <div className="space-y-4">
+              <div className="space-y-2">
                 {renderHeroSection("Tank", tankHeroes, "bg-yellow-500")}
                 {renderHeroSection("DPS", dpsHeroes, "bg-red-500")}
                 {renderHeroSection("Support", supportHeroes, "bg-green-500")}
               </div>
             ) : (
-              <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 2xl:grid-cols-9 gap-3">
+              <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 xl:grid-cols-14 2xl:grid-cols-16 gap-1.5">
                 {heroes.filter((h) => h.role === selectedRole).map((hero) => {
                   const banned = isHeroBanned(hero.id);
                   const canSelect = isCaptain && isMyTurn && !banned && canBanRole(hero.role);
