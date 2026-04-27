@@ -18,7 +18,15 @@ import {
   type GameMap,
   type Hero,
 } from "@/lib/api";
-import { getTeams, submitMatchResult, updateCaptainMatch, type Team } from "@/lib/api";
+import {
+  getTeams,
+  submitMatchResult,
+  updateCaptainMatch,
+  captainRequestPause,
+  managerTogglePause,
+  managerClearPauseRequest,
+  type Team,
+} from "@/lib/api";
 import { clsx } from "clsx";
 import { resolveHeroImageUrl, resolveMapImageUrl } from "@/lib/assetUrls";
 
@@ -44,8 +52,7 @@ export default function DraftTablePage() {
   const [selectedRole, setSelectedRole] = useState<"ALL" | "TANK" | "DPS" | "SUPPORT">("ALL");
   const [banWarning, setBanWarning] = useState<string | null>(null);
   const [heroCacheById, setHeroCacheById] = useState<Record<number, Hero>>({});
-  const [isPaused, setIsPaused] = useState(false);
-  const [pausedBy, setPausedBy] = useState<string | null>(null);
+  const [pauseActionPending, setPauseActionPending] = useState(false);
 
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -94,11 +101,26 @@ export default function DraftTablePage() {
     };
   }, [draftState, currentPhase]);
 
+  const isMatchPaused = !!draftState?.match?.mapTimerPaused;
+  const pauseRequestedBy = draftState?.match?.pauseRequestedBy ?? null;
+
   useEffect(() => {
     // Timer only runs during BAN phase (map picking doesn't need timer - waiting for captain to pick)
     if (!draftState?.phaseStartedAt || currentPhase !== "BAN") {
       setTimeLeft(TURN_DURATION);
       if (timerRef.current) clearInterval(timerRef.current);
+      return;
+    }
+    // While paused by the manager, freeze the countdown at whatever the
+    // server-derived remaining time is (server has frozen phaseStartedAt too).
+    if (isMatchPaused) {
+      if (timerRef.current) clearInterval(timerRef.current);
+      const startTime = new Date(draftState.phaseStartedAt).getTime();
+      const pausedAtMs = draftState?.match?.mapTimerPausedAt
+        ? new Date(draftState.match.mapTimerPausedAt).getTime()
+        : Date.now();
+      const elapsed = Math.floor((pausedAtMs - startTime) / 1000);
+      setTimeLeft(Math.max(0, TURN_DURATION - elapsed));
       return;
     }
     const startTime = new Date(draftState.phaseStartedAt).getTime();
@@ -112,7 +134,7 @@ export default function DraftTablePage() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [draftState?.phaseStartedAt, currentPhase]);
+  }, [draftState?.phaseStartedAt, currentPhase, isMatchPaused, draftState?.match?.mapTimerPausedAt]);
 
   useEffect(() => {
     const heroes = draftState?.heroes || [];
@@ -557,24 +579,136 @@ export default function DraftTablePage() {
         {showDraftHistory && <DraftHistory draftState={draftState} teams={teams} getHeroById={getHeroById} />}
       </div>
 
-      {/* Pause Button - Bottom Left, only during MAPPICKING or BAN phases */}
-      {(currentPhase === "MAPPICKING" || currentPhase === "BAN") && isCaptain && (
+      {/* Captain pause request button — wired to backend */}
+      {(currentPhase === "MAPPICKING" || currentPhase === "BAN") && isCaptain && !isMatchPaused && (
         <button
-          onClick={() => {
-            setIsPaused(true);
-            setPausedBy(user?.nickname || "Captain");
+          onClick={async () => {
+            if (!token || pauseActionPending) return;
+            setPauseActionPending(true);
+            try {
+              await captainRequestPause(token, matchId);
+              await fetchDraftState();
+            } catch (err) {
+              console.error("Failed to request pause:", err);
+            } finally {
+              setPauseActionPending(false);
+            }
           }}
-          className="fixed bottom-6 left-6 z-40 px-6 py-3 bg-warning text-warning-foreground font-bold rounded-lg shadow-lg hover:bg-warning/90 transition-all flex items-center gap-2"
+          disabled={pauseActionPending || pauseRequestedBy === myTeamId}
+          className={clsx(
+            "fixed bottom-6 left-6 z-40 px-6 py-3 font-bold rounded-lg shadow-lg transition-all flex items-center gap-2",
+            pauseRequestedBy === myTeamId
+              ? "bg-surface border border-warning/50 text-warning cursor-not-allowed"
+              : "bg-warning text-warning-foreground hover:bg-warning/90",
+            pauseActionPending && "opacity-70 cursor-wait"
+          )}
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          PAUSE!
+          {pauseRequestedBy === myTeamId ? "PAUSE REQUESTED" : "REQUEST PAUSE"}
         </button>
       )}
 
-      {/* Pause Overlay - Shows for Manager when someone pauses */}
-      {isPaused && (
+      {/* Manager pause/resume control */}
+      {(currentPhase === "MAPPICKING" || currentPhase === "BAN") && isManager && (
+        <button
+          onClick={async () => {
+            if (!token || pauseActionPending) return;
+            setPauseActionPending(true);
+            try {
+              await managerTogglePause(token, matchId, !isMatchPaused);
+              await fetchDraftState();
+            } catch (err) {
+              console.error("Failed to toggle pause:", err);
+            } finally {
+              setPauseActionPending(false);
+            }
+          }}
+          disabled={pauseActionPending}
+          className={clsx(
+            "fixed bottom-6 left-6 z-40 px-6 py-3 font-bold rounded-lg shadow-lg transition-all flex items-center gap-2",
+            isMatchPaused
+              ? "bg-accent text-accent-foreground hover:bg-accent/90"
+              : "bg-warning text-warning-foreground hover:bg-warning/90",
+            pauseActionPending && "opacity-70 cursor-wait"
+          )}
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            {isMatchPaused ? (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            ) : (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            )}
+          </svg>
+          {isMatchPaused ? "RESUME TIMER" : "PAUSE TIMER"}
+        </button>
+      )}
+
+      {/* Manager-only: floating pause-request notification when a captain asks */}
+      {isManager && pauseRequestedBy && !isMatchPaused && (
+        <div className="fixed top-24 right-6 z-40 w-80 bg-surface border-2 border-warning rounded-xl shadow-2xl shadow-warning/20 animate-fade-in">
+          <div className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 rounded-full bg-warning/20 border-2 border-warning flex items-center justify-center flex-shrink-0">
+                <svg className="w-4 h-4 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-foreground text-sm">Pause Requested</p>
+                <p className="text-xs text-muted truncate">
+                  {teams.find((t) => t.id === pauseRequestedBy)?.name || "A captain"} wants to pause
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                className="flex-1"
+                disabled={pauseActionPending}
+                onClick={async () => {
+                  if (!token) return;
+                  setPauseActionPending(true);
+                  try {
+                    await managerTogglePause(token, matchId, true);
+                    await fetchDraftState();
+                  } catch (err) {
+                    console.error("Failed to approve pause:", err);
+                  } finally {
+                    setPauseActionPending(false);
+                  }
+                }}
+              >
+                Approve
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="flex-1"
+                disabled={pauseActionPending}
+                onClick={async () => {
+                  if (!token) return;
+                  setPauseActionPending(true);
+                  try {
+                    await managerClearPauseRequest(token, matchId);
+                    await fetchDraftState();
+                  } catch (err) {
+                    console.error("Failed to deny pause:", err);
+                  } finally {
+                    setPauseActionPending(false);
+                  }
+                }}
+              >
+                Deny
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full-screen GAME PAUSED overlay (server-driven) */}
+      {isMatchPaused && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center">
           <div className="bg-surface border-2 border-warning rounded-2xl p-8 max-w-md text-center shadow-2xl shadow-warning/20 animate-fade-in">
             <div className="w-20 h-20 rounded-full bg-warning/20 border-4 border-warning mx-auto mb-6 flex items-center justify-center">
@@ -583,29 +717,31 @@ export default function DraftTablePage() {
               </svg>
             </div>
             <h2 className="text-3xl font-black text-foreground mb-2">GAME PAUSED</h2>
-            <div className="flex items-center justify-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center">
-                <span className="text-lg font-bold text-primary">
-                  {pausedBy?.charAt(0)?.toUpperCase() || "?"}
-                </span>
-              </div>
-              <div className="text-left">
-                <p className="text-sm text-muted">Paused by</p>
-                <p className="text-lg font-semibold text-foreground">{pausedBy || "A Captain"}</p>
-              </div>
-            </div>
-            <p className="text-muted mb-6 italic">
-              &quot;Please wait while we sort things out...&quot;
+            <p className="text-muted mb-6">
+              {isManager
+                ? "The match timer is currently paused."
+                : "The manager has paused the match. Please wait..."}
             </p>
-            <Button
-              onClick={() => {
-                setIsPaused(false);
-                setPausedBy(null);
-              }}
-              className="px-8"
-            >
-              Resume Match
-            </Button>
+            {isManager && (
+              <Button
+                onClick={async () => {
+                  if (!token || pauseActionPending) return;
+                  setPauseActionPending(true);
+                  try {
+                    await managerTogglePause(token, matchId, false);
+                    await fetchDraftState();
+                  } catch (err) {
+                    console.error("Failed to resume:", err);
+                  } finally {
+                    setPauseActionPending(false);
+                  }
+                }}
+                disabled={pauseActionPending}
+                className="px-8"
+              >
+                Resume Match
+              </Button>
+            )}
           </div>
         </div>
       )}

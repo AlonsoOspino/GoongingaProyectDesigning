@@ -155,6 +155,8 @@ const reloadDraft = (tx, draftId) =>
 const applyTimeoutIfNeeded = async (draft) => {
   if (!draft.currentTurnTeamId) return draft;
   if (!["MAPPICKING", "BAN"].includes(draft.phase)) return draft;
+  // Manager-initiated pause freezes the draft turn timer entirely.
+  if (draft.match && draft.match.mapTimerPaused) return draft;
 
   const startedAt = draft.phaseStartedAt ? new Date(draft.phaseStartedAt).getTime() : Date.now();
   if (Date.now() - startedAt < TURN_TIMEOUT_MS) return draft;

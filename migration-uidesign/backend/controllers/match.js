@@ -1,4 +1,5 @@
 const matchService = require("../services/match");
+const prisma = require("../config/prisma");
 
 const getById = async (req, res) => {
   try {
@@ -225,10 +226,51 @@ const managerTogglePause = async (req, res) => {
       return res.status(400).json({ message: "paused must be a boolean" });
     }
 
-    const updatedMatch = await matchService.update(Number(id), {
+    const matchId = Number(id);
+    const existing = await matchService.getById(matchId);
+    if (!existing) {
+      return res.status(404).json({ message: "Match not found" });
+    }
+
+    const now = new Date();
+    const updates = {
       mapTimerPaused: paused,
-      mapTimerPausedAt: paused ? new Date() : null,
-    });
+      mapTimerPausedAt: paused ? now : null,
+    };
+
+    // When resuming after a pause, also clear any pending pause request
+    // so the manager isn't left with a stale notification on screen.
+    if (!paused) {
+      updates.pauseRequestedBy = null;
+      updates.pauseRequestedAt = null;
+    }
+
+    const updatedMatch = await matchService.update(matchId, updates);
+
+    // When resuming, shift the active draft's phaseStartedAt forward by the
+    // paused duration so the on-turn captain doesn't lose elapsed time.
+    if (!paused && existing.mapTimerPaused && existing.mapTimerPausedAt) {
+      const pausedDuration = now.getTime() - new Date(existing.mapTimerPausedAt).getTime();
+      if (pausedDuration > 0) {
+        try {
+          const draft = await prisma.draftTable.findUnique({
+            where: { matchId },
+          });
+          if (draft && draft.phaseStartedAt && ["MAPPICKING", "BAN"].includes(draft.phase)) {
+            await prisma.draftTable.update({
+              where: { id: draft.id },
+              data: {
+                phaseStartedAt: new Date(
+                  new Date(draft.phaseStartedAt).getTime() + pausedDuration
+                ),
+              },
+            });
+          }
+        } catch (shiftErr) {
+          console.error("Failed to shift draft phaseStartedAt on resume:", shiftErr);
+        }
+      }
+    }
 
     res.json({
       message: paused ? "Timer paused" : "Timer resumed",
