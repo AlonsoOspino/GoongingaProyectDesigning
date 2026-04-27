@@ -61,7 +61,7 @@
 
 @font-face {
   font-family: "BigNoodleTitling";
-  src: url("/fonts/BigNoodleTitling.woff2") format("woff2"), url("/fonts/BigNoodleTitling.woff") format("woff");
+  src: url("/fonts/big_noodle_titling.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;

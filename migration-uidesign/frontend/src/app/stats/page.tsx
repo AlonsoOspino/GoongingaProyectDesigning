@@ -271,7 +271,7 @@ export default function StatsPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="mx-auto max-w-[1600px] px-4 py-8 lg:px-8 lg:py-12">
+        <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
           <Skeleton className="mb-3 h-12 w-80" />
           <Skeleton className="mb-10 h-5 w-[32rem] max-w-full" variant="text" />
           <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
@@ -295,7 +295,7 @@ export default function StatsPage() {
         <div className="absolute bottom-0 left-1/2 h-[400px] w-[800px] -translate-x-1/2 rounded-full bg-success/4 blur-[200px]" />
       </div>
 
-      <div className="relative mx-auto max-w-[1600px] px-4 py-6 lg:px-8 lg:py-10">
+      <div className="relative mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-10">
         {/* Hero Header */}
         <header className="mb-8">
           <div className="flex flex-wrap items-center gap-2 mb-4">
