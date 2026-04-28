@@ -48,14 +48,14 @@ export function RosterCarousel({ items, shouldStretchSingleRoster = false }: Ros
   const rosterIsStretched = shouldStretchSingleRoster && items.length === 1;
 
   return (
-    <div className={rosterIsStretched ? "flex-1 flex flex-col" : "flex flex-col"}>
+    <div className={`${rosterIsStretched ? "flex-1" : ""} flex flex-col w-full`}>
       <Link
         key={activeItem.id}
         href={`/teams/${activeItem.id}`}
-        className={`group block animate-cascade-in ${rosterIsStretched ? "flex-1" : ""}`}
+        className={`group block w-full animate-cascade-in ${rosterIsStretched ? "flex-1" : ""}`}
       >
-        <div className={`relative overflow-hidden rounded-xl border border-border/60 bg-surface/40 transition-transform group-hover:-translate-y-1 ${rosterIsStretched ? "h-full" : ""}`}>
-          <div className={`relative w-full ${rosterIsStretched ? "h-full min-h-[25rem]" : "h-64 md:h-72"}`}>
+        <div className={`relative w-full overflow-hidden rounded-xl border border-border/60 bg-surface/40 transition-transform group-hover:-translate-y-1 ${rosterIsStretched ? "h-full" : ""}`}>
+          <div className={`relative w-full ${rosterIsStretched ? "h-full min-h-[25rem]" : "h-72 md:h-80 lg:h-96"}`}>
             <Image
               src={activeItem.rosterSrc}
               alt={`${activeItem.name} roster`}
