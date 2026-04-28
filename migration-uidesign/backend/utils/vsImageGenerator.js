@@ -1,4 +1,5 @@
 const { createCanvas, loadImage } = require("canvas");
+const path = require("path");
 
 async function generateVsImage({ teamALogo, teamBLogo, teamAName = "Team A", teamBName = "Team B" }) {
   const width = 1400;
@@ -9,7 +10,7 @@ async function generateVsImage({ teamALogo, teamBLogo, teamAName = "Team A", tea
   const midX = width / 2;
   const midY = height / 2;
 
-  drawBackground(ctx, width, height);
+  await drawBackground(ctx, width, height);
   drawSidePanels(ctx, width, height);
 
   const logoDiameter = 250;
@@ -45,11 +46,20 @@ async function generateVsImage({ teamALogo, teamBLogo, teamAName = "Team A", tea
   return canvas.toBuffer("image/png");
 }
 
-function drawBackground(ctx, width, height) {
+async function drawBackground(ctx, width, height) {
+  const baseImagePath = path.join(__dirname, "..", "assets", "VSPARATEAM.jpg");
+
+  try {
+    const baseImage = await loadImage(baseImagePath);
+    drawCoverImage(ctx, baseImage, 0, 0, width, height);
+  } catch (err) {
+    console.error("Failed to load base background image:", err.message);
+  }
+
   const background = ctx.createLinearGradient(0, 0, width, height);
-  background.addColorStop(0, "#08111f");
-  background.addColorStop(0.5, "#10192b");
-  background.addColorStop(1, "#060b14");
+  background.addColorStop(0, "rgba(8, 17, 31, 0.72)");
+  background.addColorStop(0.5, "rgba(16, 25, 43, 0.72)");
+  background.addColorStop(1, "rgba(6, 11, 20, 0.72)");
   ctx.fillStyle = background;
   ctx.fillRect(0, 0, width, height);
 
@@ -83,6 +93,28 @@ function drawBackground(ctx, width, height) {
   ctx.fillRect(0, 78, width, 3);
   ctx.fillRect(0, height - 82, width, 3);
   ctx.restore();
+}
+
+function drawCoverImage(ctx, image, x, y, width, height) {
+  const imageRatio = image.width / image.height;
+  const targetRatio = width / height;
+
+  let drawWidth = width;
+  let drawHeight = height;
+  let offsetX = 0;
+  let offsetY = 0;
+
+  if (imageRatio > targetRatio) {
+    drawHeight = height;
+    drawWidth = height * imageRatio;
+    offsetX = (width - drawWidth) / 2;
+  } else {
+    drawWidth = width;
+    drawHeight = width / imageRatio;
+    offsetY = (height - drawHeight) / 2;
+  }
+
+  ctx.drawImage(image, x + offsetX, y + offsetY, drawWidth, drawHeight);
 }
 
 function drawSidePanels(ctx, width, height) {
