@@ -176,30 +176,6 @@ async function sendDiscordMatchScheduled({
   const data = await response.json();
   return data.id;
 }
-}
- };
-
- const response=await fetch(
-`${webhookUrl}?wait=true`,
-{
-method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify(payload)
-}
-);
-
- if(!response.ok){
-const body=await response.text().catch(()=> "");
-throw new Error(
-`Discord webhook failed (${response.status}): ${body}`
-);
- }
-
- const data=await response.json();
- return data.id;
-}
 
 async function editDiscordMatchScheduled({
   messageId,
