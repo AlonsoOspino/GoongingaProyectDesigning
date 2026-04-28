@@ -22,19 +22,14 @@ function roleMention(roleId) {
 function buildMentions(a, b) {
   const mentions = [];
 
-  const ra = roleMention(a);
-  const rb = roleMention(b);
+  // Team A: use role mention or default
+  const mentionA = roleMention(a) || DEFAULT_ROLE_MENTION;
+  mentions.push(mentionA);
 
-  if (ra) mentions.push(ra);
-  if (rb && rb !== ra) mentions.push(rb);
-
-  if (!mentions.length) {
-    mentions.push(
-      (
-        process.env.DISCORD_ROLE_MENTION ||
-        DEFAULT_ROLE_MENTION
-      ).trim()
-    );
+  // Team B: use role mention or default (only add if different from Team A)
+  const mentionB = roleMention(b) || DEFAULT_ROLE_MENTION;
+  if (mentionB !== mentionA) {
+    mentions.push(mentionB);
   }
 
   return mentions.join(" ");
@@ -138,8 +133,9 @@ async function sendDiscordMatchScheduled({
   const vsImageUrl = `${appUrl}/match/${teamAId}/${teamBId}/vs-image`;
 
   const payload = {
-    content:
-      `${mentions} ⚔ Your match has been scheduled`.trim(),
+    content: mentions
+      ? `${mentions} ⚔ Your match has been scheduled`
+      : "⚔ Your match has been scheduled",
 
     embeds: [
       buildEmbed({
@@ -204,8 +200,9 @@ async function editDiscordMatchScheduled({
   const vsImageUrl = `${appUrl}/match/${teamAId}/${teamBId}/vs-image`;
 
   const payload = {
-    content:
-      `${mentions} 📣 Your match has been rescheduled`.trim(),
+    content: mentions
+      ? `${mentions} 📣 Your match has been rescheduled`
+      : "📣 Your match has been rescheduled",
 
     embeds: [
       buildEmbed({
