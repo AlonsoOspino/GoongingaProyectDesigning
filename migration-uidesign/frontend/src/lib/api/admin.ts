@@ -125,6 +125,7 @@ export interface CreateTeamPayload {
   name: string;
   logo?: string;
   roster?: string;
+  discordRoleId?: string;
   tournamentId: number;
 }
 
