@@ -128,8 +128,9 @@ async function sendDiscordMatchScheduled({
     teamBDiscordRoleId
   );
 
-  // Generate VS image URL using the backend endpoint
-  const vsImageUrl = `${appUrl}/match/${teamAId}/${teamBId}/vs-image`;
+  // Generate VS image URL with cache-busting so Discord refreshes the image
+  const cacheKey = startDate ? new Date(startDate).getTime() : Date.now();
+  const vsImageUrl = `${appUrl}/match/${teamAId}/${teamBId}/vs-image?v=${cacheKey}`;
 
   const payload = {
     content: mentions
@@ -195,8 +196,9 @@ async function editDiscordMatchScheduled({
     teamBDiscordRoleId
   );
 
-  // Generate VS image URL using the backend endpoint
-  const vsImageUrl = `${appUrl}/match/${teamAId}/${teamBId}/vs-image`;
+  // Generate VS image URL with cache-busting so Discord refreshes the image
+  const cacheKey = startDate ? new Date(startDate).getTime() : Date.now();
+  const vsImageUrl = `${appUrl}/match/${teamAId}/${teamBId}/vs-image?v=${cacheKey}`;
 
   const payload = {
     content: mentions
