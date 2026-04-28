@@ -8,15 +8,14 @@ function unixTime(dateValue) {
 }
 
 function roleMention(roleId) {
-  if (!roleId) return null;
+  if (!roleId || roleId === "" || roleId === null || roleId === undefined) return null;
 
-  const clean = String(roleId)
-    .replace(/[<@&>]/g,"")
-    .trim();
+  const clean = String(roleId).replace(/[<@&>]/g, "").trim();
 
-  return clean
-    ? `<@&${clean}>`
-    : null;
+  // Must be numeric
+  if (!/^\d+$/.test(clean)) return null;
+
+  return `<@&${clean}>`;
 }
 
 function buildMentions(a, b) {

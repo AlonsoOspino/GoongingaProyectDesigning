@@ -18,12 +18,17 @@ router.post("/captain/:id/request-pause", authMiddleware, captainMatchMiddleware
 router.put("/manager/update/:id", authMiddleware, managerMiddleware, matchController.managerUpdate);
 router.post("/manager/:id/toggle-pause", authMiddleware, managerMiddleware, matchController.managerTogglePause);
 router.post("/manager/:id/clear-pause-request", authMiddleware, managerMiddleware, matchController.managerClearPauseRequest);
+// Image endpoint must come before generic /:id routes
+router.get("/:teamAId/:teamBId/vs-image", matchController.generateVsImage);
+
+// Specific routes
+router.get("/soonest", matchController.findSoonest);
+router.get("/active", matchController.getActiveMatches);
+
+// ID-based routes
 router.post("/:id/result", authMiddleware, managerMiddleware, matchController.submitResult);
 router.post("/:id/undo-result", authMiddleware, managerMiddleware, matchController.undoLastResult);
 router.post("/:id/finish-registers", authMiddleware, managerMiddleware, matchController.finishPendingRegisters);
-router.get("/:teamAId/:teamBId/vs-image", matchController.generateVsImage);
-router.get("/soonest", matchController.findSoonest);
-router.get("/active", matchController.getActiveMatches);
 router.get("/:id", matchController.getById);
 
 module.exports = router;

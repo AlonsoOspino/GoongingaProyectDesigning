@@ -361,7 +361,7 @@ const managerClearPauseRequest = async (req, res) => {
 const generateVsImage = async (req, res) => {
   try {
     const { teamAId, teamBId } = req.params;
-    const { generateVsImage } = require("../utils/vsImageGenerator");
+    const { generateVsImage: createVsImage } = require("../utils/vsImageGenerator");
 
     const teams = await prisma.team.findMany({
       where: { id: { in: [Number(teamAId), Number(teamBId)] } },
@@ -375,7 +375,7 @@ const generateVsImage = async (req, res) => {
       return res.status(404).json({ message: "Teams not found" });
     }
 
-    const imageBuffer = await generateVsImage({
+    const imageBuffer = await createVsImage({
       teamALogo: teamA.logo,
       teamBLogo: teamB.logo,
       teamAName: teamA.name,
@@ -385,6 +385,7 @@ const generateVsImage = async (req, res) => {
     res.type("image/png");
     res.send(imageBuffer);
   } catch (err) {
+    console.error("Image generation error:", err);
     res.status(500).json({ message: err.message });
   }
 };
