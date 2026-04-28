@@ -1086,11 +1086,12 @@ function TeamsSection({ token }: { token: string }) {
           <Button onClick={async () => {
             if (!selectedTeam) return;
             try {
-              const payload = { ...formData };
-              // Convert empty discordRoleId to null
-              if ((payload as any).discordRoleId === "") {
-                (payload as any).discordRoleId = null;
-              }
+              const payload: any = {
+                name: formData.name,
+                logo: formData.logo,
+                roster: formData.roster,
+                discordRoleId: (formData as any).discordRoleId === "" ? null : (formData as any).discordRoleId,
+              };
               await adminUpdateTeam(token, selectedTeam.id, payload);
               setShowEditModal(false);
               showNotif("success", "Team updated");
