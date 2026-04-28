@@ -21,6 +21,7 @@ router.post("/manager/:id/clear-pause-request", authMiddleware, managerMiddlewar
 router.post("/:id/result", authMiddleware, managerMiddleware, matchController.submitResult);
 router.post("/:id/undo-result", authMiddleware, managerMiddleware, matchController.undoLastResult);
 router.post("/:id/finish-registers", authMiddleware, managerMiddleware, matchController.finishPendingRegisters);
+router.get("/:teamAId/:teamBId/vs-image", matchController.generateVsImage);
 router.get("/soonest", matchController.findSoonest);
 router.get("/active", matchController.getActiveMatches);
 router.get("/:id", matchController.getById);

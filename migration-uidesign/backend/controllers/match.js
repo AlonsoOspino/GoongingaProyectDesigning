@@ -109,8 +109,8 @@ const captainUpdate = async (req, res) => {
           const messageId = await sendDiscordMatchScheduled({
             teamAName,
             teamBName,
-            teamALogo: teamA?.logo || undefined,
-            teamBLogo: teamB?.logo || undefined,
+            teamAId: updatedMatch.teamAId,
+            teamBId: updatedMatch.teamBId,
             teamADiscordRoleId: teamA?.discordRoleId || undefined,
             teamBDiscordRoleId: teamB?.discordRoleId || undefined,
             startDate: updatedMatch.startDate,
@@ -126,8 +126,8 @@ const captainUpdate = async (req, res) => {
             messageId: updatedMatch.discordMessageId,
             teamAName,
             teamBName,
-            teamALogo: teamA?.logo || undefined,
-            teamBLogo: teamB?.logo || undefined,
+            teamAId: updatedMatch.teamAId,
+            teamBId: updatedMatch.teamBId,
             teamADiscordRoleId: teamA?.discordRoleId || undefined,
             teamBDiscordRoleId: teamB?.discordRoleId || undefined,
             startDate: updatedMatch.startDate,
@@ -358,6 +358,37 @@ const managerClearPauseRequest = async (req, res) => {
   }
 };
 
+const generateVsImage = async (req, res) => {
+  try {
+    const { teamAId, teamBId } = req.params;
+    const { generateVsImage } = require("../utils/vsImageGenerator");
+
+    const teams = await prisma.team.findMany({
+      where: { id: { in: [Number(teamAId), Number(teamBId)] } },
+      select: { id: true, name: true, logo: true },
+    });
+
+    const teamA = teams.find((t) => t.id === Number(teamAId));
+    const teamB = teams.find((t) => t.id === Number(teamBId));
+
+    if (!teamA || !teamB) {
+      return res.status(404).json({ message: "Teams not found" });
+    }
+
+    const imageBuffer = await generateVsImage({
+      teamALogo: teamA.logo,
+      teamBLogo: teamB.logo,
+      teamAName: teamA.name,
+      teamBName: teamB.name,
+    });
+
+    res.type("image/png");
+    res.send(imageBuffer);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 module.exports = {
   getById,
   getAll,
@@ -377,5 +408,6 @@ module.exports = {
   captainRequestPause,
   managerTogglePause,
   managerClearPauseRequest,
+  generateVsImage,
 };
 

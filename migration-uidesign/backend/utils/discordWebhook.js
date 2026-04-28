@@ -19,16 +19,16 @@ function roleMention(roleId) {
     : null;
 }
 
-function buildMentions(a,b){
-  const mentions=[];
+function buildMentions(a, b) {
+  const mentions = [];
 
-  const ra=roleMention(a);
-  const rb=roleMention(b);
+  const ra = roleMention(a);
+  const rb = roleMention(b);
 
-  if(ra) mentions.push(ra);
-  if(rb && rb!==ra) mentions.push(rb);
+  if (ra) mentions.push(ra);
+  if (rb && rb !== ra) mentions.push(rb);
 
-  if(!mentions.length){
+  if (!mentions.length) {
     mentions.push(
       (
         process.env.DISCORD_ROLE_MENTION ||
@@ -115,39 +115,67 @@ timestamp:new Date().toISOString()
 }
 
 async function sendDiscordMatchScheduled({
- teamAName,
- teamBName,
- startDate,
- teamADiscordRoleId,
- teamBDiscordRoleId,
- matchBannerUrl
-}) {
-
- const webhookUrl=
- process.env.DISCORD_WEBHOOK_URL;
-
- if(!webhookUrl) return null;
-
- const mentions=buildMentions(
+  teamAName,
+  teamBName,
+  teamAId,
+  teamBId,
+  startDate,
   teamADiscordRoleId,
-  teamBDiscordRoleId
- );
+  teamBDiscordRoleId,
+  matchBannerUrl
+}) {
+  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+  const appUrl = process.env.APP_URL || "https://goongingaproyectdesigning.onrender.com";
 
- const payload={
-content:
-`${mentions} ⚔ Your match has been scheduled`.trim(),
+  if (!webhookUrl) return null;
 
-embeds:[
-buildEmbed({
-teamAName,
-teamBName,
-startDate,
-matchBannerUrl
-})
-],
+  const mentions = buildMentions(
+    teamADiscordRoleId,
+    teamBDiscordRoleId
+  );
 
-allowed_mentions:{
-parse:["roles","users"]
+  // Generate VS image URL using the backend endpoint
+  const vsImageUrl = `${appUrl}/match/${teamAId}/${teamBId}/vs-image`;
+
+  const payload = {
+    content:
+      `${mentions} ⚔ Your match has been scheduled`.trim(),
+
+    embeds: [
+      buildEmbed({
+        teamAName,
+        teamBName,
+        startDate,
+        matchBannerUrl: vsImageUrl, // Use the generated VS image
+      })
+    ],
+
+    allowed_mentions: {
+      parse: ["roles", "users"]
+    }
+  };
+
+  const response = await fetch(
+    `${webhookUrl}?wait=true`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    }
+  );
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(
+      `Discord webhook failed (${response.status}): ${body}`
+    );
+  }
+
+  const data = await response.json();
+  return data.id;
+}
 }
  };
 
@@ -174,65 +202,69 @@ throw new Error(
 }
 
 async function editDiscordMatchScheduled({
-messageId,
-teamAName,
-teamBName,
-startDate,
-teamADiscordRoleId,
-teamBDiscordRoleId,
-matchBannerUrl
-}){
+  messageId,
+  teamAName,
+  teamBName,
+  teamAId,
+  teamBId,
+  startDate,
+  teamADiscordRoleId,
+  teamBDiscordRoleId,
+  matchBannerUrl
+}) {
+  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+  const appUrl = process.env.APP_URL || "https://goongingaproyectdesigning.onrender.com";
 
-const webhookUrl=
-process.env.DISCORD_WEBHOOK_URL;
+  if (!webhookUrl || !messageId) {
+    return null;
+  }
 
-if(!webhookUrl||!messageId){
- return null;
-}
+  const mentions = buildMentions(
+    teamADiscordRoleId,
+    teamBDiscordRoleId
+  );
 
-const mentions=buildMentions(
-teamADiscordRoleId,
-teamBDiscordRoleId
-);
+  // Generate VS image URL using the backend endpoint
+  const vsImageUrl = `${appUrl}/match/${teamAId}/${teamBId}/vs-image`;
 
-const payload={
-content:
-`${mentions} 📣 Your match has been rescheduled`.trim(),
+  const payload = {
+    content:
+      `${mentions} 📣 Your match has been rescheduled`.trim(),
 
-embeds:[
-buildEmbed({
-teamAName,
-teamBName,
-startDate,
-matchBannerUrl,
-isReschedule:true
-})
-],
+    embeds: [
+      buildEmbed({
+        teamAName,
+        teamBName,
+        startDate,
+        matchBannerUrl: vsImageUrl, // Use the generated VS image
+        isReschedule: true
+      })
+    ],
 
-allowed_mentions:{
-parse:["roles","users"]
-}
-};
+    allowed_mentions: {
+      parse: ["roles", "users"]
+    }
+  };
 
-const response=await fetch(
-`${webhookUrl}/messages/${messageId}`,
-{
-method:"PATCH",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify(payload)
-}
-);
+  const response = await fetch(
+    `${webhookUrl}/messages/${messageId}`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    }
+  );
 
-if(!response.ok){
-const body=await response.text().catch(()=> "");
-throw new Error(
-`Discord edit failed (${response.status}): ${body}`
-);
-}
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(
+      `Discord edit failed (${response.status}): ${body}`
+    );
+  }
 
-return messageId;
+  return messageId;
 }
 
 module.exports={
