@@ -39,7 +39,6 @@ async function generateVsImage({ teamALogo, teamBLogo, teamAName = "Team A", tea
     fallbackGradient: ["#7f1d1d", "#0f172a"],
   });
 
-  drawCenterBadge(ctx, midX, midY);
   drawTeamName(ctx, leftLogoX + logoDiameter / 2, 500, teamAName, "#9be7ff");
   drawTeamName(ctx, rightLogoX + logoDiameter / 2, 500, teamBName, "#ffb1b1");
   drawFooter(ctx, width, height);
@@ -63,7 +62,11 @@ async function drawBackground(ctx, width, height) {
     console.warn("Base background image not found:", baseImagePath);
   }
 
-  const overlayAlpha = hasBaseImage ? 0.35 : 0.72;
+  if (hasBaseImage) {
+    return;
+  }
+
+  const overlayAlpha = 1;
   const background = ctx.createLinearGradient(0, 0, width, height);
   background.addColorStop(0, `rgba(8, 17, 31, ${overlayAlpha})`);
   background.addColorStop(0.5, `rgba(16, 25, 43, ${overlayAlpha})`);
@@ -140,14 +143,6 @@ function drawSidePanels(ctx, width, height) {
   ctx.fillStyle = rightPanel;
   ctx.fillRect(width * 0.58, 120, width * 0.42, 410);
 
-  ctx.save();
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(width / 2, 120);
-  ctx.lineTo(width / 2, 560);
-  ctx.stroke();
-  ctx.restore();
 }
 
 async function drawCircularLogo(ctx, { imageUrl, x, y, diameter, accent, fallbackName, fallbackGradient }) {
@@ -156,21 +151,13 @@ async function drawCircularLogo(ctx, { imageUrl, x, y, diameter, accent, fallbac
   const radius = diameter / 2;
 
   ctx.save();
-  ctx.shadowColor = accent;
-  ctx.shadowBlur = 26;
-  ctx.fillStyle = "rgba(255, 255, 255, 0.04)";
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius + 18, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.shadowBlur = 0;
   ctx.strokeStyle = accent;
-  ctx.lineWidth = 6;
+  ctx.lineWidth = 4;
   ctx.beginPath();
-  ctx.arc(cx, cy, radius + 10, 0, Math.PI * 2);
+  ctx.arc(cx, cy, radius + 6, 0, Math.PI * 2);
   ctx.stroke();
 
-  ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
+  ctx.fillStyle = "rgba(8, 12, 20, 0.85)";
   ctx.beginPath();
   ctx.arc(cx, cy, radius, 0, Math.PI * 2);
   ctx.fill();
@@ -205,44 +192,6 @@ async function drawCircularLogo(ctx, { imageUrl, x, y, diameter, accent, fallbac
     ctx.textBaseline = "middle";
     ctx.fillText(getInitials(fallbackName), cx, cy - 2);
   }
-
-  ctx.restore();
-}
-
-function drawCenterBadge(ctx, x, y) {
-  ctx.save();
-  ctx.shadowColor = "rgba(255, 188, 66, 0.45)";
-  ctx.shadowBlur = 22;
-
-  const badgeGradient = ctx.createLinearGradient(x - 92, y - 92, x + 92, y + 92);
-  badgeGradient.addColorStop(0, "#ffcf5c");
-  badgeGradient.addColorStop(1, "#ff7a18");
-
-  ctx.fillStyle = "rgba(255, 255, 255, 0.04)";
-  ctx.beginPath();
-  ctx.arc(x, y, 104, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.strokeStyle = badgeGradient;
-  ctx.lineWidth = 10;
-  ctx.beginPath();
-  ctx.arc(x, y, 82, 0, Math.PI * 2);
-  ctx.stroke();
-
-  ctx.fillStyle = "#0a0f18";
-  ctx.beginPath();
-  ctx.arc(x, y, 68, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.shadowBlur = 0;
-  ctx.font = "bold 112px Arial";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.lineWidth = 6;
-  ctx.strokeStyle = "rgba(0, 0, 0, 0.45)";
-  ctx.strokeText("VS", x + 3, y + 3);
-  ctx.fillStyle = badgeGradient;
-  ctx.fillText("VS", x, y);
 
   ctx.restore();
 }
