@@ -41,7 +41,6 @@ type HeroRole = "TANK" | "DPS" | "SUPPORT";
 type PendingUploadFormState = {
   image: File | null;
   mapType: MapType;
-  extraRounds: string;
   matchTitle: string;
 };
 
@@ -55,7 +54,6 @@ const POLL_INTERVAL = 12000;
 const DEFAULT_PENDING_UPLOAD_FORM: PendingUploadFormState = {
   image: null,
   mapType: "FLASHPOINT",
-  extraRounds: "0",
   matchTitle: "",
 };
 
@@ -312,6 +310,15 @@ export default function ManagerDashboardPage() {
     if (!token) return;
     const matchPlayers = getPlayersForMatch(match);
     const form = getOrCreateUploadForm(match.id);
+    const expectedGames = Math.max(1, (match.mapWinsTeamA || 0) + (match.mapWinsTeamB || 0));
+    const existingPreviews = matchPreviews[match.id] || [];
+    if (existingPreviews.length >= expectedGames) {
+      setUploadMessages((prev) => ({
+        ...prev,
+        [match.id]: `All ${expectedGames} game screenshot(s) are already uploaded.`,
+      }));
+      return;
+    }
     if (!form.image) {
       setUploadMessages((prev) => ({ ...prev, [match.id]: "Please select a screenshot image first." }));
       return;
@@ -325,7 +332,6 @@ export default function ManagerDashboardPage() {
         image: form.image,
         matchId: match.id,
         mapType: form.mapType,
-        extraRounds: Number(form.extraRounds || 0),
       });
 
       const candidatePlayers = (response.players?.length ? response.players : matchPlayers) as PlayerCandidate[];
@@ -372,13 +378,22 @@ export default function ManagerDashboardPage() {
     }
 
     const previews = matchPreviews[matchId] || [];
+    const expectedGames = Math.max(1, (matches.find((m) => m.id === matchId)?.mapWinsTeamA || 0) + (matches.find((m) => m.id === matchId)?.mapWinsTeamB || 0));
+    if (previews.length < expectedGames) {
+      setUploadMessages((prev) => ({
+        ...prev,
+        [matchId]: `Upload ${expectedGames} screenshot(s) before confirming (${previews.length}/${expectedGames} ready).`,
+      }));
+      return;
+    }
+    const previewsToSave = previews.slice(0, expectedGames);
     if (!previews.length) {
       setUploadMessages((prev) => ({ ...prev, [matchId]: "Parse a screenshot first." }));
       return;
     }
 
-    for (let batchIndex = 0; batchIndex < previews.length; batchIndex += 1) {
-      const rows = previews[batchIndex].rows.slice(0, 10);
+    for (let batchIndex = 0; batchIndex < previewsToSave.length; batchIndex += 1) {
+      const rows = previewsToSave[batchIndex].rows.slice(0, 10);
       for (let i = 0; i < rows.length; i += 1) {
         if (!rows[i].userId) {
           setUploadMessages((prev) => ({ ...prev, [matchId]: `Game ${batchIndex + 1}, Row ${i + 1}: select a player user.` }));
@@ -394,12 +409,13 @@ export default function ManagerDashboardPage() {
       await updateManagerMatch(token, matchId, { title });
 
       let totalSaved = 0;
-      for (const preview of previews) {
+      for (let batchIndex = 0; batchIndex < previewsToSave.length; batchIndex += 1) {
+        const preview = previewsToSave[batchIndex];
         const rows = preview.rows.slice(0, 10);
         const result = await confirmMatchStatsUpload(token, {
           matchId,
           mapType: preview.mapType,
-          extraRounds: preview.extraRounds,
+          gameNumber: batchIndex + 1,
           gameDuration: preview.gameDuration,
           rows: rows.map((row) => ({
             userId: Number(row.userId),
@@ -416,7 +432,7 @@ export default function ManagerDashboardPage() {
       }
       setUploadMessages((prev) => ({
         ...prev,
-        [matchId]: `Saved ${totalSaved} player stats across ${previews.length} game(s) for ${title}. Mark as finished when done.`,
+        [matchId]: `Saved ${totalSaved} player stats across ${previewsToSave.length} game(s) for ${title}. Mark as finished when done.`,
       }));
       setMatchPreviews((prev) => ({ ...prev, [matchId]: [] }));
     } catch (err) {
@@ -761,6 +777,7 @@ export default function ManagerDashboardPage() {
                       const matchPlayers = getPlayersForMatch(match);
                       const form = getOrCreateUploadForm(match.id);
                       const previews = matchPreviews[match.id] || [];
+                      const expectedGames = Math.max(1, (match.mapWinsTeamA || 0) + (match.mapWinsTeamB || 0));
                       const isOpen = activeStatMatchId === match.id;
 
                       return (
@@ -820,16 +837,6 @@ export default function ManagerDashboardPage() {
                                 </label>
 
                                 <label className="text-sm">
-                                  <span className="text-muted block mb-1">Extra Rounds</span>
-                                  <input
-                                    type="number" min={0}
-                                    className="w-full rounded-md border border-border bg-background px-3 py-2"
-                                    value={form.extraRounds}
-                                    onChange={(e) => updateUploadForm(match.id, { extraRounds: e.target.value })}
-                                  />
-                                </label>
-
-                                <label className="text-sm">
                                   <span className="text-muted block mb-1">Screenshot</span>
                                   <input
                                     type="file" accept="image/*"
@@ -859,6 +866,28 @@ export default function ManagerDashboardPage() {
                                 {uploadMessages[match.id] && (
                                   <span className="text-sm text-muted">{uploadMessages[match.id]}</span>
                                 )}
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                {Array.from({ length: expectedGames }).map((_, slotIndex) => {
+                                  const preview = previews[slotIndex];
+                                  return (
+                                    <div
+                                      key={slotIndex}
+                                      className={`rounded-md border p-3 ${preview ? "border-success/40 bg-success/5" : "border-border bg-surface/40"}`}
+                                    >
+                                      <p className="text-sm font-semibold text-foreground">Game {slotIndex + 1}</p>
+                                      <p className="text-xs text-muted">
+                                        {preview ? "Screenshot loaded" : "Pending screenshot"}
+                                      </p>
+                                      {preview && (
+                                        <p className="text-xs text-muted mt-1">
+                                          {preview.mapType} · {preview.gameDuration ? `${preview.gameDuration}s` : "Duration TBD"}
+                                        </p>
+                                      )}
+                                    </div>
+                                  );
+                                })}
                               </div>
 
                               {previews.map((preview, previewIndex) => (

@@ -58,11 +58,10 @@ const createFromImage = async (req, res) => {
     const stat = await playerStatService.createFromOcrText({
       text,
       userId,
+      matchId: req.body.matchId,
+      gameNumber: req.body.gameNumber,
       role: req.body.role,
       mapType: req.body.mapType,
-      waitTime: req.body.waitTime,
-      initialTime: req.body.initialTime,
-      extraRounds: req.body.extraRounds,
       gameDuration: req.body.gameDuration,
       damage: req.body.damage,
       healing: req.body.healing,
@@ -94,7 +93,6 @@ const previewMatchFromImage = async (req, res) => {
       ocrWords: ocr.words,
       matchId: req.body.matchId,
       mapType: req.body.mapType,
-      extraRounds: req.body.extraRounds,
     });
 
     res.json(preview);
@@ -108,7 +106,7 @@ const confirmBatchFromPreview = async (req, res) => {
     const created = await playerStatService.createBatchFromPreview({
       matchId: req.body.matchId,
       mapType: req.body.mapType,
-      extraRounds: req.body.extraRounds,
+      gameNumber: req.body.gameNumber,
       gameDuration: req.body.gameDuration,
       rows: req.body.rows,
     });

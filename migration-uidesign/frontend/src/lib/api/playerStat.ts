@@ -3,6 +3,8 @@ import type { PlayerStat } from "@/lib/api/types";
 
 export interface PlayerStatPayload {
   userId: number;
+  matchId: number;
+  gameNumber: number;
   damage: number;
   healing: number;
   mitigation: number;
@@ -10,9 +12,6 @@ export interface PlayerStatPayload {
   assists: number;
   deaths: number;
   gameDuration: number | string;
-  waitTime?: number;
-  initialTime?: number;
-  extraRounds?: number;
   mapType: "CONTROL" | "HYBRID" | "PAYLOAD" | "PUSH" | "FLASHPOINT";
   role: "TANK" | "DPS" | "SUPPORT";
 }
@@ -45,12 +44,11 @@ export async function uploadPlayerStatImage(
   token: string,
   payload: {
     image: File;
+    matchId: number;
+    gameNumber: number;
     userId?: number;
     role?: "TANK" | "DPS" | "SUPPORT";
     mapType?: "CONTROL" | "HYBRID" | "PAYLOAD" | "PUSH" | "FLASHPOINT";
-    waitTime?: number;
-    initialTime?: number;
-    extraRounds?: number;
     gameDuration?: number | string;
     damage?: number;
     healing?: number;
@@ -62,12 +60,11 @@ export async function uploadPlayerStatImage(
 ) {
   const form = new FormData();
   form.append("image", payload.image);
+  form.append("matchId", String(payload.matchId));
+  form.append("gameNumber", String(payload.gameNumber));
   if (payload.userId !== undefined) form.append("userId", String(payload.userId));
   if (payload.role) form.append("role", payload.role);
   if (payload.mapType) form.append("mapType", payload.mapType);
-  if (payload.waitTime !== undefined) form.append("waitTime", String(payload.waitTime));
-  if (payload.initialTime !== undefined) form.append("initialTime", String(payload.initialTime));
-  if (payload.extraRounds !== undefined) form.append("extraRounds", String(payload.extraRounds));
   if (payload.gameDuration !== undefined) form.append("gameDuration", String(payload.gameDuration));
   if (payload.damage !== undefined) form.append("damage", String(payload.damage));
   if (payload.healing !== undefined) form.append("healing", String(payload.healing));
@@ -105,7 +102,6 @@ export interface MatchStatPreviewPlayer {
 
 export interface MatchStatPreviewResponse {
   mapType: "CONTROL" | "HYBRID" | "PAYLOAD" | "PUSH" | "FLASHPOINT";
-  extraRounds: number;
   gameDuration: number;
   rows: MatchStatPreviewRow[];
   players: MatchStatPreviewPlayer[];
@@ -118,14 +114,12 @@ export async function uploadMatchStatsScreenshotPreview(
     image: File;
     matchId: number;
     mapType: "CONTROL" | "HYBRID" | "PAYLOAD" | "PUSH" | "FLASHPOINT";
-    extraRounds: number;
   }
 ) {
   const form = new FormData();
   form.append("image", payload.image);
   form.append("matchId", String(payload.matchId));
   form.append("mapType", payload.mapType);
-  form.append("extraRounds", String(payload.extraRounds));
 
   return apiRequest<MatchStatPreviewResponse>("/playerStat/upload-match-preview", {
     method: "POST",
@@ -139,7 +133,7 @@ export async function confirmMatchStatsUpload(
   payload: {
     matchId: number;
     mapType: "CONTROL" | "HYBRID" | "PAYLOAD" | "PUSH" | "FLASHPOINT";
-    extraRounds: number;
+    gameNumber: number;
     gameDuration: number | string;
     rows: Array<{
       userId: number;

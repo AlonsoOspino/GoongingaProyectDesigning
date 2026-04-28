@@ -312,9 +312,9 @@ export default function StatsPage() {
             <div className="relative">
               <p className="text-xs font-medium uppercase tracking-wider text-muted">Role Distribution</p>
               <div className="mt-1 flex items-center gap-2">
-                <span className="text-primary">{roleSummary.TANK}T</span>
-                <span className="text-danger">{roleSummary.DPS}D</span>
-                <span className="text-success">{roleSummary.SUPPORT}S</span>
+                <span className="text-primary">{roleSummary.TANK}TANKS </span>
+                <span className="text-danger">{roleSummary.DPS}DPS </span>
+                <span className="text-success">{roleSummary.SUPPORT}SUPPORTS</span>
               </div>
             </div>
           </div>

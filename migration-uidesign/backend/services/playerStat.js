@@ -13,6 +13,14 @@ const parseIntStat = (value, fieldName) => {
   return parsed;
 };
 
+const parsePositiveInt = (value, fieldName) => {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`${fieldName} must be a positive integer.`);
+  }
+  return parsed;
+};
+
 const parseEnum = (value, allowed, fieldName) => {
   const normalized = String(value || "").trim().toUpperCase();
   if (!allowed.includes(normalized)) {
@@ -66,7 +74,6 @@ const buildPer10Stats = ({
   const convert = (stat) => roundFloat((Number(stat) / effectiveDuration) * 600);
 
   return {
-    effectiveDuration,
     damagePer10: convert(damage),
     healingPer10: convert(healing),
     mitigationPer10: convert(mitigation),
@@ -675,13 +682,19 @@ const getMatchPlayers = async (matchId) => {
   return { match, players };
 };
 
+const ensureUserInMatch = async (matchId, userId) => {
+  const { players } = await getMatchPlayers(matchId);
+  if (!players.some((player) => player.id === userId)) {
+    throw new Error("User does not belong to this match teams.");
+  }
+};
+
 const previewMatchStatsFromOcrText = async ({
   text,
   ocrWords,
   templateDuration,
   matchId,
   mapType,
-  extraRounds,
 }) => {
   const parsedMatchId = Number(matchId);
   if (!Number.isInteger(parsedMatchId) || parsedMatchId <= 0) {
@@ -695,7 +708,6 @@ const previewMatchStatsFromOcrText = async ({
     .filter(Boolean);
 
   const normalizedMapType = mapType ? parseEnum(mapType, MAP_TYPES, "mapType") : detectMapType(text);
-  const normalizedExtraRounds = parseIntStat(extraRounds ?? 0, "extraRounds");
   const lineBlockRows = parseRowsFromLineBlocks(text);
   const uppercaseCandidates = extractUppercaseNicknameCandidates(text);
   const candidateRows = uppercaseCandidates
@@ -804,7 +816,6 @@ const previewMatchStatsFromOcrText = async ({
 
   return {
     mapType: normalizedMapType,
-    extraRounds: normalizedExtraRounds,
     gameDuration,
     rows,
     players,
@@ -812,17 +823,21 @@ const previewMatchStatsFromOcrText = async ({
   };
 };
 
-const createBatchFromPreview = async ({ matchId, mapType, extraRounds, gameDuration, rows }) => {
+const createBatchFromPreview = async ({ matchId, mapType, gameNumber, gameDuration, rows }) => {
   const parsedMatchId = Number(matchId);
   if (!Number.isInteger(parsedMatchId) || parsedMatchId <= 0) {
     throw new Error("matchId must be a positive integer.");
+  }
+
+  const parsedGameNumber = parseIntStat(gameNumber, "gameNumber");
+  if (parsedGameNumber < 1) {
+    throw new Error("gameNumber must be >= 1.");
   }
 
   const { players } = await getMatchPlayers(parsedMatchId);
   const allowedUserIds = new Set(players.map((p) => p.id));
 
   const normalizedMapType = parseEnum(mapType, MAP_TYPES, "mapType");
-  const normalizedExtraRounds = parseIntStat(extraRounds ?? 0, "extraRounds");
   const normalizedDuration = parseDurationToSeconds(gameDuration);
 
   if (!Array.isArray(rows) || rows.length !== 10) {
@@ -839,6 +854,8 @@ const createBatchFromPreview = async ({ matchId, mapType, extraRounds, gameDurat
     }
     const payload = {
       userId,
+      matchId: parsedMatchId,
+      gameNumber: parsedGameNumber,
       damage: parseIntStat(row.damage, "damage"),
       healing: parseIntStat(row.healing, "healing"),
       mitigation: parseIntStat(row.mitigation, "mitigation"),
@@ -846,9 +863,6 @@ const createBatchFromPreview = async ({ matchId, mapType, extraRounds, gameDurat
       assists: parseIntStat(row.assists, "assists"),
       deaths: parseIntStat(row.deaths, "deaths"),
       gameDuration: normalizedDuration,
-      waitTime: 0,
-      initialTime: 0,
-      extraRounds: normalizedExtraRounds,
       mapType: normalizedMapType,
       role: parseEnum(row.role, HERO_ROLES, "role"),
     };
@@ -946,9 +960,14 @@ const create = async (payload) => {
   }
 
   const userId = await validateUser(payload.userId);
+  const matchId = parsePositiveInt(payload.matchId, "matchId");
+  const gameNumber = parsePositiveInt(payload.gameNumber, "gameNumber");
+  await ensureUserInMatch(matchId, userId);
 
   const data = {
     userId,
+    matchId,
+    gameNumber,
     damage: parseIntStat(payload.damage, "damage"),
     healing: parseIntStat(payload.healing, "healing"),
     mitigation: parseIntStat(payload.mitigation, "mitigation"),
@@ -956,9 +975,6 @@ const create = async (payload) => {
     assists: parseIntStat(payload.assists, "assists"),
     deaths: parseIntStat(payload.deaths, "deaths"),
     gameDuration: parseDurationToSeconds(payload.gameDuration),
-    waitTime: parseIntStat(payload.waitTime ?? 0, "waitTime"),
-    initialTime: parseIntStat(payload.initialTime ?? 0, "initialTime"),
-    extraRounds: parseIntStat(payload.extraRounds ?? 0, "extraRounds"),
     mapType: parseEnum(payload.mapType, MAP_TYPES, "mapType"),
     role: parseEnum(payload.role, HERO_ROLES, "role"),
   };
@@ -971,11 +987,10 @@ const create = async (payload) => {
 const createFromOcrText = async ({
   text,
   userId,
+  matchId,
+  gameNumber,
   role,
   mapType,
-  waitTime,
-  initialTime,
-  extraRounds,
   gameDuration,
   damage,
   healing,
@@ -985,9 +1000,14 @@ const createFromOcrText = async ({
   deaths,
 }) => {
   const parsedUserId = await validateUser(userId);
+  const parsedMatchId = parsePositiveInt(matchId, "matchId");
+  const parsedGameNumber = parsePositiveInt(gameNumber, "gameNumber");
+  await ensureUserInMatch(parsedMatchId, parsedUserId);
 
   const payload = {
     userId: parsedUserId,
+    matchId: parsedMatchId,
+    gameNumber: parsedGameNumber,
     damage: extractFirstNumberOrFallback(text, ["damage", "dmg"], "damage", damage),
     healing: extractFirstNumberOrFallback(text, ["healing", "heal"], "healing", healing),
     mitigation: extractFirstNumberOrFallback(text, ["mitigation", "mitigated"], "mitigation", mitigation),
@@ -995,9 +1015,6 @@ const createFromOcrText = async ({
     assists: extractFirstNumberOrFallback(text, ["assists"], "assists", assists),
     deaths: extractFirstNumberOrFallback(text, ["deaths"], "deaths", deaths),
     gameDuration: extractDurationOrFallback(text, gameDuration),
-    waitTime: parseIntStat(waitTime ?? 0, "waitTime"),
-    initialTime: parseIntStat(initialTime ?? 0, "initialTime"),
-    extraRounds: parseIntStat(extraRounds ?? 0, "extraRounds"),
     mapType: mapType ? parseEnum(mapType, MAP_TYPES, "mapType") : detectMapType(text),
     role: role ? parseEnum(role, HERO_ROLES, "role") : detectRole(text),
   };

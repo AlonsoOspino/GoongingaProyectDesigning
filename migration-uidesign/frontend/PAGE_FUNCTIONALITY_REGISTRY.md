@@ -118,6 +118,7 @@ Validation assumptions:
 - mapType: CONTROL | HYBRID | PAYLOAD | PUSH | FLASHPOINT
 - role: TANK | DPS | SUPPORT
 - duration can be seconds or mm:ss/hh:mm:ss (backend normalizes)
+- matchId and gameNumber are required for all stat submissions
 
 ## 6) NEWS FEED PAGE (optional in same app shell)
 Purpose:

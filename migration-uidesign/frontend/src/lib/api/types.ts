@@ -138,10 +138,6 @@ export interface PlayerStat {
   assists: number;
   deaths: number;
   gameDuration: number;
-  waitTime: number;
-  initialTime: number;
-  extraRounds: number;
-  effectiveDuration: number;
   damagePer10: number;
   healingPer10: number;
   mitigationPer10: number;
@@ -150,6 +146,8 @@ export interface PlayerStat {
   deathsPer10: number;
   mapType: MapType;
   role: HeroRole;
+  matchId: number;
+  gameNumber: number;
   createdAt: string;
   user?: {
     id: number;
