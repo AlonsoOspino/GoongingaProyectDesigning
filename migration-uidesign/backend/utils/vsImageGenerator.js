@@ -63,19 +63,19 @@ async function generateVsImage({ teamALogo, teamBLogo, teamAName = "Team A", tea
   const logoXRight = width - 80 - logoSize;
 
   // Draw enhanced glow and shadow for Team A
-  ctx.shadowColor = \"rgba(100, 200, 255, 0.6)\";
+  ctx.shadowColor = "rgba(100, 200, 255, 0.6)";
   ctx.shadowBlur = 40;
   ctx.shadowOffsetX = 0;
   ctx.shadowOffsetY = 0;
 
   // Team A glow circle
-  ctx.fillStyle = \"rgba(100, 200, 255, 0.15)\";
+  ctx.fillStyle = "rgba(100, 200, 255, 0.15)";
   ctx.beginPath();
   ctx.arc(logoXLeft + logoSize / 2, logoY + logoSize / 2, logoSize / 2 + 30, 0, Math.PI * 2);
   ctx.fill();
 
   // Team A border glow
-  ctx.strokeStyle = \"rgba(100, 200, 255, 0.3)\";
+  ctx.strokeStyle = "rgba(100, 200, 255, 0.3)";
   ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.arc(logoXLeft + logoSize / 2, logoY + logoSize / 2, logoSize / 2 + 15, 0, Math.PI * 2);
@@ -90,7 +90,7 @@ async function generateVsImage({ teamALogo, teamBLogo, teamAName = "Team A", tea
       ctx.drawImage(imageA, logoXLeft, logoY, logoSize, logoSize);
       ctx.restore();
     } catch (err) {
-      console.error(\"Failed to load Team A logo:\", err.message);
+      console.error("Failed to load Team A logo:", err.message);
       drawPlaceholderLogo(ctx, logoXLeft, logoY, logoSize, teamAName);
     }
   } else {
@@ -98,21 +98,21 @@ async function generateVsImage({ teamALogo, teamBLogo, teamAName = "Team A", tea
   }
 
   // Reset shadow
-  ctx.shadowColor = \"transparent\";
+  ctx.shadowColor = "transparent";
   ctx.shadowBlur = 0;
 
   // Draw enhanced glow and shadow for Team B
-  ctx.shadowColor = \"rgba(255, 100, 100, 0.6)\";
+  ctx.shadowColor = "rgba(255, 100, 100, 0.6)";
   ctx.shadowBlur = 40;
 
   // Team B glow circle
-  ctx.fillStyle = \"rgba(255, 100, 100, 0.15)\";
+  ctx.fillStyle = "rgba(255, 100, 100, 0.15)";
   ctx.beginPath();
   ctx.arc(logoXRight + logoSize / 2, logoY + logoSize / 2, logoSize / 2 + 30, 0, Math.PI * 2);
   ctx.fill();
 
   // Team B border glow
-  ctx.strokeStyle = \"rgba(255, 100, 100, 0.3)\";
+  ctx.strokeStyle = "rgba(255, 100, 100, 0.3)";
   ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.arc(logoXRight + logoSize / 2, logoY + logoSize / 2, logoSize / 2 + 15, 0, Math.PI * 2);
@@ -127,7 +127,7 @@ async function generateVsImage({ teamALogo, teamBLogo, teamAName = "Team A", tea
       ctx.drawImage(imageB, logoXRight, logoY, logoSize, logoSize);
       ctx.restore();
     } catch (err) {
-      console.error(\"Failed to load Team B logo:\", err.message);
+      console.error("Failed to load Team B logo:", err.message);
       drawPlaceholderLogo(ctx, logoXRight, logoY, logoSize, teamBName);
     }
   } else {
@@ -135,105 +135,105 @@ async function generateVsImage({ teamALogo, teamBLogo, teamAName = "Team A", tea
   }
 
   // Reset shadow
-  ctx.shadowColor = \"transparent\";
+  ctx.shadowColor = "transparent";
   ctx.shadowBlur = 0;
 
   // Draw "VS" in the center with dramatic glow effect
-  const centerX = width / 2;
-  const centerY = height / 2;
+  const midX = width / 2;
+  const midY = height / 2;
 
   // Large outer glow
-  ctx.shadowColor = \"rgba(255, 215, 0, 0.8)\";
+  ctx.shadowColor = "rgba(255, 215, 0, 0.8)";
   ctx.shadowBlur = 60;
   ctx.shadowOffsetX = 0;
   ctx.shadowOffsetY = 0;
 
   // Glow circles
-  ctx.fillStyle = \"rgba(255, 215, 0, 0.25)\";
+  ctx.fillStyle = "rgba(255, 215, 0, 0.25)";
   ctx.beginPath();
-  ctx.arc(centerX, centerY, 120, 0, Math.PI * 2);
+  ctx.arc(midX, midY, 120, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = \"rgba(255, 215, 0, 0.15)\";
+  ctx.fillStyle = "rgba(255, 215, 0, 0.15)";
   ctx.beginPath();
-  ctx.arc(centerX, centerY, 160, 0, Math.PI * 2);
+  ctx.arc(midX, midY, 160, 0, Math.PI * 2);
   ctx.fill();
 
   // VS text with dramatic effect
-  ctx.font = \"bold 200px 'Arial Black', sans-serif\";
-  ctx.textAlign = \"center\";
-  ctx.textBaseline = \"middle\";
+  ctx.font = "bold 200px 'Arial Black', sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
 
   // Triple shadow for depth
-  ctx.fillStyle = \"rgba(0, 0, 0, 0.8)\";
-  ctx.fillText(\"VS\", centerX + 5, centerY + 5);
+  ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+  ctx.fillText("VS", midX + 5, midY + 5);
   
-  ctx.fillStyle = \"rgba(0, 0, 0, 0.4)\";
-  ctx.fillText(\"VS\", centerX + 2, centerY + 2);
+  ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+  ctx.fillText("VS", midX + 2, midY + 2);
 
   // Main text with vibrant gradient
-  const textGradient = ctx.createLinearGradient(centerX - 100, centerY - 100, centerX + 100, centerY + 100);
-  textGradient.addColorStop(0, \"#FFD700\");
-  textGradient.addColorStop(0.3, \"#FFA500\");
-  textGradient.addColorStop(0.7, \"#FF6347\");
-  textGradient.addColorStop(1, \"#FF4500\");
+  const textGradient = ctx.createLinearGradient(midX - 100, midY - 100, midX + 100, midY + 100);
+  textGradient.addColorStop(0, "#FFD700");
+  textGradient.addColorStop(0.3, "#FFA500");
+  textGradient.addColorStop(0.7, "#FF6347");
+  textGradient.addColorStop(1, "#FF4500");
   ctx.fillStyle = textGradient;
-  ctx.fillText(\"VS\", centerX, centerY);
+  ctx.fillText("VS", midX, midY);
 
   // Outer stroke for more definition
-  ctx.strokeStyle = \"rgba(255, 215, 0, 0.5)\";
+  ctx.strokeStyle = "rgba(255, 215, 0, 0.5)";
   ctx.lineWidth = 4;
-  ctx.strokeText(\"VS\", centerX, centerY);
+  ctx.strokeText("VS", midX, midY);
 
-  ctx.shadowColor = \"transparent\";
+  ctx.shadowColor = "transparent";
   ctx.shadowBlur = 0;
 
   // Draw team names at the bottom with better styling
-  ctx.font = \"bold 40px 'Arial Black', sans-serif\";
-  ctx.textAlign = \"center\";
+  ctx.font = "bold 40px 'Arial Black', sans-serif";
+  ctx.textAlign = "center";
   
   // Team A name with blue shadow
-  ctx.fillStyle = \"rgba(100, 200, 255, 0.3)\";
+  ctx.fillStyle = "rgba(100, 200, 255, 0.3)";
   ctx.fillText(teamAName, 200 + 2, height - 35);
-  ctx.fillStyle = \"#FFFFFF\";
+  ctx.fillStyle = "#FFFFFF";
   ctx.fillText(teamAName, 200, height - 40);
 
   // Team B name with red shadow
-  ctx.fillStyle = \"rgba(255, 100, 100, 0.3)\";
+  ctx.fillStyle = "rgba(255, 100, 100, 0.3)";
   ctx.fillText(teamBName, width - 200 + 2, height - 35);
-  ctx.fillStyle = \"#FFFFFF\";
+  ctx.fillStyle = "#FFFFFF";
   ctx.fillText(teamBName, width - 200, height - 40);
 
   // Vertical dividing line with glow
-  ctx.strokeStyle = \"rgba(255, 215, 0, 0.5)\";
+  ctx.strokeStyle = "rgba(255, 215, 0, 0.5)";
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.moveTo(centerX, 80);
-  ctx.lineTo(centerX, height - 80);
+  ctx.moveTo(midX, 80);
+  ctx.lineTo(midX, height - 80);
   ctx.stroke();
 
   // Dashed line on top for visual interest
-  ctx.strokeStyle = \"rgba(255, 150, 0, 0.3)\";
+  ctx.strokeStyle = "rgba(255, 150, 0, 0.3)";
   ctx.lineWidth = 1;
   ctx.setLineDash([8, 8]);
   ctx.beginPath();
-  ctx.moveTo(centerX, 0);
-  ctx.lineTo(centerX, 80);
+  ctx.moveTo(midX, 0);
+  ctx.lineTo(midX, 80);
   ctx.stroke();
   
   ctx.beginPath();
-  ctx.moveTo(centerX, height - 80);
-  ctx.lineTo(centerX, height);
+  ctx.moveTo(midX, height - 80);
+  ctx.lineTo(midX, height);
   ctx.stroke();
   ctx.setLineDash([]);
 
   // Add watermark
-  ctx.font = \"14px Arial\";
-  ctx.fillStyle = \"rgba(255, 215, 0, 0.4)\";
-  ctx.textAlign = \"right\";
-  ctx.fillText(\"Goonginga League\", width - 30, height - 20);
+  ctx.font = "14px Arial";
+  ctx.fillStyle = "rgba(255, 215, 0, 0.4)";
+  ctx.textAlign = "right";
+  ctx.fillText("Goonginga League", width - 30, height - 20);
 
-  return canvas.toBuffer(\"image/png\");
+  return canvas.toBuffer("image/png");
 }
 
 function drawPlaceholderLogo(ctx, x, y, size, teamName) {
