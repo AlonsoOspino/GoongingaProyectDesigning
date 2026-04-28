@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { MatchCard } from "@/components/matches/MatchCard";
 import { TeamCard } from "@/components/teams/TeamCard";
 import { NewsCard } from "@/components/news/NewsCard";
+import { RosterCarousel } from "@/components/teams/RosterCarousel";
 import type { Match, Team, NewsItem } from "@/lib/api/types";
 
 // Revalidate every 60 seconds. This makes the page semi-dynamic, so when you
@@ -88,6 +89,13 @@ export default async function HomePage() {
   const data = await getHomeData();
   const hasRecentResults = data.recentMatches.length > 0;
   const rosterTeams = data.allTeams.filter((team) => Boolean(team.roster));
+  const rosterItems = rosterTeams
+    .map((team) => ({
+      id: team.id,
+      name: team.name,
+      rosterSrc: resolveRosterSrc(team.roster),
+    }))
+    .filter((item): item is { id: number; name: string; rosterSrc: string } => Boolean(item.rosterSrc));
   const shouldStretchSingleRoster = !hasRecentResults && rosterTeams.length === 1;
 
   return (
@@ -218,50 +226,10 @@ export default async function HomePage() {
                   </Link>
                 </CardHeader>
                 <CardContent className={hasRecentResults ? undefined : "flex-1 flex"}>
-                  <div className={shouldStretchSingleRoster ? "flex-1 flex flex-col" : "space-y-4"}>
-                    {rosterTeams.map((team, index) => {
-                      const rosterSrc = resolveRosterSrc(team.roster);
-                      if (!rosterSrc) return null;
-                      const cascadeOffset = (index % 7) * 10;
-                      const rosterIsStretched = shouldStretchSingleRoster && index === 0;
-
-                      return (
-                        <Link
-                          key={team.id}
-                          href={`/teams/${team.id}`}
-                          className={`group block animate-cascade-in ${rosterIsStretched ? "flex-1" : ""}`}
-                          style={{
-                            marginLeft: `${cascadeOffset}px`,
-                            animationDelay: `${index * 70}ms`,
-                          }}
-                        >
-                          <div className={`relative overflow-hidden rounded-xl border border-border/60 bg-surface/40 transition-transform group-hover:-translate-y-1 ${rosterIsStretched ? "h-full" : ""}`}>
-                            <div className={`relative w-full ${rosterIsStretched ? "h-full min-h-[25rem]" : "h-64 md:h-72"}`}>
-                              <Image
-                                src={rosterSrc}
-                                alt={`${team.name} roster`}
-                                fill
-                                className="object-cover object-center transition-transform duration-500 group-hover:scale-[1.02]"
-                                unoptimized
-                              />
-                              <div className="absolute inset-0 bg-gradient-to-t from-background/85 via-background/25 to-transparent" />
-                            </div>
-                            <div className="absolute inset-0 p-4 flex items-end">
-                              <div>
-                                <p className="text-sm text-muted">Roster</p>
-                                <p className="text-lg font-semibold text-foreground">{team.name}</p>
-                              </div>
-                            </div>
-                          </div>
-                        </Link>
-                      );
-                    })}
-                    {rosterTeams.length === 0 && (
-                      <div className="text-center py-8 text-muted">
-                        <p>No roster images available</p>
-                      </div>
-                    )}
-                  </div>
+                  <RosterCarousel
+                    items={rosterItems}
+                    shouldStretchSingleRoster={shouldStretchSingleRoster}
+                  />
                 </CardContent>
               </Card>
 
