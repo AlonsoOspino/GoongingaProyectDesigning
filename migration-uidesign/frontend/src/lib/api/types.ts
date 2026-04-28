@@ -40,6 +40,7 @@ export interface Team {
   name: string;
   logo?: string | null;
   roster?: string | null;
+  discordRoleId?: string | null;
   victories: number;
   mapWins: number;
   mapLoses: number;

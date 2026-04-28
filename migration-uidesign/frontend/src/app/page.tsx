@@ -88,6 +88,7 @@ export default async function HomePage() {
   const data = await getHomeData();
   const hasRecentResults = data.recentMatches.length > 0;
   const rosterTeams = data.allTeams.filter((team) => Boolean(team.roster));
+  const shouldStretchSingleRoster = !hasRecentResults && rosterTeams.length === 1;
 
   return (
     <div className="min-h-screen relative">
@@ -216,33 +217,34 @@ export default async function HomePage() {
                     </Button>
                   </Link>
                 </CardHeader>
-                <CardContent className={hasRecentResults ? undefined : "flex-1"}>
-                  <div className="space-y-4">
+                <CardContent className={hasRecentResults ? undefined : "flex-1 flex"}>
+                  <div className={shouldStretchSingleRoster ? "flex-1 flex flex-col" : "space-y-4"}>
                     {rosterTeams.map((team, index) => {
                       const rosterSrc = resolveRosterSrc(team.roster);
                       if (!rosterSrc) return null;
                       const cascadeOffset = (index % 7) * 10;
+                      const rosterIsStretched = shouldStretchSingleRoster && index === 0;
 
                       return (
                         <Link
                           key={team.id}
                           href={`/teams/${team.id}`}
-                          className="group block animate-cascade-in"
+                          className={`group block animate-cascade-in ${rosterIsStretched ? "flex-1" : ""}`}
                           style={{
                             marginLeft: `${cascadeOffset}px`,
                             animationDelay: `${index * 70}ms`,
                           }}
                         >
-                          <div className="relative overflow-hidden rounded-xl border border-border/60 bg-surface/70 transition-transform group-hover:-translate-y-1">
-                            <div className="relative h-56 md:h-64 w-full bg-surface-elevated">
+                          <div className={`relative overflow-hidden rounded-xl border border-border/60 bg-surface/40 transition-transform group-hover:-translate-y-1 ${rosterIsStretched ? "h-full" : ""}`}>
+                            <div className={`relative w-full ${rosterIsStretched ? "h-full min-h-[25rem]" : "h-64 md:h-72"}`}>
                               <Image
                                 src={rosterSrc}
                                 alt={`${team.name} roster`}
                                 fill
-                                className="object-contain"
+                                className="object-cover object-center transition-transform duration-500 group-hover:scale-[1.02]"
                                 unoptimized
                               />
-                              <div className="absolute inset-0 bg-gradient-to-r from-background/80 via-background/25 to-transparent" />
+                              <div className="absolute inset-0 bg-gradient-to-t from-background/85 via-background/25 to-transparent" />
                             </div>
                             <div className="absolute inset-0 p-4 flex items-end">
                               <div>

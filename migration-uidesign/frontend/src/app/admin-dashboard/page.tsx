@@ -59,6 +59,17 @@ const getAllowedMatchTypesForState = (state?: Tournament["state"] | null) => {
   return ALLOWED_MATCH_TYPES_BY_STATE[state] || ALL_MATCH_TYPES;
 };
 
+const splitDateTime = (value: string) => {
+  if (!value) return { date: "", time: "" };
+  const [date, time] = value.split("T");
+  return { date: date || "", time: (time || "").slice(0, 5) };
+};
+
+const mergeDateTime = (date: string, time: string) => {
+  if (!date) return "";
+  return `${date}T${time || "00:00"}`;
+};
+
 export default function AdminDashboardPage() {
   const router = useRouter();
   const { user, token, isAuthenticated, isHydrated } = useSession();
@@ -115,6 +126,7 @@ function TournamentSection({ token }: { token: string }) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [formData, setFormData] = useState({ name: "", startDate: "", state: "SCHEDULED" });
+  const { date: tournamentDate, time: tournamentTime } = splitDateTime(formData.startDate);
 
   const showNotif = (type: "success" | "error", message: string) => {
     setNotification({ type, message });
@@ -169,7 +181,20 @@ function TournamentSection({ token }: { token: string }) {
         <ModalContent>
           <div className="space-y-4">
             <Input label="Tournament Name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Season 1" />
-            <Input label="Start Date & Time (EST)" type="datetime-local" value={formData.startDate} onChange={(e) => setFormData({ ...formData, startDate: e.target.value })} />
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Start Date (EST)"
+                type="date"
+                value={tournamentDate}
+                onChange={(e) => setFormData({ ...formData, startDate: mergeDateTime(e.target.value, tournamentTime) })}
+              />
+              <Input
+                label="Start Time (EST)"
+                type="time"
+                value={tournamentTime}
+                onChange={(e) => setFormData({ ...formData, startDate: mergeDateTime(tournamentDate, e.target.value) })}
+              />
+            </div>
           </div>
         </ModalContent>
         <ModalFooter>
@@ -243,6 +268,7 @@ function MatchesSection({ token }: { token: string }) {
   const [formData, setFormData] = useState<Partial<CreateMatchPayload>>(
     createInitialMatchFormData("ROUNDROBIN")
   );
+  const { date: matchDate, time: matchTime } = splitDateTime(formData.startDate || "");
 
   // Maps selection per round
   const [showMapConfig, setShowMapConfig] = useState(false);
@@ -533,7 +559,20 @@ function MatchesSection({ token }: { token: string }) {
                 <Input label="Week" value="No week for this stage" disabled />
               )}
             </div>
-            <Input label="Start Date" type="datetime-local" value={formData.startDate} onChange={(e) => setFormData({ ...formData, startDate: e.target.value })} />
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Start Date"
+                type="date"
+                value={matchDate}
+                onChange={(e) => setFormData({ ...formData, startDate: mergeDateTime(e.target.value, matchTime) })}
+              />
+              <Input
+                label="Start Time"
+                type="time"
+                value={matchTime}
+                onChange={(e) => setFormData({ ...formData, startDate: mergeDateTime(matchDate, e.target.value) })}
+              />
+            </div>
             <Input label="Title (optional)" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Week 1 Match" />
 
             {/* Map selection per game */}
@@ -617,7 +656,20 @@ function MatchesSection({ token }: { token: string }) {
                 <Input label="Week" value="No week for this stage" disabled />
               )}
             </div>
-            <Input label="Start Date" type="datetime-local" value={formData.startDate} onChange={(e) => setFormData({ ...formData, startDate: e.target.value })} />
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Start Date"
+                type="date"
+                value={matchDate}
+                onChange={(e) => setFormData({ ...formData, startDate: mergeDateTime(e.target.value, matchTime) })}
+              />
+              <Input
+                label="Start Time"
+                type="time"
+                value={matchTime}
+                onChange={(e) => setFormData({ ...formData, startDate: mergeDateTime(matchDate, e.target.value) })}
+              />
+            </div>
             <Input label="Title (optional)" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} />
 
             <div>
@@ -968,7 +1020,7 @@ function TeamsSection({ token }: { token: string }) {
                     <TableCell>
                       <div className="flex gap-2">
                         <Button variant="secondary" size="sm" onClick={() => { setSelectedTeam(team); setMemberSearch(""); setShowMembersModal(true); }}>Members</Button>
-                        <Button variant="ghost" size="sm" onClick={() => { setSelectedTeam(team); setFormData({ name: team.name, logo: team.logo || "", roster: team.roster || "" }); setShowEditModal(true); }}>Edit</Button>
+                        <Button variant="ghost" size="sm" onClick={() => { setSelectedTeam(team); setFormData({ name: team.name, logo: team.logo || "", roster: team.roster || "", discordRoleId: (team as any).discordRoleId || "" }); setShowEditModal(true); }}>Edit</Button>
                         <Button variant="danger" size="sm" onClick={async () => {
                           if (!confirm("Delete team?")) return;
                           try { await adminDeleteTeam(token, team.id); showNotif("success", "Team deleted"); loadData(); }
@@ -1024,7 +1076,10 @@ function TeamsSection({ token }: { token: string }) {
       <Modal isOpen={showEditModal} onClose={() => setShowEditModal(false)}>
         <ModalHeader><ModalTitle>Edit Team</ModalTitle></ModalHeader>
         <ModalContent>
-          <Input label="Team Name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+          <div className="space-y-4">
+            <Input label="Team Name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+            <Input label="Discord Role ID" placeholder="e.g., 1234567890 or <@&1234567890>" value={(formData as any).discordRoleId || ""} onChange={(e) => setFormData({ ...formData, discordRoleId: e.target.value || undefined })} />
+          </div>
         </ModalContent>
         <ModalFooter>
           <Button variant="ghost" onClick={() => { setShowEditModal(false); setSelectedTeam(null); }}>Cancel</Button>

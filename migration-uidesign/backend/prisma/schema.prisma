@@ -112,6 +112,7 @@ model Team {
   name   String
   logo   String?
   roster String?
+  discordRoleId String?
   state  TeamState @default(ACTIVE)
 
   victories Int @default(0)

@@ -20,6 +20,17 @@ type TabValue = "upcoming" | "active" | "history";
 
 const POLL_INTERVAL = 5000;
 
+const splitDateTime = (value: string) => {
+  if (!value) return { date: "", time: "" };
+  const [date, time] = value.split("T");
+  return { date: date || "", time: (time || "").slice(0, 5) };
+};
+
+const mergeDateTime = (date: string, time: string) => {
+  if (!date) return "";
+  return `${date}T${time || "00:00"}`;
+};
+
 export default function CaptainDashboardPage() {
   const router = useRouter();
   const { user, token, isAuthenticated, isHydrated } = useSession();
@@ -222,6 +233,7 @@ export default function CaptainDashboardPage() {
   // captain's local timezone or a skewed machine clock.
   const isMatchSoon = (dateStr: string) => isWithinNextHoursEST(dateStr, 24);
   const formatMatchDate = (dateStr: string) => formatRelativeEST(dateStr);
+  const { date: newDateValue, time: newTimeValue } = splitDateTime(newDate);
 
   if (!isHydrated) {
     return <div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-muted">Loading...</div></div>;
@@ -523,7 +535,20 @@ export default function CaptainDashboardPage() {
         <Modal isOpen={showRescheduleModal} onClose={() => setShowRescheduleModal(false)}>
           <ModalHeader><ModalTitle>Reschedule Match</ModalTitle></ModalHeader>
           <ModalContent>
-            <Input label="New Date & Time" type="datetime-local" value={newDate} onChange={(e) => setNewDate(e.target.value)} />
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="New Date"
+                type="date"
+                value={newDateValue}
+                onChange={(e) => setNewDate(mergeDateTime(e.target.value, newTimeValue))}
+              />
+              <Input
+                label="New Time"
+                type="time"
+                value={newTimeValue}
+                onChange={(e) => setNewDate(mergeDateTime(newDateValue, e.target.value))}
+              />
+            </div>
           </ModalContent>
           <ModalFooter>
             <Button variant="ghost" onClick={() => setShowRescheduleModal(false)}>Cancel</Button>

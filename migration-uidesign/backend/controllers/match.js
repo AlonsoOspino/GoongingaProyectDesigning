@@ -1,5 +1,7 @@
 const matchService = require("../services/match");
 const prisma = require("../config/prisma");
+const { sendDiscordMatchScheduled } = require("../utils/discordWebhook");
+const prisma = require("../config/prisma");
 
 const getById = async (req, res) => {
   try {
@@ -65,6 +67,8 @@ const captainUpdate = async (req, res) => {
       return res.status(404).json({ message: "Match not found" });
     }
 
+    const previousStartDate = match.startDate ? new Date(match.startDate) : null;
+
     const captainTeamId = Number(req.user.teamId);
 
     if (captainTeamId === match.teamAId && req.body.teamAready !== undefined) {
@@ -88,6 +92,31 @@ const captainUpdate = async (req, res) => {
     }
 
     const updatedMatch = await matchService.update(Number(id), updateData);
+
+    if (!previousStartDate && updatedMatch.startDate) {
+      try {
+        const teams = await prisma.team.findMany({
+          where: { id: { in: [updatedMatch.teamAId, updatedMatch.teamBId] } },
+          select: { id: true, name: true, logo: true, discordRoleId: true },
+        });
+        const teamA = teams.find((t) => t.id === updatedMatch.teamAId);
+        const teamB = teams.find((t) => t.id === updatedMatch.teamBId);
+        const teamAName = teamA?.name || "Team A";
+        const teamBName = teamB?.name || "Team B";
+        await sendDiscordMatchScheduled({
+          teamAName,
+          teamBName,
+          teamALogo: teamA?.logo || undefined,
+          teamBLogo: teamB?.logo || undefined,
+          teamADiscordRoleId: teamA?.discordRoleId || undefined,
+          teamBDiscordRoleId: teamB?.discordRoleId || undefined,
+          startDate: updatedMatch.startDate,
+        });
+      } catch (notifyErr) {
+        console.error("Failed to send Discord match schedule message:", notifyErr);
+      }
+    }
+
     res.json(updatedMatch);
   } catch (err) {
     res.status(400).json({ message: err.message });
