@@ -1,109 +1,232 @@
 const DEFAULT_ROLE_MENTION = "@unknown-role";
 
-function formatDayOrdinal(day) {
-  const n = Number(day);
-  if (!Number.isFinite(n)) return String(day);
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return `${n}st`;
-  if (mod10 === 2 && mod100 !== 12) return `${n}nd`;
-  if (mod10 === 3 && mod100 !== 13) return `${n}rd`;
-  return `${n}th`;
-}
-
-function formatEstAnnouncement(dateValue) {
+function getUnixTimestamp(dateValue) {
   const date = new Date(dateValue);
-  if (Number.isNaN(date.getTime())) return "";
-
-  const weekday = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    weekday: "long",
-  }).format(date);
-  const month = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    month: "long",
-  }).format(date);
-  const day = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    day: "numeric",
-  }).format(date);
-  const time = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  }).format(date).replace(/\s/g, "");
-
-  return `${weekday} ${month} ${formatDayOrdinal(day)} @ ${time} EST`;
+  if (Number.isNaN(date.getTime())) return null;
+  return Math.floor(date.getTime() / 1000);
 }
 
-async function sendDiscordMatchScheduled({ teamAName, teamBName, startDate, teamALogo, teamBLogo, teamADiscordRoleId, teamBDiscordRoleId }) {
-  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
-  if (!webhookUrl) return;
+function getRoleMention(roleId) {
+  if (!roleId) return null;
 
-  // Helper to format role mention from ID or use env fallback
-  const getRoleMention = (roleId) => {
-    if (roleId) {
-      // Remove angle brackets and format if needed
-      const cleanId = roleId.replace(/[<@&>]/g, "").trim();
-      return cleanId ? `<@&${cleanId}>` : null;
-    }
-    return null;
-  };
+  const cleanId = String(roleId)
+    .replace(/[<@&>]/g, "")
+    .trim();
 
-  const roleAMention = getRoleMention(teamADiscordRoleId);
-  const roleBMention = getRoleMention(teamBDiscordRoleId);
-  
-  // Build mentions for both teams
+  return cleanId ? `<@&${cleanId}>` : null;
+}
+
+function buildMentions(teamADiscordRoleId, teamBDiscordRoleId) {
   const mentions = [];
-  if (roleAMention) mentions.push(roleAMention);
-  if (roleBMention) mentions.push(roleBMention);
-  
-  // If no team mentions, use env mention
-  if (mentions.length === 0) {
-    mentions.push((process.env.DISCORD_ROLE_MENTION || DEFAULT_ROLE_MENTION).trim());
-  }
-  
-  const mentionPrefix = mentions.length > 0 ? `${mentions.join(" ")} ` : "";
-  const scheduleText = formatEstAnnouncement(startDate);
-  const title = `${teamAName} vs ${teamBName}`;
-  const content = `${mentionPrefix}Match scheduled`.trim();
 
-  const payload = {
-    content,
-    embeds: [
+  const a = getRoleMention(teamADiscordRoleId);
+  const b = getRoleMention(teamBDiscordRoleId);
+
+  if (a) mentions.push(a);
+  if (b && b !== a) mentions.push(b);
+
+  if (!mentions.length) {
+    const fallback = (
+      process.env.DISCORD_ROLE_MENTION ||
+      DEFAULT_ROLE_MENTION
+    ).trim();
+
+    if (fallback) mentions.push(fallback);
+  }
+
+  return mentions.join(" ");
+}
+
+function buildEmbed({
+  teamAName,
+  teamBName,
+  startDate,
+  teamALogo,
+  isReschedule = false,
+}) {
+  const unix = getUnixTimestamp(startDate);
+
+  return {
+    color: isReschedule
+      ? 0xF59E0B // amber
+      : 0x5865F2, // discord blurple
+
+    author: {
+      name: isReschedule
+        ? "GOONGINGA LEAGUE • MATCH UPDATED"
+        : "GOONGINGA LEAGUE • MATCH LOCKED IN",
+      icon_url: teamALogo || undefined,
+    },
+
+    title: isReschedule
+      ? `📣 ${teamAName} vs ${teamBName}`
+      : `⚔ ${teamAName} vs ${teamBName}`,
+
+    description: isReschedule
+      ? `**Schedule Update**
+
+🗓 **New Time:** <t:${unix}:F>
+⏳ **Starts:** <t:${unix}:R>
+
+Captains have agreed to a new battle time.`
+      : `**A new series has been scheduled**
+
+🗓 **Start:** <t:${unix}:F>
+⏳ **Countdown:** <t:${unix}:R>
+
+Prepare drafts. Prepare for war.`,
+
+    fields: [
       {
-        title,
-        description: `Going down ${scheduleText}`,
-        color: 0x22d3ee,
-        fields: [
-          { name: "Team A", value: teamAName, inline: true },
-          { name: "Team B", value: teamBName, inline: true },
-          { name: "Time (EST)", value: scheduleText, inline: false },
-        ],
-        thumbnail: teamALogo ? { url: teamALogo } : undefined,
-        image: teamBLogo ? { url: teamBLogo } : undefined,
-        footer: { text: "Goonginga League" },
-        timestamp: new Date(startDate).toISOString(),
+        name: "🔵 Team One",
+        value: `**${teamAName}**`,
+        inline: true,
+      },
+      {
+        name: "🔴 Team Two",
+        value: `**${teamBName}**`,
+        inline: true,
+      },
+      {
+        name: "🎯 Status",
+        value: isReschedule
+          ? "Rescheduled"
+          : "Scheduled",
+        inline: true,
       },
     ],
+
+    thumbnail: teamALogo
+      ? { url: teamALogo }
+      : undefined,
+
+    footer: {
+      text: "Goonginga League • Draft battles await",
+    },
+
+    timestamp: new Date().toISOString(),
+  };
+}
+
+async function sendDiscordMatchScheduled({
+  teamAName,
+  teamBName,
+  startDate,
+  teamALogo,
+  teamADiscordRoleId,
+  teamBDiscordRoleId,
+}) {
+  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+  if (!webhookUrl) return null;
+
+  const mentions = buildMentions(
+    teamADiscordRoleId,
+    teamBDiscordRoleId
+  );
+
+  const payload = {
+    content:
+      `${mentions} ⚔ Your match has been scheduled.`.trim(),
+
+    embeds: [
+      buildEmbed({
+        teamAName,
+        teamBName,
+        startDate,
+        teamALogo,
+      }),
+    ],
+
     allowed_mentions: {
       parse: ["roles", "users"],
     },
   };
 
-  const response = await fetch(webhookUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  // ?wait=true required to get message object back
+  const response = await fetch(
+    `${webhookUrl}?wait=true`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    }
+  );
 
   if (!response.ok) {
     const body = await response.text().catch(() => "");
-    throw new Error(`Discord webhook failed (${response.status}): ${body}`);
+    throw new Error(
+      `Discord webhook failed (${response.status}): ${body}`
+    );
   }
+
+  const data = await response.json();
+
+  return data.id;
+}
+
+async function editDiscordMatchScheduled({
+  messageId,
+  teamAName,
+  teamBName,
+  startDate,
+  teamALogo,
+  teamADiscordRoleId,
+  teamBDiscordRoleId,
+}) {
+  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+
+  if (!webhookUrl || !messageId) {
+    return null;
+  }
+
+  const mentions = buildMentions(
+    teamADiscordRoleId,
+    teamBDiscordRoleId
+  );
+
+  const payload = {
+    content:
+      `${mentions} 📣 Your match has been rescheduled.`.trim(),
+
+    embeds: [
+      buildEmbed({
+        teamAName,
+        teamBName,
+        startDate,
+        teamALogo,
+        isReschedule: true,
+      }),
+    ],
+
+    allowed_mentions: {
+      parse: ["roles", "users"],
+    },
+  };
+
+  const response = await fetch(
+    `${webhookUrl}/messages/${messageId}`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(
+      `Discord edit failed (${response.status}): ${body}`
+    );
+  }
+
+  return messageId;
 }
 
 module.exports = {
   sendDiscordMatchScheduled,
+  editDiscordMatchScheduled,
 };

@@ -1,6 +1,6 @@
 const matchService = require("../services/match");
 const prisma = require("../config/prisma");
-const { sendDiscordMatchScheduled } = require("../utils/discordWebhook");
+const { sendDiscordMatchScheduled, editDiscordMatchScheduled } = require("../utils/discordWebhook");
 
 const getById = async (req, res) => {
   try {
@@ -92,7 +92,8 @@ const captainUpdate = async (req, res) => {
 
     const updatedMatch = await matchService.update(Number(id), updateData);
 
-    if (!previousStartDate && updatedMatch.startDate) {
+    // Handle Discord notifications for scheduling/rescheduling
+    if (req.body.startDate !== undefined && updatedMatch.startDate) {
       try {
         const teams = await prisma.team.findMany({
           where: { id: { in: [updatedMatch.teamAId, updatedMatch.teamBId] } },
@@ -102,17 +103,38 @@ const captainUpdate = async (req, res) => {
         const teamB = teams.find((t) => t.id === updatedMatch.teamBId);
         const teamAName = teamA?.name || "Team A";
         const teamBName = teamB?.name || "Team B";
-        await sendDiscordMatchScheduled({
-          teamAName,
-          teamBName,
-          teamALogo: teamA?.logo || undefined,
-          teamBLogo: teamB?.logo || undefined,
-          teamADiscordRoleId: teamA?.discordRoleId || undefined,
-          teamBDiscordRoleId: teamB?.discordRoleId || undefined,
-          startDate: updatedMatch.startDate,
-        });
+
+        // If first time scheduling (no previous date), send new message
+        if (!previousStartDate) {
+          const messageId = await sendDiscordMatchScheduled({
+            teamAName,
+            teamBName,
+            teamALogo: teamA?.logo || undefined,
+            teamBLogo: teamB?.logo || undefined,
+            teamADiscordRoleId: teamA?.discordRoleId || undefined,
+            teamBDiscordRoleId: teamB?.discordRoleId || undefined,
+            startDate: updatedMatch.startDate,
+          });
+          // Store the message ID for future edits
+          if (messageId) {
+            await matchService.update(Number(id), { discordMessageId: messageId });
+          }
+        }
+        // If rescheduling (already had a date), edit the existing message
+        else if (previousStartDate && updatedMatch.discordMessageId) {
+          await editDiscordMatchScheduled({
+            messageId: updatedMatch.discordMessageId,
+            teamAName,
+            teamBName,
+            teamALogo: teamA?.logo || undefined,
+            teamBLogo: teamB?.logo || undefined,
+            teamADiscordRoleId: teamA?.discordRoleId || undefined,
+            teamBDiscordRoleId: teamB?.discordRoleId || undefined,
+            startDate: updatedMatch.startDate,
+          });
+        }
       } catch (notifyErr) {
-        console.error("Failed to send Discord match schedule message:", notifyErr);
+        console.error("Failed to send/edit Discord match schedule message:", notifyErr);
       }
     }
 

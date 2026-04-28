@@ -169,6 +169,9 @@ model Match {
   pauseRequestedBy Int? // teamId requesting pause
   pauseRequestedAt DateTime?
 
+  // Discord notification tracking
+  discordMessageId String?
+
   allowedMaps Map[] @relation("AllowedMaps")
   
   draft DraftTable?
