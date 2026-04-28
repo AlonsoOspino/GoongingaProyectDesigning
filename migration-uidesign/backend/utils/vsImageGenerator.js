@@ -1,4 +1,5 @@
 const { createCanvas, loadImage } = require("canvas");
+const fs = require("fs");
 const path = require("path");
 
 async function generateVsImage({ teamALogo, teamBLogo, teamAName = "Team A", teamBName = "Team B" }) {
@@ -48,18 +49,25 @@ async function generateVsImage({ teamALogo, teamBLogo, teamAName = "Team A", tea
 
 async function drawBackground(ctx, width, height) {
   const baseImagePath = path.join(__dirname, "..", "assets", "VSPARATEAM.jpg");
+  let hasBaseImage = false;
 
-  try {
-    const baseImage = await loadImage(baseImagePath);
-    drawCoverImage(ctx, baseImage, 0, 0, width, height);
-  } catch (err) {
-    console.error("Failed to load base background image:", err.message);
+  if (fs.existsSync(baseImagePath)) {
+    try {
+      const baseImage = await loadImage(baseImagePath);
+      drawCoverImage(ctx, baseImage, 0, 0, width, height);
+      hasBaseImage = true;
+    } catch (err) {
+      console.error("Failed to load base background image:", err.message);
+    }
+  } else {
+    console.warn("Base background image not found:", baseImagePath);
   }
 
+  const overlayAlpha = hasBaseImage ? 0.35 : 0.72;
   const background = ctx.createLinearGradient(0, 0, width, height);
-  background.addColorStop(0, "rgba(8, 17, 31, 0.72)");
-  background.addColorStop(0.5, "rgba(16, 25, 43, 0.72)");
-  background.addColorStop(1, "rgba(6, 11, 20, 0.72)");
+  background.addColorStop(0, `rgba(8, 17, 31, ${overlayAlpha})`);
+  background.addColorStop(0.5, `rgba(16, 25, 43, ${overlayAlpha})`);
+  background.addColorStop(1, `rgba(6, 11, 20, ${overlayAlpha})`);
   ctx.fillStyle = background;
   ctx.fillRect(0, 0, width, height);
 
