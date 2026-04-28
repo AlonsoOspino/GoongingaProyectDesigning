@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import useSWR from "swr";
 import { getTeams } from "@/lib/api/team";
 import { getMembers, type Member } from "@/lib/api/admin";
@@ -10,6 +9,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import type { Team } from "@/lib/api/types";
+import { resolveGenericBackendAsset } from "@/lib/assetUrls";
 
 // Role colors for badges
 const ROLE_COLORS: Record<string, string> = {
@@ -35,6 +35,13 @@ const ROLE_ICONS: Record<string, React.ReactNode> = {
       <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
     </svg>
   ),
+};
+
+const resolveTeamAsset = (value?: string | null) => {
+  if (!value) return "";
+  const cleaned = value.trim();
+  if (!cleaned) return "";
+  return resolveGenericBackendAsset(cleaned);
 };
 
 export default function TeamsPage() {
@@ -218,12 +225,12 @@ export default function TeamsPage() {
 
                         {/* Team Logo */}
                         <div className="relative w-14 h-14 rounded-xl bg-card border border-border/50 overflow-hidden flex items-center justify-center">
-                          {team.logo ? (
-                            <Image
-                              src={team.logo}
+                          {resolveTeamAsset(team.logo) ? (
+                            <img
+                              src={resolveTeamAsset(team.logo)}
                               alt={team.name}
-                              fill
-                              className="object-cover"
+                              className="h-full w-full object-cover"
+                              loading="lazy"
                             />
                           ) : (
                             <span className="text-xl font-bold text-primary">
@@ -295,13 +302,13 @@ export default function TeamsPage() {
                   </div>
 
                   {/* Roster Image Background */}
-                  {team.roster && (
+                  {resolveTeamAsset(team.roster) && (
                     <div className="relative h-52 overflow-hidden">
-                      <Image
-                        src={team.roster}
+                      <img
+                        src={resolveTeamAsset(team.roster)}
                         alt={`${team.name} roster`}
-                        fill
-                        className="object-cover opacity-70 group-hover:opacity-90 transition-opacity duration-300"
+                        className="absolute inset-0 h-full w-full object-cover opacity-70 transition-opacity duration-300 group-hover:opacity-90"
+                        loading="lazy"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent" />
                       
@@ -318,12 +325,12 @@ export default function TeamsPage() {
                                   style={{ zIndex: 5 - i }}
                                 >
                                   <div className="w-12 h-12 rounded-full border-2 border-card bg-card overflow-hidden hover:scale-110 hover:z-10 transition-transform">
-                                    {member.profilePic ? (
-                                      <Image
-                                        src={member.profilePic}
+                                    {resolveTeamAsset(member.profilePic) ? (
+                                      <img
+                                        src={resolveTeamAsset(member.profilePic)}
                                         alt={member.nickname}
-                                        fill
-                                        className="object-cover"
+                                        className="h-full w-full object-cover"
+                                        loading="lazy"
                                       />
                                     ) : (
                                       <div className="w-full h-full bg-primary/20 flex items-center justify-center">
@@ -385,12 +392,12 @@ export default function TeamsPage() {
                               style={{ zIndex: 5 - i }}
                             >
                               <div className="w-10 h-10 rounded-full border-2 border-card bg-card overflow-hidden hover:scale-110 hover:z-10 transition-transform">
-                                {member.profilePic ? (
-                                  <Image
-                                    src={member.profilePic}
+                                {resolveTeamAsset(member.profilePic) ? (
+                                  <img
+                                    src={resolveTeamAsset(member.profilePic)}
                                     alt={member.nickname}
-                                    fill
-                                    className="object-cover"
+                                    className="h-full w-full object-cover"
+                                    loading="lazy"
                                   />
                                 ) : (
                                   <div className="w-full h-full bg-primary/20 flex items-center justify-center">
@@ -426,12 +433,12 @@ export default function TeamsPage() {
                             className="flex items-center gap-3 p-3 bg-card/50 border border-border/50 rounded-xl hover:border-primary/30 hover:bg-card transition-all group/member"
                           >
                             <div className="relative w-12 h-12 rounded-full overflow-hidden bg-card border border-border/50 shrink-0">
-                              {member.profilePic ? (
-                                <Image
-                                  src={member.profilePic}
+                              {resolveTeamAsset(member.profilePic) ? (
+                                <img
+                                  src={resolveTeamAsset(member.profilePic)}
                                   alt={member.nickname}
-                                  fill
-                                  className="object-cover"
+                                  className="h-full w-full object-cover"
+                                  loading="lazy"
                                 />
                               ) : (
                                 <div className="w-full h-full bg-primary/20 flex items-center justify-center">
@@ -489,13 +496,13 @@ export default function TeamsPage() {
                 >
                   {/* Roster Image */}
                   <div className="relative h-44 overflow-hidden">
-                    {team.roster ? (
+                    {resolveTeamAsset(team.roster) ? (
                       <>
-                        <Image
-                          src={team.roster}
+                        <img
+                          src={resolveTeamAsset(team.roster)}
                           alt={`${team.name} roster`}
-                          fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-300"
+                          className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          loading="lazy"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
                       </>
@@ -514,12 +521,12 @@ export default function TeamsPage() {
                         #{index + 1}
                       </div>
                       <div className="w-10 h-10 rounded-lg bg-card/90 backdrop-blur border border-border/50 overflow-hidden flex items-center justify-center">
-                        {team.logo ? (
-                          <Image
-                            src={team.logo}
+                        {resolveTeamAsset(team.logo) ? (
+                          <img
+                            src={resolveTeamAsset(team.logo)}
                             alt={team.name}
-                            fill
-                            className="object-cover"
+                            className="h-full w-full object-cover"
+                            loading="lazy"
                           />
                         ) : (
                           <span className="text-sm font-bold text-primary">
@@ -586,12 +593,12 @@ export default function TeamsPage() {
                             style={{ zIndex: 5 - i }}
                           >
                             <div className="w-8 h-8 rounded-full border-2 border-card bg-card overflow-hidden hover:scale-110 hover:z-10 transition-transform">
-                              {member.profilePic ? (
-                                <Image
-                                  src={member.profilePic}
+                              {resolveTeamAsset(member.profilePic) ? (
+                                <img
+                                  src={resolveTeamAsset(member.profilePic)}
                                   alt={member.nickname}
-                                  fill
-                                  className="object-cover"
+                                  className="h-full w-full object-cover"
+                                  loading="lazy"
                                 />
                               ) : (
                                 <div className="w-full h-full bg-primary/20 flex items-center justify-center">
