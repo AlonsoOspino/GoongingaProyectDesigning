@@ -1,7 +1,6 @@
 const matchService = require("../services/match");
 const prisma = require("../config/prisma");
 const { sendDiscordMatchScheduled } = require("../utils/discordWebhook");
-const prisma = require("../config/prisma");
 
 const getById = async (req, res) => {
   try {
