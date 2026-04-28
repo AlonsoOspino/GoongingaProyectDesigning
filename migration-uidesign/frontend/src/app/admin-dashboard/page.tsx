@@ -1085,7 +1085,17 @@ function TeamsSection({ token }: { token: string }) {
           <Button variant="ghost" onClick={() => { setShowEditModal(false); setSelectedTeam(null); }}>Cancel</Button>
           <Button onClick={async () => {
             if (!selectedTeam) return;
-            try { await adminUpdateTeam(token, selectedTeam.id, formData); setShowEditModal(false); showNotif("success", "Team updated"); loadData(); }
+            try {
+              const payload = { ...formData };
+              // Convert empty discordRoleId to null
+              if ((payload as any).discordRoleId === "") {
+                (payload as any).discordRoleId = null;
+              }
+              await adminUpdateTeam(token, selectedTeam.id, payload);
+              setShowEditModal(false);
+              showNotif("success", "Team updated");
+              loadData();
+            }
             catch (err: any) { showNotif("error", err.message); }
           }}>Save</Button>
         </ModalFooter>
