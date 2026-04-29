@@ -173,6 +173,7 @@ model Match {
   discordMessageId String?
 
   allowedMaps Map[] @relation("AllowedMaps")
+  playerStats PlayerStat[]
   
   draft DraftTable?
 }
