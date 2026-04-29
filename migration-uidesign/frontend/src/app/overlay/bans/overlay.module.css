@@ -1,0 +1,188 @@
+.container {
+  width: 100vw;
+  height: 100vh;
+  background: transparent !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+}
+
+.sectionLeft {
+  composes: section;
+  max-width: 450px;
+}
+
+.sectionRight {
+  composes: section;
+  max-width: 450px;
+  justify-content: flex-end;
+}
+
+.bansContainer {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.banSlot {
+  width: 70px;
+  height: 70px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 2px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.banSlotA {
+  composes: banSlot;
+  border-color: rgba(239, 68, 68, 0.8);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.3);
+}
+
+.banSlotB {
+  composes: banSlot;
+  border-color: rgba(59, 130, 246, 0.8);
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.3);
+}
+
+.banImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.emptyBan {
+  color: rgba(156, 163, 175, 0.6);
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.divider {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 24px;
+  font-weight: bold;
+  margin: 0 0.5rem;
+}
+
+.teamInfo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.teamInfoRight {
+  composes: teamInfo;
+  flex-direction: row-reverse;
+}
+
+.teamLogo {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.teamDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.teamDetailsRight {
+  composes: teamDetails;
+  text-align: right;
+}
+
+.teamName {
+  color: white;
+  font-weight: bold;
+  font-size: 14px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.teamPointsA {
+  color: rgba(239, 68, 68, 1);
+  font-weight: bold;
+  font-size: 18px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.teamPointsB {
+  color: rgba(59, 130, 246, 1);
+  font-weight: bold;
+  font-size: 18px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.centerSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 2rem;
+}
+
+.mapNumber {
+  color: white;
+  font-weight: bold;
+  font-size: 14px;
+  text-transform: uppercase;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  letter-spacing: 1px;
+}
+
+.mapImage {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+}
+
+.bestOfInfo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.bestOf {
+  color: white;
+  font-weight: bold;
+  font-size: 13px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.firstTo {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 11px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.loading {
+  width: 100vw;
+  height: 100vh;
+  background: transparent !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loadingText {
+  color: white;
+  font-size: 24px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+}

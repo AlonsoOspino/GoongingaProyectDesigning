@@ -6,7 +6,7 @@ import { getDraftByMatchId } from "@/lib/api/draft";
 import { getTeams } from "@/lib/api";
 import type { DraftState, Team } from "@/lib/api/types";
 import { resolveHeroImageUrl, resolveMapImageUrl, resolveGenericBackendAsset } from "@/lib/assetUrls";
-import Image from "next/image";
+import styles from "./overlay.module.css";
 
 const POLL_INTERVAL = 3000;
 
@@ -67,31 +67,31 @@ export default function BansOverlayPage() {
 
   if (loading || !draftState || !teamA || !teamB) {
     return (
-      <div className="w-screen h-screen bg-transparent flex items-center justify-center">
-        <div className="text-white text-2xl">Loading overlay...</div>
+      <div className={styles.loading}>
+        <div className={styles.loadingText}>Loading overlay...</div>
       </div>
     );
   }
 
   return (
-    <div className="w-screen h-screen bg-transparent overflow-hidden flex items-center justify-between px-4 py-2">
+    <div className={styles.container}>
       {/* LEFT SIDE - TEAM A */}
-      <div className="flex items-center gap-4 flex-1 max-w-sm">
+      <div className={styles.sectionLeft}>
         {/* Team A Bans */}
-        <div className="flex gap-2">
+        <div className={styles.bansContainer}>
           {[0, 1].map((idx) => {
             const ban = teamABans[idx];
             const hero = ban && ban.value != null ? heroCache[ban.value] : null;
             return (
-              <div key={idx} className="w-16 h-16 relative bg-black/40 rounded border border-red-500/50">
+              <div key={idx} className={styles.banSlotA}>
                 {hero ? (
                   <img
                     src={resolveHeroImageUrl(hero.imgPath)}
                     alt={hero.name}
-                    className="w-full h-full object-cover rounded"
+                    className={styles.banImage}
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400">–</div>
+                  <div className={styles.emptyBan}>–</div>
                 )}
               </div>
             );
@@ -99,76 +99,75 @@ export default function BansOverlayPage() {
         </div>
 
         {/* Divider */}
-        <div className="text-white/60 text-2xl font-bold">|</div>
+        <div className={styles.divider}>|</div>
 
         {/* Team A Info */}
-        <div className="flex items-center gap-2">
+        <div className={styles.teamInfo}>
           {teamA.logo && (
             <img
               src={resolveGenericBackendAsset(teamA.logo)}
               alt={teamA.name}
-              className="w-12 h-12 object-contain rounded"
+              className={styles.teamLogo}
             />
           )}
-          <div className="flex flex-col gap-0">
-            <div className="text-white font-bold text-sm">{teamA.name}</div>
-            <div className="text-red-400 font-bold text-lg">{teamAPoints} pts</div>
+          <div className={styles.teamDetails}>
+            <div className={styles.teamName}>{teamA.name}</div>
+            <div className={styles.teamPointsA}>{teamAPoints} pts</div>
           </div>
         </div>
       </div>
 
       {/* CENTER - MAP & MATCH INFO */}
-      <div className="flex flex-col items-center gap-2 px-8">
-        <div className="text-white font-bold text-sm">MAP {currentGame}</div>
-        <div className="text-white/70 text-xs">vs</div>
+      <div className={styles.centerSection}>
+        <div className={styles.mapNumber}>MAP {currentGame}</div>
         {currentMap && (
-          <div className="flex items-center gap-2">
-            <img
-              src={resolveMapImageUrl(currentMap.imgPath)}
-              alt={currentMap.description}
-              className="w-24 h-24 object-cover rounded"
-            />
-          </div>
+          <img
+            src={resolveMapImageUrl(currentMap.imgPath)}
+            alt={currentMap.description}
+            className={styles.mapImage}
+          />
         )}
-        <div className="text-white font-bold text-sm">Best of {draftState.match?.bestOf}</div>
-        <div className="text-white/50 text-xs">First to {firstTo}</div>
+        <div className={styles.bestOfInfo}>
+          <div className={styles.bestOf}>Best of {draftState.match?.bestOf}</div>
+          <div className={styles.firstTo}>First to {firstTo}</div>
+        </div>
       </div>
 
       {/* RIGHT SIDE - TEAM B */}
-      <div className="flex items-center gap-4 flex-1 max-w-sm justify-end">
+      <div className={styles.sectionRight}>
         {/* Team B Info */}
-        <div className="flex items-center gap-2">
-          <div className="flex flex-col gap-0 text-right">
-            <div className="text-white font-bold text-sm">{teamB.name}</div>
-            <div className="text-blue-400 font-bold text-lg">{teamBPoints} pts</div>
+        <div className={styles.teamInfoRight}>
+          <div className={styles.teamDetailsRight}>
+            <div className={styles.teamName}>{teamB.name}</div>
+            <div className={styles.teamPointsB}>{teamBPoints} pts</div>
           </div>
           {teamB.logo && (
             <img
               src={resolveGenericBackendAsset(teamB.logo)}
               alt={teamB.name}
-              className="w-12 h-12 object-contain rounded"
+              className={styles.teamLogo}
             />
           )}
         </div>
 
         {/* Divider */}
-        <div className="text-white/60 text-2xl font-bold">|</div>
+        <div className={styles.divider}>|</div>
 
         {/* Team B Bans */}
-        <div className="flex gap-2">
+        <div className={styles.bansContainer}>
           {[0, 1].map((idx) => {
             const ban = teamBBans[idx];
             const hero = ban && ban.value != null ? heroCache[ban.value] : null;
             return (
-              <div key={idx} className="w-16 h-16 relative bg-black/40 rounded border border-blue-500/50">
+              <div key={idx} className={styles.banSlotB}>
                 {hero ? (
                   <img
                     src={resolveHeroImageUrl(hero.imgPath)}
                     alt={hero.name}
-                    className="w-full h-full object-cover rounded"
+                    className={styles.banImage}
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400">–</div>
+                  <div className={styles.emptyBan}>–</div>
                 )}
               </div>
             );
