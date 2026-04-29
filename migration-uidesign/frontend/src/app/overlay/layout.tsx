@@ -11,5 +11,11 @@ export default function OverlayLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return (
+    <html lang="en">
+      <body style={{ margin: 0, padding: 0, background: "transparent", overflow: "hidden" }}>
+        {children}
+      </body>
+    </html>
+  );
 }
