@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { getDraftByMatchId } from "@/lib/api/draft";
 import { getTeams } from "@/lib/api";
 import type { DraftState, Team } from "@/lib/api/types";
-import { resolveHeroImageUrl, resolveTeamAsset } from "@/lib/assetUrls";
+import { resolveHeroImageUrl, resolveMapImageUrl, resolveGenericBackendAsset } from "@/lib/assetUrls";
 import Image from "next/image";
 
 const POLL_INTERVAL = 3000;
@@ -105,7 +105,7 @@ export default function BansOverlayPage() {
         <div className="flex items-center gap-2">
           {teamA.logo && (
             <img
-              src={resolveTeamAsset(teamA.logo)}
+              src={resolveGenericBackendAsset(teamA.logo)}
               alt={teamA.name}
               className="w-12 h-12 object-contain rounded"
             />
@@ -144,7 +144,7 @@ export default function BansOverlayPage() {
           </div>
           {teamB.logo && (
             <img
-              src={resolveTeamAsset(teamB.logo)}
+              src={resolveGenericBackendAsset(teamB.logo)}
               alt={teamB.name}
               className="w-12 h-12 object-contain rounded"
             />
