@@ -119,36 +119,32 @@ export default function DraftTablePage() {
   };
 
   useEffect(() => {
-    // Timer runs during map picking and ban phases.
-    if (!draftState?.phaseStartedAt || !["MAPPICKING", "BAN"].includes(currentPhase ?? "")) {
+    if (!draftState || !["MAPPICKING", "BAN"].includes(currentPhase ?? "")) {
       setTimeLeft(TURN_DURATION);
       if (timerRef.current) clearInterval(timerRef.current);
       return;
     }
-    // While paused by the manager, freeze the countdown at whatever the
-    // server-derived remaining time is (server has frozen phaseStartedAt too).
+
+    const serverRemaining =
+      typeof draftState.remainingSeconds === "number" && Number.isFinite(draftState.remainingSeconds)
+        ? draftState.remainingSeconds
+        : TURN_DURATION;
+
+    setTimeLeft(Math.max(0, Math.min(TURN_DURATION, serverRemaining)));
+
+    if (timerRef.current) clearInterval(timerRef.current);
     if (isMatchPaused) {
-      if (timerRef.current) clearInterval(timerRef.current);
-      const startTime = new Date(draftState.phaseStartedAt).getTime();
-      const pausedAtMs = draftState?.match?.mapTimerPausedAt
-        ? new Date(draftState.match.mapTimerPausedAt).getTime()
-        : Date.now();
-      const elapsed = Math.floor((pausedAtMs - startTime) / 1000);
-      setTimeLeft(Math.max(0, TURN_DURATION - elapsed));
       return;
     }
-    const startTime = new Date(draftState.phaseStartedAt).getTime();
-    const updateTimer = () => {
-      const elapsed = Math.floor((Date.now() - startTime) / 1000);
-      const remaining = Math.max(0, TURN_DURATION - elapsed);
-      setTimeLeft(remaining);
-    };
-    updateTimer();
-    timerRef.current = setInterval(updateTimer, 1000);
+
+    timerRef.current = setInterval(() => {
+      setTimeLeft((prev) => Math.max(0, prev - 1));
+    }, 1000);
+
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [draftState?.phaseStartedAt, currentPhase, isMatchPaused, draftState?.match?.mapTimerPausedAt]);
+  }, [draftState?.remainingSeconds, currentPhase, isMatchPaused]);
 
   useEffect(() => {
     const heroes = draftState?.heroes || [];
