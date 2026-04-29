@@ -6,7 +6,7 @@ import { getDraftByMatchId } from "@/lib/api/draft";
 import { getTeams } from "@/lib/api";
 import type { DraftState, Team } from "@/lib/api/types";
 import { resolveHeroImageUrl, resolveMapImageUrl, resolveGenericBackendAsset } from "@/lib/assetUrls";
-import styles from "./overlay.module.css";
+import styles from "../overlay.module.css";
 
 const POLL_INTERVAL = 3000;
 
