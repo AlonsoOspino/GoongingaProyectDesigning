@@ -94,6 +94,8 @@ export interface DraftState {
   currentTurnTeamId: number | null;
   phase: string;
   phaseStartedAt: string;
+  // remainingSeconds is computed by the server to avoid trusting client clocks
+  remainingSeconds?: number;
   actions: DraftAction[];
   bannedHeroes: number[];
   pickedMaps: number[];

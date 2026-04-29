@@ -25,6 +25,11 @@ const TURN_PHASES = new Set(["MAPPICKING", "BAN"]);
 const isTurnPhase = (phase: string) => TURN_PHASES.has(phase);
 
 const getTimeRemaining = (state: DraftState) => {
+  // Prefer server-provided remainingSeconds when available so clients
+  // don't rely on their local clock.
+  if (state.remainingSeconds !== undefined && Number.isFinite(state.remainingSeconds)) {
+    return Math.min(TURN_DURATION, Math.max(0, state.remainingSeconds));
+  }
   if (!isTurnPhase(state.phase)) return TURN_DURATION;
   if (!state.phaseStartedAt) return TURN_DURATION;
 

@@ -703,6 +703,21 @@ const buildDraftState = async (draft) => {
     orderBy: { id: "asc" },
   });
 
+  // Compute server-side remaining seconds for the current turn so clients
+  // don't have to trust their local clock. This accounts for manager pause.
+  const TURN_SECONDS = Math.floor(TURN_TIMEOUT_MS / 1000);
+  let remainingSeconds = TURN_SECONDS;
+  if (draft && draft.phase && ["MAPPICKING", "BAN"].includes(draft.phase)) {
+    const phaseStart = draft.phaseStartedAt ? new Date(draft.phaseStartedAt).getTime() : Date.now();
+    const referenceNow =
+      draft.match && draft.match.mapTimerPaused && draft.match.mapTimerPausedAt
+        ? new Date(draft.match.mapTimerPausedAt).getTime()
+        : Date.now();
+    const safePhaseStart = Math.min(phaseStart, referenceNow);
+    const elapsed = Math.floor((referenceNow - safePhaseStart) / 1000);
+    remainingSeconds = Math.max(0, TURN_SECONDS - elapsed);
+  }
+
   return {
     ...draft,
     allowedMapTypes: allowedTypesFromPool,
@@ -712,6 +727,7 @@ const buildDraftState = async (draft) => {
       ...hero,
       name: hero.name || parseHeroNameFromImgPath(hero.imgPath),
     })),
+    remainingSeconds,
   };
 };
 
