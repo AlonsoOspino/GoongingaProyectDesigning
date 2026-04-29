@@ -58,7 +58,32 @@ export function useDraftPolling({
 
     try {
       const state = await getDraftState(draftId);
-      setDraftState(state);
+
+      // Avoid tiny backend timestamp drift resetting the client timer.
+      // If phase didn't change and the new phaseStartedAt differs from
+      // the previous one by <= 1s, keep the previous timestamp.
+      setDraftState((prev) => {
+        try {
+          if (
+            prev &&
+            prev.phase === state.phase &&
+            isTurnPhase(state.phase) &&
+            prev.phaseStartedAt &&
+            state.phaseStartedAt
+          ) {
+            const prevTs = new Date(prev.phaseStartedAt).getTime();
+            const newTs = new Date(state.phaseStartedAt).getTime();
+            if (Number.isFinite(prevTs) && Number.isFinite(newTs) && Math.abs(newTs - prevTs) <= 1000) {
+              // reuse prev timestamp to avoid resetting countdown on tiny drift
+              state.phaseStartedAt = prev.phaseStartedAt;
+            }
+          }
+        } catch (e) {
+          // ignore and fall back to server value
+        }
+        return state;
+      });
+
       setError(null);
       setTimeRemaining(getTimeRemaining(state));
     } catch (err) {

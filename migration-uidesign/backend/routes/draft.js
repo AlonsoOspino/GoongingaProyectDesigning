@@ -52,7 +52,8 @@ router.patch(
 	authMiddleware,
 	handle((req) => draftController.endMap(req.params.id, req.user))
 );
-router.get("/:id/state", handle((req) => draftController.getDraftState(req.params.id)));
+		// Polling clients should use the read-only state to avoid accidental writes
+		router.get("/:id/state", handle((req) => draftController.getDraftStateReadOnly(req.params.id)));
 router.get(
 	"/by-match/:matchId",
 	handle((req) => draftController.getDraftByMatchId(req.params.matchId))

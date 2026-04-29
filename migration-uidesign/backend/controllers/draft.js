@@ -682,10 +682,7 @@ const endMap = async (draftId, user) => {
   });
 };
 
-const getDraftState = async (draftId) => {
-  const currentDraft = await getDraftByIdOrThrow(draftId);
-  const draft = await applyTimeoutIfNeeded(currentDraft);
-
+const buildDraftState = async (draft) => {
   // Current game is gameNumber+1 (gameNumber = last completed, 0 at start)
   const gameNumber = (draft.match.gameNumber || 0) + 1;
   const allowedMapTypes = getAllowedMapTypes(gameNumber);
@@ -718,6 +715,18 @@ const getDraftState = async (draftId) => {
   };
 };
 
+// Read-only draft state for polling: does NOT apply timeouts or mutate DB.
+const getDraftStateReadOnly = async (draftId) => {
+  const draft = await getDraftByIdOrThrow(draftId);
+  return buildDraftState(draft);
+};
+
+const getDraftState = async (draftId) => {
+  const currentDraft = await getDraftByIdOrThrow(draftId);
+  const draft = await applyTimeoutIfNeeded(currentDraft);
+  return buildDraftState(draft);
+};
+
 const getDraftByMatchId = async (matchId) => {
   const parsedMatchId = assertPositiveInt(matchId, "matchId");
 
@@ -733,7 +742,7 @@ const getDraftByMatchId = async (matchId) => {
     throw new Error("Draft not found for this match.");
   }
 
-  return getDraftState(draft.id);
+  return getDraftStateReadOnly(draft.id);
 };
 
 module.exports = {
@@ -745,5 +754,6 @@ module.exports = {
   banHero,
   endMap,
   getDraftState,
+  getDraftStateReadOnly,
   getDraftByMatchId,
 };
