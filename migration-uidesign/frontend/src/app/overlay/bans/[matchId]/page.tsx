@@ -81,7 +81,7 @@ export default function BansOverlayPage() {
         <div className="flex gap-2">
           {[0, 1].map((idx) => {
             const ban = teamABans[idx];
-            const hero = ban ? heroCache[ban.value] : null;
+            const hero = ban && ban.value != null ? heroCache[ban.value] : null;
             return (
               <div key={idx} className="w-16 h-16 relative bg-black/40 rounded border border-red-500/50">
                 {hero ? (
@@ -158,7 +158,7 @@ export default function BansOverlayPage() {
         <div className="flex gap-2">
           {[0, 1].map((idx) => {
             const ban = teamBBans[idx];
-            const hero = ban ? heroCache[ban.value] : null;
+            const hero = ban && ban.value != null ? heroCache[ban.value] : null;
             return (
               <div key={idx} className="w-16 h-16 relative bg-black/40 rounded border border-blue-500/50">
                 {hero ? (
