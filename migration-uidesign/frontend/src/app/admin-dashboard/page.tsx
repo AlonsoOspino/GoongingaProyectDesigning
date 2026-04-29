@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Modal, ModalHeader, ModalTitle, ModalContent, ModalFooter } from "@/components/ui/Modal";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/Table";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
+import { resolveMapImageUrl } from "@/lib/assetUrls";
 import {
   createTournament, updateTournament, deleteTournament, getCurrentTournament,
   adminCreateMatch, adminUpdateMatch, adminDeleteMatch, adminGenerateRoundRobin,
@@ -896,7 +897,7 @@ function WeekMapsSection({ token }: { token: string }) {
                                     {map.imgPath && (
                                       <div className="aspect-video bg-surface">
                                         <img 
-                                          src={map.imgPath.startsWith("http") ? map.imgPath : `${process.env.NEXT_PUBLIC_API_URL}${map.imgPath}`}
+                                          src={resolveMapImageUrl(map.imgPath)}
                                           alt={map.description}
                                           className="w-full h-full object-cover"
                                         />
