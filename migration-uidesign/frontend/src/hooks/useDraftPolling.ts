@@ -39,8 +39,13 @@ const getTimeRemaining = (state: DraftState) => {
 
   if (!Number.isFinite(referenceNow)) return TURN_DURATION;
 
-  const elapsed = Math.floor((referenceNow - phaseStart) / 1000);
-  return Math.max(0, TURN_DURATION - elapsed);
+    // Prevent negative elapsed when phaseStartedAt is slightly in the future
+    // (eg. due to clock skew or misapplied shifts). Treat future start as 0
+    // elapsed so UI never shows > TURN_DURATION seconds.
+    const safePhaseStart = Math.min(phaseStart, referenceNow);
+    const elapsed = Math.floor((referenceNow - safePhaseStart) / 1000);
+    const remaining = Math.max(0, TURN_DURATION - elapsed);
+    return Math.min(TURN_DURATION, remaining);
 };
 
 export function useDraftPolling({
