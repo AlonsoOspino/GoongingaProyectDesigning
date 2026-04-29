@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useParams } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
 import { getDraftByMatchId } from "@/lib/api/draft";
 import { getTeams } from "@/lib/api";
 import type { DraftState, Team } from "@/lib/api/types";
