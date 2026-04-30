@@ -66,6 +66,13 @@ export async function endMap(token: string, draftId: number) {
   });
 }
 
+export async function endGame(token: string, draftId: number) {
+  return apiRequest<DraftState>(`/draft/${draftId}/end-game`, {
+    method: "PATCH",
+    token,
+  });
+}
+
 export async function getDraftState(draftId: number, access?: DraftReadAccess) {
   const { key, token } = resolveDraftReadAccess(access);
   const suffix = key ? `?key=${encodeURIComponent(key)}` : "";

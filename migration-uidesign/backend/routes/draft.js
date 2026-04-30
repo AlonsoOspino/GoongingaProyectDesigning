@@ -53,6 +53,11 @@ router.patch(
 	authMiddleware,
 	handle((req) => draftController.endMap(req.params.id, req.user))
 );
+router.patch(
+	"/:id/end-game",
+	authMiddleware,
+	handle((req) => draftController.endGame(req.params.id, req.user))
+);
 		// Polling clients should use the read-only state to avoid accidental writes
 			router.get("/:id/state", optionalAuth, handle((req) => draftController.getDraftStateReadOnly(req.params.id, req)));
 	router.get(

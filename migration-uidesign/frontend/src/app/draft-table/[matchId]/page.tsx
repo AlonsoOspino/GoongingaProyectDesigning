@@ -14,6 +14,7 @@ import {
   startBan,
   banHero,
   endMap,
+  endGame,
   type DraftState,
   type GameMap,
   type Hero,
@@ -34,7 +35,7 @@ import { resolveHeroImageUrl, resolveMapImageUrl } from "@/lib/assetUrls";
 const POLL_INTERVAL = 3000;
 const TURN_DURATION = 75;
 
-type Phase = "STARTING" | "MAPPICKING" | "BAN" | "ENDMAP" | "FINISHED";
+type Phase = "STARTING" | "MAPPICKING" | "BAN" | "PLAYING" | "ENDMAP" | "FINISHED";
 
 export default function DraftTablePage() {
   const params = useParams();
@@ -220,6 +221,19 @@ export default function DraftTablePage() {
       setDraftState(updated);
     } catch (err) {
       console.error("Failed to end map:", err);
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleEndGame() {
+    if (!token || !draftId) return;
+    setActionLoading(true);
+    try {
+      const updated = await endGame(token, draftId);
+      setDraftState(updated);
+    } catch (err) {
+      console.error("Failed to end game:", err);
     } finally {
       setActionLoading(false);
     }
@@ -571,6 +585,16 @@ export default function DraftTablePage() {
             getTeamTotalBans={getTeamTotalBans}
             getBanCountByRole={getBanCountByRole}
             canBanRole={canBanRole}
+            actionLoading={actionLoading}
+          />
+        )}
+
+        {currentPhase === "PLAYING" && (
+          <PlayingPhase
+            draftState={draftState}
+            teams={teams}
+            isManager={isManager}
+            onEndGame={handleEndGame}
             actionLoading={actionLoading}
           />
         )}
@@ -1683,6 +1707,79 @@ function BanPhase({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ==================== PLAYING PHASE ====================
+
+function PlayingPhase({
+  draftState,
+  teams,
+  isManager,
+  onEndGame,
+  actionLoading,
+}: {
+  draftState: DraftState;
+  teams: Team[];
+  isManager: boolean;
+  onEndGame: () => void;
+  actionLoading: boolean;
+}) {
+  const teamA = teams.find((t) => t.id === draftState.match.teamAId);
+  const teamB = teams.find((t) => t.id === draftState.match.teamBId);
+  const currentMap = draftState.allMaps?.find((m) => m.id === draftState.currentMapId);
+
+  return (
+    <div className="min-h-[80vh] flex flex-col items-center justify-center gap-8">
+      {/* Game is Playing Display */}
+      <Card variant="featured" className="max-w-2xl w-full">
+        <CardContent className="p-8">
+          <div className="text-center mb-8">
+            <p className="text-muted mb-2 text-sm uppercase tracking-wide">Now Playing</p>
+            <h1 className="text-4xl md:text-5xl font-black mb-4">
+              <span className="text-[color:var(--color-team-a)]">{teamA?.name}</span>
+              <span className="text-muted mx-4">vs</span>
+              <span className="text-[color:var(--color-team-b)]">{teamB?.name}</span>
+            </h1>
+          </div>
+
+          {/* Map Display */}
+          {currentMap && (
+            <div className="mb-8">
+              <div className="rounded-xl overflow-hidden border-2 border-primary/50 shadow-lg">
+                <img
+                  src={resolveMapImageUrl(currentMap.imgPath)}
+                  alt={currentMap.description}
+                  className="w-full h-64 object-cover"
+                />
+              </div>
+              <p className="text-center mt-4 text-lg font-semibold">{currentMap.description}</p>
+              <p className="text-center text-muted text-sm mt-1">Map Type: {currentMap.type}</p>
+            </div>
+          )}
+
+          {/* Game Ended Button - Only Manager Can End Game */}
+          {isManager && (
+            <div className="flex justify-center">
+              <Button
+                size="lg"
+                className="px-8 bg-success hover:bg-success/90"
+                onClick={onEndGame}
+                disabled={actionLoading}
+              >
+                {actionLoading ? "Processing..." : "Game Ended"}
+              </Button>
+            </div>
+          )}
+
+          {!isManager && (
+            <div className="text-center text-muted">
+              <p className="text-sm">Waiting for manager to mark game as ended...</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

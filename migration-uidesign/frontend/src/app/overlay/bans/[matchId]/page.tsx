@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { getDraftByMatchId } from "@/lib/api/draft";
-import { getTeams } from "@/lib/api";
+import { getTeams, getLeaderboard } from "@/lib/api";
 import type { DraftState, Team } from "@/lib/api/types";
 import { resolveHeroImageUrl, resolveMapImageUrl, resolveGenericBackendAsset } from "@/lib/assetUrls";
 import styles from "../overlay.module.css";
@@ -18,6 +18,7 @@ export default function BansOverlayPage() {
 
   const [draftState, setDraftState] = useState<DraftState | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [leaderboard, setLeaderboard] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
 
   const teamA = teams.find((t) => t.id === draftState?.match?.teamAId);
@@ -25,6 +26,13 @@ export default function BansOverlayPage() {
 
   const bans = draftState?.bannedHeroes || [];
   const actions = draftState?.actions || [];
+
+  // Helper functions
+  const getTeamAbbr = (name: string) => name.substring(0, 3).toUpperCase();
+  const getTournamentAbbr = (name: string) => {
+    const words = name.split(" ");
+    return words.map((w) => w[0]).join("").toUpperCase();
+  };
 
   // Get team-specific bans for current game
   const currentGame = (draftState?.match?.gameNumber || 0) + 1;
@@ -55,6 +63,12 @@ export default function BansOverlayPage() {
           ]);
         setDraftState(draft);
         setTeams(teamsList);
+        
+        // Fetch leaderboard for STARTING phase
+        if (draft && draft.match?.tournamentId) {
+          const leaderboardData = await getLeaderboard(draft.match.tournamentId);
+          setLeaderboard(leaderboardData);
+        }
       } catch (err) {
         console.error("Failed to load overlay data:", err);
       } finally {
@@ -75,6 +89,12 @@ export default function BansOverlayPage() {
     );
   }
 
+  // Render STARTING phase - Standings view
+  if (draftState.phase === "STARTING") {
+    return <PrematchOverlay draftState={draftState} teams={teams} leaderboard={leaderboard} getTeamAbbr={getTeamAbbr} getTournamentAbbr={getTournamentAbbr} />;
+  }
+
+  // Render BAN phase and other phases - Bans view
   return (
     <div className={styles.container}>
       {/* LEFT SIDE - TEAM A */}
@@ -174,6 +194,123 @@ export default function BansOverlayPage() {
               </div>
             );
           })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ==================== PREMATCH OVERLAY ====================
+
+function PrematchOverlay({
+  draftState,
+  teams,
+  leaderboard,
+  getTeamAbbr,
+  getTournamentAbbr,
+}: {
+  draftState: DraftState;
+  teams: Team[];
+  leaderboard: Team[];
+  getTeamAbbr: (name: string) => string;
+  getTournamentAbbr: (name: string) => string;
+}) {
+  const teamA = teams.find((t) => t.id === draftState?.match?.teamAId);
+  const teamB = teams.find((t) => t.id === draftState?.match?.teamBId);
+
+  return (
+    <div
+      className={styles.container}
+      style={{
+        backgroundImage: `url(/PREMATCH.png)`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
+      {/* LEFT SIDE - STANDINGS */}
+      <div className={styles.prematchLeft}>
+        {/* Tournament Header */}
+        <div className={styles.prematchTournamentHeader}>
+          <div className={styles.prematchTournamentTitle}>
+            {getTournamentAbbr(draftState.match.toString())}
+          </div>
+          <div className={styles.prematchStandingsLabel}>STANDINGS</div>
+        </div>
+
+        {/* Leaderboard Table */}
+        <div className={styles.prematchLeaderboardTable}>
+          <div className={styles.prematchTableHeader}>
+            <div className={styles.prematchTeamColumn}>TEAM</div>
+            <div className={styles.prematchWlColumn}>W/L</div>
+            <div className={styles.prematchMapColumn}>MAP</div>
+          </div>
+
+          <div className={styles.prematchTableBody}>
+            {leaderboard.slice(0, 8).map((team) => (
+              <div key={team.id} className={styles.prematchTableRow}>
+                <div className={styles.prematchTeamCell}>
+                  <div className={styles.prematchTeamIcon}>
+                    {team.logo ? (
+                      <img
+                        src={resolveGenericBackendAsset(team.logo)}
+                        alt={team.name}
+                        className={styles.prematchTeamLogo}
+                      />
+                    ) : (
+                      <div className={styles.prematchTeamLogoPlaceholder}>{getTeamAbbr(team.name)}</div>
+                    )}
+                  </div>
+                  <span className={styles.prematchTeamName}>{getTeamAbbr(team.name)}</span>
+                </div>
+                <div className={styles.prematchWlCell}>{team.victories}-2</div>
+                <div className={styles.prematchMapCell}>
+                  {team.mapWins}-{team.mapLoses}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* RIGHT SIDE - TOURNAMENT HEADER & FEATURED MATCH */}
+      <div className={styles.prematchRight}>
+        {/* Tournament Badge */}
+        <div className={styles.prematchTournamentBadge}>
+          <div className={styles.prematchBadgeCircle}>
+            <div className={styles.prematchBadgeText}>
+              GGL
+              <br />
+              {getTournamentAbbr(draftState.match.toString())}
+            </div>
+          </div>
+        </div>
+
+        {/* Featured Match */}
+        <div className={styles.prematchFeaturedMatch}>
+          <div className={styles.prematchMatchTeam}>
+            <div className={styles.prematchMatchTeamLogo}>
+              {teamA?.logo ? (
+                <img src={resolveGenericBackendAsset(teamA.logo)} alt={teamA.name} />
+              ) : (
+                <div className={styles.prematchTeamLogoPlaceholder}>{getTeamAbbr(teamA?.name || "")}</div>
+              )}
+            </div>
+            <div className={styles.prematchMatchTeamAbbrA}>{getTeamAbbr(teamA?.name || "")}</div>
+          </div>
+
+          <div className={styles.prematchMatchVersus}>VS</div>
+
+          <div className={styles.prematchMatchTeam}>
+            <div className={styles.prematchMatchTeamAbbrB}>{getTeamAbbr(teamB?.name || "")}</div>
+            <div className={styles.prematchMatchTeamLogo}>
+              {teamB?.logo ? (
+                <img src={resolveGenericBackendAsset(teamB.logo)} alt={teamB.name} />
+              ) : (
+                <div className={styles.prematchTeamLogoPlaceholder}>{getTeamAbbr(teamB?.name || "")}</div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

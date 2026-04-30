@@ -73,6 +73,7 @@ enum phase {
   STARTING
   MAPPICKING
   BAN
+  PLAYING
   ENDMAP
   FINISHED
 

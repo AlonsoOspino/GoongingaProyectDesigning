@@ -291,7 +291,7 @@ const applyTimeoutIfNeeded = async (draft) => {
     return tx.draftTable.update({
       where: { id: draft.id },
       data: {
-        phase: totalBansAfter >= 4 ? "ENDMAP" : "BAN",
+        phase: totalBansAfter >= 4 ? "PLAYING" : "BAN",
         currentTurnTeamId:
           totalBansAfter >= 4
             ? originalTurnTeamId
@@ -378,8 +378,8 @@ const startMapPicking = async (draftId, user) => {
   ensureManagerRole(user);
   const draft = await getDraftByIdOrThrow(draftId);
 
-  if (!["STARTING", "ENDMAP"].includes(draft.phase)) {
-    throw new Error("Draft must be in STARTING or ENDMAP phase.");
+  if (!["STARTING", "ENDMAP", "PLAYING"].includes(draft.phase)) {
+    throw new Error("Draft must be in STARTING, ENDMAP, or PLAYING phase.");
   }
 
   if (draft.match.status === "FINISHED") {
@@ -652,7 +652,7 @@ const banHero = async (draftId, payload, user) => {
       data: {
         bannedHeroes: heroId ? [...bannedHeroes, heroId] : bannedHeroes,
         currentTurnTeamId: getOtherTeamId(freshDraft.match, actingTeamId),
-        phase: totalBansAfter >= 4 ? "ENDMAP" : "BAN",
+        phase: totalBansAfter >= 4 ? "PLAYING" : "BAN",
         phaseStartedAt: new Date(),
       },
       include: {
@@ -663,12 +663,33 @@ const banHero = async (draftId, payload, user) => {
   });
 };
 
+const endGame = async (draftId, user) => {
+  ensureManagerRole(user);
+  const draft = await getDraftByIdOrThrow(draftId);
+
+  if (draft.phase !== "PLAYING") {
+    throw new Error("Draft must be in PLAYING phase to end game.");
+  }
+
+  return prisma.draftTable.update({
+    where: { id: draft.id },
+    data: {
+      phase: "ENDMAP",
+      phaseStartedAt: new Date(),
+    },
+    include: {
+      actions: { orderBy: { order: "asc" } },
+      match: true,
+    },
+  });
+};
+
 const endMap = async (draftId, user) => {
   ensureManagerRole(user);
   const draft = await getDraftByIdOrThrow(draftId);
 
-  if (draft.phase !== "BAN" && draft.phase !== "ENDMAP") {
-    throw new Error("Draft phase must be BAN or ENDMAP to end map.");
+  if (draft.phase !== "BAN" && draft.phase !== "PLAYING") {
+    throw new Error("Draft phase must be BAN or PLAYING to end map.");
   }
 
   return prisma.$transaction(async (tx) => {
@@ -787,6 +808,7 @@ module.exports = {
   pickMap,
   startBan,
   banHero,
+  endGame,
   endMap,
   getDraftState,
   getDraftStateReadOnly,
