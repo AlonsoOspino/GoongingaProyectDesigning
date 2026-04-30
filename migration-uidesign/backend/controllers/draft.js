@@ -25,7 +25,7 @@ const getAllowedMapTypes = (gameNumber) => {
   const requiredType = mapOrder[(safeGameNumber - 1) % 5];
 
   if (safeGameNumber === 5) {
-    return ["FLASHPOINT", "CONTROL"];
+    return ["CONTROL"];
   }
 
   return requiredType ? [requiredType] : ["CONTROL"];
@@ -110,6 +110,15 @@ const getAvailableMaps = async ({ match, pickedMapIds }) => {
   // Current game is gameNumber+1 (gameNumber is last completed game, 0 at start)
   const currentGame = (match.gameNumber || 0) + 1;
   const poolIds = parseAllowedMapPool(match.mapsAllowedByRound, currentGame);
+
+  if (currentGame === 5) {
+    return prisma.map.findMany({
+      where: {
+        id: { notIn: pickedMapIds },
+      },
+      orderBy: { id: "asc" },
+    });
+  }
 
   if (poolIds) {
     return prisma.map.findMany({
@@ -443,11 +452,11 @@ const pickMap = async (draftId, payload, user) => {
     throw new Error("Map not found.");
   }
 
-  if (poolIds && !poolIds.includes(mapId)) {
+  if (currentGame !== 5 && poolIds && !poolIds.includes(mapId)) {
     throw new Error(`Map ${mapId} is not allowed for round ${getRoundKey(currentGame)}.`);
   }
 
-  if (!poolIds && !allowedTypes.includes(map.type)) {
+  if (currentGame !== 5 && !poolIds && !allowedTypes.includes(map.type)) {
     throw new Error(`Invalid map type. Allowed for game ${currentGame}: ${allowedTypes.join(", ")}.`);
   }
 
@@ -731,8 +740,20 @@ const buildDraftState = async (draft) => {
   };
 };
 
+// Helper to authorize manager role or URL key
+const isAuthorizedByManagerOrKey = (req) => {
+  if (!req) return false;
+  if (req.user && (req.user.role === "MANAGER" || req.user.role === "ADMIN")) return true;
+  const key = (req.query && req.query.key) || req.headers["x-draft-key"];
+  const expected = process.env.DRAFT_TABLE_MANAGER_KEY;
+  return key && expected && String(key) === String(expected);
+};
+
 // Read-only draft state for polling: does NOT apply timeouts or mutate DB.
-const getDraftStateReadOnly = async (draftId) => {
+const getDraftStateReadOnly = async (draftId, req) => {
+  if (!isAuthorizedByManagerOrKey(req)) {
+    throw new Error("Forbidden: managers only or provide valid key.");
+  }
   const draft = await getDraftByIdOrThrow(draftId);
   return buildDraftState(draft);
 };
@@ -743,7 +764,7 @@ const getDraftState = async (draftId) => {
   return buildDraftState(draft);
 };
 
-const getDraftByMatchId = async (matchId) => {
+const getDraftByMatchId = async (matchId, req) => {
   const parsedMatchId = assertPositiveInt(matchId, "matchId");
 
   const draft = await prisma.draftTable.findUnique({
@@ -758,7 +779,7 @@ const getDraftByMatchId = async (matchId) => {
     throw new Error("Draft not found for this match.");
   }
 
-  return getDraftStateReadOnly(draft.id);
+  return getDraftStateReadOnly(draft.id, req);
 };
 
 module.exports = {

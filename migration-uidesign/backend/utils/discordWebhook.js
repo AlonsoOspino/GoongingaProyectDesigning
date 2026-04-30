@@ -131,7 +131,7 @@ async function sendDiscordMatchScheduled({
   // Generate VS image URL with cache-busting so Discord refreshes the image
   const cacheKey = startDate ? new Date(startDate).getTime() : Date.now();
   const vsImageUrl = `${appUrl}/match/${teamAId}/${teamBId}/vs-image?v=${cacheKey}`;
-
+bo
   const payload = {
     content: mentions
       ? `${mentions} ⚔ Your match has been scheduled`

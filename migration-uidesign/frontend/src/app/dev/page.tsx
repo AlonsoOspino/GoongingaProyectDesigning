@@ -171,15 +171,15 @@ export default function DevPage() {
                     </div>
                     <div className="bg-white rounded px-2 py-1.5 border border-orange-200">
                       <div className="font-bold text-orange-700">Game 4</div>
-                      <div className="text-slate-500">PUSH</div>
+                      <div className="text-slate-500">PUSH + FLASHPOINT</div>
                     </div>
                     <div className="bg-white rounded px-2 py-1.5 border border-orange-200">
                       <div className="font-bold text-orange-700">Game 5</div>
-                      <div className="text-slate-500">FLASH/CTRL</div>
+                      <div className="text-slate-500">CONTROL again</div>
                     </div>
                   </div>
                   <p className="text-xs text-slate-500">
-                    Game 5 allows either FLASHPOINT or CONTROL. Maps already picked in the match cannot be selected again.
+                    Game 5 uses CONTROL again and can only show maps that have not been picked earlier in the match.
                   </p>
                 </div>
 

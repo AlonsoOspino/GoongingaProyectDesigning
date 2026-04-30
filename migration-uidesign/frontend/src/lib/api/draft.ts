@@ -49,10 +49,12 @@ export async function endMap(token: string, draftId: number) {
   });
 }
 
-export async function getDraftState(draftId: number) {
-  return apiRequest<DraftState>(`/draft/${draftId}/state`);
+export async function getDraftState(draftId: number, key?: string) {
+  const suffix = key ? `?key=${encodeURIComponent(key)}` : "";
+  return apiRequest<DraftState>(`/draft/${draftId}/state${suffix}`);
 }
 
-export async function getDraftByMatchId(matchId: number) {
-  return apiRequest<DraftState>(`/draft/by-match/${matchId}`);
+export async function getDraftByMatchId(matchId: number, key?: string) {
+  const suffix = key ? `?key=${encodeURIComponent(key)}` : "";
+  return apiRequest<DraftState>(`/draft/by-match/${matchId}${suffix}`);
 }

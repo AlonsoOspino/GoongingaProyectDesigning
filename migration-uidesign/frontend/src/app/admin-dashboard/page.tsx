@@ -356,9 +356,9 @@ function MatchesSection({ token }: { token: string }) {
     mapsByType[map.type].push(map);
   }
 
-  // Round map types guide: 1=CONTROL, 2=HYBRID, 3=PAYLOAD, 4=PUSH, 5=FLASHPOINT/CONTROL
+  // Round map types guide: 1=CONTROL, 2=HYBRID, 3=PAYLOAD, 4=PUSH + FLASHPOINT, 5=CONTROL again
   const roundMapTypes: Record<string, string[]> = {
-    "1": ["CONTROL"], "2": ["HYBRID"], "3": ["PAYLOAD"], "4": ["PUSH"], "5": ["FLASHPOINT", "CONTROL"],
+    "1": ["CONTROL"], "2": ["HYBRID"], "3": ["PAYLOAD"], "4": ["PUSH", "FLASHPOINT"], "5": ["CONTROL"],
   };
 
   function toggleMapForRound(round: string, mapId: number) {
@@ -765,7 +765,7 @@ function WeekMapsSection({ token }: { token: string }) {
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   const roundMapTypes: Record<string, string[]> = {
-    "1": ["CONTROL"], "2": ["HYBRID"], "3": ["PAYLOAD"], "4": ["PUSH"], "5": ["FLASHPOINT", "CONTROL"],
+    "1": ["CONTROL"], "2": ["HYBRID"], "3": ["PAYLOAD"], "4": ["PUSH", "FLASHPOINT"], "5": ["CONTROL"],
   };
 
   const showNotif = (type: "success" | "error", message: string) => {

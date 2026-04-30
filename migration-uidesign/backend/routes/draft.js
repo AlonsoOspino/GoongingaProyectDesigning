@@ -53,10 +53,10 @@ router.patch(
 	handle((req) => draftController.endMap(req.params.id, req.user))
 );
 		// Polling clients should use the read-only state to avoid accidental writes
-		router.get("/:id/state", handle((req) => draftController.getDraftStateReadOnly(req.params.id)));
-router.get(
-	"/by-match/:matchId",
-	handle((req) => draftController.getDraftByMatchId(req.params.matchId))
-);
+			router.get("/:id/state", handle((req) => draftController.getDraftStateReadOnly(req.params.id, req)));
+	router.get(
+		"/by-match/:matchId",
+		handle((req) => draftController.getDraftByMatchId(req.params.matchId, req))
+	);
 
 module.exports = router;

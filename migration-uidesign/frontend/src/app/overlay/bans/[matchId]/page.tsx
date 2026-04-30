@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { getDraftByMatchId } from "@/lib/api/draft";
 import { getTeams } from "@/lib/api";
 import type { DraftState, Team } from "@/lib/api/types";
@@ -13,6 +13,8 @@ const POLL_INTERVAL = 3000;
 export default function BansOverlayPage() {
   const params = useParams();
   const matchId = Number(params.matchId);
+  const searchParams = useSearchParams();
+  const urlKey = searchParams?.get("key");
 
   const [draftState, setDraftState] = useState<DraftState | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -47,10 +49,10 @@ export default function BansOverlayPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [draft, teamsList] = await Promise.all([
-          getDraftByMatchId(matchId),
-          getTeams(),
-        ]);
+          const [draft, teamsList] = await Promise.all([
+            getDraftByMatchId(matchId, urlKey ?? undefined),
+            getTeams(),
+          ]);
         setDraftState(draft);
         setTeams(teamsList);
       } catch (err) {

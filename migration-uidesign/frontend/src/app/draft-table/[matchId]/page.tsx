@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "@/features/session/SessionProvider";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -40,6 +40,8 @@ export default function DraftTablePage() {
   const params = useParams();
   const router = useRouter();
   const { user, token, isAuthenticated, isHydrated } = useSession();
+  const searchParams = useSearchParams();
+  const urlKey = searchParams?.get("key");
 
   const matchId = Number(params.matchId);
 
@@ -85,7 +87,7 @@ export default function DraftTablePage() {
       setLoading(false);
       return;
     }
-    if (!isAuthenticated) {
+    if (!isAuthenticated && !urlKey) {
       setError("You need to log in to access the draft table.");
       setLoading(false);
       return;
@@ -161,7 +163,7 @@ export default function DraftTablePage() {
   async function loadData() {
     try {
       const [draft, teamsData] = await Promise.all([
-        getDraftByMatchId(matchId),
+        getDraftByMatchId(matchId, urlKey ?? undefined),
         getTeams(),
       ]);
       setDraftState(draft);
@@ -177,7 +179,7 @@ export default function DraftTablePage() {
   async function fetchDraftState() {
     if (!draftId) return;
     try {
-      const draft = await getDraftState(draftId);
+      const draft = await getDraftState(draftId, urlKey ?? undefined);
       setDraftState(draft);
     } catch (err) {
       console.error("Failed to fetch draft state:", err);
