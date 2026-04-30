@@ -65,12 +65,21 @@ export default function BansOverlayPage() {
         setDraftState(draft);
         setTeams(teamsList);
         
-        // Fetch leaderboard and all matches for the same week
+        // Fetch leaderboard and matches based on tournament phase
         if (draft && draft.match?.tournamentId) {
+          const isPlayoffs = draft.match.type === "PLAYOFFS";
+          const isPlayins = draft.match.type === "PLAYINS";
           const week = draft.match.semanas || 1;
+          
+          // Build query parameters based on match type
+          const matchType = isPlayoffs ? "PLAYOFFS" : isPlayins ? "PLAYINS" : null;
+          const apiPromise = matchType
+            ? fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/match?tournamentId=${draft.match.tournamentId}&type=${matchType}`).then(r => r.json())
+            : getMatchesByWeek(draft.match.tournamentId, week);
+          
           const [leaderboardData, matchesData] = await Promise.all([
             getLeaderboard(draft.match.tournamentId),
-            getMatchesByWeek(draft.match.tournamentId, week),
+            apiPromise,
           ]);
           setLeaderboard(leaderboardData);
           setMatches(matchesData);
@@ -273,14 +282,15 @@ function PrematchOverlay({
       {/* RIGHT SIDE - TOURNAMENT HEADER & FEATURED MATCH */}
       <div className={styles.prematchRight}>
         {/* Tournament Badge */}
-        <div className={styles.prematchTournamentBadge}>
-          <div className={styles.prematchBadgeCircle}>
-            <div className={styles.prematchBadgeText}>
-              GGL
-              <br />
-              {getTournamentAbbr(draftState.match.toString())}
-            </div>
-          </div>
+        <div className={styles.prematchBadgeText}>
+          <br />
+          <span className={styles.prematchBadgeWeek}>
+            {draftState.match?.type === "PLAYOFFS"
+              ? "PLAYOFFS"
+              : draftState.match?.type === "PLAYINS"
+                ? "PLAYINS"
+                : `Week ${draftState.match?.semanas || 1}`}
+          </span>
         </div>
 
         {/* Week Matches */}

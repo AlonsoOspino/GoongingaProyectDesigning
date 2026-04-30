@@ -16,10 +16,10 @@ const getById = async (req, res) => {
 
 const getAll = async (req, res) => {
   try {
-    const { tournamentId, semanas } = req.query;
+    const { tournamentId, semanas, type } = req.query;
     const parsedTournamentId = tournamentId ? Number(tournamentId) : null;
     const parsedSemanas = semanas ? Number(semanas) : null;
-    const matches = await matchService.getAll(parsedTournamentId, parsedSemanas);
+    const matches = await matchService.getAll(parsedTournamentId, parsedSemanas, type);
     res.json(matches);
   } catch (err) {
     res.status(500).json({ message: err.message });
