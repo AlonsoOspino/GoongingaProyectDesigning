@@ -217,8 +217,8 @@
 
 .prematchLeft {
   position: absolute;
-  left: 3rem;
-  top: 12rem;
+  left: 9.8rem;
+  top: 16.6rem;
   max-width: 400px;
   display: flex;
   flex-direction: column;
@@ -295,13 +295,14 @@
 .prematchTableBody {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  row-gap: 0.182rem;
 }
 
 .prematchTableRow {
   display: grid;
   grid-template-columns: 1fr 90px 90px;
-  gap: 1rem;
+  column-gap: 0.4rem;
+  row-gap: 1rem;
   align-items: center;
   padding: 0.25rem 0;
   border-radius: 0;
@@ -316,25 +317,24 @@
 .prematchTeamCell {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
 }
 
 .prematchTeamIcon {
-  width: 28px;
-  height: 28px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  border-radius: 9999px;
+
   background: rgba(0, 0, 0, 0.45);
 }
 
 .prematchTeamLogo {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  border-radius: 9999px;
+  
 }
 
 .prematchTeamLogoPlaceholder {
@@ -347,7 +347,6 @@
   font-size: 10px;
   font-weight: 800;
   background: rgba(0, 0, 0, 0.45);
-  border-radius: 9999px;
 }
 
 .prematchTeamName {
@@ -360,10 +359,11 @@
 .prematchWlCell,
 .prematchMapCell {
   color: #ffffff;
-  font-size: 27px; /* match team name scale */
-  font-weight: 1000;
+  font-size: 25px; /* match team name scale */
+  font-weight: 650;
   text-align: center;
   text-shadow: none;
+  font-family: big_noodle_titling, sans-serif; /* use the custom font for W/L and Map record */
 }
 
 .prematchTournamentBadge {
@@ -400,6 +400,45 @@
   padding: 2rem;
   border-radius: 8px;
   backdrop-filter: blur(4px);
+}
+
+.prematchWeekMatches {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-height: 500px;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 1.5rem;
+  border-radius: 8px;
+  backdrop-filter: blur(4px);
+}
+
+.prematchMatchRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.prematchMatchCenter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 80px;
+  text-align: center;
+}
+
+.prematchScore {
+  color: #fbbf24;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.8);
 }
 
 .prematchMatchTeam {

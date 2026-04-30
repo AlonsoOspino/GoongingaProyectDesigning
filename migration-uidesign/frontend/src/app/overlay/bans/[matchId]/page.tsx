@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { getDraftByMatchId } from "@/lib/api/draft";
-import { getTeams, getLeaderboard } from "@/lib/api";
-import type { DraftState, Team } from "@/lib/api/types";
+import { getTeams, getLeaderboard, getMatchesByWeek } from "@/lib/api";
+import type { DraftState, Team, Match } from "@/lib/api/types";
 import { resolveHeroImageUrl, resolveMapImageUrl, resolveGenericBackendAsset } from "@/lib/assetUrls";
 import styles from "../overlay.module.css";
 
@@ -19,6 +19,7 @@ export default function BansOverlayPage() {
   const [draftState, setDraftState] = useState<DraftState | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
   const [leaderboard, setLeaderboard] = useState<Team[]>([]);
+  const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
 
   const teamA = teams.find((t) => t.id === draftState?.match?.teamAId);
@@ -64,10 +65,15 @@ export default function BansOverlayPage() {
         setDraftState(draft);
         setTeams(teamsList);
         
-        // Fetch leaderboard for STARTING phase
+        // Fetch leaderboard and all matches for the same week
         if (draft && draft.match?.tournamentId) {
-          const leaderboardData = await getLeaderboard(draft.match.tournamentId);
+          const week = draft.match.semanas || 1;
+          const [leaderboardData, matchesData] = await Promise.all([
+            getLeaderboard(draft.match.tournamentId),
+            getMatchesByWeek(draft.match.tournamentId, week),
+          ]);
           setLeaderboard(leaderboardData);
+          setMatches(matchesData);
         }
       } catch (err) {
         console.error("Failed to load overlay data:", err);
@@ -91,7 +97,7 @@ export default function BansOverlayPage() {
 
   // Render STARTING phase - Standings view
   if (draftState.phase === "STARTING") {
-    return <PrematchOverlay draftState={draftState} teams={teams} leaderboard={leaderboard} getTeamAbbr={getTeamAbbr} getTournamentAbbr={getTournamentAbbr} />;
+    return <PrematchOverlay draftState={draftState} teams={teams} leaderboard={leaderboard} matches={matches} getTeamAbbr={getTeamAbbr} getTournamentAbbr={getTournamentAbbr} />;
   }
 
   // Render BAN phase and other phases - Bans view
@@ -206,12 +212,14 @@ function PrematchOverlay({
   draftState,
   teams,
   leaderboard,
+  matches,
   getTeamAbbr,
   getTournamentAbbr,
 }: {
   draftState: DraftState;
   teams: Team[];
   leaderboard: Team[];
+  matches: Match[];
   getTeamAbbr: (name: string) => string;
   getTournamentAbbr: (name: string) => string;
 }) {
@@ -225,9 +233,7 @@ function PrematchOverlay({
         {/* Tournament Header */}
         <div className={styles.prematchTournamentHeader}>
           <div className={styles.prematchTournamentTitle}>
-            {getTournamentAbbr(draftState.match.toString())}
           </div>
-          <div className={styles.prematchStandingsLabel}>STANDINGS</div>
         </div>
 
         {/* Leaderboard Table */}
@@ -253,9 +259,8 @@ function PrematchOverlay({
                       <div className={styles.prematchTeamLogoPlaceholder} aria-hidden="true" />
                     )}
                   </div>
-                  <span className={styles.prematchTeamName}>{getTeamAbbr(team.name)}</span>
                 </div>
-                <div className={styles.prematchWlCell}>{team.victories}-{team.defeats}</div>
+                <div className={styles.prematchWlCell}>&nbsp;&nbsp;{team.victories}-{team.defeats}</div>
                 <div className={styles.prematchMapCell}>
                   {team.mapWins}-{team.mapLoses}
                 </div>
@@ -278,31 +283,50 @@ function PrematchOverlay({
           </div>
         </div>
 
-        {/* Featured Match */}
-        <div className={styles.prematchFeaturedMatch}>
-          <div className={styles.prematchMatchTeam}>
-            <div className={styles.prematchMatchTeamLogo}>
-              {teamA?.logo ? (
-                <img src={resolveGenericBackendAsset(teamA.logo)} alt={teamA.name} />
-              ) : (
-                <div className={styles.prematchTeamLogoPlaceholder} aria-hidden="true" />
-              )}
-            </div>
-            <div className={styles.prematchMatchTeamAbbrA}>{getTeamAbbr(teamA?.name || "")}</div>
-          </div>
+        {/* Week Matches */}
+        <div className={styles.prematchWeekMatches}>
+          {matches.map((match) => {
+            const matchTeamA = teams.find((t) => t.id === match.teamAId);
+            const matchTeamB = teams.find((t) => t.id === match.teamBId);
+            
+            // Determine if score should be shown
+            const isFinished = match.status === "PENDINGREGISTERS" || match.status === "FINISHED";
+            const scoreDisplay = `${match.mapWinsTeamA}-${match.mapWinsTeamB}`;
+            
+            return (
+              <div key={match.id} className={styles.prematchMatchRow}>
+                <div className={styles.prematchMatchTeam}>
+                  <div className={styles.prematchMatchTeamLogo}>
+                    {matchTeamA?.logo ? (
+                      <img src={resolveGenericBackendAsset(matchTeamA.logo)} alt={matchTeamA.name} />
+                    ) : (
+                      <div className={styles.prematchTeamLogoPlaceholder} aria-hidden="true" />
+                    )}
+                  </div>
+                  <div className={styles.prematchMatchTeamAbbrA}>{getTeamAbbr(matchTeamA?.name || "")}</div>
+                </div>
 
-          <div className={styles.prematchMatchVersus}>VS</div>
+                <div className={styles.prematchMatchCenter}>
+                  {isFinished ? (
+                    <div className={styles.prematchScore}>{scoreDisplay}</div>
+                  ) : (
+                    <div className={styles.prematchMatchVersus}>VS</div>
+                  )}
+                </div>
 
-          <div className={styles.prematchMatchTeam}>
-            <div className={styles.prematchMatchTeamAbbrB}>{getTeamAbbr(teamB?.name || "")}</div>
-            <div className={styles.prematchMatchTeamLogo}>
-              {teamB?.logo ? (
-                <img src={resolveGenericBackendAsset(teamB.logo)} alt={teamB.name} />
-              ) : (
-                <div className={styles.prematchTeamLogoPlaceholder} aria-hidden="true" />
-              )}
-            </div>
-          </div>
+                <div className={styles.prematchMatchTeam}>
+                  <div className={styles.prematchMatchTeamAbbrB}>{getTeamAbbr(matchTeamB?.name || "")}</div>
+                  <div className={styles.prematchMatchTeamLogo}>
+                    {matchTeamB?.logo ? (
+                      <img src={resolveGenericBackendAsset(matchTeamB.logo)} alt={matchTeamB.name} />
+                    ) : (
+                      <div className={styles.prematchTeamLogoPlaceholder} aria-hidden="true" />
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

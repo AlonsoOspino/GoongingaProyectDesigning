@@ -100,8 +100,11 @@ const getById = async (id) => {
   return await matchRepo.findById(id);
 };
 
-const getAll = async () => {
-  return await matchRepo.findAll();
+const getAll = async (tournamentId, semanas) => {
+  const where = {};
+  if (tournamentId) where.tournamentId = tournamentId;
+  if (semanas) where.semanas = semanas;
+  return await matchRepo.findAll(Object.keys(where).length > 0 ? { where } : {});
 };
 const create = async (data) => {
   const normalizedData = { ...data };

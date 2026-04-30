@@ -5,6 +5,14 @@ export async function getMatches() {
   return apiRequest<Match[]>("/match");
 }
 
+export async function getMatchesByTournament(tournamentId: number) {
+  return apiRequest<Match[]>(`/match?tournamentId=${tournamentId}`);
+}
+
+export async function getMatchesByWeek(tournamentId: number, week: number) {
+  return apiRequest<Match[]>(`/match?tournamentId=${tournamentId}&semanas=${week}`);
+}
+
 export async function getSoonestMatch() {
   return apiRequest<Match>("/match/soonest");
 }
