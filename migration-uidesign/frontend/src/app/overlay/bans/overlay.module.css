@@ -1,9 +1,8 @@
 
-
 .container {
   position: fixed;
   inset: 0;
-
+  font-size: 16px;
   background: transparent !important;
 
   display: flex;
@@ -13,6 +12,9 @@
   padding: 16px;
   box-sizing: border-box;
   overflow: hidden;
+}
+.container img {
+  display: block;
 }
 
 /* ---------- SHARED ---------- */
@@ -235,6 +237,7 @@
   align-items: center;
   column-gap: 3rem;
   row-gap: 1.7rem;
+  transform: translateZ(0);
 }
 
 .prematchTournamentHeader {
