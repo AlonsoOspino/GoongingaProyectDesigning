@@ -9,6 +9,8 @@ interface UseDraftPollingOptions {
   draftId: number | null;
   pollInterval?: number;
   enabled?: boolean;
+  token?: string;
+  key?: string;
 }
 
 interface UseDraftPollingResult {
@@ -57,6 +59,8 @@ export function useDraftPolling({
   draftId,
   pollInterval = 3000,
   enabled = true,
+  token,
+  key,
 }: UseDraftPollingOptions): UseDraftPollingResult {
   const [draftState, setDraftState] = useState<DraftState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -67,7 +71,7 @@ export function useDraftPolling({
     if (!draftId) return;
 
     try {
-      const state = await getDraftState(draftId);
+      const state = await getDraftState(draftId, { token, key });
 
       // Avoid tiny backend timestamp drift resetting the client timer.
       // If phase didn't change and the new phaseStartedAt differs from
@@ -101,7 +105,7 @@ export function useDraftPolling({
     } finally {
       setLoading(false);
     }
-  }, [draftId]);
+  }, [draftId, token, key]);
 
   // Initial fetch and polling
   useEffect(() => {

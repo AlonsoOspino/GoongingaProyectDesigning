@@ -740,19 +740,17 @@ const buildDraftState = async (draft) => {
   };
 };
 
-// Helper to authorize manager role or URL key
-const isAuthorizedByManagerOrKey = (req) => {
-  if (!req) return false;
-  if (req.user && (req.user.role === "MANAGER" || req.user.role === "ADMIN")) return true;
-  const key = (req.query && req.query.key) || req.headers["x-draft-key"];
+const isAuthorizedByUserOrKey = (req) => {
+  if (req?.user) return true;
+  const key = req?.query?.key || req?.headers?.["x-draft-key"];
   const expected = process.env.DRAFT_TABLE_MANAGER_KEY;
-  return key && expected && String(key) === String(expected);
+  return Boolean(key && expected && String(key) === String(expected));
 };
 
 // Read-only draft state for polling: does NOT apply timeouts or mutate DB.
 const getDraftStateReadOnly = async (draftId, req) => {
-  if (!isAuthorizedByManagerOrKey(req)) {
-    throw new Error("Forbidden: managers only or provide valid key.");
+  if (!isAuthorizedByUserOrKey(req)) {
+    throw new Error("Forbidden: provide login token or valid key.");
   }
   const draft = await getDraftByIdOrThrow(draftId);
   return buildDraftState(draft);

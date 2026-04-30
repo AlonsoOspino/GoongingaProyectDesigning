@@ -10,7 +10,7 @@ export async function getLiveHubSnapshot(params: LiveHubParams): Promise<LiveHub
     getSoonestMatch().catch(() => null),
     getActiveMatches().catch(() => []),
     getMyPlayerStats(params.token).catch(() => []),
-    Promise.all((params.draftIds ?? []).map((id) => getDraftState(id))),
+    Promise.all((params.draftIds ?? []).map((id) => getDraftState(id, { token: params.token }))),
   ]);
 
   return {

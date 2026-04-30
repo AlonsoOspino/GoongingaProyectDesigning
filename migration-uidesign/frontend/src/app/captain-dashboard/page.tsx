@@ -109,7 +109,7 @@ export default function CaptainDashboardPage() {
         const activeMyMatches = myMatches.filter((m) => m.status === "ACTIVE");
       const draftPromises = activeMyMatches.map(async (match) => {
         try {
-          const draft = await getDraftByMatchId(match.id);
+          const draft = await getDraftByMatchId(match.id, { token: token ?? undefined });
           return { matchId: match.id, draft };
         } catch {
           return { matchId: match.id, draft: null };

@@ -76,12 +76,12 @@ const getByMatchId = async (req, res) => {
     if (!Number.isFinite(matchId) || matchId <= 0) {
       return res.status(400).json({ message: "Invalid matchId" });
     }
-    // Authorization: allow if user is manager/admin, or if valid key provided in query/header
-    const isManager = req.user && (req.user.role === "MANAGER" || req.user.role === "ADMIN");
+    // Authorization: allow authenticated users or valid key in query/header.
+    const isAuthenticatedUser = Boolean(req.user);
     const key = req.query?.key || req.headers["x-draft-key"];
     const expected = process.env.DRAFT_TABLE_MANAGER_KEY;
-    if (!isManager && !(key && expected && String(key) === String(expected))) {
-      return res.status(403).json({ message: "Forbidden: managers only or valid key required" });
+    if (!isAuthenticatedUser && !(key && expected && String(key) === String(expected))) {
+      return res.status(403).json({ message: "Forbidden: provide login token or valid key" });
     }
     const draft = await draftTableService.findByMatchId(matchId);
     if (!draft) {

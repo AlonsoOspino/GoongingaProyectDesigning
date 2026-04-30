@@ -210,7 +210,7 @@ export default function ManagerDashboardPage() {
         const activeMatches = matchesData.filter((m) => m.status === "ACTIVE");
       const draftPromises = activeMatches.map(async (match) => {
         try {
-          const draft = await getDraftByMatchId(match.id);
+          const draft = await getDraftByMatchId(match.id, { token: token ?? undefined });
           return { matchId: match.id, draft };
         } catch {
           return { matchId: match.id, draft: null };

@@ -93,7 +93,7 @@ export default function DraftTablePage() {
       return;
     }
     loadData();
-  }, [isHydrated, isAuthenticated, matchId]);
+  }, [isHydrated, isAuthenticated, matchId, urlKey]);
 
   useEffect(() => {
     if (!draftState || currentPhase === "FINISHED") return;
@@ -163,7 +163,7 @@ export default function DraftTablePage() {
   async function loadData() {
     try {
       const [draft, teamsData] = await Promise.all([
-        getDraftByMatchId(matchId, urlKey ?? undefined),
+        getDraftByMatchId(matchId, { key: urlKey ?? undefined, token: token ?? undefined }),
         getTeams(),
       ]);
       setDraftState(draft);
@@ -179,7 +179,7 @@ export default function DraftTablePage() {
   async function fetchDraftState() {
     if (!draftId) return;
     try {
-      const draft = await getDraftState(draftId, urlKey ?? undefined);
+      const draft = await getDraftState(draftId, { key: urlKey ?? undefined, token: token ?? undefined });
       setDraftState(draft);
     } catch (err) {
       console.error("Failed to fetch draft state:", err);

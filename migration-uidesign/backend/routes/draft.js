@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const draftController = require("../controllers/draft");
 const authMiddleware = require("../middlewares/authMiddleware");
+const optionalAuth = require("../middlewares/optionalAuth");
 
 const handle = (fn) => async (req, res) => {
 	try {
@@ -53,9 +54,10 @@ router.patch(
 	handle((req) => draftController.endMap(req.params.id, req.user))
 );
 		// Polling clients should use the read-only state to avoid accidental writes
-			router.get("/:id/state", handle((req) => draftController.getDraftStateReadOnly(req.params.id, req)));
+			router.get("/:id/state", optionalAuth, handle((req) => draftController.getDraftStateReadOnly(req.params.id, req)));
 	router.get(
 		"/by-match/:matchId",
+		optionalAuth,
 		handle((req) => draftController.getDraftByMatchId(req.params.matchId, req))
 	);
 

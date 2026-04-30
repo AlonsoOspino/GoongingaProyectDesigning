@@ -1,6 +1,23 @@
 import { apiRequest } from "@/lib/api/client";
 import type { DraftState } from "@/lib/api/types";
 
+type DraftReadAccess =
+  | string
+  | {
+      key?: string;
+      token?: string;
+    };
+
+function resolveDraftReadAccess(access?: DraftReadAccess) {
+  if (typeof access === "string") {
+    return { key: access, token: undefined as string | undefined };
+  }
+  return {
+    key: access?.key,
+    token: access?.token,
+  };
+}
+
 export async function createDraft(token: string, matchId: number) {
   return apiRequest<DraftState>(`/draft/${matchId}`, {
     method: "POST",
@@ -49,12 +66,14 @@ export async function endMap(token: string, draftId: number) {
   });
 }
 
-export async function getDraftState(draftId: number, key?: string) {
+export async function getDraftState(draftId: number, access?: DraftReadAccess) {
+  const { key, token } = resolveDraftReadAccess(access);
   const suffix = key ? `?key=${encodeURIComponent(key)}` : "";
-  return apiRequest<DraftState>(`/draft/${draftId}/state${suffix}`);
+  return apiRequest<DraftState>(`/draft/${draftId}/state${suffix}`, { token });
 }
 
-export async function getDraftByMatchId(matchId: number, key?: string) {
+export async function getDraftByMatchId(matchId: number, access?: DraftReadAccess) {
+  const { key, token } = resolveDraftReadAccess(access);
   const suffix = key ? `?key=${encodeURIComponent(key)}` : "";
-  return apiRequest<DraftState>(`/draft/by-match/${matchId}${suffix}`);
+  return apiRequest<DraftState>(`/draft/by-match/${matchId}${suffix}`, { token });
 }

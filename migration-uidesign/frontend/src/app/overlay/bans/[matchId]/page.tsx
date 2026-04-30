@@ -50,7 +50,7 @@ export default function BansOverlayPage() {
     const loadData = async () => {
       try {
           const [draft, teamsList] = await Promise.all([
-            getDraftByMatchId(matchId, urlKey ?? undefined),
+            getDraftByMatchId(matchId, { key: urlKey ?? undefined }),
             getTeams(),
           ]);
         setDraftState(draft);
@@ -65,7 +65,7 @@ export default function BansOverlayPage() {
     loadData();
     const interval = setInterval(loadData, POLL_INTERVAL);
     return () => clearInterval(interval);
-  }, [matchId]);
+  }, [matchId, urlKey]);
 
   if (loading || !draftState || !teamA || !teamB) {
     return (

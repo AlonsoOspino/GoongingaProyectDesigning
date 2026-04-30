@@ -4,6 +4,7 @@ const draftTableController = require("../controllers/draftTable");
 const adminMiddleware = require("../middlewares/admin");
 const managerMiddleware = require("../middlewares/manager");
 const authMiddleware = require("../middlewares/authMiddleware");
+const optionalAuth = require("../middlewares/optionalAuth");
 
 // Admin routes
 router.post("/admin/create", authMiddleware, adminMiddleware, draftTableController.adminCreate);
@@ -16,5 +17,5 @@ router.put("/manager/update/:id", authMiddleware, managerMiddleware, draftTableC
 router.get("/", draftTableController.getAll);
 
 // Public get draft table by matchId
-router.get("/by-match/:matchId", draftTableController.getByMatchId);
+router.get("/by-match/:matchId", optionalAuth, draftTableController.getByMatchId);
 module.exports = router;
