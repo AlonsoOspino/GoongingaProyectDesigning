@@ -117,6 +117,7 @@ model Team {
   state  TeamState @default(ACTIVE)
 
   victories Int @default(0)
+  defeats   Int @default(0)
   mapWins   Int @default(0)
   mapLoses  Int @default(0)
 

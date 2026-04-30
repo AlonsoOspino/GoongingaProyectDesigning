@@ -217,8 +217,8 @@
 
 .prematchLeft {
   position: absolute;
-  left: 2rem;
-  top: 2rem;
+  left: 3rem;
+  top: 12rem;
   max-width: 400px;
   display: flex;
   flex-direction: column;
@@ -262,27 +262,27 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  background: rgba(0, 0, 0, 0.4);
-  padding: 1rem;
-  border-radius: 6px;
-  backdrop-filter: blur(4px);
+  background: transparent; /* removed colored boxes */
+  padding: 0.25rem 0; /* reduce padding since no boxes */
+  border-radius: 0;
+  backdrop-filter: none;
 }
 
 .prematchTableHeader {
   display: grid;
-  grid-template-columns: 1fr 80px 80px;
+  grid-template-columns: 1fr 90px 90px;
   gap: 1rem;
-  padding: 0.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  margin-bottom: 0.5rem;
+  padding: 0.25rem 0;
+  border-bottom: none;
+  margin-bottom: 0.25rem;
 }
 
 .prematchTeamColumn,
 .prematchWlColumn,
 .prematchMapColumn {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 11px;
-  font-weight: 700;
+  color: #ffffff; /* plain white */
+  font-size: 15px; /* larger header text */
+  font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -300,17 +300,17 @@
 
 .prematchTableRow {
   display: grid;
-  grid-template-columns: 1fr 80px 80px;
+  grid-template-columns: 1fr 90px 90px;
   gap: 1rem;
   align-items: center;
-  padding: 0.5rem;
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.3);
-  transition: background 0.2s;
+  padding: 0.25rem 0;
+  border-radius: 0;
+  background: transparent; /* no boxes */
+  transition: none;
 }
 
 .prematchTableRow:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: transparent;
 }
 
 .prematchTeamCell {
@@ -325,15 +325,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 3px;
-  background: rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.45);
 }
 
 .prematchTeamLogo {
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  border-radius: 2px;
+  object-fit: cover;
+  border-radius: 9999px;
 }
 
 .prematchTeamLogoPlaceholder {
@@ -342,27 +343,27 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.8);
+  color: #ffffff;
   font-size: 10px;
-  font-weight: 700;
-  background: rgba(0, 0, 0, 0.7);
-  border-radius: 2px;
+  font-weight: 800;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 9999px;
 }
 
 .prematchTeamName {
-  color: white;
-  font-size: 12px;
-  font-weight: 700;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  color: #ffffff;
+  font-size: 17px; /* ~40% larger */
+  font-weight: 900;
+  text-shadow: none;
 }
 
 .prematchWlCell,
 .prematchMapCell {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 12px;
-  font-weight: 700;
+  color: #ffffff;
+  font-size: 27px; /* match team name scale */
+  font-weight: 1000;
   text-align: center;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  text-shadow: none;
 }
 
 .prematchTournamentBadge {
@@ -414,7 +415,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: 9999px;
   background: rgba(0, 0, 0, 0.6);
   overflow: hidden;
 }
@@ -422,8 +423,8 @@
 .prematchMatchTeamLogo img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  padding: 4px;
+  object-fit: cover;
+  padding: 0;
 }
 
 .prematchMatchTeamAbbrA,
@@ -440,4 +441,13 @@
   font-size: 18px;
   font-weight: 700;
   letter-spacing: 2px;
+}
+
+/* Background helper for PREMATCH image. Uses !important to override container's transparent shorthand. */
+.prematchBackground {
+  background-image: url('/PREMATCH.png') !important;
+  background-size: contain !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
+  background-color: #000 !important;
 }

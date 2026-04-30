@@ -219,15 +219,7 @@ function PrematchOverlay({
   const teamB = teams.find((t) => t.id === draftState?.match?.teamBId);
 
   return (
-    <div
-      className={styles.container}
-      style={{
-        backgroundImage: `url(/PREMATCH.png)`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
-      }}
-    >
+    <div className={`${styles.container} ${styles.prematchBackground}`}>
       {/* LEFT SIDE - STANDINGS */}
       <div className={styles.prematchLeft}>
         {/* Tournament Header */}
@@ -241,9 +233,9 @@ function PrematchOverlay({
         {/* Leaderboard Table */}
         <div className={styles.prematchLeaderboardTable}>
           <div className={styles.prematchTableHeader}>
-            <div className={styles.prematchTeamColumn}>TEAM</div>
-            <div className={styles.prematchWlColumn}>W/L</div>
-            <div className={styles.prematchMapColumn}>MAP</div>
+            <div className={styles.prematchTeamColumn}></div>
+            <div className={styles.prematchWlColumn}></div>
+            <div className={styles.prematchMapColumn}></div>
           </div>
 
           <div className={styles.prematchTableBody}>
@@ -258,12 +250,12 @@ function PrematchOverlay({
                         className={styles.prematchTeamLogo}
                       />
                     ) : (
-                      <div className={styles.prematchTeamLogoPlaceholder}>{getTeamAbbr(team.name)}</div>
+                      <div className={styles.prematchTeamLogoPlaceholder} aria-hidden="true" />
                     )}
                   </div>
                   <span className={styles.prematchTeamName}>{getTeamAbbr(team.name)}</span>
                 </div>
-                <div className={styles.prematchWlCell}>{team.victories}-2</div>
+                <div className={styles.prematchWlCell}>{team.victories}-{team.defeats}</div>
                 <div className={styles.prematchMapCell}>
                   {team.mapWins}-{team.mapLoses}
                 </div>
@@ -293,7 +285,7 @@ function PrematchOverlay({
               {teamA?.logo ? (
                 <img src={resolveGenericBackendAsset(teamA.logo)} alt={teamA.name} />
               ) : (
-                <div className={styles.prematchTeamLogoPlaceholder}>{getTeamAbbr(teamA?.name || "")}</div>
+                <div className={styles.prematchTeamLogoPlaceholder} aria-hidden="true" />
               )}
             </div>
             <div className={styles.prematchMatchTeamAbbrA}>{getTeamAbbr(teamA?.name || "")}</div>
@@ -307,7 +299,7 @@ function PrematchOverlay({
               {teamB?.logo ? (
                 <img src={resolveGenericBackendAsset(teamB.logo)} alt={teamB.name} />
               ) : (
-                <div className={styles.prematchTeamLogoPlaceholder}>{getTeamAbbr(teamB?.name || "")}</div>
+                <div className={styles.prematchTeamLogoPlaceholder} aria-hidden="true" />
               )}
             </div>
           </div>

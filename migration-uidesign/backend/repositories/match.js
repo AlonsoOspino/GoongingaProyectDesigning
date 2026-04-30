@@ -237,9 +237,15 @@ const submitResult = async (id, winnerTeamId) => {
         : null;
 
     if (isFinished && matchWinnerTeamId) {
+      const losingTeamId =
+        matchWinnerTeamId === match.teamAId ? match.teamBId : match.teamAId;
       await tx.team.update({
         where: { id: matchWinnerTeamId },
         data: { victories: { increment: 1 } },
+      });
+      await tx.team.update({
+        where: { id: losingTeamId },
+        data: { defeats: { increment: 1 } },
       });
     }
 
@@ -329,9 +335,15 @@ const undoLastResult = async (id) => {
         : null;
 
     if (match.status === "PENDINGREGISTERS" && matchWinnerTeamId) {
+      const losingTeamId =
+        matchWinnerTeamId === match.teamAId ? match.teamBId : match.teamAId;
       await tx.team.update({
         where: { id: matchWinnerTeamId },
         data: { victories: { decrement: 1 } },
+      });
+      await tx.team.update({
+        where: { id: losingTeamId },
+        data: { defeats: { decrement: 1 } },
       });
     }
 

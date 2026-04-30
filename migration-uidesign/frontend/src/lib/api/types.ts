@@ -42,6 +42,7 @@ export interface Team {
   roster?: string | null;
   discordRoleId?: string | null;
   victories: number;
+  defeats: number;
   mapWins: number;
   mapLoses: number;
   tournamentId: number;
