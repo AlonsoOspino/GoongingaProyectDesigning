@@ -1,4 +1,3 @@
-
 .container {
   position: fixed;
   inset: 0;
@@ -15,6 +14,7 @@
   backface-visibility: hidden;
   -webkit-font-smoothing: antialiased;
 }
+
 .container img {
   display: block;
 }
@@ -24,7 +24,7 @@
 .section {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 16px;
   flex: 1;
 }
 
@@ -32,14 +32,14 @@
   max-width: 450px;
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 16px;
 }
 
 .sectionRight {
   max-width: 450px;
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 16px;
   justify-content: flex-end;
 }
 
@@ -47,7 +47,7 @@
 
 .bansContainer {
   display: flex;
-  gap: .5rem;
+  gap: 8px;
 }
 
 .banSlot {
@@ -102,14 +102,14 @@
 .teamInfo {
   display:flex;
   align-items:center;
-  gap:.75rem;
+  gap:12px;
 }
 
 .teamInfoRight{
   display:flex;
   flex-direction:row-reverse;
   align-items:center;
-  gap:.75rem;
+  gap:12px;
 }
 
 .teamLogo{
@@ -122,13 +122,13 @@
 .teamDetails{
   display:flex;
   flex-direction:column;
-  gap:.25rem;
+  gap:4px;
 }
 
 .teamDetailsRight{
   display:flex;
   flex-direction:column;
-  gap:.25rem;
+  gap:4px;
   text-align:right;
 }
 
@@ -157,8 +157,8 @@
   display:flex;
   flex-direction:column;
   align-items:center;
-  gap:.75rem;
-  padding:0 2rem;
+  gap:12px;
+  padding:0 32px;
 }
 
 .mapNumber{
@@ -184,7 +184,7 @@
   display:flex;
   flex-direction:column;
   align-items:center;
-  gap:.2rem;
+  gap:3px;
 }
 
 .bestOf{
@@ -221,31 +221,31 @@
 
 .prematchLeft {
   position: absolute;
-  left: 9.8rem;
-  top: 16.6rem;
+  left: 157px;
+  top: 266px;
   max-width: 400px;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 32px;
 }
 
 .prematchRight {
   position: absolute;
-  right: 17.76rem;
-  top: 0.8rem;
+  right: 284px;
+  top: 13px;
   max-width: 500px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  column-gap: 3rem;
-  row-gap: 1.7rem;
+  column-gap: 48px;
+  row-gap: 27px;
   transform: translateZ(0);
 }
 
 .prematchTournamentHeader {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 8px;
 }
 
 .prematchTournamentTitle {
@@ -267,9 +267,9 @@
 .prematchLeaderboardTable {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  background: transparent; /* removed colored boxes */
-  padding: 0.25rem 0; /* reduce padding since no boxes */
+  gap: 8px;
+  background: transparent;
+  padding: 4px 0;
   border-radius: 0;
   backdrop-filter: none;
 }
@@ -277,20 +277,20 @@
 .prematchTableHeader {
   display: grid;
   grid-template-columns: 1fr 90px 90px;
-  gap: 1rem;
-  padding: 0.25rem 0;
+  gap: 16px;
+  padding: 4px 0;
   border-bottom: none;
-  margin-bottom: 0.25rem;
+  margin-bottom: 4px;
 }
 
 .prematchTeamColumn,
 .prematchWlColumn,
 .prematchMapColumn {
-  color: #ffffff; /* plain white */
-  font-size: 15px; /* larger header text */
+  color: #ffffff;
+  font-size: 15px;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 1px;
 }
 
 .prematchWlColumn,
@@ -301,18 +301,18 @@
 .prematchTableBody {
   display: flex;
   flex-direction: column;
-  row-gap: 0.182rem;
+  row-gap: 3px;
 }
 
 .prematchTableRow {
   display: grid;
   grid-template-columns: 1fr 90px 90px;
-  column-gap: 0.4rem;
-  row-gap: 1rem;
+  column-gap: 6px;
+  row-gap: 16px;
   align-items: center;
-  padding: 0.25rem 0;
+  padding: 4px 0;
   border-radius: 0;
-  background: transparent; /* no boxes */
+  background: transparent;
   transition: none;
 }
 
@@ -323,7 +323,7 @@
 .prematchTeamCell {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 6px;
 }
 
 .prematchTeamIcon {
@@ -333,14 +333,12 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-
   background: rgba(0, 0, 0, 0.45);
 }
 
 .prematchTeamLogo {
   width: 100%;
   height: 100%;
-  
 }
 
 .prematchTeamLogoPlaceholder {
@@ -357,7 +355,7 @@
 
 .prematchTeamName {
   color: #ffffff;
-  font-size: 17px; /* ~40% larger */
+  font-size: 17px;
   font-weight: 900;
   text-shadow: none;
 }
@@ -365,11 +363,11 @@
 .prematchWlCell,
 .prematchMapCell {
   color: #ffffff;
-  font-size: 25px; /* match team name scale */
+  font-size: 25px;
   font-weight: 650;
   text-align: center;
   text-shadow: none;
-  font-family: big_noodle_titling, sans-serif; /* use the custom font for W/L and Map record */
+  font-family: big_noodle_titling, sans-serif;
 }
 
 .prematchTournamentBadge {
@@ -383,11 +381,9 @@
   display: inline-flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 0.1rem;
+  gap: 2px;
   text-align: right;
 }
-
-
 
 .prematchBadgeWeek {
   color: #f7d06f;
@@ -395,31 +391,29 @@
   font-size: 60px;
   font-weight: 900;
   letter-spacing: 1px;
-  line-height: 1;
   line-height: 1.2;
 }
 
 .prematchFeaturedMatch {
   display: flex;
   align-items: center;
-  gap: 2rem;
-  padding: 2rem;
+  gap: 32px;
+  padding: 32px;
   border-radius: 8px;
 }
 
 .prematchWeekMatches {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 32px;
 }
 
 .prematchMatchRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1.5rem;
-  padding: 1rem;
-
+  gap: 24px;
+  padding: 16px;
 }
 
 .prematchMatchCenter {
@@ -441,7 +435,7 @@
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 0.75rem;
+  gap: 12px;
 }
 
 .prematchMatchTeamLogo {
@@ -477,7 +471,6 @@
   letter-spacing: 2px;
 }
 
-/* Background helper for PREMATCH image. Uses !important to override container's transparent shorthand. */
 .prematchBackground {
   background-image: url('/PREMATCH.png') !important;
   background-size: contain !important;
