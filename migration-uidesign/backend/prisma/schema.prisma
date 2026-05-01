@@ -112,6 +112,7 @@ model Team {
   id     Int       @id @default(autoincrement())
   name   String
   logo   String?
+  bannerURL String?
   roster String?
   discordRoleId String?
   state  TeamState @default(ACTIVE)
