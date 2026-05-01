@@ -178,14 +178,14 @@ async function main() {
   const maps = mapFiles.map(parseMapFromFileName);
   const heroes = heroFiles.map(parseHeroFromFileName);
 
-  await prisma.$transaction(async (tx) => {
-    await tx.$executeRawUnsafe('DELETE FROM "_AllowedMaps";');
-    await tx.map.deleteMany();
-    await tx.hero.deleteMany();
+  // Delete in sequence (no transaction, to avoid Neon 5s timeout)
+  await prisma.$executeRawUnsafe('DELETE FROM "_AllowedMaps";');
+  await prisma.map.deleteMany();
+  await prisma.hero.deleteMany();
 
-    await tx.map.createMany({ data: maps });
-    await tx.hero.createMany({ data: heroes });
-  });
+  // Insert in sequence
+  await prisma.map.createMany({ data: maps });
+  await prisma.hero.createMany({ data: heroes });
 
   const [mapCount, heroCount] = await Promise.all([
     prisma.map.count(),

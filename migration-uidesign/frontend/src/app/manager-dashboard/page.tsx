@@ -256,8 +256,14 @@ export default function ManagerDashboardPage() {
       await createDraft(token, matchId);
       router.push(`/draft-table/${matchId}`);
     } catch (err) {
-      console.error("Failed to create draft:", err);
-      alert("Failed to create draft table. Make sure both teams are ready.");
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      // If draft already exists, redirect to it instead of showing error
+      if (errorMsg.includes("already exists")) {
+        router.push(`/draft-table/${matchId}`);
+      } else {
+        console.error("Failed to create draft:", err);
+        alert("Failed to create draft table. Make sure both teams are ready.");
+      }
     } finally {
       setCreatingDraft(null);
     }

@@ -798,7 +798,10 @@ const getDraftByMatchId = async (matchId, req) => {
     throw new Error("Draft not found for this match.");
   }
 
-  return getDraftStateReadOnly(draft.id, req);
+  // Use getDraftState (not the read-only variant) so timeouts are applied
+  // when clients poll the draft by match. This ensures auto-skip and
+  // random map pick occur server-side instead of relying on clients.
+  return getDraftState(draft.id);
 };
 
 module.exports = {
