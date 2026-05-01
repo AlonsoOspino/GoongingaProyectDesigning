@@ -25,6 +25,31 @@ const create = async (data) => {
   return await teamRepo.create(data);
 };
 
+const createMany = async ({ count, tournamentId, namePrefix = "Team" }) => {
+  if (!Number.isInteger(count) || count <= 0) throw new Error("count must be a positive integer");
+  if (tournamentId === undefined || tournamentId === null) throw new Error("tournamentId is required");
+
+  // load existing team names to avoid collisions
+  const existing = await teamRepo.findAll();
+  const existingNames = new Set(existing.map((t) => t.name));
+
+  const toCreate = [];
+  let idx = 1;
+  while (toCreate.length < count) {
+    let name = `${namePrefix} ${idx}`;
+    if (existingNames.has(name)) {
+      idx++;
+      continue;
+    }
+    toCreate.push({ name, tournamentId });
+    existingNames.add(name);
+    idx++;
+  }
+
+  const result = await teamRepo.createMany(toCreate);
+  return { created: result.count || toCreate.length, names: toCreate.map((t) => t.name) };
+};
+
 const update = async (id, data) => {
   if (!data) throw new Error("Body is missing");
   return await teamRepo.update(id, data);
@@ -36,6 +61,7 @@ const remove = async (id) => {
 
 module.exports = {
   create,
+  createMany,
   update,
   remove,
   getAll,

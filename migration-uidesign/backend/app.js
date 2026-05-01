@@ -56,6 +56,16 @@ const startServer = async () => {
   }
 
   await prisma.$connect();
+  // Start draft timeout worker so server auto-applies skips/random-picks.
+  try {
+    const draftController = require("./controllers/draft");
+    if (draftController && typeof draftController.startDraftTimeoutWorker === "function") {
+      draftController.startDraftTimeoutWorker(3000);
+      console.log("Draft timeout worker started (3s interval)");
+    }
+  } catch (err) {
+    console.error("Failed to start draft timeout worker:", err?.message || err);
+  }
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
     console.log("Database connection established");

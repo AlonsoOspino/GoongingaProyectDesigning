@@ -9,6 +9,7 @@ router.get("/", teamController.getAll);
 router.get("/leaderboard", teamController.getLeaderboard);
 router.get("/:id", teamController.getById);
 router.post("/create", authMiddleware, adminMiddleware, teamController.create);
+router.post("/create-many", authMiddleware, adminMiddleware, teamController.createMany);
 router.put("/update/:id", authMiddleware, captainMiddleware, teamController.captainUpdate);
 router.put("/admin/update/:id", authMiddleware,adminMiddleware, teamController.update);
 router.delete("/delete/:id", authMiddleware, adminMiddleware,teamController.remove);

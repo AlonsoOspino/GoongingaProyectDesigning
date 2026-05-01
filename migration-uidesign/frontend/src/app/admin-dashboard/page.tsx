@@ -16,7 +16,7 @@ import { resolveMapImageUrl } from "@/lib/assetUrls";
 import {
   createTournament, updateTournament, deleteTournament, getCurrentTournament,
   adminCreateMatch, adminUpdateMatch, adminDeleteMatch, adminGenerateRoundRobin,
-  adminCreateTeam, adminUpdateTeam, adminDeleteTeam,
+  adminCreateTeam, adminCreateTeams, adminUpdateTeam, adminDeleteTeam,
   adminRegisterMember, adminUpdateMember, adminBulkImportUsers, getMembers, getMaps,
   adminDownloadBackupSql, adminRestoreBackupSql, adminWipeDatabase,
   adminUpdateWeekMaps,
@@ -948,6 +948,8 @@ function TeamsSection({ token }: { token: string }) {
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [formData, setFormData] = useState<Partial<CreateTeamPayload>>({ name: "", logo: "", roster: "" });
   const [logoUploading, setLogoUploading] = useState(false);
+  const [bulkCount, setBulkCount] = useState<number>(4);
+  const [bulkPrefix, setBulkPrefix] = useState<string>("Team");
   const [memberSearch, setMemberSearch] = useState("");
   const logoInputRef = useRef<HTMLInputElement>(null);
 
@@ -987,7 +989,26 @@ function TeamsSection({ token }: { token: string }) {
       <Card variant="bordered">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Teams ({teams.length})</CardTitle>
-          <Button onClick={() => setShowCreateModal(true)} disabled={!tournament}>Create Team</Button>
+          <div className="flex items-center gap-2">
+            <input type="number" min={1} className="w-20 rounded-md border border-border px-2 py-1 text-sm" value={bulkCount} onChange={(e) => setBulkCount(Number(e.target.value))} />
+            <input type="text" className="w-28 rounded-md border border-border px-2 py-1 text-sm" value={bulkPrefix} onChange={(e) => setBulkPrefix(e.target.value)} />
+            <Button
+              onClick={async () => {
+                if (!tournament) return;
+                try {
+                  const res = await adminCreateTeams(token!, { count: Number(bulkCount), tournamentId: tournament.id, namePrefix: bulkPrefix });
+                  showNotif("success", `Created ${res.created} teams`);
+                  loadData();
+                } catch (err: any) {
+                  showNotif("error", err.message || "Failed to create teams");
+                }
+              }}
+              disabled={!tournament || !bulkCount || bulkCount <= 0}
+            >
+              Create {bulkCount} Teams
+            </Button>
+            <Button onClick={() => setShowCreateModal(true)} disabled={!tournament}>Create Team</Button>
+          </div>
         </CardHeader>
         <CardContent>
           {teams.length === 0 ? <p className="text-muted text-center py-4">No teams yet.</p> : (
@@ -1271,6 +1292,17 @@ function UsersSection({ token }: { token: string }) {
 
   if (loading) return <Card variant="bordered"><CardContent className="p-8 text-center text-muted">Loading...</CardContent></Card>;
 
+  // Sort members: those with no team first, then grouped by team name, then by nickname
+  const sortedMembers = [...members].sort((a, b) => {
+    const aNoTeam = a.teamId === null || a.teamId === undefined;
+    const bNoTeam = b.teamId === null || b.teamId === undefined;
+    if (aNoTeam !== bNoTeam) return aNoTeam ? -1 : 1;
+    if (a.teamId === b.teamId) return a.nickname.localeCompare(b.nickname);
+    const aTeamName = teams.find((t) => t.id === a.teamId)?.name || "";
+    const bTeamName = teams.find((t) => t.id === b.teamId)?.name || "";
+    return aTeamName.localeCompare(bTeamName);
+  });
+
   return (
     <div className="space-y-6">
       {notification && <div className={`p-4 rounded-lg border ${notification.type === "success" ? "bg-success/10 text-success border-success/30" : "bg-danger/10 text-danger border-danger/30"}`}>{notification.message}</div>}
@@ -1301,7 +1333,7 @@ function UsersSection({ token }: { token: string }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {members.map((m) => (
+                {sortedMembers.map((m) => (
                   <TableRow key={m.id}>
                     <TableCell className="font-medium">{m.nickname}</TableCell>
                     <TableCell className="text-muted">{m.user}</TableCell>

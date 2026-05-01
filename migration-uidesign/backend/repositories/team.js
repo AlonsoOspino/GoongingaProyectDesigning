@@ -26,3 +26,8 @@ module.exports = {
   findAll,
   findLeaderboard,
 };
+
+// Bulk create teams (skipDuplicates to avoid unique constraint errors)
+const createMany = (data) => prisma.team.createMany({ data, skipDuplicates: true });
+
+module.exports.createMany = createMany;

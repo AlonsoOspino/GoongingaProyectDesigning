@@ -137,6 +137,14 @@ export async function adminCreateTeam(token: string, payload: CreateTeamPayload)
   });
 }
 
+export async function adminCreateTeams(token: string, payload: { count: number; tournamentId: number; namePrefix?: string }) {
+  return apiRequest<{ created: number; names: string[] }>("/team/create-many", {
+    method: "POST",
+    token,
+    body: payload,
+  });
+}
+
 export async function adminUpdateTeam(
   token: string,
   teamId: number,

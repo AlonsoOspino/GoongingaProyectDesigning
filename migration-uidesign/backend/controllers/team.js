@@ -42,6 +42,18 @@ const create = async (req, res) => {
   }
 };
 
+const createMany = async (req, res) => {
+  try {
+    const { count, namePrefix } = req.body;
+    const tournamentId = req.body.tournamentId || (req.body.tournamentId === 0 ? 0 : undefined) || req.query.tournamentId;
+    const parsedTournamentId = tournamentId ? Number(tournamentId) : undefined;
+    const result = await teamService.createMany({ count: Number(count), tournamentId: parsedTournamentId, namePrefix: namePrefix || "Team" });
+    res.status(201).json(result);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
 const update = async (req, res) => {
   try {
     const { id } = req.params;
@@ -96,3 +108,5 @@ module.exports = {
   getLeaderboard,
   getById: getbyId,
 };
+// expose createMany
+module.exports.createMany = createMany;

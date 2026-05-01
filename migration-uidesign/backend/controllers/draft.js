@@ -817,3 +817,31 @@ module.exports = {
   getDraftStateReadOnly,
   getDraftByMatchId,
 };
+
+// Background worker: periodically scan active drafts and apply timeouts server-side.
+const startDraftTimeoutWorker = (intervalMs = 3000) => {
+  setInterval(async () => {
+    try {
+      const activeDrafts = await prisma.draftTable.findMany({
+        where: {
+          phase: { in: ["MAPPICKING", "BAN"] },
+          currentTurnTeamId: { not: null },
+        },
+        include: { actions: { orderBy: { order: "asc" } }, match: true },
+      });
+
+      for (const d of activeDrafts) {
+        try {
+          // applyTimeoutIfNeeded will mutate DB if timeout elapsed
+          await applyTimeoutIfNeeded(d);
+        } catch (e) {
+          console.error("Draft timeout worker error for draft", d.id, e?.message || e);
+        }
+      }
+    } catch (err) {
+      console.error("Draft timeout worker failed:", err?.message || err);
+    }
+  }, intervalMs);
+};
+
+module.exports.startDraftTimeoutWorker = startDraftTimeoutWorker;
