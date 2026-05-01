@@ -26,7 +26,7 @@ import { convertToISODateTime, formatDateEST, formatForDateInput, formatForDateT
 import { getMatches, getTeams, type Match, type Team } from "@/lib/api";
 import type { Tournament } from "@/lib/api/types";
 
-type ActiveTab = "tournament" | "matches" | "weekMaps" | "teams" | "users";
+type ActiveTab = "tournament" | "matches" | "weekMaps" | "teams" | "users" | "database";
 
 const ALL_MATCH_TYPES: Match["type"][] = [
   "ROUNDROBIN",
@@ -107,12 +107,14 @@ export default function AdminDashboardPage() {
             <TabsTrigger value="weekMaps">Week Maps</TabsTrigger>
             <TabsTrigger value="teams">Teams</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="database">Database</TabsTrigger>
           </TabsList>
           <TabsContent value="tournament"><TournamentSection token={token!} /></TabsContent>
           <TabsContent value="matches"><MatchesSection token={token!} /></TabsContent>
           <TabsContent value="weekMaps"><WeekMapsSection token={token!} /></TabsContent>
           <TabsContent value="teams"><TeamsSection token={token!} /></TabsContent>
           <TabsContent value="users"><UsersSection token={token!} /></TabsContent>
+          <TabsContent value="database"><DatabaseSection token={token!} /></TabsContent>
         </Tabs>
       </div>
     </main>
@@ -1183,19 +1185,11 @@ function UsersSection({ token }: { token: string }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
-  const [showRollbackModal, setShowRollbackModal] = useState(false);
-  const [showDeleteDbModal, setShowDeleteDbModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [bulkScript, setBulkScript] = useState("");
   const [bulkResult, setBulkResult] = useState<string | null>(null);
   const [bulkLoading, setBulkLoading] = useState(false);
-  const [backupLoading, setBackupLoading] = useState(false);
-  const [rollbackLoading, setRollbackLoading] = useState(false);
-  const [wipeLoading, setWipeLoading] = useState(false);
-  const [rollbackScript, setRollbackScript] = useState("");
-  const [rollbackConfirmationText, setRollbackConfirmationText] = useState("");
-  const [wipeConfirmationText, setWipeConfirmationText] = useState("");
   const [formData, setFormData] = useState({ nickname: "", user: "", password: "", role: "DEFAULT", teamId: "" });
 
   const showNotif = (type: "success" | "error", message: string) => {
@@ -1225,69 +1219,6 @@ function UsersSection({ token }: { token: string }) {
     }
   }
 
-  async function handleDownloadBackupSql() {
-    setBackupLoading(true);
-    try {
-      const sql = await adminDownloadBackupSql(token);
-      const now = new Date();
-      const fileName = `db-backup-${now.toISOString().replace(/[:.]/g, "-")}.txt`;
-      const blob = new Blob([sql], { type: "text/plain;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      showNotif("success", `Backup exported as ${fileName}`);
-    } catch (err: any) {
-      showNotif("error", err.message || "Failed to export backup SQL.");
-    } finally {
-      setBackupLoading(false);
-    }
-  }
-
-  async function handleRollbackRestore() {
-    if (!rollbackScript.trim()) {
-      showNotif("error", "Paste a backup SQL script first.");
-      return;
-    }
-    setRollbackLoading(true);
-    try {
-      const result = await adminRestoreBackupSql(token, {
-        confirmationText: rollbackConfirmationText,
-        script: rollbackScript,
-      });
-      showNotif("success", `${result.message} (${result.executedStatements} statements)`);
-      setShowRollbackModal(false);
-      setRollbackScript("");
-      setRollbackConfirmationText("");
-      loadData();
-    } catch (err: any) {
-      showNotif("error", err.message || "Failed to restore backup SQL.");
-    } finally {
-      setRollbackLoading(false);
-    }
-  }
-
-  async function handleDeleteDatabase() {
-    setWipeLoading(true);
-    try {
-      const result = await adminWipeDatabase(token, {
-        confirmationText: wipeConfirmationText,
-      });
-      showNotif("success", result.message);
-      setShowDeleteDbModal(false);
-      setWipeConfirmationText("");
-      loadData();
-    } catch (err: any) {
-      showNotif("error", err.message || "Failed to delete database.");
-    } finally {
-      setWipeLoading(false);
-    }
-  }
-
   const getTeamName = (teamId: number | null) => teamId ? teams.find((t) => t.id === teamId)?.name || "Unknown" : "No Team";
 
   if (loading) return <Card variant="bordered"><CardContent className="p-8 text-center text-muted">Loading...</CardContent></Card>;
@@ -1310,15 +1241,6 @@ function UsersSection({ token }: { token: string }) {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Users ({members.length})</CardTitle>
           <div className="flex gap-2">
-            <Button variant="ghost" onClick={handleDownloadBackupSql} disabled={backupLoading}>
-              {backupLoading ? "Exporting..." : "Download Rollback SQL"}
-            </Button>
-            <Button variant="danger" onClick={() => setShowRollbackModal(true)}>
-              Restore From SQL
-            </Button>
-            <Button variant="danger" onClick={() => setShowDeleteDbModal(true)}>
-              Delete Database
-            </Button>
             <Button variant="secondary" onClick={() => { setBulkScript(""); setBulkResult(null); setShowBulkModal(true); }}>Run Script (Bulk Import)</Button>
             <Button onClick={() => setShowCreateModal(true)}>Register User</Button>
           </div>
@@ -1384,63 +1306,6 @@ function UsersSection({ token }: { token: string }) {
         </ModalFooter>
       </Modal>
 
-      {/* Rollback Restore Modal */}
-      <Modal isOpen={showRollbackModal} onClose={() => setShowRollbackModal(false)}>
-        <ModalHeader><ModalTitle>Restore Database From Backup SQL</ModalTitle></ModalHeader>
-        <ModalContent>
-          <p className="text-sm text-muted mb-3">
-            Paste the full SQL backup text that you downloaded before. This will overwrite current database data.
-          </p>
-          <textarea
-            className="w-full h-56 rounded-md border border-border bg-background px-3 py-2 font-mono text-xs resize-none"
-            placeholder="Paste backup SQL content here..."
-            value={rollbackScript}
-            onChange={(e) => setRollbackScript(e.target.value)}
-          />
-          <Input
-            label="Confirmation"
-            placeholder="Type RESTORE DATABASE"
-            value={rollbackConfirmationText}
-            onChange={(e) => setRollbackConfirmationText(e.target.value)}
-          />
-        </ModalContent>
-        <ModalFooter>
-          <Button variant="ghost" onClick={() => setShowRollbackModal(false)}>Cancel</Button>
-          <Button
-            variant="danger"
-            onClick={handleRollbackRestore}
-            disabled={rollbackLoading || !rollbackScript.trim() || rollbackConfirmationText !== "RESTORE DATABASE"}
-          >
-            {rollbackLoading ? "Restoring..." : "Restore Database"}
-          </Button>
-        </ModalFooter>
-      </Modal>
-
-      <Modal isOpen={showDeleteDbModal} onClose={() => setShowDeleteDbModal(false)}>
-        <ModalHeader><ModalTitle>Delete Database</ModalTitle></ModalHeader>
-        <ModalContent>
-          <p className="text-sm text-muted mb-3">
-            This will permanently delete tournament/runtime data and reset IDs. Maps and heroes are preserved. Type DELETE DATABASE to confirm.
-          </p>
-          <Input
-            label="Confirmation"
-            placeholder="Type DELETE DATABASE"
-            value={wipeConfirmationText}
-            onChange={(e) => setWipeConfirmationText(e.target.value)}
-          />
-        </ModalContent>
-        <ModalFooter>
-          <Button variant="ghost" onClick={() => setShowDeleteDbModal(false)}>Cancel</Button>
-          <Button
-            variant="danger"
-            onClick={handleDeleteDatabase}
-            disabled={wipeLoading || wipeConfirmationText !== "DELETE DATABASE"}
-          >
-            {wipeLoading ? "Deleting..." : "Delete Database"}
-          </Button>
-        </ModalFooter>
-      </Modal>
-
       <Modal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)}>
         <ModalHeader><ModalTitle>Register User</ModalTitle></ModalHeader>
         <ModalContent>
@@ -1493,6 +1358,291 @@ function UsersSection({ token }: { token: string }) {
               loadData();
             } catch (err: any) { showNotif("error", err.message); }
           }}>Save</Button>
+        </ModalFooter>
+      </Modal>
+    </div>
+  );
+}
+
+// ==================== DATABASE ====================
+function DatabaseSection({ token }: { token: string }) {
+  const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [showRestoreModal, setShowRestoreModal] = useState(false);
+  const [showWipeModal, setShowWipeModal] = useState(false);
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [restoreLoading, setRestoreLoading] = useState(false);
+  const [wipeLoading, setWipeLoading] = useState(false);
+  const [restoreScript, setRestoreScript] = useState("");
+  const [restoreConfirmationText, setRestoreConfirmationText] = useState("");
+  const [wipeConfirmationText, setWipeConfirmationText] = useState("");
+  const [restoreFileName, setRestoreFileName] = useState<string | null>(null);
+  const restoreFileInputRef = useRef<HTMLInputElement>(null);
+
+  const showNotif = (type: "success" | "error", message: string) => {
+    setNotification({ type, message });
+    setTimeout(() => setNotification(null), 4000);
+  };
+
+  async function handleDownloadBackup() {
+    setBackupLoading(true);
+    try {
+      const sql = await adminDownloadBackupSql(token);
+      const now = new Date();
+      const fileName = `backup-${now.toISOString().replace(/[:.]/g, "-")}.sql`;
+      const blob = new Blob([sql], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showNotif("success", `Backup downloaded as ${fileName}. Maps and heroes were not included (kept untouched on the server).`);
+    } catch (err: any) {
+      showNotif("error", err.message || "Failed to export backup.");
+    } finally {
+      setBackupLoading(false);
+    }
+  }
+
+  async function handleLoadBackupFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      setRestoreScript(text);
+      setRestoreFileName(file.name);
+    } catch {
+      showNotif("error", "Could not read the selected file.");
+    }
+  }
+
+  async function handleRestoreBackup() {
+    if (!restoreScript.trim()) {
+      showNotif("error", "Load or paste a backup file first.");
+      return;
+    }
+    setRestoreLoading(true);
+    try {
+      const result = await adminRestoreBackupSql(token, {
+        confirmationText: restoreConfirmationText,
+        script: restoreScript,
+      });
+      showNotif(
+        "success",
+        `${result.message} (${result.executedStatements} statements). Auto-increment IDs were re-synced. Maps and heroes were preserved.`,
+      );
+      setShowRestoreModal(false);
+      setRestoreScript("");
+      setRestoreFileName(null);
+      setRestoreConfirmationText("");
+      if (restoreFileInputRef.current) restoreFileInputRef.current.value = "";
+    } catch (err: any) {
+      showNotif("error", err.message || "Failed to restore backup.");
+    } finally {
+      setRestoreLoading(false);
+    }
+  }
+
+  async function handleWipeDatabase() {
+    setWipeLoading(true);
+    try {
+      const result = await adminWipeDatabase(token, { confirmationText: wipeConfirmationText });
+      showNotif("success", `${result.message} Auto-increment IDs reset to 1.`);
+      setShowWipeModal(false);
+      setWipeConfirmationText("");
+    } catch (err: any) {
+      showNotif("error", err.message || "Failed to wipe database.");
+    } finally {
+      setWipeLoading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {notification && (
+        <div
+          className={`p-4 rounded-lg border ${
+            notification.type === "success"
+              ? "bg-success/10 text-success border-success/30"
+              : "bg-danger/10 text-danger border-danger/30"
+          }`}
+        >
+          {notification.message}
+        </div>
+      )}
+
+      <Card variant="bordered">
+        <CardHeader>
+          <CardTitle>Database Tools</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-lg border border-border bg-surface/50 p-4 text-sm text-muted leading-relaxed">
+            <p className="font-semibold text-foreground mb-2">How the backup system works</p>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>
+                <span className="text-foreground">Download Backup</span> exports every tournament/runtime
+                row (Tournament, Team, Member, Match, DraftTable, DraftAction, News, PlayerStat, and the
+                Match&harr;Map join table) into a single <code className="font-mono text-xs">.sql</code> file.
+              </li>
+              <li>
+                <span className="text-foreground">Maps and Heroes are never exported, restored, or wiped</span>{" "}
+                by these tools. They&apos;re considered constant content and are managed from{" "}
+                <em>Add Overwatch content</em>.
+              </li>
+              <li>
+                <span className="text-foreground">Restore Backup</span> wipes the runtime tables, re-inserts
+                everything from the file, and then re-syncs auto-increment ID sequences so new rows created
+                afterwards do not collide.
+              </li>
+              <li>
+                <span className="text-foreground">Wipe Tournament Data</span> empties the runtime tables and
+                resets their auto-increment IDs to 1. Useful before importing a fresh dataset.
+              </li>
+            </ul>
+            <p className="mt-3 text-xs">
+              Suggested test workflow: <strong>Download Backup</strong> &rarr; play with the site /
+              create test data &rarr; <strong>Restore Backup</strong> using the file you saved.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card variant="bordered">
+          <CardHeader>
+            <CardTitle className="text-base">Download Backup</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted mb-4">
+              Saves a <code className="font-mono text-xs">.sql</code> snapshot of the current tournament
+              data to your computer.
+            </p>
+            <Button onClick={handleDownloadBackup} disabled={backupLoading}>
+              {backupLoading ? "Exporting..." : "Download Backup"}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card variant="bordered">
+          <CardHeader>
+            <CardTitle className="text-base">Restore Backup</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted mb-4">
+              Replaces all tournament data with a previously downloaded backup file. Maps and heroes are
+              preserved.
+            </p>
+            <Button variant="danger" onClick={() => setShowRestoreModal(true)}>
+              Restore Backup
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card variant="bordered">
+          <CardHeader>
+            <CardTitle className="text-base">Wipe Tournament Data</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted mb-4">
+              Empties tournament/runtime tables and resets their auto-increment IDs. Maps and heroes are
+              preserved.
+            </p>
+            <Button variant="danger" onClick={() => setShowWipeModal(true)}>
+              Wipe Tournament Data
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Restore Modal */}
+      <Modal isOpen={showRestoreModal} onClose={() => setShowRestoreModal(false)}>
+        <ModalHeader>
+          <ModalTitle>Restore Database From Backup</ModalTitle>
+        </ModalHeader>
+        <ModalContent>
+          <p className="text-sm text-muted mb-3">
+            Upload the <code className="font-mono text-xs">.sql</code> file you previously downloaded, or
+            paste its contents directly. Current tournament data will be overwritten. Maps and heroes are
+            preserved.
+          </p>
+          <div className="mb-3">
+            <label className="block text-sm font-medium text-foreground mb-1.5">Backup file</label>
+            <input
+              ref={restoreFileInputRef}
+              type="file"
+              accept=".sql,.txt,text/plain"
+              onChange={handleLoadBackupFile}
+              className="w-full px-3 py-2 bg-input border border-input-border rounded-md text-foreground file:mr-3 file:px-3 file:py-1 file:border-0 file:rounded file:bg-primary file:text-primary-foreground"
+            />
+            {restoreFileName && (
+              <p className="mt-1 text-xs text-muted">Loaded: {restoreFileName}</p>
+            )}
+          </div>
+          <textarea
+            className="w-full h-48 rounded-md border border-border bg-background px-3 py-2 font-mono text-xs resize-none"
+            placeholder="Or paste backup SQL content here..."
+            value={restoreScript}
+            onChange={(e) => {
+              setRestoreScript(e.target.value);
+              if (restoreFileName) setRestoreFileName(null);
+            }}
+          />
+          <Input
+            label="Confirmation"
+            placeholder="Type RESTORE DATABASE"
+            value={restoreConfirmationText}
+            onChange={(e) => setRestoreConfirmationText(e.target.value)}
+          />
+        </ModalContent>
+        <ModalFooter>
+          <Button variant="ghost" onClick={() => setShowRestoreModal(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            onClick={handleRestoreBackup}
+            disabled={
+              restoreLoading || !restoreScript.trim() || restoreConfirmationText !== "RESTORE DATABASE"
+            }
+          >
+            {restoreLoading ? "Restoring..." : "Restore Backup"}
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Wipe Modal */}
+      <Modal isOpen={showWipeModal} onClose={() => setShowWipeModal(false)}>
+        <ModalHeader>
+          <ModalTitle>Wipe Tournament Data</ModalTitle>
+        </ModalHeader>
+        <ModalContent>
+          <p className="text-sm text-muted mb-3">
+            This will permanently delete all tournament/runtime rows and reset their auto-increment IDs to
+            1. Maps and heroes are preserved.
+          </p>
+          <p className="text-sm text-muted mb-3">
+            Type <strong>DELETE DATABASE</strong> to confirm.
+          </p>
+          <Input
+            label="Confirmation"
+            placeholder="Type DELETE DATABASE"
+            value={wipeConfirmationText}
+            onChange={(e) => setWipeConfirmationText(e.target.value)}
+          />
+        </ModalContent>
+        <ModalFooter>
+          <Button variant="ghost" onClick={() => setShowWipeModal(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            onClick={handleWipeDatabase}
+            disabled={wipeLoading || wipeConfirmationText !== "DELETE DATABASE"}
+          >
+            {wipeLoading ? "Wiping..." : "Wipe Tournament Data"}
+          </Button>
         </ModalFooter>
       </Modal>
     </div>

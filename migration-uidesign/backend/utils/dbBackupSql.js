@@ -192,6 +192,45 @@ const RESTORE_INSERT_ORDER = [
   "PlayerStat",
 ];
 
+/**
+ * Tables whose primary key is a Postgres serial/identity sequence.
+ *
+ * After running INSERT statements with explicit `id` values during a restore,
+ * the underlying sequence is NOT advanced automatically. The next auto-
+ * generated id (e.g. when an admin creates a new Match/Team/etc through the
+ * normal app flow) will start from 1 again and immediately fail with a
+ * "duplicate key value violates unique constraint" error. To prevent that
+ * we re-sync each sequence to MAX(id) + 1 after the restore is finished.
+ *
+ * `_AllowedMaps` is the implicit Many-to-Many join table (Match <-> Map) and
+ * has no `id` column / sequence, so it is intentionally excluded.
+ */
+const SEQUENCE_BACKED_TABLES = [
+  "Tournament",
+  "Team",
+  "Member",
+  "Match",
+  "DraftTable",
+  "DraftAction",
+  "News",
+  "PlayerStat",
+  "Map",
+  "Hero",
+];
+
+async function resyncSequencesForTables(tx, tableNames) {
+  for (const table of tableNames) {
+    // setval(seq, value, false) means "next nextval() returns exactly `value`",
+    // so we use COALESCE(MAX(id), 0) + 1 to handle empty tables (next id = 1).
+    const sql = `SELECT setval(
+      pg_get_serial_sequence('"${table}"', 'id'),
+      COALESCE((SELECT MAX("id") FROM "${table}"), 0) + 1,
+      false
+    );`;
+    await tx.$executeRawUnsafe(sql);
+  }
+}
+
 const RESTORE_INSERT_RANK = RESTORE_INSERT_ORDER.reduce((acc, table, index) => {
   acc[table] = index;
   return acc;
@@ -272,6 +311,12 @@ async function restoreFromBackupSql(script) {
       for (const statement of statements) {
         await tx.$executeRawUnsafe(statement);
       }
+
+      // Re-sync auto-increment sequences for every table that owns one.
+      // After explicit-id INSERTs the sequences still point at 1 (or wherever
+      // RESTART IDENTITY left them), which guarantees a duplicate-key crash on
+      // the very next normal insert. We bring them back in line with MAX(id).
+      await resyncSequencesForTables(tx, SEQUENCE_BACKED_TABLES);
     });
   } catch (error) {
     const message = String(error?.message || "");
