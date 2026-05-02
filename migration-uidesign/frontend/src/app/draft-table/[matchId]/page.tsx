@@ -31,6 +31,7 @@ import {
 } from "@/lib/api";
 import { clsx } from "clsx";
 import { resolveHeroImageUrl, resolveMapImageUrl } from "@/lib/assetUrls";
+import { MapImage, MapBackground } from "@/components/draft/MapImage";
 
 const POLL_INTERVAL = 3000;
 const TURN_DURATION = 75;
@@ -464,18 +465,9 @@ export default function DraftTablePage() {
 
   return (
     <main className="relative min-h-screen bg-background">
-      {/* Map background — only the visual backdrop, never interactive */}
-      {backgroundMapUrl && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: `url(${backgroundMapUrl})` }}
-        />
-      )}
-      {/* Dark overlay keeps cards and text readable on top of the map */}
-      {backgroundMapUrl && (
-        <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 bg-background/75" />
-      )}
+      {/* Map background — only paints once the bytes have loaded so we never
+          flash a half-rendered image between phases. */}
+      <MapBackground src={backgroundMapUrl} />
       <div className="relative z-10">
       {/* Compact Header */}
         <header className="border-b border-border bg-surface/50 backdrop-blur-sm sticky top-0 z-10">
@@ -998,18 +990,13 @@ function MapPickingPhase({
           {currentMap ? (
             <div className="flex flex-col items-center">
               <div className="relative w-full max-w-md rounded-xl overflow-hidden border-4 border-primary shadow-2xl shadow-primary/30">
-                {currentMap.imgPath ? (
-                  <img
-                    src={resolveMapImageUrl(currentMap.imgPath)}
-                    alt={currentMap.description}
-                    className="w-full aspect-video object-cover"
-                  />
-                ) : (
-                  <div className="w-full aspect-video bg-surface-elevated flex items-center justify-center">
-                    <span className="text-4xl font-bold text-muted">{currentMap.description.charAt(0)}</span>
-                  </div>
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                <MapImage
+                  src={currentMap.imgPath ? resolveMapImageUrl(currentMap.imgPath) : null}
+                  alt={currentMap.description}
+                  fallbackInitial={currentMap.description.charAt(0)}
+                  className="w-full aspect-video"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
                 <div className="absolute bottom-0 left-0 right-0 p-4 text-center">
                   <p className="text-2xl font-black text-white">{currentMap.description}</p>
                   <Badge variant="primary" className="mt-2">{currentMap.type}</Badge>
@@ -1748,10 +1735,11 @@ function PlayingPhase({
           {currentMap && (
             <div className="mb-8">
               <div className="rounded-xl overflow-hidden border-2 border-primary/50 shadow-lg">
-                <img
-                  src={resolveMapImageUrl(currentMap.imgPath)}
+                <MapImage
+                  src={currentMap.imgPath ? resolveMapImageUrl(currentMap.imgPath) : null}
                   alt={currentMap.description}
-                  className="w-full h-64 object-cover"
+                  fallbackInitial={currentMap.description.charAt(0)}
+                  className="w-full h-64"
                 />
               </div>
               <p className="text-center mt-4 text-lg font-semibold">{currentMap.description}</p>
@@ -1879,18 +1867,13 @@ function EndMapPhase({
               Playing On Map...
             </p>
             <div className="relative w-full max-w-2xl rounded-2xl overflow-hidden border-4 border-primary shadow-2xl shadow-primary/40">
-              {currentMap.imgPath ? (
-                <img
-                  src={resolveMapImageUrl(currentMap.imgPath)}
-                  alt={currentMap.description}
-                  className="w-full aspect-video object-cover"
-                />
-              ) : (
-                <div className="w-full aspect-video bg-surface-elevated flex items-center justify-center">
-                  <span className="text-6xl font-bold text-muted">{currentMap.description.charAt(0)}</span>
-                </div>
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+              <MapImage
+                src={currentMap.imgPath ? resolveMapImageUrl(currentMap.imgPath) : null}
+                alt={currentMap.description}
+                fallbackInitial={currentMap.description.charAt(0)}
+                className="w-full aspect-video"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
               <div className="absolute bottom-0 left-0 right-0 p-6 text-center">
                 <p className="text-4xl font-black text-white mb-2">{currentMap.description}</p>
                 <Badge variant="primary" className="text-lg px-4 py-2">{currentMap.type}</Badge>
