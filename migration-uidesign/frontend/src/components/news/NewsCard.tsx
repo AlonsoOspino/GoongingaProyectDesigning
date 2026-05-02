@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/Card";
+import { stripMarkdown } from "@/components/news/MarkdownContent";
 import type { NewsItem } from "@/lib/api/types";
 
 interface NewsCardProps {
@@ -9,6 +10,7 @@ interface NewsCardProps {
 
 export function NewsCard({ article, variant = "default" }: NewsCardProps) {
   const publishedDate = new Date(article.createdAt);
+  const previewText = stripMarkdown(article.content, 220);
 
   if (variant === "compact") {
     return (
@@ -64,7 +66,7 @@ export function NewsCard({ article, variant = "default" }: NewsCardProps) {
           <h3 className="font-semibold text-foreground line-clamp-2 mb-2">
             {article.title}
           </h3>
-          <p className="text-sm text-muted line-clamp-3">{article.content}</p>
+          <p className="text-sm text-muted line-clamp-3">{previewText}</p>
         </CardContent>
       </Card>
     </Link>
