@@ -31,7 +31,7 @@ import {
 } from "@/lib/api";
 import { clsx } from "clsx";
 import { resolveHeroImageUrl, resolveMapImageUrl } from "@/lib/assetUrls";
-import { MapImage, MapBackground } from "@/components/draft/MapImage";
+import { MapImage, MapBackground, useImageReady } from "@/components/draft/MapImage";
 
 const POLL_INTERVAL = 3000;
 const TURN_DURATION = 75;
@@ -137,7 +137,11 @@ export default function DraftTablePage() {
     setTimeLeft(Math.max(0, Math.min(TURN_DURATION, serverRemaining)));
 
     if (timerRef.current) clearInterval(timerRef.current);
-    if (isMatchPaused) {
+    // Freeze the local countdown while the match is paused OR while a
+    // pick/ban is being submitted to the server. Once the action is
+    // confirmed and the next turn arrives, the server's fresh
+    // `remainingSeconds` re-runs this effect and the timer resumes.
+    if (isMatchPaused || actionLoading) {
       return;
     }
 
@@ -148,7 +152,7 @@ export default function DraftTablePage() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [draftState?.remainingSeconds, currentPhase, isMatchPaused]);
+  }, [draftState?.remainingSeconds, currentPhase, isMatchPaused, actionLoading]);
 
   useEffect(() => {
     const heroes = draftState?.heroes || [];
@@ -430,6 +434,14 @@ export default function DraftTablePage() {
     },
     [draftState?.heroes, heroCacheById]
   );
+
+  // Use the currently-selected map as the page backdrop for captains and
+  // managers. We compute the URL here (before any early return) so the
+  // useImageReady hook below always runs in the same order on every render.
+  const backgroundMap = draftState?.allMaps?.find((m) => m.id === draftState.currentMapId);
+  const backgroundMapUrl = backgroundMap?.imgPath ? resolveMapImageUrl(backgroundMap.imgPath) : null;
+  const backgroundReady = useImageReady(backgroundMapUrl);
+
   if (!isHydrated || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -459,15 +471,35 @@ export default function DraftTablePage() {
     );
   }
 
-  // Use the currently-selected map as the page backdrop for captains and managers.
-  const backgroundMap = draftState.allMaps?.find((m) => m.id === draftState.currentMapId);
-  const backgroundMapUrl = backgroundMap?.imgPath ? resolveMapImageUrl(backgroundMap.imgPath) : null;
+  // The BAN phase always shows hero portraits over the picked map's
+  // backdrop. When we land directly on a BAN phase (refresh or first
+  // open) the artwork hasn't been fetched yet, so we hold the UI on a
+  // dedicated loading screen until the bytes are decoded. This avoids
+  // showing the bans before the background painted in.
+  const waitingForBanBackground =
+    currentPhase === "BAN" && !!backgroundMapUrl && !backgroundReady;
 
   return (
     <main className="relative min-h-screen bg-background">
       {/* Map background — only paints once the bytes have loaded so we never
           flash a half-rendered image between phases. */}
       <MapBackground src={backgroundMapUrl} />
+
+      {waitingForBanBackground && (
+        <div className="fixed inset-0 z-50 bg-background flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm uppercase tracking-widest text-muted">
+              Loading ban phase...
+            </p>
+            {backgroundMap?.description && (
+              <p className="text-xs text-muted/70">
+                Preparing {backgroundMap.description}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
       <div className="relative z-10">
       {/* Compact Header */}
         <header className="border-b border-border bg-surface/50 backdrop-blur-sm sticky top-0 z-10">

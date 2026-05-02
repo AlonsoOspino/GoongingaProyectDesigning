@@ -5,6 +5,8 @@ import { useParams, useSearchParams } from "next/navigation";
 import { getDraftByMatchId } from "@/lib/api/draft";
 import { getTeams, getLeaderboard, getMatchesByWeek } from "@/lib/api";
 import type { DraftState, Team, Match } from "@/lib/api/types";
+import { resolveMapImageUrl } from "@/lib/assetUrls";
+import { useImageReady } from "@/components/draft/MapImage";
 import { StartingPhase } from "../phases/StartingPhase";
 import { BanPhase } from "../phases/BanPhase";
 import { PlayingPhase } from "../phases/PlayingPhase";
@@ -69,10 +71,30 @@ export default function BansOverlayPage() {
     return () => clearInterval(interval);
   }, [matchId, urlKey]);
 
+  // Preload the picked map's background BEFORE we show the ban overlay.
+  // If the caster opens the page right at the BAN phase the artwork has
+  // not been fetched yet, and we don't want the bans to render on top of
+  // a half-loaded backdrop. We wait until the bytes are decoded, then
+  // swap to the real BanPhase.
+  const currentMap = draftState?.allMaps?.find((m) => m.id === draftState.currentMapId);
+  const mapBgUrl = currentMap?.imgPath ? resolveMapImageUrl(currentMap.imgPath) : null;
+  const mapBgReady = useImageReady(mapBgUrl);
+
   if (loading || !draftState) {
     return (
       <div className={styles.loading}>
         <div className={styles.loadingText}>Loading overlay...</div>
+      </div>
+    );
+  }
+
+  // Hold the UI on a loading screen if we're entering BAN/MAPPICKING but
+  // the map artwork hasn't decoded yet.
+  const isMapPhase = draftState.phase === "BAN" || draftState.phase === "MAPPICKING";
+  if (isMapPhase && mapBgUrl && !mapBgReady) {
+    return (
+      <div className={styles.loading}>
+        <div className={styles.loadingText}>Loading...</div>
       </div>
     );
   }

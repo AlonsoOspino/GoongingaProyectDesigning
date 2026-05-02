@@ -4,6 +4,51 @@ import { useEffect, useState } from "react";
 import { clsx } from "clsx";
 
 /**
+ * Preload an image URL and report when its bytes are decoded.
+ *
+ * Returns `true` once the browser has the image fully ready (or `src`
+ * is null/empty -> we treat that as "nothing to wait for"). Cached
+ * images are detected synchronously via `img.complete`, so we never
+ * get stuck on "Loading..." just because `onload` already fired before
+ * we attached the listener.
+ */
+export function useImageReady(src: string | null | undefined): boolean {
+  const [readySrc, setReadySrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!src) {
+      setReadySrc(null);
+      return;
+    }
+
+    let cancelled = false;
+    const img = new Image();
+    const markReady = () => {
+      if (!cancelled) setReadySrc(src);
+    };
+
+    img.onload = markReady;
+    // Even on error we unblock so the UI can fall back to its placeholder
+    // instead of hanging on a "Loading..." screen forever.
+    img.onerror = markReady;
+    img.src = src;
+
+    // If the browser had this URL cached and decoded, `complete` is true
+    // synchronously and `onload` may have already fired (or will not fire
+    // again). Mark ready in that case so we don't get stuck.
+    if (img.complete) {
+      markReady();
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [src]);
+
+  return !!src && readySrc === src;
+}
+
+/**
  * Image renderer that hides a partially-loaded `<img>` behind a
  * "Loading..." placeholder until the bytes are actually decoded.
  *
@@ -23,14 +68,7 @@ export function MapImage({
   className?: string;
   fallbackInitial?: string;
 }) {
-  const [loaded, setLoaded] = useState(false);
-  const [errored, setErrored] = useState(false);
-
-  // Reset loading state every time the source URL changes (e.g. between maps).
-  useEffect(() => {
-    setLoaded(false);
-    setErrored(false);
-  }, [src]);
+  const ready = useImageReady(src);
 
   if (!src) {
     return (
@@ -47,24 +85,16 @@ export function MapImage({
 
   return (
     <div className={clsx("relative bg-surface-elevated", className)}>
-      <img
-        // Use src as key so React fully remounts the <img> when the URL changes.
-        // This guarantees onLoad fires for the new image even when the browser
-        // has the previous one cached.
-        key={src}
-        src={src}
-        alt={alt}
-        className={clsx(
-          "w-full h-full object-cover transition-opacity duration-200",
-          loaded && !errored ? "opacity-100" : "opacity-0",
-        )}
-        onLoad={() => setLoaded(true)}
-        onError={() => {
-          setErrored(true);
-          setLoaded(true);
-        }}
-      />
-      {!loaded && (
+      {ready && (
+        <img
+          // Use src as key so React fully remounts the <img> when the URL changes.
+          key={src}
+          src={src}
+          alt={alt}
+          className="w-full h-full object-cover transition-opacity duration-200 opacity-100"
+        />
+      )}
+      {!ready && (
         <div
           className="absolute inset-0 flex items-center justify-center"
           aria-live="polite"
@@ -77,13 +107,6 @@ export function MapImage({
           </div>
         </div>
       )}
-      {errored && loaded && (
-        <div className="absolute inset-0 flex items-center justify-center bg-surface-elevated">
-          <span className="text-4xl font-bold text-muted">
-            {fallbackInitial ?? "?"}
-          </span>
-        </div>
-      )}
     </div>
   );
 }
@@ -94,35 +117,16 @@ export function MapImage({
  * happens between phases while the new map artwork is still downloading.
  */
 export function MapBackground({ src }: { src: string | null | undefined }) {
-  const [readySrc, setReadySrc] = useState<string | null>(null);
+  const ready = useImageReady(src);
 
-  useEffect(() => {
-    if (!src) {
-      setReadySrc(null);
-      return;
-    }
-    let cancelled = false;
-    const img = new Image();
-    img.onload = () => {
-      if (!cancelled) setReadySrc(src);
-    };
-    img.onerror = () => {
-      if (!cancelled) setReadySrc(null);
-    };
-    img.src = src;
-    return () => {
-      cancelled = true;
-    };
-  }, [src]);
-
-  if (!readySrc) return null;
+  if (!ready || !src) return null;
 
   return (
     <>
       <div
         aria-hidden="true"
         className="pointer-events-none fixed inset-0 z-0 bg-cover bg-center bg-no-repeat transition-opacity duration-300"
-        style={{ backgroundImage: `url(${readySrc})` }}
+        style={{ backgroundImage: `url(${src})` }}
       />
       <div
         aria-hidden="true"
