@@ -646,6 +646,23 @@ function MatchesSection({ token }: { token: string }) {
               options={allowedMatchTypes.map((v) => ({ value: v, label: MATCH_TYPE_LABELS[v] }))}
             />
             <div className="grid grid-cols-2 gap-4">
+              <Select
+                label="Team A"
+                value={formData.teamAId?.toString() ?? ""}
+                onChange={(e) => setFormData({ ...formData, teamAId: parseInt(e.target.value) })}
+                options={teams.map((t) => ({ value: t.id.toString(), label: t.name }))}
+              />
+              <Select
+                label="Team B"
+                value={formData.teamBId?.toString() ?? ""}
+                onChange={(e) => setFormData({ ...formData, teamBId: parseInt(e.target.value) })}
+                options={teams.map((t) => ({ value: t.id.toString(), label: t.name }))}
+              />
+            </div>
+            {formData.teamAId && formData.teamAId === formData.teamBId && (
+              <p className="text-xs text-danger">Team A and Team B must be different.</p>
+            )}
+            <div className="grid grid-cols-2 gap-4">
               <Input label="Best Of" type="number" value={formData.bestOf} onChange={(e) => setFormData({ ...formData, bestOf: parseInt(e.target.value) })} min={1} max={9} />
               {isRoundRobinForm ? (
                 <Input
@@ -708,7 +725,9 @@ function MatchesSection({ token }: { token: string }) {
         </ModalContent>
         <ModalFooter>
           <Button variant="ghost" onClick={() => { setShowEditModal(false); setSelectedMatch(null); }}>Cancel</Button>
-          <Button onClick={async () => {
+          <Button
+            disabled={!formData.teamAId || !formData.teamBId || formData.teamAId === formData.teamBId}
+            onClick={async () => {
             if (!selectedMatch) return;
             try {
               const mapsConfig = formData.mapsAllowedByRound && Object.keys(formData.mapsAllowedByRound).some((k) => (formData.mapsAllowedByRound![k] || []).length > 0)
@@ -1219,20 +1238,68 @@ function UsersSection({ token }: { token: string }) {
     }
   }
 
-  const getTeamName = (teamId: number | null) => teamId ? teams.find((t) => t.id === teamId)?.name || "Unknown" : "No Team";
-
   if (loading) return <Card variant="bordered"><CardContent className="p-8 text-center text-muted">Loading...</CardContent></Card>;
 
-  // Sort members: those with no team first, then grouped by team name, then by nickname
-  const sortedMembers = [...members].sort((a, b) => {
-    const aNoTeam = a.teamId === null || a.teamId === undefined;
-    const bNoTeam = b.teamId === null || b.teamId === undefined;
-    if (aNoTeam !== bNoTeam) return aNoTeam ? -1 : 1;
-    if (a.teamId === b.teamId) return a.nickname.localeCompare(b.nickname);
-    const aTeamName = teams.find((t) => t.id === a.teamId)?.name || "";
-    const bTeamName = teams.find((t) => t.id === b.teamId)?.name || "";
-    return aTeamName.localeCompare(bTeamName);
-  });
+  // Group members by team. Members without a team go into a separate bucket
+  // rendered first so admins can quickly see who still needs to be assigned.
+  const sortedTeams = [...teams].sort((a, b) => a.name.localeCompare(b.name));
+  const membersByTeam = new Map<number, Member[]>();
+  const membersWithoutTeam: Member[] = [];
+  for (const m of members) {
+    if (m.teamId === null || m.teamId === undefined) {
+      membersWithoutTeam.push(m);
+    } else {
+      const list = membersByTeam.get(m.teamId) ?? [];
+      list.push(m);
+      membersByTeam.set(m.teamId, list);
+    }
+  }
+  const sortByNickname = (a: Member, b: Member) => a.nickname.localeCompare(b.nickname);
+  membersWithoutTeam.sort(sortByNickname);
+  for (const list of membersByTeam.values()) list.sort(sortByNickname);
+
+  const renderUserRow = (m: Member) => (
+    <TableRow key={m.id}>
+      <TableCell className="font-medium">{m.nickname}</TableCell>
+      <TableCell className="text-muted">{m.user}</TableCell>
+      <TableCell>
+        <Badge variant={m.role === "ADMIN" ? "danger" : m.role === "MANAGER" ? "warning" : m.role === "CAPTAIN" ? "success" : "default"}>
+          {m.role}
+        </Badge>
+      </TableCell>
+      <TableCell>
+        <Button variant="ghost" size="sm" onClick={() => {
+          setSelectedMember(m);
+          setFormData({ nickname: m.nickname, user: m.user, password: "", role: m.role, teamId: m.teamId?.toString() || "" });
+          setShowEditModal(true);
+        }}>Edit</Button>
+      </TableCell>
+    </TableRow>
+  );
+
+  const renderUsersGroup = (label: string, list: Member[], keyPrefix: string) => (
+    <div key={keyPrefix} className="space-y-2">
+      <div className="flex items-baseline gap-3 px-1">
+        <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">{label}</h3>
+        <span className="text-xs text-muted">({list.length})</span>
+      </div>
+      {list.length === 0 ? (
+        <p className="text-xs text-muted px-1 pb-2">No members.</p>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nickname</TableHead>
+              <TableHead>Username</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>{list.map(renderUserRow)}</TableBody>
+        </Table>
+      )}
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -1246,36 +1313,16 @@ function UsersSection({ token }: { token: string }) {
           </div>
         </CardHeader>
         <CardContent>
-          {members.length === 0 ? <p className="text-muted text-center py-4">No users yet.</p> : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nickname</TableHead><TableHead>Username</TableHead>
-                  <TableHead>Role</TableHead><TableHead>Team</TableHead><TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedMembers.map((m) => (
-                  <TableRow key={m.id}>
-                    <TableCell className="font-medium">{m.nickname}</TableCell>
-                    <TableCell className="text-muted">{m.user}</TableCell>
-                    <TableCell>
-                      <Badge variant={m.role === "ADMIN" ? "danger" : m.role === "MANAGER" ? "warning" : m.role === "CAPTAIN" ? "success" : "default"}>
-                        {m.role}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{getTeamName(m.teamId)}</TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="sm" onClick={() => {
-                        setSelectedMember(m);
-                        setFormData({ nickname: m.nickname, user: m.user, password: "", role: m.role, teamId: m.teamId?.toString() || "" });
-                        setShowEditModal(true);
-                      }}>Edit</Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          {members.length === 0 ? (
+            <p className="text-muted text-center py-4">No users yet.</p>
+          ) : (
+            <div className="space-y-6">
+              {membersWithoutTeam.length > 0 &&
+                renderUsersGroup("No Team", membersWithoutTeam, "no-team")}
+              {sortedTeams.map((t) =>
+                renderUsersGroup(t.name, membersByTeam.get(t.id) ?? [], `team-${t.id}`),
+              )}
+            </div>
           )}
         </CardContent>
       </Card>
