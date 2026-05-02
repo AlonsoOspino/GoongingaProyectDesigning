@@ -15,6 +15,7 @@ const newsRoutes = require("./routes/news");
 const mapRoutes = require("./routes/map");
 const heroRoutes = require("./routes/hero");
 const systemDbRoutes = require("./routes/systemDb");
+const { ensureAdminUser } = require("./utils/ensureAdminUser");
 const cors = require("cors");
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -56,6 +57,15 @@ const startServer = async () => {
   }
 
   await prisma.$connect();
+
+  // Guarantee a working admin account on every deployment / restart.
+  // Fail-soft: never block server startup on this.
+  try {
+    await ensureAdminUser();
+  } catch (err) {
+    console.error("[ensureAdminUser] Failed to bootstrap admin:", err?.message || err);
+  }
+
   // Start draft timeout worker so server auto-applies skips/random-picks.
   try {
     const draftController = require("./controllers/draft");
