@@ -6,7 +6,7 @@ import { getDraftByMatchId } from "@/lib/api/draft";
 import { getTeams, getLeaderboard, getMatchesByWeek } from "@/lib/api";
 import type { DraftState, Team, Match } from "@/lib/api/types";
 import { resolveMapImageUrl } from "@/lib/assetUrls";
-import { useImageReady } from "@/components/draft/MapImage";
+import { useImageReady, preloadImages } from "@/components/draft/MapImage";
 import { StartingPhase } from "../phases/StartingPhase";
 import { BanPhase } from "../phases/BanPhase";
 import { PlayingPhase } from "../phases/PlayingPhase";
@@ -79,6 +79,18 @@ export default function BansOverlayPage() {
   const currentMap = draftState?.allMaps?.find((m) => m.id === draftState.currentMapId);
   const mapBgUrl = currentMap?.imgPath ? resolveMapImageUrl(currentMap.imgPath) : null;
   const mapBgReady = useImageReady(mapBgUrl);
+
+  // Warm the image cache for every map in the pool the moment we get
+  // draft state. This means later phase transitions (BAN, PLAYING,
+  // ENDMAP, ...) never have to re-fetch the map artwork — it's already
+  // decoded and `useImageReady` returns true synchronously.
+  useEffect(() => {
+    if (!draftState?.allMaps?.length) return;
+    const urls = draftState.allMaps
+      .map((m) => (m.imgPath ? resolveMapImageUrl(m.imgPath) : null))
+      .filter((u): u is string => !!u);
+    if (urls.length) preloadImages(urls);
+  }, [draftState?.allMaps]);
 
   if (loading || !draftState) {
     return (

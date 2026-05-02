@@ -31,7 +31,7 @@ import {
 } from "@/lib/api";
 import { clsx } from "clsx";
 import { resolveHeroImageUrl, resolveMapImageUrl } from "@/lib/assetUrls";
-import { MapImage, MapBackground, useImageReady } from "@/components/draft/MapImage";
+import { MapImage, MapBackground, useImageReady, preloadImages } from "@/components/draft/MapImage";
 
 const POLL_INTERVAL = 3000;
 const TURN_DURATION = 75;
@@ -441,6 +441,18 @@ export default function DraftTablePage() {
   const backgroundMap = draftState?.allMaps?.find((m) => m.id === draftState.currentMapId);
   const backgroundMapUrl = backgroundMap?.imgPath ? resolveMapImageUrl(backgroundMap.imgPath) : null;
   const backgroundReady = useImageReady(backgroundMapUrl);
+
+  // Warm the image cache for every map in the pool as soon as we know
+  // the draft state. This means whichever map gets picked next, its
+  // background is already decoded by the time the BAN phase starts —
+  // no 1-2s flash on phase transitions, no re-fetch when phases swap.
+  useEffect(() => {
+    if (!draftState?.allMaps?.length) return;
+    const urls = draftState.allMaps
+      .map((m) => (m.imgPath ? resolveMapImageUrl(m.imgPath) : null))
+      .filter((u): u is string => !!u);
+    if (urls.length) preloadImages(urls);
+  }, [draftState?.allMaps]);
 
   if (!isHydrated || loading) {
     return (

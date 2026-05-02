@@ -4,58 +4,99 @@ import { useEffect, useState } from "react";
 import { clsx } from "clsx";
 
 /**
- * Preload an image URL and report when its bytes are decoded.
+ * Module-level cache for image URLs that have already been fetched and
+ * decoded by the browser at least once during this page's lifetime.
  *
- * Returns `true` once the browser has the image fully ready (or `src`
- * is null/empty -> we treat that as "nothing to wait for"). Cached
- * images are detected synchronously via `img.complete`, so we never
- * get stuck on "Loading..." just because `onload` already fired before
- * we attached the listener.
+ * Why this exists: every draft phase re-renders the page and the
+ * `<MapBackground>` / `<MapImage>` components. Without a shared cache,
+ * `useImageReady` would create a brand new `Image()` on every render
+ * cycle and return `false` for at least one tick while the browser
+ * served the bytes (even from HTTP cache), producing a ~1-2s flash on
+ * every phase transition. By remembering "this URL is ready" at the
+ * module level we can return `true` synchronously on the very first
+ * render after the initial load, so the background never disappears.
+ */
+const readyUrls = new Set<string>();
+const inflight = new Map<string, Promise<void>>();
+
+/**
+ * Preload an image URL. Resolves once the image is decoded (or errors,
+ * which we treat as "done" so callers don't hang). Subsequent calls
+ * with the same URL return the same in-flight Promise, and once it
+ * has resolved we remember it forever in `readyUrls`.
+ */
+export function preloadImage(src: string | null | undefined): Promise<void> {
+  if (!src) return Promise.resolve();
+  if (readyUrls.has(src)) return Promise.resolve();
+
+  const existing = inflight.get(src);
+  if (existing) return existing;
+
+  const promise = new Promise<void>((resolve) => {
+    const img = new Image();
+    const done = () => {
+      readyUrls.add(src);
+      inflight.delete(src);
+      resolve();
+    };
+    img.onload = done;
+    // Even on error we unblock so the UI can fall back instead of hanging.
+    img.onerror = done;
+    img.src = src;
+    // Some browsers (esp. with disk cache) may have the image fully
+    // decoded synchronously; in that case `complete` is true and
+    // `onload` may have already fired.
+    if (img.complete) done();
+  });
+
+  inflight.set(src, promise);
+  return promise;
+}
+
+/** Preload many URLs in parallel. Useful for warming the cache up-front. */
+export function preloadImages(urls: Array<string | null | undefined>): Promise<void[]> {
+  return Promise.all(urls.map((u) => preloadImage(u)));
+}
+
+/** Synchronous "is this URL already cached and decoded?" check. */
+export function isImageReady(src: string | null | undefined): boolean {
+  return !!src && readyUrls.has(src);
+}
+
+/**
+ * React hook that reports whether an image URL is fully loaded.
+ *
+ * Crucially this is backed by a module-level cache so once an image
+ * has been decoded once, every later render that asks about the same
+ * URL gets `true` synchronously on the first call — no flicker, no
+ * spinner gate, no re-fetch. New URLs trigger a preload and the hook
+ * re-renders when the bytes are ready.
  */
 export function useImageReady(src: string | null | undefined): boolean {
-  const [readySrc, setReadySrc] = useState<string | null>(null);
+  const [, forceRender] = useState(0);
 
   useEffect(() => {
-    if (!src) {
-      setReadySrc(null);
-      return;
-    }
+    if (!src) return;
+    if (readyUrls.has(src)) return; // already cached, nothing to do
 
     let cancelled = false;
-    const img = new Image();
-    const markReady = () => {
-      if (!cancelled) setReadySrc(src);
-    };
-
-    img.onload = markReady;
-    // Even on error we unblock so the UI can fall back to its placeholder
-    // instead of hanging on a "Loading..." screen forever.
-    img.onerror = markReady;
-    img.src = src;
-
-    // If the browser had this URL cached and decoded, `complete` is true
-    // synchronously and `onload` may have already fired (or will not fire
-    // again). Mark ready in that case so we don't get stuck.
-    if (img.complete) {
-      markReady();
-    }
+    preloadImage(src).then(() => {
+      if (!cancelled) forceRender((n) => n + 1);
+    });
 
     return () => {
       cancelled = true;
     };
   }, [src]);
 
-  return !!src && readySrc === src;
+  return !!src && readyUrls.has(src);
 }
 
 /**
- * Image renderer that hides a partially-loaded `<img>` behind a
- * "Loading..." placeholder until the bytes are actually decoded.
- *
- * Used for the central map preview shown on every draft phase
- * (map picking, ban, playing, end-map) so the captain/manager view
- * never flashes a broken / empty box while the new map's artwork
- * is still downloading.
+ * Image renderer for the central map preview shown on every draft
+ * phase. The browser paints it progressively as bytes arrive — no
+ * spinner gate, so we can never get stuck on "Loading..." if a load
+ * event was missed.
  */
 export function MapImage({
   src,
@@ -68,8 +109,6 @@ export function MapImage({
   className?: string;
   fallbackInitial?: string;
 }) {
-  const ready = useImageReady(src);
-
   if (!src) {
     return (
       <div
@@ -85,36 +124,22 @@ export function MapImage({
 
   return (
     <div className={clsx("relative bg-surface-elevated", className)}>
-      {ready && (
-        <img
-          // Use src as key so React fully remounts the <img> when the URL changes.
-          key={src}
-          src={src}
-          alt={alt}
-          className="w-full h-full object-cover transition-opacity duration-200 opacity-100"
-        />
-      )}
-      {!ready && (
-        <div
-          className="absolute inset-0 flex items-center justify-center"
-          aria-live="polite"
-        >
-          <div className="flex flex-col items-center gap-2">
-            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            <p className="text-xs uppercase tracking-widest text-muted">
-              Loading map...
-            </p>
-          </div>
-        </div>
-      )}
+      <img
+        // Use src as key so React fully remounts the <img> when the URL changes.
+        key={src}
+        src={src}
+        alt={alt}
+        className="w-full h-full object-cover"
+      />
     </div>
   );
 }
 
 /**
- * Page-level map backdrop that only paints the CSS background image
- * AFTER the bytes have been fetched. Prevents the "white flash" that
- * happens between phases while the new map artwork is still downloading.
+ * Page-level map backdrop. Reads from the shared image cache so once
+ * the picked map's artwork has been decoded once, it stays painted
+ * across every phase transition (BAN -> PLAYING -> END_MAP -> ...)
+ * with no flicker and no re-fetch.
  */
 export function MapBackground({ src }: { src: string | null | undefined }) {
   const ready = useImageReady(src);
