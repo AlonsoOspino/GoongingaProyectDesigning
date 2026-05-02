@@ -5,6 +5,8 @@ const findAll = () =>
     orderBy: [{ type: "asc" }, { id: "asc" }],
   });
 
+const findById = (id) => prisma.map.findUnique({ where: { id } });
+
 const findByDescriptionAndType = (description, type) =>
   prisma.map.findFirst({
     where: {
@@ -17,9 +19,12 @@ const findByDescriptionAndType = (description, type) =>
   });
 
 const create = (data) => prisma.map.create({ data });
+const remove = (id) => prisma.map.delete({ where: { id } });
 
 module.exports = {
   findAll,
+  findById,
   findByDescriptionAndType,
   create,
+  remove,
 };

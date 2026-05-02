@@ -240,18 +240,47 @@ export async function getHeroes() {
   return apiRequest<AdminHero[]>("/hero");
 }
 
+export async function adminDeleteMap(token: string, id: number) {
+  return apiRequest<AdminGameMap>(`/map/delete/${id}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
+export async function adminDeleteHero(token: string, id: number) {
+  return apiRequest<AdminHero>(`/hero/delete/${id}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
 export async function adminCreateMap(
   token: string,
   payload: {
     name: string;
     type: AdminGameMap["type"];
-    image: File;
+    image?: File;
+    imageUrl?: string;
   }
 ) {
+  if (payload.imageUrl) {
+    return apiRequest<AdminGameMap>("/map/create", {
+      method: "POST",
+      token,
+      body: {
+        name: payload.name,
+        type: payload.type,
+        imageUrl: payload.imageUrl,
+      },
+    });
+  }
+
   const form = new FormData();
   form.append("name", payload.name);
   form.append("type", payload.type);
-  form.append("image", payload.image);
+  if (payload.image) {
+    form.append("image", payload.image);
+  }
 
   return apiRequest<AdminGameMap>("/map/create", {
     method: "POST",
@@ -265,13 +294,28 @@ export async function adminCreateHero(
   payload: {
     name: string;
     role: AdminHero["role"];
-    image: File;
+    image?: File;
+    imageUrl?: string;
   }
 ) {
+  if (payload.imageUrl) {
+    return apiRequest<AdminHero>("/hero/create", {
+      method: "POST",
+      token,
+      body: {
+        name: payload.name,
+        role: payload.role,
+        imageUrl: payload.imageUrl,
+      },
+    });
+  }
+
   const form = new FormData();
   form.append("name", payload.name);
   form.append("role", payload.role);
-  form.append("image", payload.image);
+  if (payload.image) {
+    form.append("image", payload.image);
+  }
 
   return apiRequest<AdminHero>("/hero/create", {
     method: "POST",

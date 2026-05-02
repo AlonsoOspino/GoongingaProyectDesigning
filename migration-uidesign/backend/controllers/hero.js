@@ -15,6 +15,7 @@ const create = async (req, res) => {
       name: req.body?.name,
       role: req.body?.role,
       image: req.file,
+      imageUrl: req.body?.imageUrl,
     });
     res.status(201).json(hero);
   } catch (error) {
@@ -22,7 +23,17 @@ const create = async (req, res) => {
   }
 };
 
+const remove = async (req, res) => {
+  try {
+    const deletedHero = await heroService.remove(Number(req.params.id));
+    res.json(deletedHero);
+  } catch (error) {
+    res.status(400).json({ message: error?.message || "Failed to delete hero." });
+  }
+};
+
 module.exports = {
   getAll,
   create,
+  remove,
 };

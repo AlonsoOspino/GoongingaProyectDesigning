@@ -12,5 +12,6 @@ const upload = multer({
 
 router.get("/", heroController.getAll);
 router.post("/create", authMiddleware, adminMiddleware, upload.single("image"), heroController.create);
+router.delete("/delete/:id", authMiddleware, adminMiddleware, heroController.remove);
 
 module.exports = router;

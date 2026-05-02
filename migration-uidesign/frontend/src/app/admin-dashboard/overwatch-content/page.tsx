@@ -4,8 +4,12 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/features/session/SessionProvider";
 import {
+  adminDeleteHero,
+  adminDeleteMap,
   adminCreateHero,
   adminCreateMap,
+  getHeroes,
+  getMaps,
   type AdminGameMap,
   type AdminHero,
 } from "@/lib/api/admin";
@@ -13,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { resolveHeroImageUrl, resolveMapImageUrl } from "@/lib/assetUrls";
 
 type NotificationState = {
   type: "success" | "error";
@@ -43,6 +48,10 @@ export default function AddOverwatchContentPage() {
   const [notification, setNotification] = useState<NotificationState>(null);
   const [mapSubmitting, setMapSubmitting] = useState(false);
   const [heroSubmitting, setHeroSubmitting] = useState(false);
+  const [maps, setMaps] = useState<AdminGameMap[]>([]);
+  const [heroes, setHeroes] = useState<AdminHero[]>([]);
+  const [deletingMapId, setDeletingMapId] = useState<number | null>(null);
+  const [deletingHeroId, setDeletingHeroId] = useState<number | null>(null);
 
   const [mapForm, setMapForm] = useState({
     name: "",
@@ -62,10 +71,78 @@ export default function AddOverwatchContentPage() {
     }
   }, [isHydrated, isAuthenticated, user, router]);
 
+  useEffect(() => {
+    if (!isHydrated || !isAuthenticated || user?.role !== "ADMIN") {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadContent() {
+      try {
+        const [nextMaps, nextHeroes] = await Promise.all([getMaps(), getHeroes()]);
+        if (!cancelled) {
+          setMaps(nextMaps);
+          setHeroes(nextHeroes);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          const message = error instanceof Error ? error.message : "Failed to load Overwatch content.";
+          showNotif("error", message);
+        }
+      }
+    }
+
+    loadContent();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isHydrated, isAuthenticated, user]);
+
   const showNotif = (type: "success" | "error", message: string) => {
     setNotification({ type, message });
     setTimeout(() => setNotification(null), 3500);
   };
+
+  async function uploadContentImage(file: File, type: "map" | "hero") {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("type", type);
+
+    const response = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(payload?.error || "Upload failed");
+    }
+
+    if (!payload?.url) {
+      throw new Error("Upload did not return a URL.");
+    }
+
+    return String(payload.url);
+  }
+
+  async function deleteUploadedContentImage(imgPath?: string | null) {
+    if (!imgPath || !/^https?:\/\//i.test(imgPath)) {
+      return;
+    }
+
+    const response = await fetch("/api/upload", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: imgPath }),
+    });
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      throw new Error(payload?.error || "Failed to delete uploaded image.");
+    }
+  }
 
   async function handleCreateMap(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -84,11 +161,13 @@ export default function AddOverwatchContentPage() {
 
     setMapSubmitting(true);
     try {
-      await adminCreateMap(token, {
+      const imageUrl = await uploadContentImage(mapForm.image, "map");
+      const createdMap = await adminCreateMap(token, {
         name: trimmedName,
         type: mapForm.type,
-        image: mapForm.image,
+        imageUrl,
       });
+      setMaps((prev) => [createdMap, ...prev]);
 
       setMapForm({
         name: "",
@@ -124,11 +203,13 @@ export default function AddOverwatchContentPage() {
 
     setHeroSubmitting(true);
     try {
-      await adminCreateHero(token, {
+      const imageUrl = await uploadContentImage(heroForm.image, "hero");
+      const createdHero = await adminCreateHero(token, {
         name: trimmedName,
         role: heroForm.role,
-        image: heroForm.image,
+        imageUrl,
       });
+      setHeroes((prev) => [createdHero, ...prev]);
 
       setHeroForm({
         name: "",
@@ -144,6 +225,42 @@ export default function AddOverwatchContentPage() {
       showNotif("error", message);
     } finally {
       setHeroSubmitting(false);
+    }
+  }
+
+  async function handleDeleteMap(map: AdminGameMap) {
+    if (!token) return;
+    if (!confirm(`Delete map "${map.description}"?`)) return;
+
+    setDeletingMapId(map.id);
+    try {
+      const deleted = await adminDeleteMap(token, map.id);
+      await deleteUploadedContentImage(deleted.imgPath);
+      setMaps((prev) => prev.filter((item) => item.id !== map.id));
+      showNotif("success", `Map "${map.description}" deleted.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to delete map.";
+      showNotif("error", message);
+    } finally {
+      setDeletingMapId(null);
+    }
+  }
+
+  async function handleDeleteHero(hero: AdminHero) {
+    if (!token) return;
+    if (!confirm(`Delete hero "${hero.name}"?`)) return;
+
+    setDeletingHeroId(hero.id);
+    try {
+      const deleted = await adminDeleteHero(token, hero.id);
+      await deleteUploadedContentImage(deleted.imgPath);
+      setHeroes((prev) => prev.filter((item) => item.id !== hero.id));
+      showNotif("success", `Hero "${hero.name}" deleted.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to delete hero.";
+      showNotif("error", message);
+    } finally {
+      setDeletingHeroId(null);
     }
   }
 
@@ -288,6 +405,98 @@ export default function AddOverwatchContentPage() {
                   {heroSubmitting ? "Creating hero..." : "Create hero"}
                 </Button>
               </form>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="mt-8 grid gap-6 lg:grid-cols-2">
+          <Card variant="bordered">
+            <CardHeader>
+              <CardTitle>Maps ({maps.length})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {maps.length === 0 ? (
+                <p className="text-sm text-muted">No maps created yet.</p>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {maps.map((map) => (
+                    <div key={map.id} className="rounded-lg border border-border bg-surface overflow-hidden">
+                      <div className="aspect-[16/9] bg-background/60">
+                        {map.imgPath ? (
+                          <img
+                            src={resolveMapImageUrl(map.imgPath)}
+                            alt={map.description}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center text-xs text-muted">
+                            No image
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-3 space-y-2">
+                        <div>
+                          <p className="font-medium text-foreground">{map.description}</p>
+                          <p className="text-xs text-muted">{map.type}</p>
+                        </div>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => handleDeleteMap(map)}
+                          disabled={deletingMapId === map.id}
+                        >
+                          {deletingMapId === map.id ? "Deleting..." : "Delete"}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card variant="bordered">
+            <CardHeader>
+              <CardTitle>Heroes ({heroes.length})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {heroes.length === 0 ? (
+                <p className="text-sm text-muted">No heroes created yet.</p>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {heroes.map((hero) => (
+                    <div key={hero.id} className="rounded-lg border border-border bg-surface overflow-hidden">
+                      <div className="aspect-[16/9] bg-background/60">
+                        {hero.imgPath ? (
+                          <img
+                            src={resolveHeroImageUrl(hero.imgPath)}
+                            alt={hero.name}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center text-xs text-muted">
+                            No image
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-3 space-y-2">
+                        <div>
+                          <p className="font-medium text-foreground">{hero.name}</p>
+                          <p className="text-xs text-muted">{hero.role}</p>
+                        </div>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => handleDeleteHero(hero)}
+                          disabled={deletingHeroId === hero.id}
+                        >
+                          {deletingHeroId === hero.id ? "Deleting..." : "Delete"}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

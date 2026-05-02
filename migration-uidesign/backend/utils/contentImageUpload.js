@@ -62,6 +62,29 @@ const saveUploadedImage = async ({
   return `${publicPrefix}/${fileName}`;
 };
 
+const deleteStoredImage = async ({ imgPath, targetDirectory }) => {
+  const normalizedPath = String(imgPath || "").trim();
+  if (!normalizedPath || /^https?:\/\//i.test(normalizedPath)) {
+    return false;
+  }
+
+  const fileName = path.basename(normalizedPath);
+  if (!fileName) {
+    return false;
+  }
+
+  try {
+    await fs.unlink(path.join(targetDirectory, fileName));
+    return true;
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      return false;
+    }
+    throw error;
+  }
+};
+
 module.exports = {
   saveUploadedImage,
+  deleteStoredImage,
 };

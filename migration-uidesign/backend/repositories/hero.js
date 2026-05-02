@@ -5,6 +5,8 @@ const findAll = () =>
     orderBy: [{ role: "asc" }, { id: "asc" }],
   });
 
+const findById = (id) => prisma.hero.findUnique({ where: { id } });
+
 const findByName = (name) =>
   prisma.hero.findFirst({
     where: {
@@ -16,9 +18,12 @@ const findByName = (name) =>
   });
 
 const create = (data) => prisma.hero.create({ data });
+const remove = (id) => prisma.hero.delete({ where: { id } });
 
 module.exports = {
   findAll,
+  findById,
   findByName,
   create,
+  remove,
 };
