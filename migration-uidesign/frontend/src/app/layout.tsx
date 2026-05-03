@@ -5,6 +5,7 @@ import { SessionProvider } from "@/features/session/SessionProvider";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { TournamentTimer } from "@/components/layout/TournamentTimer";
+import { NewNewsNotifier } from "@/components/news/NewNewsNotifier";
 import "./globals.css";
 
 const inter = Inter({
@@ -40,6 +41,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <Navbar />
           <main className="flex-1">{children}</main>
           <Footer />
+          <NewNewsNotifier />
         </SessionProvider>
       </body>
     </html>

@@ -2,12 +2,19 @@ import type { Metadata } from "next";
 import { getNews } from "@/lib/api/news";
 import { Card, CardContent } from "@/components/ui/Card";
 import { NewsCard } from "@/components/news/NewsCard";
-import type { NewsItem } from "@/lib/api/types";
+import { MarkSeenNews } from "@/components/news/MarkSeenNews";
 
 export const metadata: Metadata = {
   title: "News",
   description: "Latest news and updates from the Goonginga League",
 };
+
+// Always render this page on each request so newly published articles
+// appear immediately. Without this, Next.js would statically pre-render
+// the page at build time, and only re-build when the deploy runs again,
+// which means brand new posts never show up here.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 async function getNewsData() {
   try {
@@ -23,9 +30,14 @@ async function getNewsData() {
 
 export default async function NewsPage() {
   const news = await getNewsData();
+  const latestId = news.reduce((max, n) => (n.id > max ? n.id : max), 0);
 
   return (
     <div className="container mx-auto px-4 py-8 relative">
+      {/* Tells the new-news toast that the user has now seen everything
+          published up to `latestId`, so the badge clears automatically. */}
+      <MarkSeenNews latestId={latestId} />
+
       {/* Decorative background */}
       <div className="fixed top-24 left-1/3 w-64 h-64 bg-accent/10 rounded-full blur-[100px] pointer-events-none" />
       <div className="fixed bottom-1/4 right-1/4 w-52 h-52 bg-primary/10 rounded-full blur-[90px] pointer-events-none" />
