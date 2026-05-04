@@ -1436,6 +1436,14 @@ function BanPhase({
               <span className="text-white font-semibold text-[10px] uppercase">Banned</span>
             </div>
           )}
+          {banned && hero.name?.toLowerCase() === "ramattra" && (
+            <img
+              src="/NAOOORAMATTRA.gif"
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full object-cover opacity-85 pointer-events-none"
+            />
+          )}
           {/* Previous game banned overlay for captain - diagonal red lines (ban indicator) */}
           {!banned && isCaptain && myTeamBannedBefore && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
