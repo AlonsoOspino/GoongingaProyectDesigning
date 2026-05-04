@@ -1351,6 +1351,10 @@ function BanPhase({
       ? "grayscale(100%)"
       : undefined;
 
+    const normalizedHeroName = (hero.name || "").trim().toLowerCase();
+    const normalizedHeroPath = (hero.imgPath || "").trim().toLowerCase();
+    const isRamattra = normalizedHeroName === "ramattra" || normalizedHeroPath.includes("ramattra");
+
     return (
       <div key={hero.id} className="relative">
         <button
@@ -1436,7 +1440,7 @@ function BanPhase({
               <span className="text-white font-semibold text-[10px] uppercase">Banned</span>
             </div>
           )}
-          {banned && hero.name?.toLowerCase() === "ramattra" && (
+          {banned && isRamattra && (
             <img
               src="/NAOOORAMATTRA.gif"
               alt=""
