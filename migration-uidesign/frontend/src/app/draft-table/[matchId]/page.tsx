@@ -1222,6 +1222,7 @@ function BanPhase({
   const teamA = teams.find((t) => t.id === draftState.match.teamAId);
   const teamB = teams.find((t) => t.id === draftState.match.teamBId);
   const currentMap = draftState.allMaps?.find((m) => m.id === draftState.currentMapId);
+  const currentGameNumber = (draftState.match.gameNumber || 0) + 1;
 
   const teamABans = teamA ? getBannedHeroesByTeam(teamA.id) : [];
   const teamBBans = teamB ? getBannedHeroesByTeam(teamB.id) : [];
@@ -1301,6 +1302,54 @@ function BanPhase({
   };
 
   const [hoveredHero, setHoveredHero] = useState<number | null>(null);
+  const [showRamattraOverlay, setShowRamattraOverlay] = useState(false);
+  const prevBannedRef = useRef<Set<number>>(new Set());
+  const hasInitializedRef = useRef(false);
+  const ramattraOverlayTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const isRamattraHero = useCallback((hero: Hero) => {
+    const ramattraKey = `${hero.name || ""} ${hero.imgPath || ""}`.toLowerCase();
+    const normalizedRamattraKey = ramattraKey.replace(/[^a-z]/g, "");
+    return normalizedRamattraKey.includes("ramattra");
+  }, []);
+
+  useEffect(() => {
+    if (!draftState?.actions) return;
+
+    const currentBanned = new Set<number>(
+      draftState.actions
+        .filter((action) => action.action === "BAN" && action.gameNumber === currentGameNumber)
+        .map((action) => action.value)
+        .filter((value): value is number => Number.isInteger(value))
+    );
+
+    if (!hasInitializedRef.current) {
+      prevBannedRef.current = currentBanned;
+      hasInitializedRef.current = true;
+      return;
+    }
+
+    const newlyBanned = Array.from(currentBanned).filter(
+      (heroId) => !prevBannedRef.current.has(heroId)
+    );
+
+    if (newlyBanned.length) {
+      const ramattraId = heroes.find(isRamattraHero)?.id;
+      if (ramattraId && newlyBanned.includes(ramattraId)) {
+        setShowRamattraOverlay(true);
+        if (ramattraOverlayTimerRef.current) clearTimeout(ramattraOverlayTimerRef.current);
+        ramattraOverlayTimerRef.current = setTimeout(() => setShowRamattraOverlay(false), 5000);
+      }
+    }
+
+    prevBannedRef.current = currentBanned;
+  }, [draftState?.actions, currentGameNumber, heroes, isRamattraHero]);
+
+  useEffect(() => {
+    return () => {
+      if (ramattraOverlayTimerRef.current) clearTimeout(ramattraOverlayTimerRef.current);
+    };
+  }, []);
 
   const renderHeroCard = (hero: Hero, canSelect: boolean, banned: boolean) => {
     const roleAtLimit = !canBanRole(hero.role);
@@ -1351,9 +1400,7 @@ function BanPhase({
       ? "grayscale(100%)"
       : undefined;
 
-    const normalizedHeroName = (hero.name || "").trim().toLowerCase();
-    const normalizedHeroPath = (hero.imgPath || "").trim().toLowerCase();
-    const isRamattra = normalizedHeroName === "ramattra" || normalizedHeroPath.includes("ramattra");
+    const isRamattra = isRamattraHero(hero);
 
     return (
       <div key={hero.id} className="relative">
@@ -1436,16 +1483,16 @@ function BanPhase({
           </div>
           {/* Current game banned overlay - GRAY */}
           {banned && (
-            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+            <div className="absolute inset-0 z-10 bg-black/60 flex items-center justify-center">
               <span className="text-white font-semibold text-[10px] uppercase">Banned</span>
             </div>
           )}
-          {banned && isRamattra && (
+          {banned && isRamattra && showRamattraOverlay && (
             <img
               src="/NAOOORAMATTRA.gif"
               alt=""
               aria-hidden="true"
-              className="absolute inset-0 w-full h-full object-cover opacity-85 pointer-events-none"
+              className="absolute inset-0 z-20 w-full h-full object-cover opacity-85 pointer-events-none"
             />
           )}
           {/* Previous game banned overlay for captain - diagonal red lines (ban indicator) */}
