@@ -13,7 +13,6 @@ import {
   pickMap,
   startBan,
   banHero,
-  endMap,
   endGame,
   type DraftState,
   type GameMap,
@@ -220,19 +219,6 @@ export default function DraftTablePage() {
       setDraftState(updated);
     } catch (err) {
       console.error("Failed to start ban phase:", err);
-    } finally {
-      setActionLoading(false);
-    }
-  }
-
-  async function handleEndMap() {
-    if (!token || !draftId) return;
-    setActionLoading(true);
-    try {
-      const updated = await endMap(token, draftId);
-      setDraftState(updated);
-    } catch (err) {
-      console.error("Failed to end map:", err);
     } finally {
       setActionLoading(false);
     }
@@ -618,7 +604,6 @@ export default function DraftTablePage() {
             selectedRole={selectedRole}
             setSelectedRole={setSelectedRole}
             onBanHero={handleBanHero}
-            onEndMap={handleEndMap}
             isHeroBanned={isHeroBanned}
             wasHeroBannedByMyTeamBefore={wasHeroBannedByMyTeamBefore}
             wasHeroBannedInPreviousGames={wasHeroBannedInPreviousGames}
@@ -999,11 +984,17 @@ function MapPickingPhase({
   const currentMap = draftState.allMaps?.find((m) => m.id === draftState.currentMapId);
   const isTeamATurn = draftState.currentTurnTeamId === teamA?.id;
   const isTeamBTurn = draftState.currentTurnTeamId === teamB?.id;
+  const isMapLocked = Boolean(currentMap);
 
   return (
-    <div className="min-h-[80vh] flex flex-col">
+    <div className={clsx("flex flex-col", isMapLocked ? "min-h-[60vh]" : "min-h-[80vh]")}>
       {/* Three Column Layout - Team A | Map Selection | Team B */}
-      <div className="flex-1 grid grid-cols-[140px_1fr_140px] xl:grid-cols-[160px_1fr_160px] gap-4 items-start">
+      <div
+        className={clsx(
+          "flex-1 grid grid-cols-[140px_1fr_140px] xl:grid-cols-[160px_1fr_160px] gap-4",
+          isMapLocked ? "items-center" : "items-start"
+        )}
+      >
         {/* Left - Team A: big logo on top, rectangle (name) below */}
         <div className="flex flex-col gap-4">
           <div className={clsx(
@@ -1190,7 +1181,6 @@ function BanPhase({
   selectedRole,
   setSelectedRole,
   onBanHero,
-  onEndMap,
   isHeroBanned,
   wasHeroBannedByMyTeamBefore,
   wasHeroBannedInPreviousGames,
@@ -1215,7 +1205,6 @@ function BanPhase({
   selectedRole: "ALL" | "TANK" | "DPS" | "SUPPORT";
   setSelectedRole: (role: "ALL" | "TANK" | "DPS" | "SUPPORT") => void;
   onBanHero: (heroId: number | null) => void;
-  onEndMap: () => void;
   isHeroBanned: (heroId: number) => boolean;
   wasHeroBannedByMyTeamBefore: (heroId: number) => boolean;
   wasHeroBannedInPreviousGames: (heroId: number) => boolean;
@@ -1348,14 +1337,6 @@ function BanPhase({
       }
     };
 
-    const managerMarkTone = prevBannedByBoth
-      ? "bg-black"
-      : prevBannedByTeamAOnly
-      ? "bg-red-500"
-      : prevBannedByTeamBOnly
-      ? "bg-blue-500"
-      : "bg-border";
-
     const managerLabelTone = prevBannedByBoth
       ? "text-foreground"
       : prevBannedByTeamAOnly
@@ -1386,11 +1367,7 @@ function BanPhase({
               ? "border-danger/70 cursor-not-allowed"
               // Previous game banned (manager view)
               : isManager && wasBannedBefore
-              ? prevBannedByBoth
-                ? "border-black/80 cursor-not-allowed"
-                : prevBannedByTeamAOnly
-                ? "border-red-500/70 cursor-not-allowed"
-                : "border-blue-500/70 cursor-not-allowed"
+              ? "border-border/70 cursor-not-allowed"
               : teamDone
               ? "border-border cursor-not-allowed opacity-40"
               : roleAtLimit && isCaptain
@@ -1402,7 +1379,16 @@ function BanPhase({
           )}
         >
           {!banned && isManager && wasBannedBefore && (
-            <div className={clsx("absolute top-0 left-0 right-0 z-20 h-2.5", managerMarkTone)} />
+            <div className="absolute top-1 left-1 z-20 flex items-center gap-1 rounded-full border border-border/70 bg-surface/80 px-1.5 py-1">
+              {prevBannedByTeamAOnly && <span className="h-2 w-2 rounded-full bg-red-500" />}
+              {prevBannedByTeamBOnly && <span className="h-2 w-2 rounded-full bg-blue-500" />}
+              {prevBannedByBoth && (
+                <>
+                  <span className="h-2 w-2 rounded-full bg-red-500" />
+                  <span className="h-2 w-2 rounded-full bg-blue-500" />
+                </>
+              )}
+            </div>
           )}
           <div className="aspect-square bg-surface w-full relative">
             {hero.imgPath ? (
@@ -1650,11 +1636,6 @@ function BanPhase({
                   {role === "ALL" ? "All" : role}
                 </Button>
               ))}
-              {isManager && (
-                <Button size="sm" variant="secondary" onClick={onEndMap} disabled={actionLoading} className="ml-2">
-                  End Map
-                </Button>
-              )}
             </div>
           </div>
 
@@ -1915,6 +1896,16 @@ function EndMapPhase({
     );
   };
 
+  const actionsRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isManager) return;
+    const timeout = setTimeout(() => {
+      actionsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 150);
+    return () => clearTimeout(timeout);
+  }, [isManager]);
+
   return (
     <div className="min-h-[80vh] flex flex-col">
       {/* PLAYING ON MAP - Central Hero Display */}
@@ -1969,7 +1960,7 @@ function EndMapPhase({
       )}
 
       {/* Bottom Actions */}
-      <div className="border-t border-border pt-6">
+      <div ref={actionsRef} className="border-t border-border pt-6">
         {/* Manager: Register Match Result Form */}
         {isManager && !resultRegistered && !matchIsFinished && (
           <div className="max-w-2xl mx-auto">

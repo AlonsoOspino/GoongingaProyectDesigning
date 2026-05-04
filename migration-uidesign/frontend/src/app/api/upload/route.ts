@@ -3,6 +3,13 @@ import { type NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
   try {
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      return NextResponse.json(
+        { error: 'Missing BLOB_READ_WRITE_TOKEN. Restart the dev server after setting .env.local.' },
+        { status: 500 }
+      )
+    }
+
     const formData = await request.formData()
     const file = formData.get('file') as File
     const type = formData.get('type') as string // 'logo' or 'roster'
@@ -42,12 +49,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ url: blob.url })
   } catch (error) {
     console.error('Upload error:', error)
-    return NextResponse.json({ error: 'Upload failed' }, { status: 500 })
+    const message = error instanceof Error ? error.message : 'Upload failed'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      return NextResponse.json(
+        { error: 'Missing BLOB_READ_WRITE_TOKEN. Restart the dev server after setting .env.local.' },
+        { status: 500 }
+      )
+    }
+
     const { url } = await request.json()
 
     if (!url) {
@@ -59,6 +74,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Delete error:', error)
-    return NextResponse.json({ error: 'Delete failed' }, { status: 500 })
+    const message = error instanceof Error ? error.message : 'Delete failed'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

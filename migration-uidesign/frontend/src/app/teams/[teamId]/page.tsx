@@ -144,7 +144,41 @@ export default async function TeamPage({ params }: TeamPageProps) {
 
       {/* Team Header */}
       <div className="flex flex-col md:flex-row md:items-center gap-6 mb-8">
-        <Avatar size="xl" src={team.logo || undefined} fallback={team.name} className="w-24 h-24 text-2xl" />
+        <div className="flex flex-wrap items-center gap-4">
+          <Avatar size="xl" src={team.logo || undefined} fallback={team.name} className="w-24 h-24 text-2xl" />
+          {profileCount > 0 && (
+            <div className="flex items-center gap-3">
+              <div className="flex -space-x-2">
+                {teamMembers.slice(0, 6).map((member, index) => (
+                  <Link
+                    key={member.id}
+                    href={`/stats/${member.id}`}
+                    className="relative group"
+                    style={{ zIndex: 6 - index }}
+                  >
+                    <div className="w-10 h-10 rounded-full border-2 border-card bg-card overflow-hidden transition-transform group-hover:scale-105">
+                      {resolveProfilePic(member.profilePic) ? (
+                        <img
+                          src={resolveProfilePic(member.profilePic) || ""}
+                          alt={member.nickname}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="h-full w-full flex items-center justify-center bg-primary/15 text-primary text-sm font-semibold">
+                          {member.nickname.charAt(0)}
+                        </div>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+              {profileCount > 6 && (
+                <span className="text-xs text-muted-foreground">+{profileCount - 6}</span>
+              )}
+            </div>
+          )}
+        </div>
         <div className="flex-1">
           <div className="flex flex-wrap items-center gap-3 mb-2">
             <h1 className="text-3xl font-bold text-foreground">{team.name}</h1>
@@ -209,47 +243,6 @@ export default async function TeamPage({ params }: TeamPageProps) {
           </CardContent>
         </Card>
       )}
-
-      <Card variant="featured" className="mb-8">
-        <CardHeader>
-          <CardTitle>Team Members</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {profileCount > 0 ? (
-            <div className="flex flex-wrap items-center gap-4">
-              {teamMembers.map((member) => (
-                <Link
-                  key={member.id}
-                  href={`/stats/${member.id}`}
-                  className="group flex flex-col items-center gap-2"
-                >
-                  <div className="w-16 h-16 rounded-full border border-border/60 bg-card overflow-hidden">
-                    {resolveProfilePic(member.profilePic) ? (
-                      <img
-                        src={resolveProfilePic(member.profilePic) || ""}
-                        alt={member.nickname}
-                        className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="h-full w-full flex items-center justify-center bg-primary/15 text-primary text-lg font-semibold">
-                        {member.nickname.charAt(0)}
-                      </div>
-                    )}
-                  </div>
-                  <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
-                    {member.nickname}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-lg border border-border/50 bg-surface/60 p-6 text-center text-sm text-muted">
-              No team members assigned yet.
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Content Grid */}
       <div className="grid gap-8 lg:grid-cols-2">
