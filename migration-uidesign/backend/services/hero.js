@@ -4,14 +4,15 @@ const { saveUploadedImage, deleteStoredImage } = require("../utils/contentImageU
 
 const HERO_ROLES = ["TANK", "DPS", "SUPPORT"];
 const HERO_IMAGE_DIRECTORY = path.resolve(__dirname, "../../frontend/HeroImages");
+const HERO_GIFT_DIRECTORY = path.resolve(__dirname, "../../frontend/HeroGifts");
 
-const normalizeStoredImagePath = (value) => {
+const normalizeStoredAssetPath = (value, label = "assetUrl") => {
   const normalized = String(value || "").trim();
   if (!normalized) {
-    throw new Error("imageUrl is required.");
+    throw new Error(`${label} is required.`);
   }
   if (!/^https?:\/\//i.test(normalized) && !normalized.startsWith("/")) {
-    throw new Error("imageUrl must be an absolute URL or a public path.");
+    throw new Error(`${label} must be an absolute URL or a public path.`);
   }
   return normalized;
 };
@@ -38,11 +39,12 @@ const remove = async (id) => {
   }
 
   await deleteStoredImage({ imgPath: existing.imgPath, targetDirectory: HERO_IMAGE_DIRECTORY });
+  await deleteStoredImage({ imgPath: existing.heroGift, targetDirectory: HERO_GIFT_DIRECTORY });
   await heroRepository.remove(parsedId);
   return existing;
 };
 
-const create = async ({ name, role, image, imageUrl }) => {
+const create = async ({ name, role, image, imageUrl, gift, heroGift }) => {
   const normalizedName = String(name || "").trim();
   if (!normalizedName) {
     throw new Error("name is required.");
@@ -55,7 +57,7 @@ const create = async ({ name, role, image, imageUrl }) => {
   }
 
   const imgPath = imageUrl
-    ? normalizeStoredImagePath(imageUrl)
+    ? normalizeStoredAssetPath(imageUrl, "imageUrl")
     : await saveUploadedImage({
         file: image,
         displayName: normalizedName,
@@ -64,10 +66,23 @@ const create = async ({ name, role, image, imageUrl }) => {
         publicPrefix: "/HeroImages",
       });
 
+  const giftPath = heroGift
+    ? normalizeStoredAssetPath(heroGift, "heroGift")
+    : gift
+    ? await saveUploadedImage({
+        file: gift,
+        displayName: normalizedName,
+        filePrefix: "hero-gift",
+        targetDirectory: HERO_GIFT_DIRECTORY,
+        publicPrefix: "/HeroGifts",
+      })
+    : null;
+
   return heroRepository.create({
     name: normalizedName,
     role: normalizedRole,
     imgPath,
+    heroGift: giftPath,
   });
 };
 

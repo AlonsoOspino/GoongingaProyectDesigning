@@ -44,6 +44,7 @@ export default function AddOverwatchContentPage() {
 
   const mapFileInputRef = useRef<HTMLInputElement>(null);
   const heroFileInputRef = useRef<HTMLInputElement>(null);
+  const heroGiftInputRef = useRef<HTMLInputElement>(null);
 
   const [notification, setNotification] = useState<NotificationState>(null);
   const [mapSubmitting, setMapSubmitting] = useState(false);
@@ -63,6 +64,7 @@ export default function AddOverwatchContentPage() {
     name: "",
     role: "TANK" as AdminHero["role"],
     image: null as File | null,
+    gift: null as File | null,
   });
 
   useEffect(() => {
@@ -105,7 +107,7 @@ export default function AddOverwatchContentPage() {
     setTimeout(() => setNotification(null), 3500);
   };
 
-  async function uploadContentImage(file: File, type: "map" | "hero") {
+  async function uploadContentImage(file: File, type: "map" | "hero" | "hero-gift") {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("type", type);
@@ -204,10 +206,14 @@ export default function AddOverwatchContentPage() {
     setHeroSubmitting(true);
     try {
       const imageUrl = await uploadContentImage(heroForm.image, "hero");
+      const heroGiftUrl = heroForm.gift
+        ? await uploadContentImage(heroForm.gift, "hero-gift")
+        : null;
       const createdHero = await adminCreateHero(token, {
         name: trimmedName,
         role: heroForm.role,
         imageUrl,
+        heroGift: heroGiftUrl,
       });
       setHeroes((prev) => [createdHero, ...prev]);
 
@@ -215,9 +221,13 @@ export default function AddOverwatchContentPage() {
         name: "",
         role: "TANK",
         image: null,
+        gift: null,
       });
       if (heroFileInputRef.current) {
         heroFileInputRef.current.value = "";
+      }
+      if (heroGiftInputRef.current) {
+        heroGiftInputRef.current.value = "";
       }
       showNotif("success", `Hero \"${trimmedName}\" created successfully.`);
     } catch (error) {
@@ -254,6 +264,7 @@ export default function AddOverwatchContentPage() {
     try {
       const deleted = await adminDeleteHero(token, hero.id);
       await deleteUploadedContentImage(deleted.imgPath);
+      await deleteUploadedContentImage(deleted.heroGift ?? undefined);
       setHeroes((prev) => prev.filter((item) => item.id !== hero.id));
       showNotif("success", `Hero "${hero.name}" deleted.`);
     } catch (error) {
@@ -398,6 +409,27 @@ export default function AddOverwatchContentPage() {
                   />
                   {heroForm.image && (
                     <p className="mt-2 text-xs text-muted">Selected: {heroForm.image.name}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
+                    Hero gift (WebP/GIF)
+                  </label>
+                  <input
+                    ref={heroGiftInputRef}
+                    type="file"
+                    accept="image/webp,image/gif"
+                    onChange={(e) =>
+                      setHeroForm((prev) => ({
+                        ...prev,
+                        gift: e.target.files?.[0] || null,
+                      }))
+                    }
+                    className="w-full px-3 py-2 bg-input border border-input-border rounded-md text-foreground file:mr-3 file:px-3 file:py-1 file:border-0 file:rounded file:bg-primary file:text-primary-foreground"
+                  />
+                  {heroForm.gift && (
+                    <p className="mt-2 text-xs text-muted">Selected: {heroForm.gift.name}</p>
                   )}
                 </div>
 

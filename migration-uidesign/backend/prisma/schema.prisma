@@ -239,6 +239,7 @@ model Hero {
   name    String?
   role    HeroRole
   imgPath String
+  heroGift String?
 }
 
 model PlayerStat {

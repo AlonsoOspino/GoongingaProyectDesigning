@@ -230,6 +230,7 @@ export interface AdminHero {
   name: string;
   role: "TANK" | "DPS" | "SUPPORT";
   imgPath: string;
+  heroGift?: string | null;
 }
 
 export async function getMaps() {
@@ -296,6 +297,7 @@ export async function adminCreateHero(
     role: AdminHero["role"];
     image?: File;
     imageUrl?: string;
+    heroGift?: string | null;
   }
 ) {
   if (payload.imageUrl) {
@@ -306,6 +308,7 @@ export async function adminCreateHero(
         name: payload.name,
         role: payload.role,
         imageUrl: payload.imageUrl,
+        heroGift: payload.heroGift,
       },
     });
   }
@@ -315,6 +318,9 @@ export async function adminCreateHero(
   form.append("role", payload.role);
   if (payload.image) {
     form.append("image", payload.image);
+  }
+  if (payload.heroGift) {
+    form.append("heroGift", payload.heroGift);
   }
 
   return apiRequest<AdminHero>("/hero/create", {

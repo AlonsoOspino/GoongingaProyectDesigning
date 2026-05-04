@@ -29,7 +29,7 @@ export function TournamentTimer() {
   }, [isHydrated]);
 
   const timeRemaining = useMemo<TimeRemaining | null>(() => {
-    if (!tournament || tournament.state !== "SCHEDULED") return null;
+    if (!tournament) return null;
 
     const targetDate = new Date(tournament.startDate).getTime();
     const distance = targetDate - serverNow;
@@ -59,7 +59,7 @@ export function TournamentTimer() {
     }
   }
 
-  if (!isHydrated || loading || !tournament || tournament.state !== "SCHEDULED" || !timeRemaining) {
+  if (!isHydrated || loading || !tournament || !timeRemaining) {
     return null;
   }
 

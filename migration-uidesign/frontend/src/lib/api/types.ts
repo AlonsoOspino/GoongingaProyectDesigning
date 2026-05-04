@@ -39,6 +39,7 @@ export interface Team {
   id: number;
   name: string;
   logo?: string | null;
+  bannerURL?: string | null;
   roster?: string | null;
   discordRoleId?: string | null;
   victories: number;
@@ -120,6 +121,7 @@ export interface Hero {
   name: string;
   role: HeroRole;
   imgPath: string;
+  heroGift?: string | null;
 }
 
 export interface NewsItem {

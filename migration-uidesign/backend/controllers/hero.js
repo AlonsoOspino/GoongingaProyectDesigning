@@ -16,6 +16,7 @@ const create = async (req, res) => {
       role: req.body?.role,
       image: req.file,
       imageUrl: req.body?.imageUrl,
+      heroGift: req.body?.heroGift,
     });
     res.status(201).json(hero);
   } catch (error) {
