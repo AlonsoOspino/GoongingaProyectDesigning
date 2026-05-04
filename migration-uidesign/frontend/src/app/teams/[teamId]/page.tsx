@@ -4,12 +4,14 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getTeams } from "@/lib/api/team";
 import { getMatches } from "@/lib/api/match";
+import { getMembers, type Member } from "@/lib/api/admin";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { MatchCard } from "@/components/matches/MatchCard";
 import type { Team, Match } from "@/lib/api/types";
+import { resolveGenericBackendAsset } from "@/lib/assetUrls";
 
 interface TeamPageProps {
   params: Promise<{ teamId: string }>;
@@ -17,9 +19,10 @@ interface TeamPageProps {
 
 async function getTeamData(teamId: number) {
   try {
-    const [teams, matches] = await Promise.all([
+    const [teams, matches, members] = await Promise.all([
       getTeams(),
       getMatches().catch(() => [] as Match[]),
+      getMembers().catch(() => [] as Member[]),
     ]);
 
     const team = teams.find((t) => t.id === teamId);
@@ -58,12 +61,17 @@ async function getTeamData(teamId: number) {
       return streak;
     }, 0);
 
+    const teamMembers = members
+      .filter((member) => member.teamId === teamId)
+      .sort((a, b) => a.nickname.localeCompare(b.nickname));
+
     return {
       team,
       teamsById,
       upcomingMatches,
       recentMatches,
       winStreak,
+      teamMembers,
     };
   } catch (error) {
     console.error("Failed to fetch team data:", error);
@@ -100,10 +108,11 @@ export default async function TeamPage({ params }: TeamPageProps) {
     notFound();
   }
 
-  const { team, teamsById, upcomingMatches, recentMatches, winStreak } = data;
+  const { team, teamsById, upcomingMatches, recentMatches, winStreak, teamMembers } = data;
   const mapDiff = team.mapWins - team.mapLoses;
   const totalMaps = team.mapWins + team.mapLoses;
   const winRate = totalMaps > 0 ? Math.round((team.mapWins / totalMaps) * 100) : 0;
+  const profileCount = teamMembers?.length ?? 0;
 
   const rosterSrc = team.roster
     ? team.roster.startsWith("http")
@@ -112,6 +121,13 @@ export default async function TeamPage({ params }: TeamPageProps) {
         ? team.roster
         : `/${team.roster}`
     : null;
+
+  const resolveProfilePic = (value?: string | null) => {
+    if (!value) return null;
+    const cleaned = value.trim();
+    if (!cleaned) return null;
+    return resolveGenericBackendAsset(cleaned);
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -193,6 +209,47 @@ export default async function TeamPage({ params }: TeamPageProps) {
           </CardContent>
         </Card>
       )}
+
+      <Card variant="featured" className="mb-8">
+        <CardHeader>
+          <CardTitle>Team Members</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {profileCount > 0 ? (
+            <div className="flex flex-wrap items-center gap-4">
+              {teamMembers.map((member) => (
+                <Link
+                  key={member.id}
+                  href={`/stats/${member.id}`}
+                  className="group flex flex-col items-center gap-2"
+                >
+                  <div className="w-16 h-16 rounded-full border border-border/60 bg-card overflow-hidden">
+                    {resolveProfilePic(member.profilePic) ? (
+                      <img
+                        src={resolveProfilePic(member.profilePic) || ""}
+                        alt={member.nickname}
+                        className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center bg-primary/15 text-primary text-lg font-semibold">
+                        {member.nickname.charAt(0)}
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
+                    {member.nickname}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-border/50 bg-surface/60 p-6 text-center text-sm text-muted">
+              No team members assigned yet.
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Content Grid */}
       <div className="grid gap-8 lg:grid-cols-2">

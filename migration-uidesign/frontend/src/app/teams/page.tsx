@@ -58,6 +58,7 @@ export default function TeamsPage() {
     if (!teams) return [];
     return [...teams].sort((a, b) => b.victories - a.victories);
   }, [teams]);
+  const topTeam = sortedTeams[0] ?? null;
 
   // Group members by team
   const membersByTeam = useMemo(() => {
@@ -85,6 +86,7 @@ export default function TeamsPage() {
     <div className="min-h-screen bg-background">
       {/* Ambient Background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute inset-0 bg-grid-pattern-subtle opacity-40" />
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-success/5 rounded-full blur-3xl" />
         <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-primary/5 rounded-full blur-3xl" />
       </div>
@@ -104,29 +106,47 @@ export default function TeamsPage() {
           <p className="text-muted-foreground text-lg max-w-2xl">
             Explore all competing teams, their rosters, and player statistics
           </p>
+          {topTeam && (
+            <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-primary">
+              <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+              Current Leader: {topTeam.name}
+            </div>
+          )}
         </div>
 
         {/* Quick Stats Bar */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-          <div className="bg-card/50 border border-border/50 rounded-xl p-4">
-            <div className="text-2xl font-bold text-foreground">{sortedTeams.length}</div>
-            <div className="text-xs text-muted-foreground">Total Teams</div>
-          </div>
-          <div className="bg-card/50 border border-border/50 rounded-xl p-4">
-            <div className="text-2xl font-bold text-foreground">{members?.length || 0}</div>
-            <div className="text-xs text-muted-foreground">Active Players</div>
-          </div>
-          <div className="bg-card/50 border border-border/50 rounded-xl p-4">
-            <div className="text-2xl font-bold text-success">
-              {sortedTeams.length > 0 ? sortedTeams[0]?.name.split(" ")[0] : "-"}
+          <div className="group relative overflow-hidden bg-card/50 border border-border/50 rounded-xl p-4">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+            <div className="relative">
+              <div className="text-2xl font-bold text-foreground">{sortedTeams.length}</div>
+              <div className="text-xs text-muted-foreground">Total Teams</div>
             </div>
-            <div className="text-xs text-muted-foreground">Top Team</div>
           </div>
-          <div className="bg-card/50 border border-border/50 rounded-xl p-4">
-            <div className="text-2xl font-bold text-accent">
-              {sortedTeams.reduce((sum, t) => sum + t.victories, 0)}
+          <div className="group relative overflow-hidden bg-card/50 border border-border/50 rounded-xl p-4">
+            <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+            <div className="relative">
+              <div className="text-2xl font-bold text-foreground">{members?.length || 0}</div>
+              <div className="text-xs text-muted-foreground">Active Players</div>
             </div>
-            <div className="text-xs text-muted-foreground">Total Matches</div>
+          </div>
+          <div className="group relative overflow-hidden bg-card/50 border border-border/50 rounded-xl p-4">
+            <div className="absolute inset-0 bg-gradient-to-br from-success/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+            <div className="relative">
+              <div className="text-2xl font-bold text-success">
+                {sortedTeams.length > 0 ? sortedTeams[0]?.name.split(" ")[0] : "-"}
+              </div>
+              <div className="text-xs text-muted-foreground">Top Team</div>
+            </div>
+          </div>
+          <div className="group relative overflow-hidden bg-card/50 border border-border/50 rounded-xl p-4">
+            <div className="absolute inset-0 bg-gradient-to-br from-warning/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+            <div className="relative">
+              <div className="text-2xl font-bold text-accent">
+                {sortedTeams.reduce((sum, t) => sum + t.victories, 0)}
+              </div>
+              <div className="text-xs text-muted-foreground">Total Matches</div>
+            </div>
           </div>
         </div>
 

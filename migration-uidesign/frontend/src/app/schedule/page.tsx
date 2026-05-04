@@ -112,6 +112,8 @@ export default function SchedulePage() {
     .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
   const upcomingWeeklyMatches = upcomingMatches.filter((m) => m.semanas !== null);
   const upcomingStageMatches = upcomingMatches.filter((m) => m.semanas === null);
+  const spotlightMatch = liveMatches[0] ?? upcomingMatches[0] ?? null;
+  const tournamentLabel = tournamentState ? tournamentState.replace(/_/g, " ") : null;
 
   const weekOptions = [
     { value: "all", label: "All Weeks" },
@@ -150,6 +152,8 @@ export default function SchedulePage() {
       <div className="fixed inset-0 bg-gradient-radial pointer-events-none" />
       <div className="fixed inset-0 bg-gradient-radial-bottom pointer-events-none" />
       <div className="fixed inset-0 bg-grid-pattern-subtle pointer-events-none opacity-50" />
+      <div className="decoration-blob bg-primary/20 w-64 h-64 -top-16 -right-20" />
+      <div className="decoration-blob bg-accent/20 w-72 h-72 top-24 -left-24" />
       
       <div className="container mx-auto px-4 py-8 relative">
         {/* Header */}
@@ -163,6 +167,12 @@ export default function SchedulePage() {
             <div>
               <h1 className="text-3xl font-bold text-foreground">Schedule</h1>
               <p className="text-muted">View all matches across the season</p>
+              {tournamentLabel && (
+                <span className="mt-2 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                  {tournamentLabel}
+                </span>
+              )}
             </div>
           </div>
           <div className="h-px bg-gradient-to-r from-primary/50 via-accent/30 to-transparent" />
@@ -170,34 +180,65 @@ export default function SchedulePage() {
 
         {/* Stats summary bar */}
         <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="bg-surface/80 backdrop-blur border border-border rounded-xl p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <span className="text-lg font-bold text-primary">{liveMatches.length}</span>
-            </div>
-            <div>
-              <p className="text-sm text-muted">Live Now</p>
-              <p className="text-xs text-primary">{liveMatches.length > 0 ? "In Progress" : "None"}</p>
-            </div>
-          </div>
-          <div className="bg-surface/80 backdrop-blur border border-border rounded-xl p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
-              <span className="text-lg font-bold text-accent">{upcomingMatches.length}</span>
-            </div>
-            <div>
-              <p className="text-sm text-muted">Upcoming</p>
-              <p className="text-xs text-accent">Scheduled</p>
+          <div className="group relative overflow-hidden bg-surface/80 backdrop-blur border border-border rounded-xl p-4">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+            <div className="relative flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <span className="text-lg font-bold text-primary">{liveMatches.length}</span>
+              </div>
+              <div>
+                <p className="text-sm text-muted">Live Now</p>
+                <p className="text-xs text-primary">{liveMatches.length > 0 ? "In Progress" : "None"}</p>
+              </div>
             </div>
           </div>
-          <div className="bg-surface/80 backdrop-blur border border-border rounded-xl p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center">
-              <span className="text-lg font-bold text-success">{completedMatches.length}</span>
+          <div className="group relative overflow-hidden bg-surface/80 backdrop-blur border border-border rounded-xl p-4">
+            <div className="absolute inset-0 bg-gradient-to-br from-accent/15 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+            <div className="relative flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
+                <span className="text-lg font-bold text-accent">{upcomingMatches.length}</span>
+              </div>
+              <div>
+                <p className="text-sm text-muted">Upcoming</p>
+                <p className="text-xs text-accent">Scheduled</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-muted">Completed</p>
-              <p className="text-xs text-success">Finished</p>
+          </div>
+          <div className="group relative overflow-hidden bg-surface/80 backdrop-blur border border-border rounded-xl p-4">
+            <div className="absolute inset-0 bg-gradient-to-br from-success/15 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+            <div className="relative flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center">
+                <span className="text-lg font-bold text-success">{completedMatches.length}</span>
+              </div>
+              <div>
+                <p className="text-sm text-muted">Completed</p>
+                <p className="text-xs text-success">Finished</p>
+              </div>
             </div>
           </div>
         </div>
+
+        <Card variant="featured" className="mb-6 border-border/50 bg-surface/60 backdrop-blur">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Schedule Spotlight</CardTitle>
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+              {spotlightMatch ? "Next up" : "No matches"}
+            </span>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {spotlightMatch ? (
+              <MatchCard
+                match={spotlightMatch}
+                teamA={teamsById.get(spotlightMatch.teamAId)}
+                teamB={teamsById.get(spotlightMatch.teamBId)}
+              />
+            ) : (
+              <div className="rounded-lg border border-border/50 bg-surface/70 p-6 text-center text-sm text-muted">
+                Add matches to see the next matchup highlighted here.
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Filters */}
         <Card variant="featured" className="mb-6 border-border/50 bg-surface/50 backdrop-blur">

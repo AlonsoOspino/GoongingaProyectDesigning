@@ -68,6 +68,7 @@ export default function DraftTablePage() {
   const myTeamId = user?.teamId;
   const isMyTurn = draftState?.currentTurnTeamId === myTeamId;
   const currentPhase = draftState?.phase as Phase;
+  const isMapSelectionLocked = currentPhase === "MAPPICKING" && Boolean(draftState?.currentMapId);
 
   const teamA = teams.find((t) => t.id === draftState?.match?.teamAId);
   const teamB = teams.find((t) => t.id === draftState?.match?.teamBId);
@@ -129,6 +130,12 @@ export default function DraftTablePage() {
       return;
     }
 
+    // Stop the turn timer once a map has been selected during MAPPICKING.
+    if (isMapSelectionLocked) {
+      if (timerRef.current) clearInterval(timerRef.current);
+      return;
+    }
+
     const serverRemaining =
       typeof draftState.remainingSeconds === "number" && Number.isFinite(draftState.remainingSeconds)
         ? draftState.remainingSeconds
@@ -152,7 +159,7 @@ export default function DraftTablePage() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [draftState?.remainingSeconds, currentPhase, isMatchPaused, actionLoading]);
+  }, [draftState?.remainingSeconds, currentPhase, isMatchPaused, actionLoading, isMapSelectionLocked]);
 
   useEffect(() => {
     const heroes = draftState?.heroes || [];
@@ -549,7 +556,7 @@ export default function DraftTablePage() {
                 >
                   {currentPhase}
                 </Badge>
-                {(currentPhase === "BAN" || currentPhase === "MAPPICKING") && (
+                {(currentPhase === "BAN" || currentPhase === "MAPPICKING") && !isMapSelectionLocked && (
                   <div
                     className={clsx(
                       "text-2xl font-mono font-bold tabular-nums",
@@ -1060,71 +1067,78 @@ function MapPickingPhase({
           )}
 
           {/* Map Grid */}
-          <Card variant="featured">
-            <CardHeader className="pb-2 pt-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Available Maps</CardTitle>
-                {isCaptain && isMyTurn && (
-                  <Badge variant="success" className="animate-pulse-glow">Your Turn</Badge>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="pb-4">
-              {isCaptain && !isMyTurn && (
-                <div className="mb-3 p-2 rounded-lg bg-surface-elevated text-center">
-                  <p className="text-xs text-muted">Waiting for {currentTeam?.name} to pick...</p>
+          {!currentMap && (
+            <Card variant="featured">
+              <CardHeader className="pb-2 pt-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Available Maps</CardTitle>
+                  {isCaptain && isMyTurn && (
+                    <Badge variant="success" className="animate-pulse-glow">Your Turn</Badge>
+                  )}
                 </div>
-              )}
+              </CardHeader>
+              <CardContent className="pb-4">
+                {isCaptain && !isMyTurn && (
+                  <div className="mb-3 p-2 rounded-lg bg-surface-elevated text-center">
+                    <p className="text-xs text-muted">Waiting for {currentTeam?.name} to pick...</p>
+                  </div>
+                )}
 
-              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                {availableMaps.map((map) => {
-                  const picked = isMapPicked(map.id);
-                  const isCurrentMap = map.id === draftState.currentMapId;
-                  const canSelect = isCaptain && isMyTurn && !picked;
+                <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                  {availableMaps.map((map) => {
+                    const picked = isMapPicked(map.id);
+                    const isCurrentMap = map.id === draftState.currentMapId;
+                    const canSelect = isCaptain && isMyTurn && !picked;
 
-                  return (
-                    <button
-                      key={map.id}
-                      onClick={() => canSelect && onPickMap(map.id)}
-                      disabled={picked || !canSelect || actionLoading}
-                      className={clsx(
-                        "relative rounded-lg overflow-hidden border-2 transition-all",
-                        picked
-                          ? "border-border opacity-30 grayscale cursor-not-allowed"
-                          : isCurrentMap
-                          ? "border-primary ring-2 ring-primary/30 scale-105"
-                          : canSelect
-                          ? "border-border hover:border-primary cursor-pointer hover:scale-105"
-                          : "border-border cursor-default opacity-60"
-                      )}
-                    >
-                      <div className="aspect-video bg-surface-elevated">
-                        {map.imgPath ? (
-                          <img
-                            src={resolveMapImageUrl(map.imgPath)}
-                            alt={map.description}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <span className="text-sm font-bold text-muted">{map.description.charAt(0)}</span>
+                    return (
+                      <button
+                        key={map.id}
+                        onClick={() => canSelect && onPickMap(map.id)}
+                        disabled={picked || !canSelect || actionLoading}
+                        className={clsx(
+                          "relative rounded-lg overflow-hidden border-2 transition-all",
+                          picked
+                            ? "border-border opacity-30 grayscale cursor-not-allowed"
+                            : isCurrentMap
+                            ? "border-primary ring-2 ring-primary/30 scale-105"
+                            : canSelect
+                            ? "border-border hover:border-primary cursor-pointer hover:scale-105"
+                            : "border-border cursor-default opacity-60"
+                        )}
+                      >
+                        <div className="aspect-video bg-surface-elevated">
+                          {map.imgPath ? (
+                            <img
+                              src={resolveMapImageUrl(map.imgPath)}
+                              alt={map.description}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <span className="text-sm font-bold text-muted">{map.description.charAt(0)}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-2 bg-background">
+                          <p className="text-xs font-medium text-foreground truncate text-center">{map.description}</p>
+                        </div>
+                        {picked && (
+                          <div className="absolute inset-0 bg-background/70 flex items-center justify-center">
+                            <span className="text-[10px] text-muted font-semibold">USED</span>
                           </div>
                         )}
-                      </div>
-                      <div className="p-2 bg-background">
-                        <p className="text-xs font-medium text-foreground truncate text-center">{map.description}</p>
-                      </div>
-                      {picked && (
-                        <div className="absolute inset-0 bg-background/70 flex items-center justify-center">
-                          <span className="text-[10px] text-muted font-semibold">USED</span>
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
+                      </button>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          {currentMap && !isManager && (
+            <div className="rounded-lg border border-border/50 bg-surface-elevated/50 p-3 text-center text-xs text-muted">
+              Map locked. Waiting for the manager to start the ban phase.
+            </div>
+          )}
         </div>
 
         {/* Right - Team B: big logo on top, rectangle (name) below */}

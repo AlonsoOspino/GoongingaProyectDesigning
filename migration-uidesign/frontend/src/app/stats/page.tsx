@@ -265,6 +265,7 @@ export default function StatsPage() {
     <div className="relative min-h-screen overflow-hidden bg-background">
       {/* Ambient background effects */}
       <div className="pointer-events-none fixed inset-0">
+        <div className="absolute inset-0 bg-grid-pattern-subtle opacity-35" />
         <div className="absolute -left-32 top-0 h-[600px] w-[600px] rounded-full bg-primary/6 blur-[180px]" />
         <div className="absolute -right-32 top-1/4 h-[500px] w-[500px] rounded-full bg-accent/5 blur-[160px]" />
         <div className="absolute bottom-0 left-1/2 h-[400px] w-[800px] -translate-x-1/2 rounded-full bg-success/4 blur-[200px]" />
@@ -289,6 +290,7 @@ export default function StatsPage() {
           <p className="mt-3 max-w-2xl text-base text-muted lg:text-lg text-pretty">
             Real-time competitive stats across all active players. Focus on a key metric and see how each role stacks up.
           </p>
+          <div className="mt-6 h-px w-full bg-gradient-to-r from-primary/50 via-accent/40 to-transparent" />
         </header>
 
         {/* Quick Stats Bar */}
