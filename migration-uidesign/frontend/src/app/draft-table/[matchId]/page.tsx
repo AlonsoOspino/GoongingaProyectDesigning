@@ -1560,7 +1560,7 @@ function BanPhase({
         <div
           key={`noban-${index}`}
           className={clsx(
-            "w-24 h-24 rounded-xl border-2 flex items-center justify-center",
+            "w-24 h-28 rounded-xl border-2 flex items-center justify-center",
             colorClasses.border,
             colorClasses.slotBg
           )}
@@ -1574,11 +1574,11 @@ function BanPhase({
     return (
       <div
         key={heroId}
-        className={clsx("w-24 rounded-xl overflow-hidden border-2", colorClasses.border, colorClasses.bg)}
+        className={clsx("w-24 h-28 rounded-xl overflow-hidden border-2", colorClasses.border, colorClasses.bg)}
       >
         {hero?.imgPath ? (
           <>
-            <img src={resolveHeroImageUrl(hero.imgPath)} alt={hero.name} className="w-full h-16 object-cover grayscale" />
+            <img src={resolveHeroImageUrl(hero.imgPath)} alt={hero.name} className="w-full h-20 object-contain grayscale" />
             <div className="px-1 py-1.5 bg-background/80">
               <p className={clsx("text-[11px] font-semibold text-center truncate", colorClasses.text)}>{hero.name}</p>
             </div>
@@ -1594,7 +1594,7 @@ function BanPhase({
 
   // Render empty ban slot (square)
   const renderEmptySlot = (slotNum: number) => (
-    <div className="w-24 h-24 rounded-xl border-2 border-dashed border-border flex items-center justify-center bg-surface-elevated/30">
+    <div className="w-24 h-28 rounded-xl border-2 border-dashed border-border flex items-center justify-center bg-surface-elevated/30">
       <span className="text-sm text-muted">{slotNum}</span>
     </div>
   );
