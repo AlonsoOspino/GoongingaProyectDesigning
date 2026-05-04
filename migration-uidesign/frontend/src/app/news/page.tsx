@@ -3,11 +3,14 @@ import { getNews } from "@/lib/api/news";
 import { Card, CardContent } from "@/components/ui/Card";
 import { NewsCard } from "@/components/news/NewsCard";
 import type { NewsItem } from "@/lib/api/types";
+import styles from "@/components/news/news.module.css";
 
 export const metadata: Metadata = {
   title: "News",
   description: "Latest news and updates from the Goonginga League",
 };
+
+export const dynamic = "force-dynamic";
 
 async function getNewsData() {
   try {
@@ -23,33 +26,46 @@ async function getNewsData() {
 
 export default async function NewsPage() {
   const news = await getNewsData();
+  const latest = news[0] ?? null;
 
   return (
-    <div className="container mx-auto px-4 py-8 relative">
-      {/* Decorative background */}
-      <div className="fixed top-24 left-1/3 w-64 h-64 bg-accent/10 rounded-full blur-[100px] pointer-events-none" />
-      <div className="fixed bottom-1/4 right-1/4 w-52 h-52 bg-primary/10 rounded-full blur-[90px] pointer-events-none" />
-      
-      {/* Header */}
-      <div className="mb-8 relative">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-1 h-8 bg-gradient-to-b from-accent to-primary rounded-full" />
-          <h1 className="text-3xl font-bold text-foreground">News</h1>
+    <div className={`container mx-auto px-4 py-10 ${styles.newsPage}`}>
+      <section className={styles.newsHero}>
+        <div className={styles.newsHeroBackdrop} aria-hidden />
+        <div className={styles.newsHeroContent}>
+          <div className={styles.newsHeroText}>
+            <span className={styles.newsBadge}>League Newsroom</span>
+            <h1 className={styles.newsTitle}>News</h1>
+            <p className={styles.newsSubtitle}>
+              Stay up to date with the latest from the Goonginga League.
+            </p>
+            {latest && (
+              <p className={styles.newsLatest}>
+                Latest: <span>{latest.title}</span>
+              </p>
+            )}
+          </div>
+          <div className={styles.newsStats}>
+            <div className={styles.newsStatCard}>
+              <p className={styles.newsStatLabel}>Total posts</p>
+              <p className={styles.newsStatValue}>{news.length}</p>
+            </div>
+            <div className={styles.newsStatCard}>
+              <p className={styles.newsStatLabel}>Updated</p>
+              <p className={styles.newsStatValue}>Live</p>
+            </div>
+          </div>
         </div>
-        <p className="text-muted pl-4">
-          Stay up to date with the latest from the Goonginga League
-        </p>
-      </div>
+      </section>
 
-      {/* News Grid */}
       {news.length > 0 ? (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className={styles.newsGrid}>
           {news.map((article) => (
             <NewsCard key={article.id} article={article} />
           ))}
         </div>
       ) : (
-        <Card variant="featured">
+        <Card variant="featured" className={styles.newsEmptyCard}>
           <CardContent className="py-12 text-center">
             <div className="max-w-md mx-auto">
               <div className="w-16 h-16 rounded-full bg-surface-elevated flex items-center justify-center mx-auto mb-4">
