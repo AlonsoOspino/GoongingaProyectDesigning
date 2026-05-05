@@ -15,3 +15,10 @@ export async function createNews(
     body: payload,
   });
 }
+
+export async function deleteNews(token: string, id: number) {
+  return apiRequest<void>(`/news/delete/${id}`, {
+    method: "DELETE",
+    token,
+  });
+}

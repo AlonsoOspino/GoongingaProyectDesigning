@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/features/session/SessionProvider";
-import { createNews, getNews, type NewsItem } from "@/lib/api";
+import { createNews, deleteNews, getNews, type NewsItem } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { NewsCard } from "@/components/news/NewsCard";
 import { NewsEditor } from "@/components/news/NewsEditor";
 import styles from "@/components/news/news.module.css";
 
@@ -49,6 +49,9 @@ export default function EditorDashboardPage() {
   const [isLoadingNews, setIsLoadingNews] = useState(true);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [news, setNews] = useState<NewsItem[]>([]);
 
   const canManageNews = user?.role === "EDITOR" || user?.role === "ADMIN";
@@ -103,6 +106,8 @@ export default function EditorDashboardPage() {
     setIsSubmitting(true);
     setSubmitError(null);
     setSubmitSuccess(null);
+    setDeleteError(null);
+    setDeleteSuccess(null);
 
     try {
       const title = form.title.trim();
@@ -128,6 +133,27 @@ export default function EditorDashboardPage() {
       setSubmitError(message);
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleDelete(article: NewsItem) {
+    if (!token) return;
+    const confirmed = window.confirm(`Delete "${article.title}"?`);
+    if (!confirmed) return;
+
+    setDeletingId(article.id);
+    setDeleteError(null);
+    setDeleteSuccess(null);
+
+    try {
+      await deleteNews(token, article.id);
+      setDeleteSuccess("News deleted successfully.");
+      await loadNews();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to delete news.";
+      setDeleteError(message);
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -317,19 +343,52 @@ export default function EditorDashboardPage() {
                   <CardTitle>Latest news</CardTitle>
                 </CardHeader>
                 <CardContent>
+                  {deleteError && (
+                    <p className="text-sm text-danger mb-2">{deleteError}</p>
+                  )}
+                  {deleteSuccess && (
+                    <p className="text-sm text-success mb-2">{deleteSuccess}</p>
+                  )}
                   {isLoadingNews ? (
                     <p className="text-sm text-muted">Loading latest posts...</p>
                   ) : news.length === 0 ? (
                     <p className="text-sm text-muted">No news published yet.</p>
                   ) : (
                     <div className="flex flex-col gap-3">
-                      {news.slice(0, 5).map((article) => (
-                        <NewsCard
-                          key={article.id}
-                          article={article}
-                          variant="compact"
-                        />
-                      ))}
+                      {news.slice(0, 5).map((article) => {
+                        const publishedDate = new Date(article.createdAt);
+                        return (
+                          <div
+                            key={article.id}
+                            className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-surface-elevated/40 px-3 py-2"
+                          >
+                            <div className="min-w-0">
+                              <Link
+                                href={`/news/${article.id}`}
+                                className="text-sm font-medium text-foreground hover:underline line-clamp-2"
+                              >
+                                {article.title}
+                              </Link>
+                              <p className="text-xs text-muted mt-1">
+                                {publishedDate.toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                })}
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="danger"
+                              size="sm"
+                              isLoading={deletingId === article.id}
+                              disabled={deletingId !== null && deletingId !== article.id}
+                              onClick={() => handleDelete(article)}
+                            >
+                              Delete
+                            </Button>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </CardContent>
