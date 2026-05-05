@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { clsx } from "clsx";
 import { useSession } from "@/features/session/SessionProvider";
+import { getNews } from "@/lib/api";
+import { getServerNow } from "@/lib/serverTime";
 import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
 
@@ -17,11 +19,15 @@ const publicNavLinks = [
   { href: "/teams", label: "Teams" },
 ];
 
+const RECENT_NEWS_WINDOW_HOURS = 72;
+const RECENT_NEWS_WINDOW_MS = RECENT_NEWS_WINDOW_HOURS * 60 * 60 * 1000;
+
 export function Navbar() {
   const pathname = usePathname();
   const { isAuthenticated, user, clearSession, isHydrated } = useSession();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isNavHidden, setIsNavHidden] = useState(false);
+  const [hasRecentNews, setHasRecentNews] = useState(false);
   const isDraftTable = pathname.startsWith("/draft-table");
   const NAVBAR_STORAGE_KEY = "draftTableHideNavbar";
 
@@ -52,6 +58,38 @@ export function Navbar() {
       window.removeEventListener("draft-navbar-toggle", handleCustom);
     };
   }, [isDraftTable]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const checkRecentNews = async () => {
+      try {
+        const items = await getNews();
+        if (!isMounted) return;
+
+        const latestCreatedAt = items.reduce((latest, item) => {
+          const createdAt = new Date(item.createdAt).getTime();
+          return createdAt > latest ? createdAt : latest;
+        }, 0);
+
+        if (!latestCreatedAt) {
+          setHasRecentNews(false);
+          return;
+        }
+
+        const now = getServerNow();
+        setHasRecentNews(now - latestCreatedAt <= RECENT_NEWS_WINDOW_MS);
+      } catch {
+        if (isMounted) setHasRecentNews(false);
+      }
+    };
+
+    void checkRecentNews();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Get role-based dashboard link
   const getDashboardLink = () => {
@@ -107,6 +145,7 @@ export function Navbar() {
                 link.href === "/"
                   ? pathname === "/"
                   : pathname.startsWith(link.href);
+              const showNewsBadge = link.href === "/news" && hasRecentNews;
 
               return (
                 <Link
@@ -119,7 +158,15 @@ export function Navbar() {
                       : "text-muted hover:text-foreground hover:bg-surface-elevated"
                   )}
                 >
-                  {link.label}
+                  <span className="inline-flex items-center gap-1.5">
+                    <span>{link.label}</span>
+                    {showNewsBadge && (
+                      <span className="inline-flex items-center justify-center rounded-full bg-accent/30 text-accent text-[10px] px-1.5 py-0.5">
+                        +1
+                        <span className="sr-only"> new</span>
+                      </span>
+                    )}
+                  </span>
                 </Link>
               );
             })}
@@ -218,6 +265,7 @@ export function Navbar() {
                   link.href === "/"
                     ? pathname === "/"
                     : pathname.startsWith(link.href);
+                const showNewsBadge = link.href === "/news" && hasRecentNews;
 
                 return (
                   <Link
@@ -231,7 +279,15 @@ export function Navbar() {
                     )}
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    {link.label}
+                    <span className="inline-flex items-center gap-2">
+                      <span>{link.label}</span>
+                      {showNewsBadge && (
+                        <span className="inline-flex items-center justify-center rounded-full bg-accent/30 text-accent text-[10px] px-1.5 py-0.5">
+                          +1
+                          <span className="sr-only"> new</span>
+                        </span>
+                      )}
+                    </span>
                   </Link>
                 );
               })}
