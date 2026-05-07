@@ -20,33 +20,22 @@ interface BanCycle {
 
 export default function ObsBansOverlay({
   matchId,
-  obsHost = 'localhost',
-  obsPort = 4455,
-  obsPassword = '',
+  obsWebsocketUrl = '',
+  obsWebsocketPassword = '',
+  heroVideoFolderPath = '',
 }: {
   matchId: number;
-  obsHost?: string;
-  obsPort?: number;
-  obsPassword?: string;
+  obsWebsocketUrl?: string;
+  obsWebsocketPassword?: string;
+  heroVideoFolderPath?: string;
 }) {
-  export default function ObsBansOverlay({
-    matchId,
-    obsWebsocketUrl = '',
-    obsWebsocketPassword = '',
-    heroVideoFolderPath = '',
-  }: {
-    matchId: number;
-    obsWebsocketUrl?: string;
-    obsWebsocketPassword?: string;
-    heroVideoFolderPath?: string;
-  }) {
-    const [match, setMatch] = useState<Match | null>(null);
-    const [draft, setDraft] = useState<DraftState | null>(null);
-    const [banCycle, setBanCycle] = useState<BanCycle>({ bans: [], currentIndex: 0 });
-    const [currentBan, setCurrentBan] = useState<Ban | null>(null);
-    const [videoPath, setVideoPath] = useState<string>('');
-    const [error, setError] = useState<string | null>(null);
-    const [isPlaying, setIsPlaying] = useState(false);
+  const [match, setMatch] = useState<Match | null>(null);
+  const [draft, setDraft] = useState<DraftState | null>(null);
+  const [banCycle, setBanCycle] = useState<BanCycle>({ bans: [], currentIndex: 0 });
+  const [currentBan, setCurrentBan] = useState<Ban | null>(null);
+  const [videoPath, setVideoPath] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -88,11 +77,11 @@ export default function ObsBansOverlay({
 
   // Connect to OBS WebSocket
   useEffect(() => {
-    if (obsPassword) {
+    if (obsWebsocketUrl && obsWebsocketPassword) {
       obsManager
         .connect({
-          url: `ws://${obsHost}:${obsPort}`,
-          password: obsPassword,
+          url: obsWebsocketUrl,
+          password: obsWebsocketPassword,
         })
         .catch((err) => console.error('[v0] Failed to connect to OBS:', err));
     }
@@ -100,7 +89,7 @@ export default function ObsBansOverlay({
     return () => {
       obsManager.disconnect().catch(() => {});
     };
-  }, [obsHost, obsPort, obsPassword]);
+  }, [obsWebsocketUrl, obsWebsocketPassword]);
 
   // Organize bans into a cycle
   useEffect(() => {
@@ -111,21 +100,21 @@ export default function ObsBansOverlay({
 
     // Get all bans from draft actions, organized by team
     const teamABans: Ban[] = [];
-      // Connect to OBS WebSocket
-      useEffect(() => {
-        if (obsWebsocketUrl && obsWebsocketPassword) {
-          obsManager
-            .connect({
-              url: obsWebsocketUrl,
-              password: obsWebsocketPassword,
-            })
-            .catch((err) => console.error('[v0] Failed to connect to OBS:', err));
-        }
-  
-        return () => {
-          obsManager.disconnect().catch(() => {});
-        };
-      }, [obsWebsocketUrl, obsWebsocketPassword]);
+    const teamBBans: Ban[] = [];
+
+    draft.actions
+      .filter((action) => action.action === 'BAN')
+      .sort((a, b) => a.order - b.order)
+      .forEach((action) => {
+        if (action.teamId === match.teamAId) {
+          if (teamABans.length < 2) {
+            teamABans.push({
+              heroId: action.value,
+              teamId: action.teamId,
+              teamName: teamAName,
+              index: teamABans.length,
+            });
+          }
         } else if (action.teamId === match.teamBId) {
           if (teamBBans.length < 2) {
             teamBBans.push({
@@ -183,7 +172,12 @@ export default function ObsBansOverlay({
 
       // Set video source path
       if (currentBan.heroId) {
-        setVideoPath(`/heroes/${currentBan.heroId}.mp4`);
+        if (heroVideoFolderPath) {
+          const cleanBase = heroVideoFolderPath.replace(/\/$/, '');
+          setVideoPath(`${cleanBase}/${currentBan.heroId}.mp4`);
+        } else {
+          setVideoPath(`/heroes/${currentBan.heroId}.mp4`);
+        }
       } else {
         setVideoPath('');
       }
@@ -212,7 +206,7 @@ export default function ObsBansOverlay({
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [currentBan, banCycle, match]);
+  }, [currentBan, banCycle, match, heroVideoFolderPath]);
 
   // Check if match is in PLAYING phase
   if (!draft || draft.phase !== 'PLAYING') {
