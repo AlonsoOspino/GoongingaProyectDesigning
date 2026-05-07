@@ -96,8 +96,8 @@ export default function ObsBansOverlay({
   useEffect(() => {
     if (!draft || !match) return;
 
-    const teamAName = match.teamA?.name || 'Team A';
-    const teamBName = match.teamB?.name || 'Team B';
+    const teamAName = (match as any).teamA?.name || 'Team A';
+    const teamBName = (match as any).teamB?.name || 'Team B';
 
     // Get all bans from draft actions, organized by team
     const teamABans: Ban[] = [];
