@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { getDraftByMatchId } from '@/lib/api/draft';
 import { getMatches } from '@/lib/api/match';
-import type { DraftState, Match } from '@/lib/api/types';
+import { getTeams } from '@/lib/api/team';
+import type { DraftState, Match, Team } from '@/lib/api/types';
 import { obsManager, OBSConnectionError } from '@/lib/obs/websocket';
 
 interface Ban {
@@ -26,6 +27,7 @@ export default function ObsBansOverlay({
 }) {
   const [match, setMatch] = useState<Match | null>(null);
   const [draft, setDraft] = useState<DraftState | null>(null);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [bans, setBans] = useState<Ban[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +60,10 @@ export default function ObsBansOverlay({
         }
 
         setMatch(foundMatch);
+
+        // Fetch teams for team name lookup
+        const allTeams = await getTeams();
+        setTeams(allTeams);
 
         const draftState = await getDraftByMatchId(matchId);
         setDraft(draftState);
@@ -114,52 +120,82 @@ export default function ObsBansOverlay({
 
   // Organize bans into a cycle
   useEffect(() => {
-    if (!draft || !match) return;
+    if (!draft || !match || teams.length === 0) {
+      console.log('[v0] Not organizing bans - missing data:', {
+        hasDraft: !!draft,
+        hasMatch: !!match,
+        teamsLength: teams.length,
+      });
+      return;
+    }
 
-    const teamAName = (match as any).teamA?.name || 'Team A';
-    const teamBName = (match as any).teamB?.name || 'Team B';
+    // Get team names from teams array
+    const teamA = teams.find((t) => t.id === match.teamAId);
+    const teamB = teams.find((t) => t.id === match.teamBId);
 
-    // Get all bans from draft actions, organized by team
+    const teamAName = teamA?.name || `Team A`;
+    const teamBName = teamB?.name || `Team B`;
+
+    console.log('[v0] Team names found:', {
+      matchId: match.id,
+      gameNumber: match.gameNumber,
+      teamAId: match.teamAId,
+      teamAName,
+      teamBId: match.teamBId,
+      teamBName,
+    });
+
+    // Get all bans from draft actions, organized by team for CURRENT GAME
     const teamABans: Ban[] = [];
     const teamBBans: Ban[] = [];
 
-    draft.actions
-      .filter((action) => action.action === 'BAN')
-      .sort((a, b) => a.order - b.order)
-      .forEach((action) => {
-        if (action.teamId === match.teamAId) {
-          if (teamABans.length < 2) {
-            teamABans.push({
-              heroId: action.value,
-              teamId: action.teamId,
-              teamName: teamAName,
-              index: teamABans.length,
-            });
-          }
-        } else if (action.teamId === match.teamBId) {
-          if (teamBBans.length < 2) {
-            teamBBans.push({
-              heroId: action.value,
-              teamId: action.teamId,
-              teamName: teamBName,
-              index: teamBBans.length,
-            });
-          }
+    const bansForThisGame = draft.actions.filter(
+      (action) => action.action === 'BAN' && action.gameNumber === match.gameNumber
+    );
+
+    console.log('[v0] Bans found for game:', {
+      gameNumber: match.gameNumber,
+      totalBans: bansForThisGame.length,
+      bans: bansForThisGame.map((b) => ({ heroId: b.value, teamId: b.teamId, order: b.order })),
+    });
+
+    bansForThisGame.sort((a, b) => a.order - b.order).forEach((action) => {
+      if (action.teamId === match.teamAId) {
+        if (teamABans.length < 2) {
+          teamABans.push({
+            heroId: action.value,
+            teamId: action.teamId,
+            teamName: teamAName,
+            index: teamABans.length,
+          });
         }
-      });
+      } else if (action.teamId === match.teamBId) {
+        if (teamBBans.length < 2) {
+          teamBBans.push({
+            heroId: action.value,
+            teamId: action.teamId,
+            teamName: teamBName,
+            index: teamBBans.length,
+          });
+        }
+      }
+    });
 
     // Create cycle: Team A ban 1, Team A ban 2, Team B ban 1, Team B ban 2, repeat
     const cycle: Ban[] = [];
 
-    // Add Team A bans
     if (teamABans.length > 0) cycle.push(teamABans[0]);
     if (teamABans.length > 1) cycle.push(teamABans[1]);
-
-    // Add Team B bans
     if (teamBBans.length > 0) cycle.push(teamBBans[0]);
     if (teamBBans.length > 1) cycle.push(teamBBans[1]);
 
-    // If no bans yet, return early
+    console.log('[v0] Ban cycle created:', {
+      teamABans: teamABans.length,
+      teamBBans: teamBBans.length,
+      cycleLength: cycle.length,
+      cycle: cycle.map((b) => ({ hero: b.heroId, team: b.teamName, index: b.index })),
+    });
+
     if (cycle.length === 0) {
       setBans([]);
       setCurrentIndex(0);
@@ -169,48 +205,85 @@ export default function ObsBansOverlay({
     setBans(cycle);
     bansRef.current = cycle;
     setCurrentIndex(0);
-  }, [draft, match]);
+  }, [draft, match, teams]);
 
   // Handle video playback and ban rotation
   useEffect(() => {
     if (!currentBan || bans.length === 0) {
+      console.log('[v0] Not playing - currentBan:', currentBan, 'bans.length:', bans.length);
       return;
     }
 
+    console.log('[v0] ***** STARTING BAN CYCLE *****', {
+      currentIndex,
+      totalBans: bans.length,
+      ban: {
+        index: currentIndex,
+        heroId: currentBan.heroId,
+        teamName: currentBan.teamName,
+        teamId: currentBan.teamId,
+        banIndex: currentBan.index,
+      },
+    });
+
     const playVideo = async () => {
       const isTeamA = match?.teamAId === currentBan.teamId;
-      const textPosition = isTeamA ? 'TOPLEFT' : 'TOPRIGHT';
-      const oppositePosition = isTeamA ? 'TOPRIGHT' : 'TOPLEFT';
+      const textSourceName = isTeamA ? 'TOPLEFT' : 'TOPRIGHT';
+      const oppositeSourceName = isTeamA ? 'TOPRIGHT' : 'TOPLEFT';
 
-      // Update text sources on first ban of each team
+      console.log('[v0] Processing ban update:', {
+        isTeamA,
+        textSourceName,
+        oppositeSourceName,
+        obsConnected: obsManager.isConnectedToOBS(),
+        hasTeamName: !!currentBan.teamName,
+      });
+
+      // Update text sources on first ban of each team (show team name)
       if (currentBan.index === 0) {
+        console.log('[v0] First ban of team - updating text sources');
+        
         // Clear the opposite team's text
-        await obsManager.updateTextSource(oppositePosition, ' ');
-        console.log(`[v0] Cleared ${oppositePosition}`);
+        const clearResult = await obsManager.updateTextSource(oppositeSourceName, ' ');
+        console.log(`[v0] Cleared "${oppositeSourceName}":`, clearResult);
 
-        // Set the current team's text
+        // Set the current team's text with actual team name
         const textValue = `${currentBan.teamName}'S BANS`;
-        await obsManager.updateTextSource(textPosition, textValue);
-        console.log(`[v0] Updated ${textPosition} to: ${textValue}`);
+        const updateResult = await obsManager.updateTextSource(textSourceName, textValue);
+        console.log(`[v0] Updated "${textSourceName}" to "${textValue}":`, updateResult);
+      } else {
+        console.log('[v0] Second ban of team - only updating video');
       }
 
       // Update OBS media source with local file path
       if (currentBan.heroId && heroVideoFolderPath && obsManager.isConnectedToOBS()) {
         const cleanBase = heroVideoFolderPath.replace(/\/$/, '');
         const fullPath = `${cleanBase}\\${currentBan.heroId}.mp4`;
-        await obsManager.setMediaSourceFile('HeroVideo', fullPath);
-        console.log(`[v0] Set OBS HeroVideo to: ${fullPath}`);
+        const videoResult = await obsManager.setMediaSourceFile('HeroVideo', fullPath);
+        console.log(`[v0] Set HeroVideo to "${fullPath}":`, videoResult);
       } else if (!currentBan.heroId) {
-        // Hero was banned/skipped - clear the video source
-        await obsManager.setMediaSourceFile('HeroVideo', '');
-        console.log(`[v0] Cleared OBS HeroVideo (no hero)`);
+        const clearVideoResult = await obsManager.setMediaSourceFile('HeroVideo', '');
+        console.log(`[v0] Cleared HeroVideo (hero is null):`, clearVideoResult);
+      } else {
+        console.log('[v0] Cannot update video - missing data:', {
+          hasHeroId: !!currentBan.heroId,
+          hasPath: !!heroVideoFolderPath,
+          obsConnected: obsManager.isConnectedToOBS(),
+        });
       }
 
-      // Schedule next ban after video duration
-      if (timerRef.current) clearTimeout(timerRef.current);
+      // Schedule next ban
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        console.log('[v0] Cleared existing timer');
+      }
 
+      console.log(`[v0] Setting timer for ${VIDEO_DURATION}ms until next ban`);
       timerRef.current = setTimeout(() => {
-        setCurrentIndex((prev) => (prev + 1) % bansRef.current.length);
+        console.log('[v0] TIMER FIRED - advancing to next ban');
+        const nextIndex = (currentIndex + 1) % bansRef.current.length;
+        console.log(`[v0] Next index: ${nextIndex}/${bansRef.current.length}`);
+        setCurrentIndex(nextIndex);
       }, VIDEO_DURATION);
     };
 
@@ -219,7 +292,7 @@ export default function ObsBansOverlay({
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [currentBan, bans, match, heroVideoFolderPath]);
+  }, [currentBan, currentIndex, bans, match, heroVideoFolderPath]);
 
   // Check if match is in PLAYING phase
   if (!draft || draft.phase !== 'PLAYING') {
