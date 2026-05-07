@@ -149,9 +149,20 @@ export default function ObsBansOverlay({
     const teamABans: Ban[] = [];
     const teamBBans: Ban[] = [];
 
-    const bansForThisGame = draft.actions.filter(
+    let bansForThisGame = draft.actions.filter(
       (action) => action.action === 'BAN' && action.gameNumber === match.gameNumber
     );
+
+    // If there are no bans for the current match.gameNumber (e.g. gameNumber=0),
+    // fall back to the latest game's bans in the draft if present.
+    if (bansForThisGame.length === 0) {
+      const banActions = draft.actions.filter((a) => a.action === 'BAN');
+      if (banActions.length > 0) {
+        const latestGame = Math.max(...banActions.map((a) => a.gameNumber));
+        console.log('[v0] No bans for current gameNumber, falling back to latestGame:', latestGame);
+        bansForThisGame = banActions.filter((a) => a.gameNumber === latestGame);
+      }
+    }
 
     console.log('[v0] Bans found for game:', {
       gameNumber: match.gameNumber,

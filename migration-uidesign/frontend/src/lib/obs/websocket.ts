@@ -187,14 +187,14 @@ class OBSWebSocketManager {
 
       // Try toggling visibility in the scene to force OBS to restart playback
       try {
-        const sceneName = 'bucle-heroes';
-        await this.obs.call('SetSceneItemRender', { sceneName, source: sourceName, render: false });
-        // small delay to ensure OBS registers the visibility change
-        await new Promise((r) => setTimeout(r, 120));
-        await this.obs.call('SetSceneItemRender', { sceneName, source: sourceName, render: true });
-        console.log(`[v0] Toggled render for "${sourceName}" in scene "${sceneName}" to restart playback`);
-      } catch (toggleErr) {
-        console.warn('[v0] Could not toggle scene item render to restart playback:', toggleErr);
+        await this.obs.call('TriggerMediaInputAction', {
+          inputName: sourceName,
+          mediaAction: 'OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART',
+        });
+
+        console.log(`[v0] Restarted media input "${sourceName}"`);
+      } catch (restartErr) {
+        console.warn('[v0] Could not restart media input playback:', restartErr);
       }
 
       return true;
