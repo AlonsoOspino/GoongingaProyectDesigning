@@ -41,12 +41,12 @@ export default function ObsBansOverlay({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const bansRef = useRef<Ban[]>([]);
+  const lastVideoRef = useRef<string | null>(null);
 
   const VIDEO_DURATION = 15000; // 15 seconds in milliseconds
   
   // Derive currentBan from index
-  const currentBan = bans.length > 0 && currentIndex < bans.length ? bans[currentIndex] : null;
-
+  const currentBan = bansRef.current[currentIndex] || null;
   // Fetch match and draft data
   useEffect(() => {
     const loadData = async () => {
@@ -119,58 +119,39 @@ export default function ObsBansOverlay({
   }, [obsWebsocketUrl, obsWebsocketPassword]);
 
   // Organize bans into a cycle
-  useEffect(() => {
-    if (!draft || !match || teams.length === 0) {
-      console.log('[v0] Not organizing bans - missing data:', {
-        hasDraft: !!draft,
-        hasMatch: !!match,
-        teamsLength: teams.length,
-      });
-      return;
-    }
-
-    // Get team names from teams array
-    const teamA = teams.find((t) => t.id === match.teamAId);
-    const teamB = teams.find((t) => t.id === match.teamBId);
-
-    const teamAName = teamA?.name || `Team A`;
-    const teamBName = teamB?.name || `Team B`;
-
-    console.log('[v0] Team names found:', {
-      matchId: match.id,
-      gameNumber: match.gameNumber,
-      teamAId: match.teamAId,
-      teamAName,
-      teamBId: match.teamBId,
-      teamBName,
+useEffect(() => {
+  if (!draft || !match || teams.length === 0) {
+    console.log('[v0] Not organizing bans - missing data:', {
+      hasDraft: !!draft,
+      hasMatch: !!match,
+      teamsLength: teams.length,
     });
+    return;
+  }
 
-    // Get all bans from draft actions, organized by team for CURRENT GAME
-    const teamABans: Ban[] = [];
-    const teamBBans: Ban[] = [];
+  const teamA = teams.find((t) => t.id === match.teamAId);
+  const teamB = teams.find((t) => t.id === match.teamBId);
 
-    let bansForThisGame = draft.actions.filter(
-      (action) => action.action === 'BAN' && action.gameNumber === match.gameNumber
-    );
+  const teamAName = teamA?.name || `Team A`;
+  const teamBName = teamB?.name || `Team B`;
 
-    // If there are no bans for the current match.gameNumber (e.g. gameNumber=0),
-    // fall back to the latest game's bans in the draft if present.
-    if (bansForThisGame.length === 0) {
-      const banActions = draft.actions.filter((a) => a.action === 'BAN');
-      if (banActions.length > 0) {
-        const latestGame = Math.max(...banActions.map((a) => a.gameNumber));
-        console.log('[v0] No bans for current gameNumber, falling back to latestGame:', latestGame);
-        bansForThisGame = banActions.filter((a) => a.gameNumber === latestGame);
-      }
-    }
+  const teamABans: Ban[] = [];
+  const teamBBans: Ban[] = [];
 
-    console.log('[v0] Bans found for game:', {
-      gameNumber: match.gameNumber,
-      totalBans: bansForThisGame.length,
-      bans: bansForThisGame.map((b) => ({ heroId: b.value, teamId: b.teamId, order: b.order })),
-    });
+  const bansForThisGame = draft.actions.filter(
+    (action) =>
+      action.action === 'BAN' &&
+      Number(action.gameNumber) === Number(match.gameNumber)
+  );
 
-    bansForThisGame.sort((a, b) => a.order - b.order).forEach((action) => {
+  console.log('[v0] Bans found for game:', {
+    gameNumber: match.gameNumber,
+    totalBans: bansForThisGame.length,
+  });
+
+  bansForThisGame
+    .sort((a, b) => a.order - b.order)
+    .forEach((action) => {
       if (action.teamId === match.teamAId) {
         if (teamABans.length < 2) {
           teamABans.push({
@@ -192,119 +173,114 @@ export default function ObsBansOverlay({
       }
     });
 
-    // Create cycle: Team A ban 1, Team A ban 2, Team B ban 1, Team B ban 2, repeat
-    const cycle: Ban[] = [];
+  const cycle: Ban[] = [];
 
-    if (teamABans.length > 0) cycle.push(teamABans[0]);
-    if (teamABans.length > 1) cycle.push(teamABans[1]);
-    if (teamBBans.length > 0) cycle.push(teamBBans[0]);
-    if (teamBBans.length > 1) cycle.push(teamBBans[1]);
+  if (teamABans.length > 0) cycle.push(teamABans[0]);
+  if (teamABans.length > 1) cycle.push(teamABans[1]);
+  if (teamBBans.length > 0) cycle.push(teamBBans[0]);
+  if (teamBBans.length > 1) cycle.push(teamBBans[1]);
 
-    console.log('[v0] Ban cycle created:', {
-      teamABans: teamABans.length,
-      teamBBans: teamBBans.length,
-      cycleLength: cycle.length,
-      cycle: cycle.map((b) => ({ hero: b.heroId, team: b.teamName, index: b.index })),
-    });
+  console.log('[v0] Ban cycle created:', {
+    cycleLength: cycle.length,
+  });
 
-    if (cycle.length === 0) {
-      setBans([]);
-      setCurrentIndex(0);
-      return;
-    }
+  if (cycle.length === 0) {
+    setBans([]);
+    bansRef.current = [];
+    setCurrentIndex(0);
+    return;
+  }
+
+  // prevent resetting every poll
+  const newCycleJson = JSON.stringify(cycle);
+  const oldCycleJson = JSON.stringify(bansRef.current);
+
+  if (newCycleJson !== oldCycleJson) {
+    console.log('[v0] Ban cycle changed');
 
     setBans(cycle);
     bansRef.current = cycle;
-    setCurrentIndex(0);
-  }, [draft, match, teams]);
 
+    setCurrentIndex((prev) => {
+      if (prev >= cycle.length) return 0;
+      return prev;
+    });
+  }
+}, [draft, match, teams]);
+
+    
   // Handle video playback and ban rotation
-  useEffect(() => {
-    if (!currentBan || bans.length === 0) {
-      console.log('[v0] Not playing - currentBan:', currentBan, 'bans.length:', bans.length);
-      return;
+useEffect(() => {
+  if (!currentBan || bans.length === 0) {
+    return;
+  }
+
+  const playVideo = async () => {
+    const isTeamA = match?.teamAId === currentBan.teamId;
+    const textSourceName = isTeamA ? 'TOPLEFT' : 'TOPRIGHT';
+    const oppositeSourceName = isTeamA ? 'TOPRIGHT' : 'TOPLEFT';
+
+    // Update team text only on first ban
+    if (currentBan.index === 0) {
+      await obsManager.updateTextSource(oppositeSourceName, ' ');
+      await obsManager.updateTextSource(
+        textSourceName,
+        `${currentBan.teamName}'S BANS`
+      );
     }
 
-    console.log('[v0] ***** STARTING BAN CYCLE *****', {
-      currentIndex,
-      totalBans: bans.length,
-      ban: {
-        index: currentIndex,
-        heroId: currentBan.heroId,
-        teamName: currentBan.teamName,
-        teamId: currentBan.teamId,
-        banIndex: currentBan.index,
-      },
+    // Update video ONLY if changed
+    if (
+      currentBan.heroId &&
+      heroVideoFolderPath &&
+      obsManager.isConnectedToOBS()
+    ) {
+      const cleanBase = heroVideoFolderPath.replace(/[\/\\]$/, '');
+      const fullPath = `${cleanBase}\\${currentBan.heroId}.mp4`;
+
+      if (lastVideoRef.current !== fullPath) {
+        lastVideoRef.current = fullPath;
+
+        await obsManager.setMediaSourceFile(
+          'HeroVideo',
+          fullPath
+        );
+
+        console.log('[v0] Playing video:', fullPath);
+      }
+    }
+
+    // Clear old timer
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+
+    // Next ban
+    timerRef.current = setTimeout(() => {
+  setCurrentIndex((prev) => {
+    if (bansRef.current.length === 0) return 0;
+
+    const next = (prev + 1) % bansRef.current.length;
+
+    console.log('[v0] Advancing ban:', {
+      prev,
+      next,
+      total: bansRef.current.length,
     });
 
-    const playVideo = async () => {
-      const isTeamA = match?.teamAId === currentBan.teamId;
-      const textSourceName = isTeamA ? 'TOPLEFT' : 'TOPRIGHT';
-      const oppositeSourceName = isTeamA ? 'TOPRIGHT' : 'TOPLEFT';
+    return next;
+  });
+}, VIDEO_DURATION);
+  };
 
-      console.log('[v0] Processing ban update:', {
-        isTeamA,
-        textSourceName,
-        oppositeSourceName,
-        obsConnected: obsManager.isConnectedToOBS(),
-        hasTeamName: !!currentBan.teamName,
-      });
+  playVideo();
 
-      // Update text sources on first ban of each team (show team name)
-      if (currentBan.index === 0) {
-        console.log('[v0] First ban of team - updating text sources');
-        
-        // Clear the opposite team's text
-        const clearResult = await obsManager.updateTextSource(oppositeSourceName, ' ');
-        console.log(`[v0] Cleared "${oppositeSourceName}":`, clearResult);
-
-        // Set the current team's text with actual team name
-        const textValue = `${currentBan.teamName}'S BANS`;
-        const updateResult = await obsManager.updateTextSource(textSourceName, textValue);
-        console.log(`[v0] Updated "${textSourceName}" to "${textValue}":`, updateResult);
-      } else {
-        console.log('[v0] Second ban of team - only updating video');
-      }
-
-      // Update OBS media source with local file path
-      if (currentBan.heroId && heroVideoFolderPath && obsManager.isConnectedToOBS()) {
-        const cleanBase = heroVideoFolderPath.replace(/\/$/, '');
-        const fullPath = `${cleanBase}\\${currentBan.heroId}.mp4`;
-        const videoResult = await obsManager.setMediaSourceFile('HeroVideo', fullPath);
-        console.log(`[v0] Set HeroVideo to "${fullPath}":`, videoResult);
-      } else if (!currentBan.heroId) {
-        const clearVideoResult = await obsManager.setMediaSourceFile('HeroVideo', '');
-        console.log(`[v0] Cleared HeroVideo (hero is null):`, clearVideoResult);
-      } else {
-        console.log('[v0] Cannot update video - missing data:', {
-          hasHeroId: !!currentBan.heroId,
-          hasPath: !!heroVideoFolderPath,
-          obsConnected: obsManager.isConnectedToOBS(),
-        });
-      }
-
-      // Schedule next ban
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        console.log('[v0] Cleared existing timer');
-      }
-
-      console.log(`[v0] Setting timer for ${VIDEO_DURATION}ms until next ban`);
-      timerRef.current = setTimeout(() => {
-        console.log('[v0] TIMER FIRED - advancing to next ban');
-        const nextIndex = (currentIndex + 1) % bansRef.current.length;
-        console.log(`[v0] Next index: ${nextIndex}/${bansRef.current.length}`);
-        setCurrentIndex(nextIndex);
-      }, VIDEO_DURATION);
-    };
-
-    playVideo();
-
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, [currentBan, currentIndex, bans, match, heroVideoFolderPath]);
-
+  return () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+  };
+}, [currentIndex]);
   // Check if match is in PLAYING phase
   if (!draft || draft.phase !== 'PLAYING') {
     return (
