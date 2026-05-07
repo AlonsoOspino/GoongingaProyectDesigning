@@ -80,8 +80,7 @@ export default function ObsBansOverlay({
     if (obsPassword) {
       obsManager
         .connect({
-          host: obsHost,
-          port: obsPort,
+          url: `ws://${obsHost}:${obsPort}`,
           password: obsPassword,
         })
         .catch((err) => console.error('[v0] Failed to connect to OBS:', err));
