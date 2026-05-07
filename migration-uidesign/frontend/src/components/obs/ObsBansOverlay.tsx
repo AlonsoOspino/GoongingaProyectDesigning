@@ -178,15 +178,20 @@ export default function ObsBansOverlay({
     }
 
     const playVideo = async () => {
-      // Update OBS text sources
-      if (currentBan.index === 0) {
-        // First ban of the team
-        const isTeamA = match?.teamAId === currentBan.teamId;
-        const sourcePosition = isTeamA ? 'TOPLEFT' : 'TOPRIGHT';
-        const textValue = `${currentBan.teamName}'S BANS`;
+      const isTeamA = match?.teamAId === currentBan.teamId;
+      const textPosition = isTeamA ? 'TOPLEFT' : 'TOPRIGHT';
+      const oppositePosition = isTeamA ? 'TOPRIGHT' : 'TOPLEFT';
 
-        await obsManager.updateTextSource(sourcePosition, textValue);
-        console.log(`[v0] Updated ${sourcePosition} to: ${textValue}`);
+      // Update text sources on first ban of each team
+      if (currentBan.index === 0) {
+        // Clear the opposite team's text
+        await obsManager.updateTextSource(oppositePosition, ' ');
+        console.log(`[v0] Cleared ${oppositePosition}`);
+
+        // Set the current team's text
+        const textValue = `${currentBan.teamName}'S BANS`;
+        await obsManager.updateTextSource(textPosition, textValue);
+        console.log(`[v0] Updated ${textPosition} to: ${textValue}`);
       }
 
       // Update OBS media source with local file path
@@ -195,6 +200,10 @@ export default function ObsBansOverlay({
         const fullPath = `${cleanBase}\\${currentBan.heroId}.mp4`;
         await obsManager.setMediaSourceFile('HeroVideo', fullPath);
         console.log(`[v0] Set OBS HeroVideo to: ${fullPath}`);
+      } else if (!currentBan.heroId) {
+        // Hero was banned/skipped - clear the video source
+        await obsManager.setMediaSourceFile('HeroVideo', '');
+        console.log(`[v0] Cleared OBS HeroVideo (no hero)`);
       }
 
       // Schedule next ban after video duration
