@@ -35,6 +35,7 @@ export async function updateMemberProfile(
     profilePic?: string;
     rank?: number;
     heroVideoFolderPath?: string | null;
+    obsWebsocketUrl?: string | null;
     obsWebsocketPassword?: string;
   }
 ) {

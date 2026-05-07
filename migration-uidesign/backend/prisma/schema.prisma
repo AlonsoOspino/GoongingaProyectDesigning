@@ -26,6 +26,7 @@ model Member {
   rank                 Int          @default(0)
   teamId               Int?
   heroVideoFolderPath  String?
+  obsWebsocketUrl      String?
   obsWebsocketPassword String?
   team                 Team?        @relation(fields: [teamId], references: [id])
   playerStats          PlayerStat[]

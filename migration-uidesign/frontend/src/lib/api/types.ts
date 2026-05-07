@@ -29,6 +29,7 @@ export interface MemberProfile {
   rank: number;
   teamId: number | null;
   heroVideoFolderPath?: string | null;
+  obsWebsocketUrl?: string | null;
   obsWebsocketPassword?: string | null;
 }
 

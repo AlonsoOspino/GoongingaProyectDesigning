@@ -48,6 +48,7 @@ type PendingUploadFormState = {
 
 type StreamSettings = {
   heroVideoFolderPath: string;
+  obsWebsocketUrl: string;
   obsWebsocketPassword: string;
 };
 
@@ -66,6 +67,7 @@ const DEFAULT_PENDING_UPLOAD_FORM: PendingUploadFormState = {
 
 const DEFAULT_STREAM_SETTINGS: StreamSettings = {
   heroVideoFolderPath: "",
+  obsWebsocketUrl: "",
   obsWebsocketPassword: "",
 };
 
@@ -189,6 +191,7 @@ export default function ManagerDashboardPage() {
         if (cancelled) return;
         setStreamSettings({
           heroVideoFolderPath: profile.heroVideoFolderPath ?? "",
+          obsWebsocketUrl: profile.obsWebsocketUrl ?? "",
           obsWebsocketPassword: "",
         });
       } catch (err: any) {
@@ -239,12 +242,14 @@ export default function ManagerDashboardPage() {
       const obsPassword = streamSettings.obsWebsocketPassword.trim();
       const payload = {
         heroVideoFolderPath: streamSettings.heroVideoFolderPath.trim() || null,
+        obsWebsocketUrl: streamSettings.obsWebsocketUrl.trim() || null,
         ...(obsPassword ? { obsWebsocketPassword: obsPassword } : {}),
       };
 
       const updated = await updateMemberProfile(token, user.id, payload);
       setStreamSettings({
         heroVideoFolderPath: updated.heroVideoFolderPath ?? "",
+        obsWebsocketUrl: updated.obsWebsocketUrl ?? "",
         obsWebsocketPassword: "",
       });
       setStreamSettingsStatus({ type: "success", message: "Stream settings saved." });
@@ -681,6 +686,18 @@ export default function ManagerDashboardPage() {
                   setStreamSettings((prev) => ({
                     ...prev,
                     heroVideoFolderPath: e.target.value,
+                  }))
+                }
+                disabled={streamSettingsLoading || streamSettingsSaving}
+              />
+              <Input
+                label="OBS websocket URL"
+                placeholder="ws://localhost:4455"
+                value={streamSettings.obsWebsocketUrl}
+                onChange={(e) =>
+                  setStreamSettings((prev) => ({
+                    ...prev,
+                    obsWebsocketUrl: e.target.value,
                   }))
                 }
                 disabled={streamSettingsLoading || streamSettingsSaving}

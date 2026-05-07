@@ -9,6 +9,7 @@ function sanitizeMember(member, options = {}) {
     passwordHash,
     obsWebsocketPassword,
     heroVideoFolderPath,
+    obsWebsocketUrl,
     ...safeMember
   } = member;
 
@@ -16,6 +17,7 @@ function sanitizeMember(member, options = {}) {
     return {
       ...safeMember,
       heroVideoFolderPath,
+      obsWebsocketUrl,
       obsWebsocketPassword,
     };
   }
@@ -97,6 +99,7 @@ const update = async (req, res) => {
     if (req.body.profilePic !== undefined) safeBody.profilePic = req.body.profilePic;
     if (req.body.rank !== undefined) safeBody.rank = req.body.rank;
     if (req.body.heroVideoFolderPath !== undefined) safeBody.heroVideoFolderPath = req.body.heroVideoFolderPath;
+    if (req.body.obsWebsocketUrl !== undefined) safeBody.obsWebsocketUrl = req.body.obsWebsocketUrl;
     if (req.body.obsWebsocketPassword !== undefined) safeBody.obsWebsocketPassword = req.body.obsWebsocketPassword;
 
     if (password) {
@@ -120,6 +123,7 @@ const adminUpdate = async (req, res) => {
     if (req.body.profilePic !== undefined) safeBody.profilePic = req.body.profilePic;
     if (req.body.rank !== undefined) safeBody.rank = req.body.rank;
     if (req.body.heroVideoFolderPath !== undefined) safeBody.heroVideoFolderPath = req.body.heroVideoFolderPath;
+    if (req.body.obsWebsocketUrl !== undefined) safeBody.obsWebsocketUrl = req.body.obsWebsocketUrl;
     if (req.body.obsWebsocketPassword !== undefined) safeBody.obsWebsocketPassword = req.body.obsWebsocketPassword;
     if (password) {
       safeBody.passwordHash = await bcrypt.hash(password, 10);

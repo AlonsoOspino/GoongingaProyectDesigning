@@ -1,13 +1,12 @@
 import OBSWebSocket from 'obs-websocket-js';
 
 export interface OBSConfig {
-  host: string;
-  port: number;
+  url: string;
   password: string;
 }
 
 class OBSWebSocketManager {
-  private obs: OBSWebSocket | null = null;
+  private obs: any = null;
   private isConnected = false;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
@@ -21,8 +20,15 @@ class OBSWebSocketManager {
 
     try {
       this.obs = new OBSWebSocket();
+      const normalizedUrl = config.url.startsWith('ws://') || config.url.startsWith('wss://')
+        ? config.url
+        : config.url.startsWith('http://')
+          ? `ws://${config.url.slice(7)}`
+          : config.url.startsWith('https://')
+            ? `wss://${config.url.slice(8)}`
+            : `ws://${config.url}`;
 
-      await this.obs.connect(`ws://${config.host}:${config.port}`, config.password);
+      await this.obs.connect(normalizedUrl, config.password);
 
       this.isConnected = true;
       this.reconnectAttempts = 0;
