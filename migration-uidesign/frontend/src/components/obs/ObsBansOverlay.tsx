@@ -33,9 +33,7 @@ export default function ObsBansOverlay({
   const [draft, setDraft] = useState<DraftState | null>(null);
   const [banCycle, setBanCycle] = useState<BanCycle>({ bans: [], currentIndex: 0 });
   const [currentBan, setCurrentBan] = useState<Ban | null>(null);
-  const [videoPath, setVideoPath] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [obsStatus, setObsStatus] = useState<
     | { state: 'idle' }
     | { state: 'connecting' }
@@ -43,7 +41,6 @@ export default function ObsBansOverlay({
     | { state: 'error'; message: string; hint?: string }
   >({ state: 'idle' });
 
-  const videoRef = useRef<HTMLVideoElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -177,13 +174,10 @@ export default function ObsBansOverlay({
   // Handle video playback and ban rotation
   useEffect(() => {
     if (!currentBan || banCycle.bans.length === 0) {
-      setIsPlaying(false);
       return;
     }
 
     const playVideo = async () => {
-      setIsPlaying(true);
-
       // Update OBS text sources
       if (currentBan.index === 0) {
         // First ban of the team
@@ -195,25 +189,12 @@ export default function ObsBansOverlay({
         console.log(`[v0] Updated ${sourcePosition} to: ${textValue}`);
       }
 
-      // Set video source path
-      if (currentBan.heroId) {
-        if (heroVideoFolderPath) {
-          const cleanBase = heroVideoFolderPath.replace(/\/$/, '');
-          setVideoPath(`${cleanBase}/${currentBan.heroId}.mp4`);
-        } else {
-          setVideoPath(`/heroes/${currentBan.heroId}.mp4`);
-        }
-      } else {
-        setVideoPath('');
-      }
-
-      // Play video if it exists
-      if (videoRef.current && currentBan.heroId) {
-        try {
-          await videoRef.current.play();
-        } catch (err) {
-          console.warn('[v0] Could not play video:', err);
-        }
+      // Update OBS media source with local file path
+      if (currentBan.heroId && heroVideoFolderPath && obsManager.isConnectedToOBS()) {
+        const cleanBase = heroVideoFolderPath.replace(/\/$/, '');
+        const fullPath = `${cleanBase}\\${currentBan.heroId}.mp4`;
+        await obsManager.setMediaSourceFile('HeroVideo', fullPath);
+        console.log(`[v0] Set OBS HeroVideo to: ${fullPath}`);
       }
 
       // Schedule next ban after video duration
@@ -267,22 +248,7 @@ export default function ObsBansOverlay({
 
   return (
     <div className="relative w-full h-screen bg-black overflow-hidden">
-      {/* Video display */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        {videoPath && (
-          <video
-            ref={videoRef}
-            src={videoPath}
-            className="h-full w-auto object-cover"
-            onEnded={() => {
-              // Move to next ban when video ends
-              const nextIndex = (banCycle.currentIndex + 1) % banCycle.bans.length;
-              setBanCycle((prev) => ({ ...prev, currentIndex: nextIndex }));
-              setCurrentBan(banCycle.bans[nextIndex]);
-            }}
-          />
-        )}
-      </div>
+      {/* OBS manages video playback via Media Source - overlay just updates the path */}
 
       {/* Team Ban Title Overlay */}
       <div className={`absolute ${titlePosition} z-10`}>

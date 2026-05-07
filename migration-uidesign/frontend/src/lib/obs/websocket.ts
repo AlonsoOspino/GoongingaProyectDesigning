@@ -169,6 +169,25 @@ class OBSWebSocketManager {
     }
   }
 
+  async setMediaSourceFile(sourceName: string, filePath: string): Promise<boolean> {
+    if (!this.isConnected || !this.obs) {
+      console.warn('[v0] OBS WebSocket not connected, cannot update media source');
+      return false;
+    }
+
+    try {
+      await this.obs.call('SetInputSettings', {
+        inputName: sourceName,
+        inputSettings: { local_file: filePath },
+      });
+      console.log(`[v0] Updated OBS media source "${sourceName}" to "${filePath}"`);
+      return true;
+    } catch (err) {
+      console.error(`[v0] Failed to update media source "${sourceName}":`, err);
+      return false;
+    }
+  }
+
   isConnectedToOBS(): boolean {
     return this.isConnected;
   }

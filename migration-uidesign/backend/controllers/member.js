@@ -2,6 +2,8 @@ const memberService = require("../services/authUser");
 const memberRepo = require("../repositories/member");
 const teamRepo = require("../repositories/team");
 const bcrypt = require("bcrypt");
+const fs = require("fs");
+const path = require("path");
 
 function sanitizeMember(member, options = {}) {
   if (!member || typeof member !== "object") return member;
@@ -135,6 +137,48 @@ const adminUpdate = async (req, res) => {
   }
 };
 
+const getHeroVideo = async (req, res) => {
+  try {
+    const memberId = Number(req.params.id);
+    const heroId = String(req.params.heroId || "").trim();
+
+    if (!Number.isInteger(memberId) || memberId <= 0) {
+      return res.status(400).json({ message: "Invalid member id" });
+    }
+
+    if (!heroId) {
+      return res.status(400).json({ message: "Invalid hero id" });
+    }
+
+    if (!req.user || (req.user.id !== memberId && req.user.role !== "ADMIN")) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    const member = await memberRepo.findById(memberId);
+    if (!member) {
+      return res.status(404).json({ message: "Member not found" });
+    }
+
+    const folder = member.heroVideoFolderPath;
+    if (!folder) {
+      return res.status(404).json({ message: "Hero video folder is not configured" });
+    }
+
+    const videoPath = path.join(folder, `${path.basename(heroId)}.mp4`);
+
+    try {
+      await fs.promises.access(videoPath, fs.constants.R_OK);
+    } catch {
+      return res.status(404).json({ message: `Video not found: ${path.basename(heroId)}.mp4` });
+    }
+
+    res.setHeader("Cache-Control", "no-store");
+    return res.sendFile(path.resolve(videoPath));
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 /**
  * Bulk import users from text format:
  * NICKNAME USUARIO CONTRASEÑA TEAMID
@@ -204,5 +248,6 @@ module.exports = {
   getById,
   update,
   adminUpdate,
+  getHeroVideo,
   bulkImport,
 };
