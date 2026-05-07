@@ -13,11 +13,6 @@ interface Ban {
   index: number; // 0 or 1 for first or second ban
 }
 
-interface BanCycle {
-  bans: Ban[];
-  currentIndex: number;
-}
-
 export default function ObsBansOverlay({
   matchId,
   obsWebsocketUrl = '',
@@ -31,8 +26,8 @@ export default function ObsBansOverlay({
 }) {
   const [match, setMatch] = useState<Match | null>(null);
   const [draft, setDraft] = useState<DraftState | null>(null);
-  const [banCycle, setBanCycle] = useState<BanCycle>({ bans: [], currentIndex: 0 });
-  const [currentBan, setCurrentBan] = useState<Ban | null>(null);
+  const [bans, setBans] = useState<Ban[]>([]);
+  const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const [obsStatus, setObsStatus] = useState<
     | { state: 'idle' }
@@ -43,8 +38,12 @@ export default function ObsBansOverlay({
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
+  const bansRef = useRef<Ban[]>([]);
 
   const VIDEO_DURATION = 15000; // 15 seconds in milliseconds
+  
+  // Derive currentBan from index
+  const currentBan = bans.length > 0 && currentIndex < bans.length ? bans[currentIndex] : null;
 
   // Fetch match and draft data
   useEffect(() => {
@@ -162,18 +161,19 @@ export default function ObsBansOverlay({
 
     // If no bans yet, return early
     if (cycle.length === 0) {
-      setBanCycle({ bans: [], currentIndex: 0 });
-      setCurrentBan(null);
+      setBans([]);
+      setCurrentIndex(0);
       return;
     }
 
-    setBanCycle({ bans: cycle, currentIndex: 0 });
-    setCurrentBan(cycle[0]);
+    setBans(cycle);
+    bansRef.current = cycle;
+    setCurrentIndex(0);
   }, [draft, match]);
 
   // Handle video playback and ban rotation
   useEffect(() => {
-    if (!currentBan || banCycle.bans.length === 0) {
+    if (!currentBan || bans.length === 0) {
       return;
     }
 
@@ -210,9 +210,7 @@ export default function ObsBansOverlay({
       if (timerRef.current) clearTimeout(timerRef.current);
 
       timerRef.current = setTimeout(() => {
-        const nextIndex = (banCycle.currentIndex + 1) % banCycle.bans.length;
-        setBanCycle((prev) => ({ ...prev, currentIndex: nextIndex }));
-        setCurrentBan(banCycle.bans[nextIndex]);
+        setCurrentIndex((prev) => (prev + 1) % bansRef.current.length);
       }, VIDEO_DURATION);
     };
 
@@ -221,7 +219,7 @@ export default function ObsBansOverlay({
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [currentBan, banCycle, match, heroVideoFolderPath]);
+  }, [currentBan, bans, match, heroVideoFolderPath]);
 
   // Check if match is in PLAYING phase
   if (!draft || draft.phase !== 'PLAYING') {
@@ -285,9 +283,9 @@ export default function ObsBansOverlay({
         <p>Match: {match?.id}</p>
         <p>Phase: {draft?.phase}</p>
         <p>
-          Ban {banCycle.currentIndex + 1} / {banCycle.bans.length}
+          Ban {currentIndex + 1} / {bans.length}
         </p>
-        <p>Hero: {currentBan.heroId || 'Skipped'}</p>
+        <p>Hero: {currentBan?.heroId || 'Skipped'}</p>
         <p>
           OBS:{' '}
           {obsStatus.state === 'connected'
