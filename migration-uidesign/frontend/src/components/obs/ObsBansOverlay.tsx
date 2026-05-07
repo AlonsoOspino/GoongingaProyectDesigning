@@ -47,9 +47,10 @@ export default function ObsBansOverlay({
   
   // Derive currentBan from index
 const currentBan =
-  bans.length > 0 && currentIndex < bans.length
-    ? bans[currentIndex]
-    : null; 
+  bansRef.current.length > 0 &&
+  currentIndex < bansRef.current.length
+    ? bansRef.current[currentIndex]
+    : null;
   
   // Fetch match and draft data
   useEffect(() => {
@@ -215,7 +216,7 @@ useEffect(() => {
     
   // Handle video playback and ban rotation
 useEffect(() => {
-  if (!currentBan || bans.length === 0) {
+  if (!currentBan || bansRef.current.length === 0) {
     return;
   }
 
@@ -292,7 +293,7 @@ playVideo();
       clearTimeout(timerRef.current);
     }
   };
-}, [currentIndex, currentBan, bans.length, match, heroVideoFolderPath]);  // Check if match is in PLAYING phase
+}, [currentIndex]);// Check if match is in PLAYING phase
   if (!draft || draft.phase !== 'PLAYING') {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-black text-white gap-4 p-6">
