@@ -288,11 +288,6 @@ timerRef.current = setTimeout(() => {
 
 playVideo();
 
-  return () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-    }
-  };
 }, [currentIndex]);// Check if match is in PLAYING phase
   if (!draft || draft.phase !== 'PLAYING') {
     return (
