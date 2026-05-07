@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { getDraftByMatchId } from '@/lib/api/draft';
 import { getMatches } from '@/lib/api/match';
 import type { DraftState, Match } from '@/lib/api/types';
-import { obsManager } from '@/lib/obs/websocket';
+import { obsManager, OBSConnectionError } from '@/lib/obs/websocket';
 
 interface Ban {
   heroId: number | null;
@@ -36,6 +36,12 @@ export default function ObsBansOverlay({
   const [videoPath, setVideoPath] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [obsStatus, setObsStatus] = useState<
+    | { state: 'idle' }
+    | { state: 'connecting' }
+    | { state: 'connected' }
+    | { state: 'error'; message: string; hint?: string }
+  >({ state: 'idle' });
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -77,16 +83,35 @@ export default function ObsBansOverlay({
 
   // Connect to OBS WebSocket
   useEffect(() => {
-    if (obsWebsocketUrl && obsWebsocketPassword) {
-      obsManager
-        .connect({
-          url: obsWebsocketUrl,
-          password: obsWebsocketPassword,
-        })
-        .catch((err) => console.error('[v0] Failed to connect to OBS:', err));
+    if (!obsWebsocketUrl || !obsWebsocketPassword) {
+      setObsStatus({
+        state: 'error',
+        message: 'OBS WebSocket URL or password missing.',
+        hint: 'Configure them in the Manager Dashboard → Stream Settings.',
+      });
+      return;
     }
 
+    let cancelled = false;
+    setObsStatus({ state: 'connecting' });
+
+    obsManager
+      .connect({ url: obsWebsocketUrl, password: obsWebsocketPassword })
+      .then(() => {
+        if (cancelled) return;
+        setObsStatus({ state: 'connected' });
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        const message =
+          err instanceof Error ? err.message : 'Failed to connect to OBS WebSocket';
+        const hint = err instanceof OBSConnectionError ? err.hint : undefined;
+        console.error('[v0] OBS connect error:', err);
+        setObsStatus({ state: 'error', message, hint });
+      });
+
     return () => {
+      cancelled = true;
       obsManager.disconnect().catch(() => {});
     };
   }, [obsWebsocketUrl, obsWebsocketPassword]);
@@ -211,9 +236,19 @@ export default function ObsBansOverlay({
   // Check if match is in PLAYING phase
   if (!draft || draft.phase !== 'PLAYING') {
     return (
-      <div className="flex items-center justify-center h-screen bg-black text-white">
+      <div className="flex flex-col items-center justify-center h-screen bg-black text-white gap-4 p-6">
         {error && <p className="text-red-500">{error}</p>}
         {!error && <p>Waiting for draft phase to reach PLAYING...</p>}
+        {obsStatus.state === 'error' && (
+          <div className="max-w-xl px-4 py-3 rounded-lg bg-red-600/90 text-white text-sm">
+            <p className="font-semibold">OBS WebSocket: not connected</p>
+            <p className="opacity-90">{obsStatus.message}</p>
+            {obsStatus.hint && <p className="opacity-80 mt-1 text-xs">{obsStatus.hint}</p>}
+          </div>
+        )}
+        {obsStatus.state === 'connected' && (
+          <p className="text-xs text-green-400">OBS WebSocket connected.</p>
+        )}
       </div>
     );
   }
@@ -256,6 +291,20 @@ export default function ObsBansOverlay({
         </div>
       </div>
 
+      {/* OBS connection status */}
+      {obsStatus.state === 'error' && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 max-w-xl px-4 py-3 rounded-lg bg-red-600/90 text-white text-sm shadow-lg">
+          <p className="font-semibold">OBS WebSocket: not connected</p>
+          <p className="opacity-90">{obsStatus.message}</p>
+          {obsStatus.hint && <p className="opacity-80 mt-1 text-xs">{obsStatus.hint}</p>}
+        </div>
+      )}
+      {obsStatus.state === 'connecting' && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-lg bg-yellow-500/90 text-black text-sm shadow-lg">
+          Connecting to OBS WebSocket...
+        </div>
+      )}
+
       {/* Debug info (remove in production) */}
       <div className="absolute bottom-4 left-4 text-white text-xs opacity-50">
         <p>Match: {match?.id}</p>
@@ -264,6 +313,16 @@ export default function ObsBansOverlay({
           Ban {banCycle.currentIndex + 1} / {banCycle.bans.length}
         </p>
         <p>Hero: {currentBan.heroId || 'Skipped'}</p>
+        <p>
+          OBS:{' '}
+          {obsStatus.state === 'connected'
+            ? 'connected'
+            : obsStatus.state === 'connecting'
+              ? 'connecting'
+              : obsStatus.state === 'error'
+                ? 'error'
+                : 'idle'}
+        </p>
       </div>
     </div>
   );

@@ -35,6 +35,7 @@ import {
 } from "@/lib/api";
 import { formatDateEST, formatDateTimeEST } from "@/lib/dateUtils";
 import type { PlayerStat } from "@/lib/api/types";
+import { testObsConnection } from "@/lib/obs/websocket";
 
 type TabValue = "scheduled" | "active" | "pending" | "stats";
 type MapType = "CONTROL" | "HYBRID" | "PAYLOAD" | "PUSH" | "FLASHPOINT";
@@ -161,6 +162,12 @@ export default function ManagerDashboardPage() {
     type: "success" | "error";
     message: string;
   } | null>(null);
+  const [obsTesting, setObsTesting] = useState(false);
+  const [obsTestResult, setObsTestResult] = useState<{
+    type: "success" | "error";
+    message: string;
+    hint?: string;
+  } | null>(null);
 
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const prevMatchesRef = useRef<Match[]>([]);
@@ -232,6 +239,52 @@ export default function ManagerDashboardPage() {
       new Notification(title, { body, icon: "/favicon.ico", tag: "manager-notification" });
     }
   }, [notificationPermission]);
+
+  const handleTestObsConnection = async () => {
+    setObsTestResult(null);
+    const url = streamSettings.obsWebsocketUrl.trim();
+    const password = streamSettings.obsWebsocketPassword.trim();
+    if (!url) {
+      setObsTestResult({
+        type: "error",
+        message: "Enter the OBS WebSocket URL first.",
+        hint: "Example: ws://localhost:4455 (or 192.168.1.10:4455).",
+      });
+      return;
+    }
+    if (!password) {
+      setObsTestResult({
+        type: "error",
+        message: "Enter the OBS WebSocket password to test the connection.",
+        hint: "It is required even if you just saved one — the saved password is not loaded back into this form.",
+      });
+      return;
+    }
+
+    setObsTesting(true);
+    try {
+      const result = await testObsConnection({ url, password });
+      if (result.ok) {
+        setObsTestResult({
+          type: "success",
+          message: `Connected successfully to ${result.url}.`,
+        });
+      } else {
+        setObsTestResult({
+          type: "error",
+          message: result.message,
+          hint: result.hint,
+        });
+      }
+    } catch (err: any) {
+      setObsTestResult({
+        type: "error",
+        message: err?.message || "Unexpected error while testing OBS connection.",
+      });
+    } finally {
+      setObsTesting(false);
+    }
+  };
 
   const handleSaveStreamSettings = async () => {
     if (!token || !user?.id) return;
@@ -677,6 +730,21 @@ export default function ManagerDashboardPage() {
               </div>
             )}
 
+            {obsTestResult && (
+              <div
+                className={`rounded-lg border px-3 py-2 text-sm ${
+                  obsTestResult.type === "success"
+                    ? "bg-success/10 text-success border-success/30"
+                    : "bg-danger/10 text-danger border-danger/30"
+                }`}
+              >
+                <p className="font-semibold">{obsTestResult.message}</p>
+                {obsTestResult.hint && (
+                  <p className="mt-1 text-xs opacity-90">{obsTestResult.hint}</p>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
                 label="Hero videos folder"
@@ -718,16 +786,34 @@ export default function ManagerDashboardPage() {
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-xs text-muted">
-                Hero videos must be named by id (example: 1.mp4).
-              </p>
-              <Button
-                onClick={handleSaveStreamSettings}
-                isLoading={streamSettingsSaving}
-                disabled={streamSettingsLoading}
-              >
-                Save Settings
-              </Button>
+              <div className="text-xs text-muted space-y-1">
+                <p>Hero videos must be named by id (example: 1.mp4).</p>
+                <p>
+                  OBS URL format: <code>ws://HOST:4455</code> (default port). If you only enter an
+                  IP, port 4455 is assumed.
+                </p>
+                <p>
+                  If this app is open over <code>https://</code> the browser will block <code>ws://</code> to your
+                  local OBS. Open the overlay over <code>http://</code> on the streamer&apos;s machine.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={handleTestObsConnection}
+                  isLoading={obsTesting}
+                  disabled={streamSettingsLoading || streamSettingsSaving}
+                >
+                  Test OBS connection
+                </Button>
+                <Button
+                  onClick={handleSaveStreamSettings}
+                  isLoading={streamSettingsSaving}
+                  disabled={streamSettingsLoading}
+                >
+                  Save Settings
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
