@@ -266,108 +266,99 @@ export default function ObsBansOverlay({
   }, [draft, match, teams]);
 
   // Handle playback + rotation
-  useEffect(() => {
-    if (!currentBan || bans.length === 0) {
-      return;
+useEffect(() => {
+  const currentBan = bans[currentIndex];
+
+  if (!currentBan || bans.length === 0) {
+    return;
+  }
+
+  const playVideo = async () => {
+    const isTeamA =
+      match?.teamAId === currentBan.teamId;
+
+    const textSourceName = isTeamA
+      ? 'TOPLEFT'
+      : 'TOPRIGHT';
+
+    const oppositeSourceName = isTeamA
+      ? 'TOPRIGHT'
+      : 'TOPLEFT';
+
+    if (currentBan.index === 0) {
+      await obsManager.updateTextSource(
+        oppositeSourceName,
+        ' '
+      );
+
+      await obsManager.updateTextSource(
+        textSourceName,
+        `${currentBan.teamName}'S BANS`
+      );
     }
 
-    const playVideo = async () => {
-      const isTeamA =
-        match?.teamAId === currentBan.teamId;
+    if (
+      currentBan.heroId &&
+      heroVideoFolderPath &&
+      obsManager.isConnectedToOBS()
+    ) {
+      const cleanBase =
+        heroVideoFolderPath.replace(/[\/\\]$/, '');
 
-      const textSourceName = isTeamA
-        ? 'TOPLEFT'
-        : 'TOPRIGHT';
+      const fullPath =
+        `${cleanBase}\\${currentBan.heroId}.mp4`;
 
-      const oppositeSourceName = isTeamA
-        ? 'TOPRIGHT'
-        : 'TOPLEFT';
+      if (lastVideoRef.current !== fullPath) {
+        lastVideoRef.current = fullPath;
 
-      // Update team text
-      if (currentBan.index === 0) {
-        await obsManager.updateTextSource(
-          oppositeSourceName,
-          ' '
+        await obsManager.setMediaSourceFile(
+          'HeroVideo',
+          fullPath
         );
 
-        await obsManager.updateTextSource(
-          textSourceName,
-          `${currentBan.teamName}'S BANS`
-        );
+        console.log('[v0] Playing video:', fullPath);
       }
+    }
 
-      // Update video only if changed
-      if (
-        currentBan.heroId &&
-        heroVideoFolderPath &&
-        obsManager.isConnectedToOBS()
-      ) {
-        const cleanBase =
-          heroVideoFolderPath.replace(/[\/\\]$/, '');
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
 
-        const fullPath =
-          `${cleanBase}\\${currentBan.heroId}.mp4`;
+    timerRef.current = setTimeout(() => {
+      console.log('[v0] Timer fired');
 
-        if (lastVideoRef.current !== fullPath) {
-          lastVideoRef.current = fullPath;
+      setCurrentIndex((prev) => {
+        const next =
+          (prev + 1) % bans.length;
 
-          await obsManager.setMediaSourceFile(
-            'HeroVideo',
-            fullPath
-          );
-
-          console.log('[v0] Playing video:', fullPath);
-        }
-      }
-
-      // Clear previous timer
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
-
-      // Next ban
-      timerRef.current = setTimeout(() => {
-        console.log('[v0] Timer fired');
-
-        setCurrentIndex((prev) => {
-          if (bans.length === 0) {
-            return 0;
-          }
-
-          const next =
-            (prev + 1) % bans.length;
-
-          console.log('[v0] Advancing ban:', {
-            prev,
-            next,
-            total: bans.length,
-          });
-
-          return next;
+        console.log('[v0] Advancing ban:', {
+          prev,
+          next,
+          total: bans.length,
         });
-      }, VIDEO_DURATION);
-    };
 
-    console.log('[v0] useEffect triggered', {
-      currentIndex,
-      hasCurrentBan: !!currentBan,
-      bansLength: bans.length,
-    });
+        return next;
+      });
+    }, VIDEO_DURATION);
+  };
 
-    playVideo();
-
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
-    };
-  }, [
+  console.log('[v0] useEffect triggered', {
     currentIndex,
-    currentBan,
-    bans,
-    match,
-    heroVideoFolderPath,
-  ]);
+    bansLength: bans.length,
+  });
+
+  playVideo();
+
+  return () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+  };
+}, [
+  currentIndex,
+  match?.teamAId,
+  heroVideoFolderPath,
+]);
 
   // Waiting screen
   if (!draft || draft.phase !== 'PLAYING') {
