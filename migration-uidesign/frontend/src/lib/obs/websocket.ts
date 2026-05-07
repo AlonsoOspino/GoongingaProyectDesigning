@@ -39,16 +39,20 @@ export function normalizeObsUrl(rawUrl: string): string {
   // Strip path (OBS WS doesn't use paths, and obs-websocket-js dislikes them)
   try {
     const u = new URL(url);
-    // Default port if missing
-    if (!u.port) {
+    // Default port policy:
+    // - ws:// defaults to 4455 (OBS local default)
+    // - wss:// keeps implicit 443 unless user explicitly typed a port
+    if (!u.port && u.protocol === 'ws:') {
       u.port = '4455';
     }
-    // Bare host:port — drop pathname/search/hash
-    return `${u.protocol}//${u.hostname}:${u.port}`;
+
+    // Bare host[:port] — drop pathname/search/hash
+    return u.port ? `${u.protocol}//${u.hostname}:${u.port}` : `${u.protocol}//${u.hostname}`;
   } catch {
-    // Fallback: if URL parsing fails, just append default port if missing
+    // Fallback: if URL parsing fails, append OBS default port only for ws://
     const hasPort = /:\d+$/.test(url.replace(/^wss?:\/\//, ''));
-    return hasPort ? url : `${url}:4455`;
+    if (hasPort || url.startsWith('wss://')) return url;
+    return `${url}:4455`;
   }
 }
 
