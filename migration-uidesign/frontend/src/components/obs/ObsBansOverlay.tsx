@@ -243,22 +243,26 @@ export default function ObsBansOverlay({
     }
 
     // Prevent unnecessary resets
-    const newCycleJson = JSON.stringify(cycle);
-    const oldCycleJson = JSON.stringify(bans);
+    setBans((prevBans) => {
+  const oldCycleJson = JSON.stringify(prevBans);
+  const newCycleJson = JSON.stringify(cycle);
 
-    if (newCycleJson !== oldCycleJson) {
-      console.log('[v0] Ban cycle changed');
+  if (oldCycleJson === newCycleJson) {
+    return prevBans;
+  }
 
-      setBans(cycle);
+  console.log('[v0] Ban cycle changed');
 
-      setCurrentIndex((prev) => {
-        if (prev >= cycle.length) {
-          return 0;
-        }
-
-        return prev;
-      });
+  setCurrentIndex((prev) => {
+    if (prev >= cycle.length) {
+      return 0;
     }
+
+    return prev;
+  });
+
+  return cycle;
+});
   }, [draft, match, teams]);
 
   // Handle playback + rotation
