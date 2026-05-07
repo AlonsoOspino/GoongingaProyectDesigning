@@ -89,6 +89,48 @@ export default function ObsBansOverlay({
 
   /*
     =========================================================
+    DOUBLE-BUFFER MEDIA PLAYBACK STATE
+    =========================================================
+
+    We drive two OBS media sources, HeroVideoA and HeroVideoB,
+    so transitions between hero videos are seamless:
+
+      - One source is currently visible and playing.
+      - The other source stays hidden and preloads the NEXT
+        hero video file.
+      - On transition we just toggle scene-item visibility:
+        show the preloaded one, hide the previous one.
+      - Then we preload the next-next video into the now-hidden
+        source so the next switch is also seamless.
+
+    `activeSourceRef`  -> which source ('A' | 'B') is currently
+                          visible. `null` means nothing has been
+                          shown yet (initial state).
+    `loadedFileRef`    -> tracks which absolute file path is
+                          currently loaded into each source so we
+                          don't redundantly re-set the same file.
+    `mediaInitialized` -> flips true once both sources have been
+                          hidden on (re)connect, so the playback
+                          effect knows it's safe to start.
+  */
+
+  const activeSourceRef = useRef<
+    'A' | 'B' | null
+  >(null);
+
+  const loadedFileRef = useRef<{
+    A: string;
+    B: string;
+  }>({
+    A: '',
+    B: '',
+  });
+
+  const [mediaInitialized, setMediaInitialized] =
+    useState(false);
+
+  /*
+    =========================================================
     CONFIG
     =========================================================
   */
@@ -250,6 +292,86 @@ export default function ObsBansOverlay({
 
   /*
     =========================================================
+    DOUBLE-BUFFER MEDIA INITIALIZATION
+
+    Runs once OBS reports `connected`. Hides BOTH HeroVideoA
+    and HeroVideoB so the overlay always starts from a known
+    blank state. Resets ref-tracked state so a fresh reconnect
+    behaves exactly like a first connection.
+
+    `mediaInitialized` only flips true once both hides complete,
+    which is the gate the playback effect waits on before doing
+    any preload / show work.
+    =========================================================
+  */
+
+  useEffect(() => {
+    if (
+      obsStatus.state !== 'connected'
+    ) {
+      setMediaInitialized(false);
+
+      activeSourceRef.current = null;
+
+      loadedFileRef.current = {
+        A: '',
+        B: '',
+      };
+
+      lastPlayedBanRef.current = '';
+
+      return;
+    }
+
+    let cancelled = false;
+
+    const initSources = async () => {
+      try {
+        await obsManager.setSceneItemEnabled(
+          'HeroVideoA',
+          false
+        );
+
+        await obsManager.setSceneItemEnabled(
+          'HeroVideoB',
+          false
+        );
+
+        if (cancelled) {
+          return;
+        }
+
+        activeSourceRef.current = null;
+
+        loadedFileRef.current = {
+          A: '',
+          B: '',
+        };
+
+        lastPlayedBanRef.current = '';
+
+        setMediaInitialized(true);
+
+        console.log(
+          '[v0] Double-buffer media sources initialized'
+        );
+      } catch (err) {
+        console.error(
+          '[v0] Failed to initialize double-buffer media sources:',
+          err
+        );
+      }
+    };
+
+    initSources();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [obsStatus.state]);
+
+  /*
+    =========================================================
     COMPUTE BANS
     =========================================================
   */
@@ -404,12 +526,71 @@ export default function ObsBansOverlay({
 
   /*
     =========================================================
-    PLAY CURRENT BAN
+    PLAY CURRENT BAN (DOUBLE-BUFFERED)
+
+    Strategy:
+
+      1. Compute the absolute file path for the CURRENT ban
+         and (if any) the NEXT ban.
+      2. Update the team title text sources (unchanged).
+      3. Decide which source ('A' | 'B') should become the new
+         visible source. On first run that's always 'A'. On
+         subsequent runs it's whichever source is NOT currently
+         visible (and which we already preloaded last cycle).
+      4. Make absolutely sure the target source has the current
+         file loaded. Normally it already does (because we
+         preloaded it last cycle). If for any reason it doesn't
+         (cold start, bans list mutated, skipped ban, etc.) we
+         set the file path now and wait briefly so OBS can
+         decode the first frame BEFORE we make it visible.
+      5. Toggle visibility: show target, hide previous active.
+         OBS restarts playback on the now-active source because
+         "Restart playback when source becomes active" is ON.
+      6. Preload the NEXT ban's file into the now-hidden source
+         so the next switch is also seamless.
+
+    Guards:
+
+      - We never call `setMediaSourceFile` (which restarts
+        playback) on the visible source.
+      - We never make a source visible without first making sure
+        a file path is set on it.
+      - The dedupe key on `lastPlayedBanRef` prevents the same
+        ban from being re-played if React re-runs the effect.
     =========================================================
   */
 
+  const buildHeroVideoPath = (
+    heroId: number | null
+  ): string => {
+    if (
+      !heroId ||
+      !heroVideoFolderPath
+    ) {
+      return '';
+    }
+
+    const cleanBase =
+      heroVideoFolderPath.replace(
+        /[\/\\]$/,
+        ''
+      );
+
+    return `${cleanBase}\\${heroId}.mp4`;
+  };
+
   useEffect(() => {
     if (!currentBan) {
+      return;
+    }
+
+    if (!mediaInitialized) {
+      return;
+    }
+
+    if (
+      !obsManager.isConnectedToOBS()
+    ) {
       return;
     }
 
@@ -433,15 +614,21 @@ export default function ObsBansOverlay({
     lastPlayedBanRef.current = uniqueKey;
 
     console.log(
-      '[v0] useEffect triggered',
+      '[v0] Ban transition triggered',
       {
         currentIndex,
         heroId: currentBan.heroId,
+        activeSource:
+          activeSourceRef.current,
       }
     );
 
-    const playCurrentBan = async () => {
+    const runTransition = async () => {
       try {
+        /*
+          TEAM TITLE
+        */
+
         const isTeamA =
           currentBan.teamId ===
           match?.teamAId;
@@ -455,10 +642,6 @@ export default function ObsBansOverlay({
           isTeamA
             ? 'TOPRIGHT'
             : 'TOPLEFT';
-
-        /*
-          UPDATE TEAM TITLE
-        */
 
         if (
           currentBan.index === 0
@@ -479,31 +662,208 @@ export default function ObsBansOverlay({
         }
 
         /*
-          PLAY VIDEO
+          BUILD CURRENT + NEXT PATHS
+        */
+
+        const currentPath =
+          buildHeroVideoPath(
+            currentBan.heroId
+          );
+
+        const nextBan =
+          bans.length > 0
+            ? bans[
+                (currentIndex + 1) %
+                  bans.length
+              ]
+            : null;
+
+        const nextPath = nextBan
+          ? buildHeroVideoPath(
+              nextBan.heroId
+            )
+          : '';
+
+        /*
+          NO VIDEO PATH AVAILABLE
+          (skipped ban, missing folder)
+          Hide both sources so we don't show
+          stale frames, and reset double-buffer
+          state so the next ban starts fresh.
+        */
+
+        if (!currentPath) {
+          await obsManager.setSceneItemEnabled(
+            'HeroVideoA',
+            false
+          );
+
+          await obsManager.setSceneItemEnabled(
+            'HeroVideoB',
+            false
+          );
+
+          activeSourceRef.current = null;
+
+          loadedFileRef.current = {
+            A: '',
+            B: '',
+          };
+
+          console.log(
+            '[v0] No video path for current ban — both sources hidden'
+          );
+
+          return;
+        }
+
+        /*
+          PICK TARGET SOURCE
+
+          - Initial cycle: target = 'A'.
+          - Subsequent: target = the OTHER source (the one
+            currently hidden, which we preloaded last cycle).
+        */
+
+        const previousActive =
+          activeSourceRef.current;
+
+        const targetSource: 'A' | 'B' =
+          previousActive === null
+            ? 'A'
+            : previousActive === 'A'
+              ? 'B'
+              : 'A';
+
+        const targetSourceName =
+          `HeroVideo${targetSource}` as const;
+
+        /*
+          ENSURE TARGET HAS CURRENT FILE LOADED
+
+          Fast path: target already has the right file
+          preloaded from the previous cycle — nothing to do.
+
+          Cold path: target file is wrong / empty (first
+          cycle, reconnect, or list mutation). Preload now
+          and give OBS a brief moment to decode the first
+          frame BEFORE we flip visibility.
         */
 
         if (
-          currentBan.heroId &&
-          heroVideoFolderPath &&
-          obsManager.isConnectedToOBS()
+          loadedFileRef.current[
+            targetSource
+          ] !== currentPath
         ) {
-          const cleanBase =
-            heroVideoFolderPath.replace(
-              /[\/\\]$/,
-              ''
-            );
+          await obsManager.preloadMediaSource(
+            targetSourceName,
+            currentPath
+          );
 
-          const fullPath =
-            `${cleanBase}\\${currentBan.heroId}.mp4`;
+          loadedFileRef.current[
+            targetSource
+          ] = currentPath;
 
-          await obsManager.setMediaSourceFile(
-            'HeroVideo',
-            fullPath
+          await new Promise((resolve) =>
+            setTimeout(resolve, 200)
           );
 
           console.log(
-            '[v0] Playing video:',
-            fullPath
+            '[v0] Cold-loaded current video into',
+            targetSourceName,
+            currentPath
+          );
+        } else {
+          console.log(
+            '[v0] Current video already preloaded in',
+            targetSourceName
+          );
+        }
+
+        /*
+          SWITCH VISIBILITY
+
+          Show target first, then hide the previously
+          visible source. OBS restarts playback on the
+          now-active source because "Restart playback when
+          source becomes active" is ON.
+        */
+
+        await obsManager.setSceneItemEnabled(
+          targetSourceName,
+          true
+        );
+
+        if (
+          previousActive &&
+          previousActive !== targetSource
+        ) {
+          const previousSourceName =
+            `HeroVideo${previousActive}` as const;
+
+          await obsManager.setSceneItemEnabled(
+            previousSourceName,
+            false
+          );
+        } else if (
+          previousActive === null
+        ) {
+          /*
+            First cycle: make sure the OTHER source
+            is also explicitly hidden, even though
+            init already did this. Defensive.
+          */
+
+          const otherSource =
+            targetSource === 'A'
+              ? 'HeroVideoB'
+              : 'HeroVideoA';
+
+          await obsManager.setSceneItemEnabled(
+            otherSource,
+            false
+          );
+        }
+
+        activeSourceRef.current =
+          targetSource;
+
+        console.log(
+          '[v0] Switched visible source to',
+          targetSourceName
+        );
+
+        /*
+          PRELOAD NEXT BAN INTO NOW-HIDDEN SOURCE
+        */
+
+        const nowHiddenSource: 'A' | 'B' =
+          targetSource === 'A'
+            ? 'B'
+            : 'A';
+
+        const nowHiddenSourceName =
+          `HeroVideo${nowHiddenSource}` as const;
+
+        if (
+          nextPath &&
+          loadedFileRef.current[
+            nowHiddenSource
+          ] !== nextPath
+        ) {
+          await obsManager.preloadMediaSource(
+            nowHiddenSourceName,
+            nextPath
+          );
+
+          loadedFileRef.current[
+            nowHiddenSource
+          ] = nextPath;
+
+          console.log(
+            '[v0] Preloaded next video into',
+            nowHiddenSourceName,
+            nextPath
           );
         }
       } catch (err) {
@@ -514,12 +874,14 @@ export default function ObsBansOverlay({
       }
     };
 
-    playCurrentBan();
+    runTransition();
   }, [
     currentBan,
     currentIndex,
+    bans,
     heroVideoFolderPath,
     match?.teamAId,
+    mediaInitialized,
   ]);
 
   /*

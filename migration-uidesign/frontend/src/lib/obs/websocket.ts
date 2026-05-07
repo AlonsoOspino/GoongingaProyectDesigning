@@ -71,6 +71,13 @@ class OBSWebSocketManager {
   private obs: any = null;
   private isConnected = false;
 
+  /**
+   * Cache of resolved scene item locations for a given source name, so we
+   * don't need to call `GetSceneList` + `GetSceneItemId` on every visibility
+   * toggle. Cleared on disconnect.
+   */
+  private sceneItemCache = new Map<string, { sceneName: string; sceneItemId: number }>();
+
   async connect(config: OBSConfig): Promise<void> {
     if (this.isConnected && this.obs) {
       console.log('[v0] OBS WebSocket already connected');
@@ -135,6 +142,7 @@ class OBSWebSocketManager {
       } finally {
         this.isConnected = false;
         this.obs = null;
+        this.sceneItemCache.clear();
       }
     }
   }
@@ -200,6 +208,107 @@ class OBSWebSocketManager {
       return true;
     } catch (err) {
       console.error(`[v0] Failed to update media source "${sourceName}":`, err);
+      return false;
+    }
+  }
+
+  /**
+   * Set a media source's local_file WITHOUT triggering a playback restart.
+   * Use this to preload a hidden FFmpeg media source. With "Close file when
+   * inactive" OFF in OBS, the file is kept open and the first frame is decoded
+   * so the source is ready the moment its scene item visibility flips on.
+   */
+  async preloadMediaSource(sourceName: string, filePath: string): Promise<boolean> {
+    if (!this.isConnected || !this.obs) {
+      console.warn('[v0] OBS WebSocket not connected, cannot preload media source');
+      return false;
+    }
+
+    try {
+      await this.obs.call('SetInputSettings', {
+        inputName: sourceName,
+        inputSettings: { local_file: filePath },
+      });
+      console.log(`[v0] Preloaded OBS media source "${sourceName}" with "${filePath}"`);
+      return true;
+    } catch (err) {
+      console.error(`[v0] Failed to preload media source "${sourceName}":`, err);
+      return false;
+    }
+  }
+
+  /**
+   * Find the scene + scene item id for a given source name. We search every
+   * scene because the bans overlay is rendered into a single OBS scene that
+   * may not be the program scene at all times. Result is cached.
+   */
+  private async findSceneItem(
+    sourceName: string
+  ): Promise<{ sceneName: string; sceneItemId: number } | null> {
+    const cached = this.sceneItemCache.get(sourceName);
+    if (cached) return cached;
+
+    if (!this.isConnected || !this.obs) return null;
+
+    try {
+      const { scenes } = (await this.obs.call('GetSceneList')) as {
+        scenes: Array<{ sceneName: string }>;
+      };
+
+      for (const scene of scenes || []) {
+        try {
+          const result = (await this.obs.call('GetSceneItemId', {
+            sceneName: scene.sceneName,
+            sourceName,
+          })) as { sceneItemId: number };
+
+          if (typeof result?.sceneItemId === 'number') {
+            const found = { sceneName: scene.sceneName, sceneItemId: result.sceneItemId };
+            this.sceneItemCache.set(sourceName, found);
+            return found;
+          }
+        } catch {
+          // Source not in this scene — keep searching.
+        }
+      }
+    } catch (err) {
+      console.error('[v0] Failed to look up scene item:', err);
+    }
+
+    return null;
+  }
+
+  /**
+   * Toggle a scene item's visibility (enable/disable) by source name. The
+   * scene item is located automatically and cached. Returns true on success.
+   *
+   * This is the cornerstone of the double-buffered hero video playback: the
+   * actual visual switch between HeroVideoA / HeroVideoB happens here.
+   */
+  async setSceneItemEnabled(sourceName: string, enabled: boolean): Promise<boolean> {
+    if (!this.isConnected || !this.obs) {
+      console.warn('[v0] OBS WebSocket not connected, cannot toggle scene item');
+      return false;
+    }
+
+    const item = await this.findSceneItem(sourceName);
+    if (!item) {
+      console.warn(`[v0] Scene item "${sourceName}" not found in any scene`);
+      return false;
+    }
+
+    try {
+      await this.obs.call('SetSceneItemEnabled', {
+        sceneName: item.sceneName,
+        sceneItemId: item.sceneItemId,
+        sceneItemEnabled: enabled,
+      });
+      console.log(
+        `[v0] Set scene item "${sourceName}" (${item.sceneName}/${item.sceneItemId}) -> ${enabled ? 'visible' : 'hidden'}`
+      );
+      return true;
+    } catch (err) {
+      console.error(`[v0] Failed to set scene item enabled for "${sourceName}":`, err);
       return false;
     }
   }
