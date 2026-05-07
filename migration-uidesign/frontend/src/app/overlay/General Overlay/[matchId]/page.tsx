@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { getDraftByMatchId } from "@/lib/api/draft";
 import { getTeams, getLeaderboard, getMatchesByWeek } from "@/lib/api";
 import type { DraftState, Team, Match } from "@/lib/api/types";
 import { resolveMapImageUrl } from "@/lib/assetUrls";
 import { useImageReady, preloadImages } from "@/components/draft/MapImage";
+import { useHeroVideoSwitcher } from "@/hooks/useHeroVideoSwitcher";
+import { getMemberProfileById } from "@/lib/api";
 import { StartingPhase } from "../phases/StartingPhase";
 import { BanPhase } from "../phases/BanPhase";
 import { PlayingPhase } from "../phases/PlayingPhase";
@@ -27,8 +29,14 @@ export default function BansOverlayPage() {
   const [leaderboard, setLeaderboard] = useState<Team[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
+  const [heroVideoFolderPath, setHeroVideoFolderPath] = useState<string>("");
 
-  const getTeamAbbr = (name: string) => name.substring(0, 3).toUpperCase();
+  const prevPhaseRef = useRef<string | null>(null);
+  
+  const videoSwitcher = useHeroVideoSwitcher({
+    enabled: true,
+    heroVideoFolderPath,
+  });
 
   useEffect(() => {
     const loadData = async () => {
@@ -71,7 +79,70 @@ export default function BansOverlayPage() {
     return () => clearInterval(interval);
   }, [matchId, urlKey]);
 
-  // Preload the picked map's background BEFORE we show the ban overlay.
+  const getTeamAbbr = (name: string) => name.substring(0, 3).toUpperCase();
+
+  // Load hero video folder path from manager profile
+  useEffect(() => {
+    const loadHeroVideoFolder = async () => {
+      try {
+        // Get user profile from sessionStorage or backend
+        const token = sessionStorage.getItem("auth_token");
+        const userId = sessionStorage.getItem("user_id");
+        
+        if (token && userId) {
+          const profile = await getMemberProfileById(Number(userId), token);
+          setHeroVideoFolderPath(profile.heroVideoFolderPath ?? "");
+          console.log("[v0] Hero video folder loaded:", profile.heroVideoFolderPath);
+        }
+      } catch (err) {
+        console.error("[v0] Failed to load hero video folder path:", err);
+      }
+    };
+
+    loadHeroVideoFolder();
+  }, []);
+
+  // Handle phase transitions with double-buffered video switching
+  useEffect(() => {
+    if (!draftState?.phase) return;
+
+    // Only switch videos on specific phase transitions
+    const shouldSwitchVideo = draftState.phase !== prevPhaseRef.current;
+
+    if (shouldSwitchVideo) {
+      console.log("[v0] Phase changed:", prevPhaseRef.current, "->", draftState.phase);
+      
+      // Map phases to video file names (using double-buffer naming: hero_video_a and hero_video_b)
+      let videoFileName: string | null = null;
+      
+      switch (draftState.phase) {
+        case "STARTING":
+          videoFileName = "hero_video_a.mp4";
+          break;
+        case "MAPPICKING":
+        case "BAN":
+          videoFileName = "hero_video_b.mp4";
+          break;
+        case "PLAYING":
+          videoFileName = "hero_video_a.mp4";
+          break;
+        case "ENDMAP":
+          videoFileName = "hero_video_b.mp4";
+          break;
+        case "FINISHED":
+          videoFileName = "hero_video_a.mp4";
+          break;
+        default:
+          videoFileName = null;
+      }
+
+      if (videoFileName && videoSwitcher.isConnected && heroVideoFolderPath) {
+        videoSwitcher.switchToVideo(videoFileName);
+      }
+
+      prevPhaseRef.current = draftState.phase;
+    }
+  }, [draftState?.phase, videoSwitcher, heroVideoFolderPath]);
   // If the caster opens the page right at the BAN phase the artwork has
   // not been fetched yet, and we don't want the bans to render on top of
   // a half-loaded backdrop. We wait until the bytes are decoded, then

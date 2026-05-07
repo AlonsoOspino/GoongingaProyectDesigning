@@ -204,6 +204,40 @@ class OBSWebSocketManager {
     }
   }
 
+  async setSourceVisibility(sourceName: string, visible: boolean): Promise<boolean> {
+    if (!this.isConnected || !this.obs) {
+      console.warn('[v0] OBS WebSocket not connected, cannot set source visibility');
+      return false;
+    }
+
+    try {
+      // Get the current scene to update the source in
+      const { sceneName } = await this.obs.call('GetCurrentProgramScene');
+      
+      // Set the source's render state (visibility)
+      await this.obs.call('SetSceneItemEnabled', {
+        sceneName,
+        sceneItemId: await this.getSceneItemId(sceneName, sourceName),
+        sceneItemEnabled: visible,
+      });
+
+      console.log(`[v0] Set source "${sourceName}" visibility to ${visible}`);
+      return true;
+    } catch (err) {
+      console.error(`[v0] Failed to set source visibility "${sourceName}":`, err);
+      return false;
+    }
+  }
+
+  private async getSceneItemId(sceneName: string, sourceName: string): Promise<number> {
+    const items = await this.obs.call('GetSceneItemList', { sceneName });
+    const item = items.sceneItems?.find((i: any) => i.sourceName === sourceName);
+    if (!item) {
+      throw new Error(`Scene item "${sourceName}" not found in scene "${sceneName}"`);
+    }
+    return item.sceneItemId;
+  }
+
   isConnectedToOBS(): boolean {
     return this.isConnected;
   }

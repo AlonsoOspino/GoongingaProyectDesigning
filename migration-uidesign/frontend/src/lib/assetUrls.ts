@@ -63,3 +63,14 @@ export function resolveGenericBackendAsset(pathValue?: string | null): string {
   if (!pathValue) return "";
   return toAbsoluteBackendUrl(pathValue);
 }
+
+export function resolveHeroVideoPath(folderPath?: string | null, videoName?: string): string {
+  if (!folderPath || !videoName) return "";
+  
+  // Construct the path with proper formatting
+  // Assuming folderPath is something like "C:/folder/path" or "/path/to/folder"
+  // and videoName is like "hero_video_a.mp4"
+  const normalizedFolder = folderPath.replace(/\\/g, "/");
+  const cleanFolder = normalizedFolder.endsWith("/") ? normalizedFolder.slice(0, -1) : normalizedFolder;
+  return `${cleanFolder}/${videoName}`;
+}
