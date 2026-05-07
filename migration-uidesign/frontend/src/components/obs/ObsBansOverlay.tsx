@@ -1,11 +1,18 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { getDraftByMatchId } from '@/lib/api/draft';
 import { getMatches } from '@/lib/api/match';
 import { getTeams } from '@/lib/api/team';
-import type { DraftState, Match, Team } from '@/lib/api/types';
-import { obsManager, OBSConnectionError } from '@/lib/obs/websocket';
+import type {
+  DraftState,
+  Match,
+  Team,
+} from '@/lib/api/types';
+import {
+  obsManager,
+  OBSConnectionError,
+} from '@/lib/obs/websocket';
 
 interface Ban {
   heroId: number | null;
@@ -25,16 +32,32 @@ export default function ObsBansOverlay({
   obsWebsocketPassword?: string;
   heroVideoFolderPath?: string;
 }) {
-  const [match, setMatch] = useState<Match | null>(null);
-  const [draft, setDraft] = useState<DraftState | null>(null);
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [bans, setBans] = useState<Ban[]>([]);
-  const [currentIndex, setCurrentIndex] =
-    useState<number>(0);
+  /*
+    =========================================================
+    STATE
+    =========================================================
+  */
 
-  const [error, setError] = useState<string | null>(
-    null
+  const [match, setMatch] =
+    useState<Match | null>(null);
+
+  const [draft, setDraft] =
+    useState<DraftState | null>(null);
+
+  const [teams, setTeams] = useState<Team[]>(
+    []
   );
+
+  const [bans, setBans] = useState<Ban[]>(
+    []
+  );
+
+  const [currentIndex, setCurrentIndex] =
+    useState(0);
+
+  const [error, setError] = useState<
+    string | null
+  >(null);
 
   const [obsStatus, setObsStatus] = useState<
     | { state: 'idle' }
@@ -45,29 +68,42 @@ export default function ObsBansOverlay({
         message: string;
         hint?: string;
       }
-  >({ state: 'idle' });
+  >({
+    state: 'idle',
+  });
+
+  /*
+    =========================================================
+    REFS
+    =========================================================
+  */
 
   const pollRef = useRef<NodeJS.Timeout | null>(
     null
   );
 
-  const lastVideoRef = useRef<string | null>(
-    null
-  );
+  const rotationTimerRef =
+    useRef<NodeJS.Timeout | null>(null);
+
+  const lastPlayedBanRef = useRef<string>('');
+
+  /*
+    =========================================================
+    CONFIG
+    =========================================================
+  */
 
   const VIDEO_DURATION = 15000;
 
-  const currentBan =
-    bans.length > 0 &&
-    currentIndex >= 0 &&
-    currentIndex < bans.length
-      ? bans[currentIndex]
-      : null;
+  /*
+    =========================================================
+    FETCH DATA
+    =========================================================
+  */
 
-  // =========================
-  // LOAD MATCH / DRAFT DATA
-  // =========================
   useEffect(() => {
+    let cancelled = false;
+
     const loadData = async () => {
       try {
         const matches = await getMatches();
@@ -77,51 +113,65 @@ export default function ObsBansOverlay({
         );
 
         if (!foundMatch) {
-          setError('Match not found');
+          if (!cancelled) {
+            setError('Match not found');
+          }
+
+          return;
+        }
+
+        const [allTeams, draftState] =
+          await Promise.all([
+            getTeams(),
+            getDraftByMatchId(matchId),
+          ]);
+
+        if (cancelled) {
           return;
         }
 
         setMatch(foundMatch);
-
-        const allTeams = await getTeams();
-
         setTeams(allTeams);
-
-        const draftState =
-          await getDraftByMatchId(matchId);
-
         setDraft(draftState);
+
+        setError(null);
       } catch (err) {
         console.error(
           '[v0] Error loading draft data:',
           err
         );
 
-        setError(
-          err instanceof Error
-            ? err.message
-            : 'Failed to load draft'
-        );
+        if (!cancelled) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : 'Failed to load draft'
+          );
+        }
       }
     };
 
     loadData();
 
-    pollRef.current = setInterval(
-      loadData,
-      2000
-    );
+    pollRef.current = setInterval(() => {
+      loadData();
+    }, 2000);
 
     return () => {
+      cancelled = true;
+
       if (pollRef.current) {
         clearInterval(pollRef.current);
       }
     };
   }, [matchId]);
 
-  // =========================
-  // OBS CONNECTION
-  // =========================
+  /*
+    =========================================================
+    OBS CONNECTION
+    =========================================================
+  */
+
   useEffect(() => {
     if (
       !obsWebsocketUrl ||
@@ -132,7 +182,7 @@ export default function ObsBansOverlay({
         message:
           'OBS WebSocket URL or password missing.',
         hint:
-          'Configure them in the Manager Dashboard → Stream Settings.',
+          'Configure them in dashboard stream settings.',
       });
 
       return;
@@ -140,16 +190,17 @@ export default function ObsBansOverlay({
 
     let cancelled = false;
 
-    setObsStatus({
-      state: 'connecting',
-    });
+    const connect = async () => {
+      try {
+        setObsStatus({
+          state: 'connecting',
+        });
 
-    obsManager
-      .connect({
-        url: obsWebsocketUrl,
-        password: obsWebsocketPassword,
-      })
-      .then(() => {
+        await obsManager.connect({
+          url: obsWebsocketUrl,
+          password: obsWebsocketPassword,
+        });
+
         if (cancelled) {
           return;
         }
@@ -161,33 +212,31 @@ export default function ObsBansOverlay({
         setObsStatus({
           state: 'connected',
         });
-      })
-      .catch((err: unknown) => {
-        if (cancelled) {
-          return;
-        }
-
-        const message =
-          err instanceof Error
-            ? err.message
-            : 'Failed to connect to OBS WebSocket';
-
-        const hint =
-          err instanceof OBSConnectionError
-            ? err.hint
-            : undefined;
-
+      } catch (err) {
         console.error(
           '[v0] OBS connect error:',
           err
         );
 
+        if (cancelled) {
+          return;
+        }
+
         setObsStatus({
           state: 'error',
-          message,
-          hint,
+          message:
+            err instanceof Error
+              ? err.message
+              : 'Failed to connect to OBS',
+          hint:
+            err instanceof OBSConnectionError
+              ? err.hint
+              : undefined,
         });
-      });
+      }
+    };
+
+    connect();
 
     return () => {
       cancelled = true;
@@ -199,25 +248,19 @@ export default function ObsBansOverlay({
     obsWebsocketPassword,
   ]);
 
-  // =========================
-  // ORGANIZE BANS
-  // =========================
-  useEffect(() => {
+  /*
+    =========================================================
+    COMPUTE BANS
+    =========================================================
+  */
+
+  const computedBans = useMemo(() => {
     if (
       !draft ||
       !match ||
       teams.length === 0
     ) {
-      console.log(
-        '[v0] Not organizing bans - missing data:',
-        {
-          hasDraft: !!draft,
-          hasMatch: !!match,
-          teamsLength: teams.length,
-        }
-      );
-
-      return;
+      return [];
     }
 
     const teamA = teams.find(
@@ -234,9 +277,6 @@ export default function ObsBansOverlay({
     const teamBName =
       teamB?.name || 'Team B';
 
-    const teamABans: Ban[] = [];
-    const teamBBans: Ban[] = [];
-
     const bansForThisGame =
       draft.actions.filter(
         (action) =>
@@ -249,38 +289,38 @@ export default function ObsBansOverlay({
       '[v0] Bans found for game:',
       {
         gameNumber: match.gameNumber,
-        totalBans:
-          bansForThisGame.length,
+        totalBans: bansForThisGame.length,
       }
     );
+
+    const teamABans: Ban[] = [];
+    const teamBBans: Ban[] = [];
 
     bansForThisGame
       .sort((a, b) => a.order - b.order)
       .forEach((action) => {
         if (
-          action.teamId ===
-          match.teamAId
+          action.teamId === match.teamAId
         ) {
           if (teamABans.length < 2) {
             teamABans.push({
               heroId: action.value,
               teamId: action.teamId,
               teamName: teamAName,
-              index:
-                teamABans.length,
+              index: teamABans.length,
             });
           }
-        } else if (
-          action.teamId ===
-          match.teamBId
+        }
+
+        if (
+          action.teamId === match.teamBId
         ) {
           if (teamBBans.length < 2) {
             teamBBans.push({
               heroId: action.value,
               teamId: action.teamId,
               teamName: teamBName,
-              index:
-                teamBBans.length,
+              index: teamBBans.length,
             });
           }
         }
@@ -288,19 +328,19 @@ export default function ObsBansOverlay({
 
     const cycle: Ban[] = [];
 
-    if (teamABans.length > 0) {
+    if (teamABans[0]) {
       cycle.push(teamABans[0]);
     }
 
-    if (teamABans.length > 1) {
+    if (teamABans[1]) {
       cycle.push(teamABans[1]);
     }
 
-    if (teamBBans.length > 0) {
+    if (teamBBans[0]) {
       cycle.push(teamBBans[0]);
     }
 
-    if (teamBBans.length > 1) {
+    if (teamBBans[1]) {
       cycle.push(teamBBans[1]);
     }
 
@@ -311,99 +351,136 @@ export default function ObsBansOverlay({
       }
     );
 
-    if (cycle.length === 0) {
-      setBans([]);
-      setCurrentIndex(0);
+    return cycle;
+  }, [draft, match, teams]);
+
+  /*
+    =========================================================
+    UPDATE BANS STATE
+    =========================================================
+  */
+
+  useEffect(() => {
+    const oldJson = JSON.stringify(bans);
+
+    const newJson =
+      JSON.stringify(computedBans);
+
+    if (oldJson === newJson) {
       return;
     }
 
-    setBans((prevBans) => {
-      const oldCycleJson =
-        JSON.stringify(prevBans);
+    console.log(
+      '[v0] Ban cycle changed'
+    );
 
-      const newCycleJson =
-        JSON.stringify(cycle);
+    setBans(computedBans);
 
+    setCurrentIndex((prev) => {
       if (
-        oldCycleJson ===
-        newCycleJson
+        computedBans.length === 0
       ) {
-        return prevBans;
+        return 0;
       }
 
-      console.log(
-        '[v0] Ban cycle changed'
-      );
+      if (
+        prev >= computedBans.length
+      ) {
+        return 0;
+      }
 
-      setCurrentIndex((prev) => {
-        if (prev >= cycle.length) {
-          return 0;
-        }
-
-        return prev;
-      });
-
-      return cycle;
+      return prev;
     });
-  }, [draft, match, teams]);
+  }, [computedBans]);
 
-  // =========================
-  // PLAYBACK + ROTATION
-  // =========================
+  /*
+    =========================================================
+    CURRENT BAN
+    =========================================================
+  */
+
+  const currentBan =
+    bans[currentIndex] || null;
+
+  /*
+    =========================================================
+    PLAY CURRENT BAN
+    =========================================================
+  */
+
   useEffect(() => {
-    const currentBan =
-      bans[currentIndex];
+    if (!currentBan) {
+      return;
+    }
+
+    const uniqueKey = JSON.stringify({
+      currentIndex,
+      heroId: currentBan.heroId,
+      teamId: currentBan.teamId,
+      index: currentBan.index,
+    });
+
+    /*
+      PREVENT DUPLICATE EXECUTION
+    */
 
     if (
-      !currentBan ||
-      bans.length === 0
+      lastPlayedBanRef.current === uniqueKey
     ) {
       return;
     }
 
-    const playVideo = async () => {
-      const isTeamA =
-        match?.teamAId ===
-        currentBan.teamId;
+    lastPlayedBanRef.current = uniqueKey;
 
-      const textSourceName =
-        isTeamA
-          ? 'TOPLEFT'
-          : 'TOPRIGHT';
+    console.log(
+      '[v0] useEffect triggered',
+      {
+        currentIndex,
+        heroId: currentBan.heroId,
+      }
+    );
 
-      const oppositeSourceName =
-        isTeamA
-          ? 'TOPRIGHT'
-          : 'TOPLEFT';
-
+    const playCurrentBan = async () => {
       try {
-        // =====================
-        // TEAM TEXT
-        // =====================
+        const isTeamA =
+          currentBan.teamId ===
+          match?.teamAId;
 
-        if (currentBan.index === 0) {
+        const activeTextSource =
+          isTeamA
+            ? 'TOPLEFT'
+            : 'TOPRIGHT';
+
+        const inactiveTextSource =
+          isTeamA
+            ? 'TOPRIGHT'
+            : 'TOPLEFT';
+
+        /*
+          UPDATE TEAM TITLE
+        */
+
+        if (
+          currentBan.index === 0
+        ) {
           await obsManager.updateTextSource(
-            oppositeSourceName,
+            inactiveTextSource,
             ' '
           );
 
-          console.log(
-            `[v0] Updated OBS input source "${oppositeSourceName}" to " "`
-          );
-
           await obsManager.updateTextSource(
-            textSourceName,
+            activeTextSource,
             `${currentBan.teamName}'S BANS`
           );
 
           console.log(
-            `[v0] Updated OBS input source "${textSourceName}" to "${currentBan.teamName}'S BANS"`
+            '[v0] Updated team title'
           );
         }
 
-        // =====================
-        // VIDEO
-        // =====================
+        /*
+          PLAY VIDEO
+        */
 
         if (
           currentBan.heroId &&
@@ -419,97 +496,87 @@ export default function ObsBansOverlay({
           const fullPath =
             `${cleanBase}\\${currentBan.heroId}.mp4`;
 
-          if (
-            lastVideoRef.current !==
+          await obsManager.setMediaSourceFile(
+            'HeroVideo',
             fullPath
-          ) {
-            lastVideoRef.current =
-              fullPath;
+          );
 
-            await obsManager.setMediaSourceFile(
-              'HeroVideo',
-              fullPath
-            );
-
-            console.log(
-              `[v0] Updated OBS media source "HeroVideo" to "${fullPath}"`
-            );
-
-            console.log(
-              '[v0] Playing video:',
-              fullPath
-            );
-          } else {
-            // force restart even if same file
-            await obsManager.restartMediaSource(
-              'HeroVideo'
-            );
-
-            console.log(
-              '[v0] Restarted media input "HeroVideo"'
-            );
-          }
+          console.log(
+            '[v0] Playing video:',
+            fullPath
+          );
         }
       } catch (err) {
         console.error(
-          '[v0] Playback error:',
+          '[v0] Failed playing ban:',
           err
         );
       }
     };
 
-    console.log(
-      '[v0] useEffect triggered',
-      {
-        currentIndex,
-        hasCurrentBan:
-          !!currentBan,
-        bansLength: bans.length,
-      }
-    );
-
-    playVideo();
-
-    const localTimer = setTimeout(() => {
-      console.log(
-        '[v0] Timer fired'
-      );
-
-      setCurrentIndex((prev) => {
-        if (bans.length === 0) {
-          return 0;
-        }
-
-        const next =
-          (prev + 1) %
-          bans.length;
-
-        console.log(
-          '[v0] Advancing ban:',
-          {
-            prev,
-            next,
-            total: bans.length,
-          }
-        );
-
-        return next;
-      });
-    }, VIDEO_DURATION);
-
-    return () => {
-      clearTimeout(localTimer);
-    };
+    playCurrentBan();
   }, [
+    currentBan,
     currentIndex,
-    match?.teamAId,
     heroVideoFolderPath,
-    bans.length,
+    match?.teamAId,
   ]);
 
-  // =========================
-  // WAITING SCREEN
-  // =========================
+  /*
+    =========================================================
+    ROTATION TIMER
+    =========================================================
+  */
+
+  useEffect(() => {
+    if (bans.length === 0) {
+      return;
+    }
+
+    if (rotationTimerRef.current) {
+      clearTimeout(
+        rotationTimerRef.current
+      );
+    }
+
+    rotationTimerRef.current =
+      setTimeout(() => {
+        console.log(
+          '[v0] Timer fired'
+        );
+
+        setCurrentIndex((prev) => {
+          const next =
+            (prev + 1) % bans.length;
+
+          console.log(
+            '[v0] Advancing ban:',
+            {
+              prev,
+              next,
+              total: bans.length,
+            }
+          );
+
+          return next;
+        });
+      }, VIDEO_DURATION);
+
+    return () => {
+      if (rotationTimerRef.current) {
+        clearTimeout(
+          rotationTimerRef.current
+        );
+      }
+    };
+  }, [currentIndex, bans.length]);
+
+  /*
+    =========================================================
+    WAITING SCREEN
+    =========================================================
+  */
+
   if (
     !draft ||
     draft.phase !== 'PLAYING'
@@ -524,8 +591,8 @@ export default function ObsBansOverlay({
 
         {!error && (
           <p>
-            Waiting for draft phase
-            to reach PLAYING...
+            Waiting for draft phase to
+            reach PLAYING...
           </p>
         )}
 
@@ -559,9 +626,12 @@ export default function ObsBansOverlay({
     );
   }
 
-  // =========================
-  // LOADING
-  // =========================
+  /*
+    =========================================================
+    LOADING
+    =========================================================
+  */
+
   if (!currentBan) {
     return (
       <div className="flex items-center justify-center h-screen bg-black text-white">
@@ -570,9 +640,15 @@ export default function ObsBansOverlay({
     );
   }
 
+  /*
+    =========================================================
+    UI
+    =========================================================
+  */
+
   const isTeamA =
-    match?.teamAId ===
-    currentBan.teamId;
+    currentBan.teamId ===
+    match?.teamAId;
 
   const titlePosition = isTeamA
     ? 'top-4 left-4'
@@ -582,26 +658,23 @@ export default function ObsBansOverlay({
     ? 'text-left'
     : 'text-right';
 
-  // =========================
-  // RENDER
-  // =========================
   return (
     <div className="relative w-full h-screen bg-black overflow-hidden">
       {/* TEAM TITLE */}
+
       <div
         className={`absolute ${titlePosition} z-10`}
       >
         <div
           className={`text-white text-3xl font-bold drop-shadow-lg ${titleClass}`}
         >
-          {
-            currentBan.teamName
-          }
+          {currentBan.teamName}
           &apos;S BANS
         </div>
       </div>
 
       {/* OBS STATUS */}
+
       {obsStatus.state ===
         'error' && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 max-w-xl px-4 py-3 rounded-lg bg-red-600/90 text-white text-sm shadow-lg">
@@ -631,24 +704,22 @@ export default function ObsBansOverlay({
       )}
 
       {/* DEBUG */}
+
       <div className="absolute bottom-4 left-4 text-white text-xs opacity-50">
-        <p>
-          Match: {match?.id}
-        </p>
+        <p>Match: {match?.id}</p>
 
         <p>
           Phase: {draft?.phase}
         </p>
 
         <p>
-          Ban{' '}
-          {currentIndex + 1} /{' '}
+          Ban {currentIndex + 1} /{' '}
           {bans.length}
         </p>
 
         <p>
           Hero:{' '}
-          {currentBan?.heroId ||
+          {currentBan.heroId ||
             'Skipped'}
         </p>
 
