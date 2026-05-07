@@ -3,9 +3,27 @@ const memberRepo = require("../repositories/member");
 const teamRepo = require("../repositories/team");
 const bcrypt = require("bcrypt");
 
-function sanitizeMember(member) {
+function sanitizeMember(member, options = {}) {
   if (!member || typeof member !== "object") return member;
-  const { passwordHash, ...safeMember } = member;
+  const {
+    passwordHash,
+    obsWebsocketPassword,
+    heroVideoFolderPath,
+    leaderboardImagePath,
+    matchCardsImagePath,
+    ...safeMember
+  } = member;
+
+  if (options.includePrivate) {
+    return {
+      ...safeMember,
+      heroVideoFolderPath,
+      leaderboardImagePath,
+      matchCardsImagePath,
+      obsWebsocketPassword,
+    };
+  }
+
   return safeMember;
 }
 
@@ -47,8 +65,7 @@ const login = async (req, res) => {
 const getAll = async (req, res) => {
   try {
     const members = await memberRepo.findAll();
-    const safeMembers = members.map(({ passwordHash, ...rest }) => rest);
-    res.json(safeMembers);
+    res.json(members.map((member) => sanitizeMember(member)));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -56,12 +73,16 @@ const getAll = async (req, res) => {
 
 const getById = async (req, res) => {
   try {
-    const member = await memberRepo.findById(Number(req.params.id));
+    const memberId = Number(req.params.id);
+    if (!req.user || (req.user.id !== memberId && req.user.role !== "ADMIN")) {
+      return res.status(403).json({ message: "Forbidden: You can only view your own profile." });
+    }
+
+    const member = await memberRepo.findById(memberId);
     if (!member) {
       return res.status(404).json({ message: "Member not found" });
     }
-    const { passwordHash, ...safeMember } = member;
-    res.json(safeMember);
+    res.json(sanitizeMember(member, { includePrivate: true }));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -77,7 +98,7 @@ const update = async (req, res) => {
       safeBody.passwordHash = await bcrypt.hash(password, 10);
     }
     const updatedMember = await memberRepo.update(Number(req.params.id), safeBody);
-    res.json(sanitizeMember(updatedMember));
+    res.json(sanitizeMember(updatedMember, { includePrivate: true }));
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
@@ -144,8 +165,7 @@ const bulkImport = async (req, res) => {
         const member = await memberService.register({ user, password, nickname });
         // Assign role DEFAULT and teamId
         const updated = await memberRepo.update(member.id, { teamId });
-        const { passwordHash, ...safe } = updated;
-        results.push(safe);
+        results.push(sanitizeMember(updated));
       } catch (err) {
         errors.push(`Line ${i + 1} (${user}): ${err.message}`);
       }

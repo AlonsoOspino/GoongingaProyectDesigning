@@ -19,8 +19,10 @@ export async function registerMember(
   });
 }
 
-export async function getMemberProfileById(userId: number) {
-  return apiRequest<MemberProfile>(`/member/${userId}`);
+export async function getMemberProfileById(userId: number, token: string) {
+  return apiRequest<MemberProfile>(`/member/${userId}`, {
+    token,
+  });
 }
 
 export async function updateMemberProfile(
@@ -32,6 +34,10 @@ export async function updateMemberProfile(
     password?: string;
     profilePic?: string;
     rank?: number;
+    heroVideoFolderPath?: string | null;
+    leaderboardImagePath?: string | null;
+    matchCardsImagePath?: string | null;
+    obsWebsocketPassword?: string;
   }
 ) {
   return apiRequest<MemberProfile>(`/member/${userId}`, {

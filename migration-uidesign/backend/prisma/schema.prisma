@@ -103,6 +103,11 @@ model Member {
   profilePic   String?
   rank         Int        @default(0)
 
+  heroVideoFolderPath String?
+  leaderboardImagePath String?
+  matchCardsImagePath String?
+  obsWebsocketPassword String?
+
   teamId Int?
   team   Team? @relation(fields: [teamId], references: [id])
   playerStats PlayerStat[]

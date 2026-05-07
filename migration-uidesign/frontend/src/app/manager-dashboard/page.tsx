@@ -17,7 +17,9 @@ import {
   getMembers,
   createDraft,
   getDraftByMatchId,
+  getMemberProfileById,
   updateManagerMatch,
+  updateMemberProfile,
   finishPendingRegisters,
   getAllPlayerStats,
   uploadMatchStatsScreenshotPreview,
@@ -44,6 +46,13 @@ type PendingUploadFormState = {
   matchTitle: string;
 };
 
+type StreamSettings = {
+  heroVideoFolderPath: string;
+  leaderboardImagePath: string;
+  matchCardsImagePath: string;
+  obsWebsocketPassword: string;
+};
+
 type PlayerCandidate = {
   id: number;
   nickname: string;
@@ -55,6 +64,13 @@ const DEFAULT_PENDING_UPLOAD_FORM: PendingUploadFormState = {
   image: null,
   mapType: "FLASHPOINT",
   matchTitle: "",
+};
+
+const DEFAULT_STREAM_SETTINGS: StreamSettings = {
+  heroVideoFolderPath: "",
+  leaderboardImagePath: "",
+  matchCardsImagePath: "",
+  obsWebsocketPassword: "",
 };
 
 const normalizeNicknameForMatch = (value: string) =>
@@ -140,6 +156,13 @@ export default function ManagerDashboardPage() {
   const [statsSearch, setStatsSearch] = useState("");
   const [statsTopFilter, setStatsTopFilter] = useState<string | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
+  const [streamSettings, setStreamSettings] = useState<StreamSettings>(DEFAULT_STREAM_SETTINGS);
+  const [streamSettingsLoading, setStreamSettingsLoading] = useState(false);
+  const [streamSettingsSaving, setStreamSettingsSaving] = useState(false);
+  const [streamSettingsStatus, setStreamSettingsStatus] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const prevMatchesRef = useRef<Match[]>([]);
@@ -158,6 +181,39 @@ export default function ManagerDashboardPage() {
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id || !token) return;
+    let cancelled = false;
+
+    const loadStreamSettings = async () => {
+      setStreamSettingsLoading(true);
+      try {
+        const profile = await getMemberProfileById(user.id, token);
+        if (cancelled) return;
+        setStreamSettings({
+          heroVideoFolderPath: profile.heroVideoFolderPath ?? "",
+          leaderboardImagePath: profile.leaderboardImagePath ?? "",
+          matchCardsImagePath: profile.matchCardsImagePath ?? "",
+          obsWebsocketPassword: "",
+        });
+      } catch (err: any) {
+        if (!cancelled) {
+          setStreamSettingsStatus({
+            type: "error",
+            message: err?.message || "Failed to load stream settings.",
+          });
+        }
+      } finally {
+        if (!cancelled) setStreamSettingsLoading(false);
+      }
+    };
+
+    loadStreamSettings();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, user?.id, token]);
 
   useEffect(() => {
     if (isAuthenticated && user?.role === "MANAGER") {
@@ -179,6 +235,38 @@ export default function ManagerDashboardPage() {
       new Notification(title, { body, icon: "/favicon.ico", tag: "manager-notification" });
     }
   }, [notificationPermission]);
+
+  const handleSaveStreamSettings = async () => {
+    if (!token || !user?.id) return;
+    setStreamSettingsSaving(true);
+    setStreamSettingsStatus(null);
+
+    try {
+      const obsPassword = streamSettings.obsWebsocketPassword.trim();
+      const payload = {
+        heroVideoFolderPath: streamSettings.heroVideoFolderPath.trim() || null,
+        leaderboardImagePath: streamSettings.leaderboardImagePath.trim() || null,
+        matchCardsImagePath: streamSettings.matchCardsImagePath.trim() || null,
+        ...(obsPassword ? { obsWebsocketPassword: obsPassword } : {}),
+      };
+
+      const updated = await updateMemberProfile(token, user.id, payload);
+      setStreamSettings({
+        heroVideoFolderPath: updated.heroVideoFolderPath ?? "",
+        leaderboardImagePath: updated.leaderboardImagePath ?? "",
+        matchCardsImagePath: updated.matchCardsImagePath ?? "",
+        obsWebsocketPassword: "",
+      });
+      setStreamSettingsStatus({ type: "success", message: "Stream settings saved." });
+    } catch (err: any) {
+      setStreamSettingsStatus({
+        type: "error",
+        message: err?.message || "Failed to save stream settings.",
+      });
+    } finally {
+      setStreamSettingsSaving(false);
+    }
+  };
 
   async function loadData(silent = false) {
     try {
@@ -572,6 +660,95 @@ export default function ManagerDashboardPage() {
             </Card>
           ))}
         </div>
+
+        <Card variant="bordered" className="mb-8">
+          <CardHeader>
+            <CardTitle>Stream Settings</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted">
+              Used by the OBS controller to load local assets for this manager.
+            </p>
+
+            {streamSettingsStatus && (
+              <div
+                className={`rounded-lg border px-3 py-2 text-sm ${
+                  streamSettingsStatus.type === "success"
+                    ? "bg-success/10 text-success border-success/30"
+                    : "bg-danger/10 text-danger border-danger/30"
+                }`}
+              >
+                {streamSettingsStatus.message}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="Hero videos folder"
+                placeholder="C:\\OBS\\HeroVideos"
+                value={streamSettings.heroVideoFolderPath}
+                onChange={(e) =>
+                  setStreamSettings((prev) => ({
+                    ...prev,
+                    heroVideoFolderPath: e.target.value,
+                  }))
+                }
+                disabled={streamSettingsLoading || streamSettingsSaving}
+              />
+              <Input
+                label="Leaderboard image path"
+                placeholder="C:\\OBS\\Leaderboard.png"
+                value={streamSettings.leaderboardImagePath}
+                onChange={(e) =>
+                  setStreamSettings((prev) => ({
+                    ...prev,
+                    leaderboardImagePath: e.target.value,
+                  }))
+                }
+                disabled={streamSettingsLoading || streamSettingsSaving}
+              />
+              <Input
+                label="Match cards image path"
+                placeholder="C:\\OBS\\MatchCards.png"
+                value={streamSettings.matchCardsImagePath}
+                onChange={(e) =>
+                  setStreamSettings((prev) => ({
+                    ...prev,
+                    matchCardsImagePath: e.target.value,
+                  }))
+                }
+                disabled={streamSettingsLoading || streamSettingsSaving}
+              />
+              <Input
+                label="OBS WebSocket password"
+                type="password"
+                placeholder="Leave blank to keep current"
+                value={streamSettings.obsWebsocketPassword}
+                onChange={(e) =>
+                  setStreamSettings((prev) => ({
+                    ...prev,
+                    obsWebsocketPassword: e.target.value,
+                  }))
+                }
+                disabled={streamSettingsLoading || streamSettingsSaving}
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs text-muted">
+                Hero videos must be named by id (example: 1.mp4). Leaderboard.png and
+                MatchCards.png must match the file names on disk.
+              </p>
+              <Button
+                onClick={handleSaveStreamSettings}
+                isLoading={streamSettingsSaving}
+                disabled={streamSettingsLoading}
+              >
+                Save Settings
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Next match highlight */}
         {nextMatch && (

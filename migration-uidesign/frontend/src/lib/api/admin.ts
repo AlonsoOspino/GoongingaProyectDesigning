@@ -173,14 +173,20 @@ export interface Member {
   profilePic?: string | null;
   rank: number;
   teamId: number | null;
+  heroVideoFolderPath?: string | null;
+  leaderboardImagePath?: string | null;
+  matchCardsImagePath?: string | null;
+  obsWebsocketPassword?: string | null;
 }
 
 export async function getMembers() {
   return apiRequest<Member[]>("/member/all");
 }
 
-export async function getMemberById(id: number) {
-  return apiRequest<Member>(`/member/${id}`);
+export async function getMemberById(token: string, id: number) {
+  return apiRequest<Member>(`/member/${id}`, {
+    token,
+  });
 }
 
 export async function adminRegisterMember(

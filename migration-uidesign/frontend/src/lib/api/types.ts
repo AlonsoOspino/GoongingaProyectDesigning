@@ -28,6 +28,10 @@ export interface MemberProfile {
   profilePic?: string | null;
   rank: number;
   teamId: number | null;
+  heroVideoFolderPath?: string | null;
+  leaderboardImagePath?: string | null;
+  matchCardsImagePath?: string | null;
+  obsWebsocketPassword?: string | null;
 }
 
 export interface LoginResponse {

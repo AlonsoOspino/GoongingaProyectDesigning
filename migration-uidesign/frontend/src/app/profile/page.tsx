@@ -39,7 +39,8 @@ export default function ProfilePage() {
       }
 
       try {
-        const profile = await getMemberProfileById(user.id);
+        if (!token) throw new Error("Missing auth token.");
+        const profile = await getMemberProfileById(user.id, token);
         setForm({
           nickname: profile.nickname || "",
           user: profile.user || "",

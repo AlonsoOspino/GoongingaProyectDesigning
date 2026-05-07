@@ -7,7 +7,7 @@ const adminMiddleware = require("../middlewares/admin");
 router.post("/register", authMiddleware, adminMiddleware, memberController.register);
 router.post("/login", memberController.login);
 router.get("/all", memberController.getAll);
-router.get("/:id", memberController.getById);
+router.get("/:id", authMiddleware, memberController.getById);
 router.put("/:id", authMiddleware, memberController.update);
 router.put("/admin/:id", authMiddleware, adminMiddleware, memberController.adminUpdate);
 // Bulk import: POST /member/bulk-import
