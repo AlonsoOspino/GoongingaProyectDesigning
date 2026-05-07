@@ -46,7 +46,11 @@ export default function ObsBansOverlay({
   const VIDEO_DURATION = 15000; // 15 seconds in milliseconds
   
   // Derive currentBan from index
-  const currentBan = bansRef.current[currentIndex] || null;
+const currentBan =
+  bans.length > 0 && currentIndex < bans.length
+    ? bans[currentIndex]
+    : null; 
+  
   // Fetch match and draft data
   useEffect(() => {
     const loadData = async () => {
