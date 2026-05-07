@@ -260,7 +260,9 @@ useEffect(() => {
     }
 
     // Next ban
-    timerRef.current = setTimeout(() => {
+timerRef.current = setTimeout(() => {
+  console.log('[v0] Timer fired');
+
   setCurrentIndex((prev) => {
     if (bansRef.current.length === 0) return 0;
 
@@ -277,15 +279,20 @@ useEffect(() => {
 }, VIDEO_DURATION);
   };
 
-  playVideo();
+ console.log('[v0] useEffect triggered', {
+  currentIndex,
+  hasCurrentBan: !!currentBan,
+  bansLength: bans.length,
+});
+
+playVideo();
 
   return () => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
     }
   };
-}, [currentIndex]);
-  // Check if match is in PLAYING phase
+}, [currentIndex, currentBan, bans.length, match, heroVideoFolderPath]);  // Check if match is in PLAYING phase
   if (!draft || draft.phase !== 'PLAYING') {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-black text-white gap-4 p-6">
