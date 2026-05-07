@@ -35,8 +35,6 @@ export async function updateMemberProfile(
     profilePic?: string;
     rank?: number;
     heroVideoFolderPath?: string | null;
-    leaderboardImagePath?: string | null;
-    matchCardsImagePath?: string | null;
     obsWebsocketPassword?: string;
   }
 ) {

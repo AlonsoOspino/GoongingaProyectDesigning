@@ -104,8 +104,6 @@ model Member {
   rank         Int        @default(0)
 
   heroVideoFolderPath String?
-  leaderboardImagePath String?
-  matchCardsImagePath String?
   obsWebsocketPassword String?
 
   teamId Int?

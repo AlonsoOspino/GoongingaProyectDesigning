@@ -174,8 +174,6 @@ export interface Member {
   rank: number;
   teamId: number | null;
   heroVideoFolderPath?: string | null;
-  leaderboardImagePath?: string | null;
-  matchCardsImagePath?: string | null;
   obsWebsocketPassword?: string | null;
 }
 

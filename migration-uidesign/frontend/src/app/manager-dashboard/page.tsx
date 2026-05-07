@@ -48,8 +48,6 @@ type PendingUploadFormState = {
 
 type StreamSettings = {
   heroVideoFolderPath: string;
-  leaderboardImagePath: string;
-  matchCardsImagePath: string;
   obsWebsocketPassword: string;
 };
 
@@ -68,8 +66,6 @@ const DEFAULT_PENDING_UPLOAD_FORM: PendingUploadFormState = {
 
 const DEFAULT_STREAM_SETTINGS: StreamSettings = {
   heroVideoFolderPath: "",
-  leaderboardImagePath: "",
-  matchCardsImagePath: "",
   obsWebsocketPassword: "",
 };
 
@@ -193,8 +189,6 @@ export default function ManagerDashboardPage() {
         if (cancelled) return;
         setStreamSettings({
           heroVideoFolderPath: profile.heroVideoFolderPath ?? "",
-          leaderboardImagePath: profile.leaderboardImagePath ?? "",
-          matchCardsImagePath: profile.matchCardsImagePath ?? "",
           obsWebsocketPassword: "",
         });
       } catch (err: any) {
@@ -245,16 +239,12 @@ export default function ManagerDashboardPage() {
       const obsPassword = streamSettings.obsWebsocketPassword.trim();
       const payload = {
         heroVideoFolderPath: streamSettings.heroVideoFolderPath.trim() || null,
-        leaderboardImagePath: streamSettings.leaderboardImagePath.trim() || null,
-        matchCardsImagePath: streamSettings.matchCardsImagePath.trim() || null,
         ...(obsPassword ? { obsWebsocketPassword: obsPassword } : {}),
       };
 
       const updated = await updateMemberProfile(token, user.id, payload);
       setStreamSettings({
         heroVideoFolderPath: updated.heroVideoFolderPath ?? "",
-        leaderboardImagePath: updated.leaderboardImagePath ?? "",
-        matchCardsImagePath: updated.matchCardsImagePath ?? "",
         obsWebsocketPassword: "",
       });
       setStreamSettingsStatus({ type: "success", message: "Stream settings saved." });
@@ -691,30 +681,6 @@ export default function ManagerDashboardPage() {
                   setStreamSettings((prev) => ({
                     ...prev,
                     heroVideoFolderPath: e.target.value,
-                  }))
-                }
-                disabled={streamSettingsLoading || streamSettingsSaving}
-              />
-              <Input
-                label="Leaderboard image path"
-                placeholder="C:\\OBS\\Leaderboard.png"
-                value={streamSettings.leaderboardImagePath}
-                onChange={(e) =>
-                  setStreamSettings((prev) => ({
-                    ...prev,
-                    leaderboardImagePath: e.target.value,
-                  }))
-                }
-                disabled={streamSettingsLoading || streamSettingsSaving}
-              />
-              <Input
-                label="Match cards image path"
-                placeholder="C:\\OBS\\MatchCards.png"
-                value={streamSettings.matchCardsImagePath}
-                onChange={(e) =>
-                  setStreamSettings((prev) => ({
-                    ...prev,
-                    matchCardsImagePath: e.target.value,
                   }))
                 }
                 disabled={streamSettingsLoading || streamSettingsSaving}

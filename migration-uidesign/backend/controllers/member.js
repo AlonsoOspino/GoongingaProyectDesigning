@@ -9,8 +9,6 @@ function sanitizeMember(member, options = {}) {
     passwordHash,
     obsWebsocketPassword,
     heroVideoFolderPath,
-    leaderboardImagePath,
-    matchCardsImagePath,
     ...safeMember
   } = member;
 
@@ -18,8 +16,6 @@ function sanitizeMember(member, options = {}) {
     return {
       ...safeMember,
       heroVideoFolderPath,
-      leaderboardImagePath,
-      matchCardsImagePath,
       obsWebsocketPassword,
     };
   }
