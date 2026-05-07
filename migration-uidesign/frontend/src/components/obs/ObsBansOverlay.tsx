@@ -47,9 +47,9 @@ export default function ObsBansOverlay({
   
   // Derive currentBan from index
 const currentBan =
-  bansRef.current.length > 0 &&
-  currentIndex < bansRef.current.length
-    ? bansRef.current[currentIndex]
+  bans.length > 0 &&
+  currentIndex < bans.length
+    ? bans[currentIndex]
     : null;
   
   // Fetch match and draft data
