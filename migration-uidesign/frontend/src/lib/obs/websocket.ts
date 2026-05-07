@@ -22,15 +22,7 @@ class OBSWebSocketManager {
     try {
       this.obs = new OBSWebSocket();
 
-      await this.obs.connect(
-        {
-          address: `${config.host}:${config.port}`,
-          password: config.password,
-        },
-        {
-          rpcVersion: 1,
-        }
-      );
+      await this.obs.connect(`ws://${config.host}:${config.port}`, config.password);
 
       this.isConnected = true;
       this.reconnectAttempts = 0;
