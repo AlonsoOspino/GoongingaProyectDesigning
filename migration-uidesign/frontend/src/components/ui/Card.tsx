@@ -13,11 +13,11 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
         className={clsx(
           "rounded-lg relative overflow-hidden",
           {
-            "bg-card": variant === "default",
-            "bg-surface-elevated shadow-lg shadow-black/20": variant === "elevated",
-            "bg-card border border-border hover:border-border/80 transition-colors": variant === "bordered",
-            "bg-card border border-border before:absolute before:inset-0 before:bg-gradient-to-br before:from-primary/5 before:to-accent/5 before:pointer-events-none": variant === "gradient",
-            "bg-gradient-to-r from-primary/10 to-accent/10 border-2 border-primary/50 shadow-lg shadow-primary/20 hover:border-primary/70 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300": variant === "featured",
+            "bg-card/95 border border-border-subtle": variant === "default",
+            "bg-surface-elevated/90 border border-border-subtle shadow-lg shadow-black/20": variant === "elevated",
+            "bg-card/95 border border-border hover:border-border/80 transition-colors": variant === "bordered",
+            "bg-card/95 border border-border before:absolute before:inset-0 before:bg-gradient-to-br before:from-primary/5 before:via-transparent before:to-accent/5 before:pointer-events-none": variant === "gradient",
+            "bg-card/90 border border-primary/25 shadow-lg shadow-black/20 before:absolute before:inset-0 before:bg-gradient-to-br before:from-primary/10 before:via-transparent before:to-accent/5 before:pointer-events-none hover:border-primary/40 transition-all duration-200": variant === "featured",
           },
           className
         )}

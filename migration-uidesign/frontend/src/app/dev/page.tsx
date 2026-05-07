@@ -7,7 +7,7 @@ export const metadata = {
 
 export default function DevPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+    <div className="developer-page min-h-screen bg-background">
       {/* Header with decorative elements */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:40px_40px] opacity-50" />

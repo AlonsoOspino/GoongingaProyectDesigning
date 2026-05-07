@@ -122,7 +122,7 @@ export default function ProfilePage() {
     <div className="container mx-auto max-w-3xl px-4 py-8">
       <div className="mb-6">
         <Link href="/" className="text-sm text-muted hover:text-foreground">
-          ← Back to Home
+          &larr; Back to Home
         </Link>
       </div>
 

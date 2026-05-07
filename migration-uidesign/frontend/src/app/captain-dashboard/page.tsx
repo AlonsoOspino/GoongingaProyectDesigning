@@ -318,7 +318,7 @@ export default function CaptainDashboardPage() {
                   vs {getTeamName(isTeamA(nextMatch) ? nextMatch.teamBId : nextMatch.teamAId)}
                 </p>
                 <p className="text-sm text-muted mt-1">
-                  Week {nextMatch.semanas} · BO{nextMatch.bestOf} · {formatMatchDate(nextMatch.startDate)}
+                  Week {nextMatch.semanas} &middot; BO{nextMatch.bestOf} &middot; {formatMatchDate(nextMatch.startDate)}
                   {" at "}{formatTimeEST(nextMatch.startDate)}
                 </p>
               </div>
@@ -397,9 +397,9 @@ export default function CaptainDashboardPage() {
                                       {match.startDate ? (
                                         <>
                                           <span className={isSoon ? "text-warning font-medium" : ""}>{formatMatchDate(match.startDate)}</span>
-                                          <span>·</span>
+                                          <span>&middot;</span>
                                           <span>{formatTimeEST(match.startDate)}</span>
-                                          <span>·</span>
+                                          <span>&middot;</span>
                                           <span>Best of {match.bestOf}</span>
                                         </>
                                       ) : (
@@ -514,7 +514,7 @@ export default function CaptainDashboardPage() {
                               </Badge>
                               <div>
                                 <p className="font-medium text-foreground">vs {getTeamName(opponentId)}</p>
-                                <p className="text-xs text-muted">Week {match.semanas} · {new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(match.startDate))}</p>
+                                <p className="text-xs text-muted">Week {match.semanas} &middot; {new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(match.startDate))}</p>
                               </div>
                             </div>
                             <div className="flex items-center gap-4">

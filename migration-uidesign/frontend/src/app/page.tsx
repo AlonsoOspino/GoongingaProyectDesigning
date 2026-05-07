@@ -102,18 +102,14 @@ export default async function HomePage() {
     <div className="min-h-screen relative">
       {/* Global decorative elements */}
       <div className="fixed inset-0 bg-grid-pattern-subtle pointer-events-none" />
-      <div className="fixed top-0 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-[120px] pointer-events-none" />
-      <div className="fixed bottom-1/4 right-1/4 w-80 h-80 bg-accent/15 rounded-full blur-[100px] pointer-events-none" />
+      <div className="fixed top-0 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-[140px] pointer-events-none" />
+      <div className="fixed bottom-1/4 right-1/4 w-80 h-80 bg-accent/10 rounded-full blur-[120px] pointer-events-none" />
       
       {/* Hero Section */}
       <section className="relative py-24 overflow-hidden">
         {/* Hero background effects */}
         <div className="absolute inset-0 bg-gradient-radial" />
         <div className="absolute inset-0 bg-gradient-to-b from-primary/10 via-transparent to-transparent" />
-        <div className="absolute top-10 left-10 w-2 h-2 bg-primary rounded-full animate-pulse" />
-        <div className="absolute top-20 right-20 w-1.5 h-1.5 bg-accent rounded-full animate-pulse" style={{ animationDelay: '0.5s' }} />
-        <div className="absolute bottom-20 left-1/4 w-1 h-1 bg-primary rounded-full animate-pulse" style={{ animationDelay: '1s' }} />
-        <div className="absolute top-1/3 right-1/3 w-1.5 h-1.5 bg-accent rounded-full animate-pulse" style={{ animationDelay: '1.5s' }} />
         
         <div className="container mx-auto px-4 relative">
           <div className="max-w-3xl mx-auto text-center">
@@ -121,11 +117,11 @@ export default async function HomePage() {
               Season 2026
             </Badge>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-4 text-balance text-glow">
-              Welcome to the Goonginga League
+              Goonginga League
             </h1>
             <p className="text-lg text-muted mb-8 text-pretty max-w-2xl mx-auto">
-              The premier competitive Overwatch league. Track teams, follow matches, 
-              and watch the best players compete for glory.
+              Competitive Overwatch for the community: follow the schedule, track standings,
+              and keep up with every match night.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4">
               <Link href="/schedule">
@@ -435,11 +431,9 @@ export default async function HomePage() {
 
             {/* Right Column - Images */}
             <div className="space-y-6">
-              {/* Image 1 Placeholder */}
               <div className="relative group">
                 <div className="absolute -inset-1 bg-gradient-to-r from-primary/50 to-accent/50 rounded-2xl blur opacity-25 group-hover:opacity-50 transition-opacity" />
                 <div className="relative aspect-video rounded-xl bg-surface-elevated border border-border overflow-hidden">
-                  {/* Replace src with your actual image path */}
                   <img 
                     src="/emotionalsupport.png" 
                     alt="Goonginga League Match" 
@@ -453,7 +447,7 @@ export default async function HomePage() {
                   </div>
                 </div>
                 <div className="absolute bottom-3 left-3 px-3 py-1 rounded-md bg-background/80 backdrop-blur text-xs text-foreground font-medium">
-                  Live Match Action
+                  Match Night
                 </div>
               </div>
 
@@ -473,7 +467,7 @@ export default async function HomePage() {
                   </div>
                 </div>
                 <div className="absolute bottom-3 left-3 px-3 py-1 rounded-md bg-background/80 backdrop-blur text-xs text-foreground font-medium">
-                  Our Amazing Community
+                  Community
                 </div>
               </div>
 

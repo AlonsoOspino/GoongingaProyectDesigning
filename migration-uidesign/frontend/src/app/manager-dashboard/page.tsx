@@ -583,7 +583,7 @@ export default function ManagerDashboardPage() {
                   {getTeamName(nextMatch.teamAId)} <span className="text-muted">vs</span> {getTeamName(nextMatch.teamBId)}
                 </p>
                 <p className="text-sm text-muted mt-1">
-                  Week {nextMatch.semanas} · BO{nextMatch.bestOf} ·{" "}
+                  Week {nextMatch.semanas} &middot; BO{nextMatch.bestOf} &middot;{" "}
                   {nextMatch.startDate
                     ? formatDateTimeEST(nextMatch.startDate)
                     : "No date set"}
@@ -888,7 +888,7 @@ export default function ManagerDashboardPage() {
                                       </p>
                                       {preview && (
                                         <p className="text-xs text-muted mt-1">
-                                          {preview.mapType} · {preview.gameDuration ? `${preview.gameDuration}s` : "Duration TBD"}
+                                          {preview.mapType} &middot; {preview.gameDuration ? `${preview.gameDuration}s` : "Duration TBD"}
                                         </p>
                                       )}
                                     </div>

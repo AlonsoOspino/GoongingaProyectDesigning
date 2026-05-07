@@ -32,11 +32,6 @@ export function Footer() {
       <div className="absolute top-0 left-0 w-48 h-48 bg-gradient-to-br from-primary/10 to-transparent pointer-events-none" />
       <div className="absolute bottom-0 right-0 w-64 h-64 bg-gradient-to-tl from-accent/10 to-transparent pointer-events-none" />
       
-      {/* Floating orbs */}
-      <div className="absolute top-10 right-1/4 w-2 h-2 bg-primary/40 rounded-full animate-pulse" />
-      <div className="absolute bottom-16 left-1/3 w-1.5 h-1.5 bg-accent/40 rounded-full animate-pulse" style={{ animationDelay: '1s' }} />
-      <div className="absolute top-1/2 right-1/3 w-1 h-1 bg-primary/30 rounded-full animate-pulse" style={{ animationDelay: '2s' }} />
-      
       <div className="container mx-auto px-4 py-12 relative">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           {/* Brand */}
@@ -54,7 +49,7 @@ export function Footer() {
               </div>
             </div>
             <p className="text-sm text-muted leading-relaxed">
-              The premier competitive gaming league for Overwatch enthusiasts. Join our community of passionate players.
+              Competitive Overwatch matches, standings, stats, and league updates for the Goonginga community.
             </p>
             
             {/* Twitch Link */}

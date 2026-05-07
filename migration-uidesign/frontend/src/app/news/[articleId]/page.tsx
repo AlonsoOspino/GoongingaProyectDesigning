@@ -169,11 +169,11 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
               <time dateTime={article.createdAt}>
                 {formatLongDate(article.createdAt)}
               </time>
-              <span>·</span>
+              <span>&middot;</span>
               <span>{minutes} min read</span>
               {wasUpdated && (
                 <>
-                  <span>·</span>
+                  <span>&middot;</span>
                   <span>
                     Updated{" "}
                     {updatedDate.toLocaleDateString("en-US", {
@@ -194,7 +194,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
             href="/news"
             className="text-sm text-muted hover:text-foreground transition-colors"
           >
-            ← View all news
+            &larr; View all news
           </Link>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span>Article #{article.id}</span>
