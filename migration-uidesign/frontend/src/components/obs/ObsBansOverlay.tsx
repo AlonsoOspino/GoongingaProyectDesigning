@@ -29,13 +29,24 @@ export default function ObsBansOverlay({
   obsPort?: number;
   obsPassword?: string;
 }) {
-  const [match, setMatch] = useState<Match | null>(null);
-  const [draft, setDraft] = useState<DraftState | null>(null);
-  const [banCycle, setBanCycle] = useState<BanCycle>({ bans: [], currentIndex: 0 });
-  const [currentBan, setCurrentBan] = useState<Ban | null>(null);
-  const [videoPath, setVideoPath] = useState<string>('');
-  const [error, setError] = useState<string | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
+  export default function ObsBansOverlay({
+    matchId,
+    obsWebsocketUrl = '',
+    obsWebsocketPassword = '',
+    heroVideoFolderPath = '',
+  }: {
+    matchId: number;
+    obsWebsocketUrl?: string;
+    obsWebsocketPassword?: string;
+    heroVideoFolderPath?: string;
+  }) {
+    const [match, setMatch] = useState<Match | null>(null);
+    const [draft, setDraft] = useState<DraftState | null>(null);
+    const [banCycle, setBanCycle] = useState<BanCycle>({ bans: [], currentIndex: 0 });
+    const [currentBan, setCurrentBan] = useState<Ban | null>(null);
+    const [videoPath, setVideoPath] = useState<string>('');
+    const [error, setError] = useState<string | null>(null);
+    const [isPlaying, setIsPlaying] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -100,21 +111,21 @@ export default function ObsBansOverlay({
 
     // Get all bans from draft actions, organized by team
     const teamABans: Ban[] = [];
-    const teamBBans: Ban[] = [];
-
-    draft.actions
-      .filter((action) => action.action === 'BAN')
-      .sort((a, b) => a.order - b.order)
-      .forEach((action) => {
-        if (action.teamId === match.teamAId) {
-          if (teamABans.length < 2) {
-            teamABans.push({
-              heroId: action.value,
-              teamId: action.teamId,
-              teamName: teamAName,
-              index: teamABans.length,
-            });
-          }
+      // Connect to OBS WebSocket
+      useEffect(() => {
+        if (obsWebsocketUrl && obsWebsocketPassword) {
+          obsManager
+            .connect({
+              url: obsWebsocketUrl,
+              password: obsWebsocketPassword,
+            })
+            .catch((err) => console.error('[v0] Failed to connect to OBS:', err));
+        }
+  
+        return () => {
+          obsManager.disconnect().catch(() => {});
+        };
+      }, [obsWebsocketUrl, obsWebsocketPassword]);
         } else if (action.teamId === match.teamBId) {
           if (teamBBans.length < 2) {
             teamBBans.push({

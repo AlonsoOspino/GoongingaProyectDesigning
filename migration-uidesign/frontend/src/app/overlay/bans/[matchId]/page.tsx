@@ -1,15 +1,32 @@
 'use client';
 
-import { Suspense } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import ObsBansOverlay from '@/components/obs/ObsBansOverlay';
+import { useSession } from '@/features/session/SessionProvider';
+import { getMemberProfileById } from '@/lib/api/auth';
 
 export default function ObsBansOverlayPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ matchId: string }>;
-  searchParams: Promise<Record<string, string | string[]>>;
 }) {
+  const [matchId, setMatchId] = useState<number | null>(null);
+
+  useEffect(() => {
+    params.then((resolvedParams) => {
+      const id = parseInt(resolvedParams.matchId, 10);
+      if (!isNaN(id)) setMatchId(id);
+    });
+  }, [params]);
+
+  if (matchId === null) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-black text-white">
+        Loading...
+      </div>
+    );
+  }
+
   return (
     <Suspense
       fallback={
@@ -18,30 +35,62 @@ export default function ObsBansOverlayPage({
         </div>
       }
     >
-      <ObsBansOverlayContent params={params} searchParams={searchParams} />
+      <ObsBansOverlayContent matchId={matchId} />
     </Suspense>
   );
 }
 
-async function ObsBansOverlayContent({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ matchId: string }>;
-  searchParams: Promise<Record<string, string | string[]>>;
-}) {
-  const resolvedParams = await params;
-  const resolvedSearchParams = await searchParams;
+function ObsBansOverlayContent({ matchId }: { matchId: number }) {
+  const { user, token, isHydrated } = useSession();
+  const [obsWebsocketUrl, setObsWebsocketUrl] = useState<string>('');
+  const [obsWebsocketPassword, setObsWebsocketPassword] = useState<string>('');
+  const [heroVideoFolderPath, setHeroVideoFolderPath] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const matchId = parseInt(resolvedParams.matchId, 10);
-  const obsHost = (resolvedSearchParams.obsHost as string) || 'localhost';
-  const obsPort = parseInt((resolvedSearchParams.obsPort as string) || '4455', 10);
-  const obsPassword = (resolvedSearchParams.obsPassword as string) || '';
+  useEffect(() => {
+    const loadSettings = async () => {
+      if (!isHydrated || !user || !token) {
+        setIsLoading(false);
+        return;
+      }
 
-  if (isNaN(matchId)) {
+      try {
+        const profile = await getMemberProfileById(user.id, token);
+        setObsWebsocketUrl(profile.obsWebsocketUrl || '');
+        setObsWebsocketPassword(profile.obsWebsocketPassword || '');
+        setHeroVideoFolderPath(profile.heroVideoFolderPath || '');
+      } catch (err) {
+        console.error('[v0] Failed to load OBS settings:', err);
+        setError('Failed to load OBS settings from profile');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadSettings();
+  }, [user, token, isHydrated]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-black text-white">
+        Loading settings...
+      </div>
+    );
+  }
+
+  if (error) {
     return (
       <div className="flex items-center justify-center h-screen bg-black text-red-500">
-        Invalid match ID
+        <p>{error}</p>
+      </div>
+    );
+  }
+
+  if (!obsWebsocketUrl || !obsWebsocketPassword) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-black text-yellow-500">
+        <p>OBS WebSocket settings not configured. Please configure in Manager Dashboard.</p>
       </div>
     );
   }
@@ -49,9 +98,9 @@ async function ObsBansOverlayContent({
   return (
     <ObsBansOverlay
       matchId={matchId}
-      obsHost={obsHost}
-      obsPort={obsPort}
-      obsPassword={obsPassword}
+      obsWebsocketUrl={obsWebsocketUrl}
+      obsWebsocketPassword={obsWebsocketPassword}
+      heroVideoFolderPath={heroVideoFolderPath}
     />
   );
 }
