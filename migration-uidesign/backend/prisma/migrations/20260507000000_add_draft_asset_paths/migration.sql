@@ -1,0 +1,3 @@
+-- placeholder migration restored
+-- original migration was deleted accidentally
+-- this file is a no-op placeholder so Prisma's migration history can be reconciled

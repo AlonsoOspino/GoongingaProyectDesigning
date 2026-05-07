@@ -7,9 +7,159 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-//////////////////////
-// ENUMS
-//////////////////////
+model Tournament {
+  id        Int             @id @default(autoincrement())
+  name      String
+  startDate DateTime
+  state     TournamentState @default(SCHEDULED)
+  matches   Match[]
+  teams     Team[]
+}
+
+model Member {
+  id                   Int          @id @default(autoincrement())
+  nickname             String
+  user                 String       @unique
+  passwordHash         String
+  role                 MemberRole   @default(DEFAULT)
+  profilePic           String?
+  rank                 Int          @default(0)
+  teamId               Int?
+  heroVideoFolderPath  String?
+  obsWebsocketPassword String?
+  team                 Team?        @relation(fields: [teamId], references: [id])
+  playerStats          PlayerStat[]
+}
+
+model Team {
+  id            Int           @id @default(autoincrement())
+  name          String
+  logo          String?
+  roster        String?
+  state         TeamState     @default(ACTIVE)
+  victories     Int           @default(0)
+  mapWins       Int           @default(0)
+  mapLoses      Int           @default(0)
+  tournamentId  Int
+  discordRoleId String?
+  defeats       Int           @default(0)
+  bannerURL     String?
+  draftActions  DraftAction[]
+  matchesA      Match[]       @relation("TeamA")
+  matchesB      Match[]       @relation("TeamB")
+  members       Member[]
+  tournament    Tournament    @relation(fields: [tournamentId], references: [id])
+}
+
+model Match {
+  id                 Int          @id @default(autoincrement())
+  type               MatchType
+  bestOf             Int
+  status             MatchStatus  @default(SCHEDULED)
+  startDate          DateTime?
+  tournamentId       Int
+  teamAId            Int
+  teamBId            Int
+  teamAready         Int          @default(0)
+  teamBready         Int          @default(0)
+  pointsTeamA        Int          @default(0)
+  pointsTeamB        Int          @default(0)
+  mapWinsTeamA       Int          @default(0)
+  mapWinsTeamB       Int          @default(0)
+  gameNumber         Int          @default(0)
+  semanas            Int?
+  title              String?
+  mapsAllowedByRound Json?
+  mapResults         Json?
+  mapStartedAt       DateTime?
+  mapTimerPaused     Boolean      @default(false)
+  mapTimerPausedAt   DateTime?
+  pauseRequestedAt   DateTime?
+  pauseRequestedBy   Int?
+  discordMessageId   String?
+  draft              DraftTable?
+  teamA              Team         @relation("TeamA", fields: [teamAId], references: [id])
+  teamB              Team         @relation("TeamB", fields: [teamBId], references: [id])
+  tournament         Tournament   @relation(fields: [tournamentId], references: [id])
+  playerStats        PlayerStat[]
+  allowedMaps        Map[]        @relation("AllowedMaps")
+}
+
+model News {
+  id        Int      @id @default(autoincrement())
+  title     String
+  content   String
+  imageUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DraftTable {
+  id                Int           @id @default(autoincrement())
+  matchId           Int           @unique
+  currentTurnTeamId Int?
+  phase             String
+  phaseStartedAt    DateTime      @default(now())
+  bannedHeroes      Json
+  pickedMaps        Json
+  currentMapId      Int?
+  actions           DraftAction[]
+  match             Match         @relation(fields: [matchId], references: [id])
+}
+
+model DraftAction {
+  id         Int             @id @default(autoincrement())
+  draftId    Int
+  teamId     Int
+  action     DraftActionType
+  value      Int?
+  gameNumber Int             @default(1)
+  order      Int
+  createdAt  DateTime        @default(now())
+  draft      DraftTable      @relation(fields: [draftId], references: [id])
+  team       Team            @relation(fields: [teamId], references: [id])
+}
+
+model Map {
+  id          Int     @id @default(autoincrement())
+  type        MapType
+  description String
+  imgPath     String
+  matches     Match[] @relation("AllowedMaps")
+}
+
+model Hero {
+  id       Int      @id @default(autoincrement())
+  name     String?
+  role     HeroRole
+  imgPath  String
+  heroGift String?
+}
+
+model PlayerStat {
+  id              Int      @id @default(autoincrement())
+  damage          Int
+  healing         Int
+  mitigation      Int
+  kills           Int
+  assists         Int
+  deaths          Int
+  gameDuration    Int
+  damagePer10     Float    @default(0)
+  healingPer10    Float    @default(0)
+  mitigationPer10 Float    @default(0)
+  killsPer10      Float    @default(0)
+  assistsPer10    Float    @default(0)
+  deathsPer10     Float    @default(0)
+  mapType         MapType
+  role            HeroRole
+  userId          Int
+  createdAt       DateTime @default(now())
+  matchId         Int
+  gameNumber      Int
+  match           Match    @relation(fields: [matchId], references: [id])
+  user            Member   @relation(fields: [userId], references: [id])
+}
 
 enum TournamentState {
   SCHEDULED
@@ -76,202 +226,4 @@ enum phase {
   PLAYING
   ENDMAP
   FINISHED
-
-}
-
-
-//////////////////////
-// MODELS
-//////////////////////
-
-model Tournament {
-  id        Int             @id @default(autoincrement())
-  name      String
-  startDate DateTime
-  state     TournamentState @default(SCHEDULED)
-
-  teams   Team[]
-  matches Match[]
-}
-
-model Member {
-  id           Int        @id @default(autoincrement())
-  nickname     String
-  user         String     @unique
-  passwordHash String
-  role         MemberRole @default(DEFAULT)
-  profilePic   String?
-  rank         Int        @default(0)
-
-  heroVideoFolderPath String?
-  obsWebsocketPassword String?
-
-  teamId Int?
-  team   Team? @relation(fields: [teamId], references: [id])
-  playerStats PlayerStat[]
-}
-
-model Team {
-  id     Int       @id @default(autoincrement())
-  name   String
-  logo   String?
-  bannerURL String?
-  roster String?
-  discordRoleId String?
-  state  TeamState @default(ACTIVE)
-
-  victories Int @default(0)
-  defeats   Int @default(0)
-  mapWins   Int @default(0)
-  mapLoses  Int @default(0)
-
-  tournamentId Int
-  tournament   Tournament @relation(fields: [tournamentId], references: [id])
-
-  members Member[]
-
-  matchesA     Match[]       @relation("TeamA")
-  matchesB     Match[]       @relation("TeamB")
-  draftActions DraftAction[]
-}
-
-model Match {
-  id        Int         @id @default(autoincrement())
-  type      MatchType
-  bestOf    Int
-  status    MatchStatus @default(SCHEDULED)
-  startDate DateTime?
-
-  tournamentId Int
-  tournament   Tournament @relation(fields: [tournamentId], references: [id])
-
-  teamAId Int
-  teamA   Team @relation("TeamA", fields: [teamAId], references: [id])
-
-  teamBId Int
-  teamB   Team @relation("TeamB", fields: [teamBId], references: [id])
-
-  teamAready Int @default(0)
-  teamBready Int @default(0)
-
-  pointsTeamA Int @default(0)
-  pointsTeamB Int @default(0)
-
-  mapWinsTeamA Int @default(0)
-  mapWinsTeamB Int @default(0)
-
-  gameNumber Int @default(0)
-  semanas Int?
-  title  String?
-  mapsAllowedByRound Json?
-  mapResults Json?
-
-  // Map timer and pause control (for live matches)
-  mapStartedAt DateTime?
-  mapTimerPaused Boolean @default(false)
-  mapTimerPausedAt DateTime?
-
-  // Pause request from captain to manager
-  pauseRequestedBy Int? // teamId requesting pause
-  pauseRequestedAt DateTime?
-
-  // Discord notification tracking
-  discordMessageId String?
-
-  allowedMaps Map[] @relation("AllowedMaps")
-  playerStats PlayerStat[]
-  
-  draft DraftTable?
-}
-
-model News {
-  id Int @id @default(autoincrement())
-  title String
-  content String
-  imageUrl String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model DraftTable {
-  id Int @id @default(autoincrement())
-
-  matchId Int   @unique
-  match   Match @relation(fields: [matchId], references: [id])
-
-  currentTurnTeamId Int?
-
-  phase        String
-  phaseStartedAt DateTime @default(now())
-  actions      DraftAction[]
-  bannedHeroes Json
-  pickedMaps   Json
-
-  currentMapId Int?
-}
-
-model DraftAction {
-  id Int @id @default(autoincrement())
-
-  draftId Int
-  draft   DraftTable @relation(fields: [draftId], references: [id])
-
-  teamId Int
-  team   Team @relation(fields: [teamId], references: [id])
-
-  action DraftActionType
-  value  Int? // heroId o mapId (null si skip)
-  gameNumber Int @default(1)
-
-  order Int // turno (1,2,3,...)
-
-  createdAt DateTime @default(now())
-}
-
-model Map {
-  id          Int     @id @default(autoincrement())
-  type        MapType
-  description String
-  imgPath     String
-
-  matches Match[] @relation("AllowedMaps")
-}
-
-model Hero {
-  id      Int      @id @default(autoincrement())
-  name    String?
-  role    HeroRole
-  imgPath String
-  heroGift String?
-}
-
-model PlayerStat {
-  id Int @id @default(autoincrement())
-
-  damage     Int
-  healing    Int
-  mitigation Int
-  kills      Int
-  assists    Int
-  deaths     Int
-  gameDuration Int
-
-  damagePer10     Float @default(0)
-  healingPer10    Float @default(0)
-  mitigationPer10 Float @default(0)
-  killsPer10      Float @default(0)
-  assistsPer10    Float @default(0)
-  deathsPer10     Float @default(0)
-
-  mapType MapType
-  role    HeroRole
-
-  userId Int
-  user   Member @relation(fields: [userId], references: [id])
-
-  matchId    Int
-  match      Match @relation(fields: [matchId], references: [id])
-  gameNumber Int
-
-  createdAt DateTime @default(now())
 }
