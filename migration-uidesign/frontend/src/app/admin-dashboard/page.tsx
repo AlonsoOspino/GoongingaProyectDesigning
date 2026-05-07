@@ -9,10 +9,12 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Badge } from "@/components/ui/Badge";
+import { ImageUploadField } from "@/components/ui/ImageUploadField";
 import { Modal, ModalHeader, ModalTitle, ModalContent, ModalFooter } from "@/components/ui/Modal";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/Table";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
 import { resolveMapImageUrl } from "@/lib/assetUrls";
+import { deleteReplacedBlobImage } from "@/lib/blobUpload";
 import {
   createTournament, updateTournament, deleteTournament, getCurrentTournament,
   adminCreateMatch, adminUpdateMatch, adminDeleteMatch, adminGenerateRoundRobin,
@@ -968,11 +970,9 @@ function TeamsSection({ token }: { token: string }) {
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [formData, setFormData] = useState<Partial<CreateTeamPayload>>({ name: "", logo: "", roster: "" });
-  const [logoUploading, setLogoUploading] = useState(false);
   const [bulkCount, setBulkCount] = useState<number>(4);
   const [bulkPrefix, setBulkPrefix] = useState<string>("Team");
   const [memberSearch, setMemberSearch] = useState("");
-  const logoInputRef = useRef<HTMLInputElement>(null);
 
   const showNotif = (type: "success" | "error", message: string) => {
     setNotification({ type, message });
@@ -986,16 +986,6 @@ function TeamsSection({ token }: { token: string }) {
       const [t, tour, m] = await Promise.all([getTeams(), getCurrentTournament().catch(() => null), getMembers()]);
       setTeams(t); setTournament(tour); setMembers(m);
     } catch { } finally { setLoading(false); }
-  }
-
-  async function uploadImage(file: File): Promise<string | null> {
-    const fd = new FormData();
-    fd.append("file", file); fd.append("type", "logo");
-    try {
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
-      if (!res.ok) throw new Error((await res.json()).error || "Upload failed");
-      return (await res.json()).url;
-    } catch (err: any) { showNotif("error", err.message); return null; }
   }
 
   const teamMembers = selectedTeam ? members.filter((m) => m.teamId === selectedTeam.id) : [];
@@ -1084,26 +1074,21 @@ function TeamsSection({ token }: { token: string }) {
         <ModalContent>
           <div className="space-y-4">
             <Input label="Team Name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Team Logo</label>
-              <input ref={logoInputRef} type="file" accept="image/*" onChange={async (e) => {
-                const file = e.target.files?.[0]; if (!file) return;
-                setLogoUploading(true);
-                const url = await uploadImage(file);
-                if (url) setFormData({ ...formData, logo: url });
-                setLogoUploading(false);
-              }} className="hidden" />
-              <div className="flex items-center gap-4">
-                {formData.logo ? (
-                  <div className="relative w-16 h-16 rounded overflow-hidden border border-border">
-                    <Image src={formData.logo} alt="Logo" fill className="object-cover" unoptimized />
-                  </div>
-                ) : <div className="w-16 h-16 rounded border-2 border-dashed border-border flex items-center justify-center text-xs text-muted">No logo</div>}
-                <Button type="button" variant="secondary" size="sm" onClick={() => logoInputRef.current?.click()} disabled={logoUploading}>
-                  {logoUploading ? "Uploading..." : "Upload Logo"}
-                </Button>
-              </div>
-            </div>
+            <ImageUploadField
+              label="Team Logo"
+              type="logo"
+              value={formData.logo || ""}
+              onChange={(logo) => setFormData({ ...formData, logo })}
+              previewAlt="Team logo"
+            />
+            <ImageUploadField
+              label="Roster Image"
+              type="roster"
+              value={formData.roster || ""}
+              onChange={(roster) => setFormData({ ...formData, roster })}
+              previewAlt="Team roster"
+              previewClassName="h-20 w-32"
+            />
           </div>
         </ModalContent>
         <ModalFooter>
@@ -1122,6 +1107,21 @@ function TeamsSection({ token }: { token: string }) {
           <div className="space-y-4">
             <Input label="Team Name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
             <Input label="Discord Role ID" placeholder="e.g., 1234567890 or <@&1234567890>" value={(formData as any).discordRoleId || ""} onChange={(e) => setFormData({ ...formData, discordRoleId: e.target.value || undefined })} />
+            <ImageUploadField
+              label="Team Logo"
+              type="logo"
+              value={formData.logo || ""}
+              onChange={(logo) => setFormData({ ...formData, logo })}
+              previewAlt="Team logo"
+            />
+            <ImageUploadField
+              label="Roster Image"
+              type="roster"
+              value={formData.roster || ""}
+              onChange={(roster) => setFormData({ ...formData, roster })}
+              previewAlt="Team roster"
+              previewClassName="h-20 w-32"
+            />
           </div>
         </ModalContent>
         <ModalFooter>
@@ -1136,6 +1136,10 @@ function TeamsSection({ token }: { token: string }) {
                 discordRoleId: (formData as any).discordRoleId === "" ? null : (formData as any).discordRoleId,
               };
               await adminUpdateTeam(token, selectedTeam.id, payload);
+              await Promise.allSettled([
+                deleteReplacedBlobImage(selectedTeam.logo, payload.logo),
+                deleteReplacedBlobImage(selectedTeam.roster, payload.roster),
+              ]);
               setShowEditModal(false);
               showNotif("success", "Team updated");
               loadData();

@@ -9,12 +9,14 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/Input";
+import { ImageUploadField } from "@/components/ui/ImageUploadField";
 import { Modal, ModalHeader, ModalTitle, ModalContent, ModalFooter } from "@/components/ui/Modal";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
 import { getMatches, getTeams, updateCaptainMatch, updateCaptainTeam, getDraftByMatchId, captainRequestPause, type Match, type Team, type DraftState } from "@/lib/api";
 import { convertToISODateTime, formatForDateTimeInput, formatRelativeEST, formatTimeEST, isWithinNextHoursEST } from "@/lib/dateUtils";
 import { MapTimer } from "@/components/match/MapTimer";
 import { clsx } from "clsx";
+import { deleteReplacedBlobImage } from "@/lib/blobUpload";
 
 type TabValue = "upcoming" | "active" | "history";
 
@@ -219,6 +221,10 @@ export default function CaptainDashboardPage() {
         logo: teamFormData.logo || undefined,
         roster: teamFormData.roster || undefined,
       });
+      await Promise.allSettled([
+        deleteReplacedBlobImage(myTeam.logo, teamFormData.logo),
+        deleteReplacedBlobImage(myTeam.roster, teamFormData.roster),
+      ]);
       setShowEditTeamModal(false);
       showTeamNotification("success", "Team updated successfully");
       loadData();
@@ -562,17 +568,20 @@ export default function CaptainDashboardPage() {
           <ModalContent>
             <div className="space-y-4">
               <Input label="Team Name" value={teamFormData.name} onChange={(e) => setTeamFormData({ ...teamFormData, name: e.target.value })} />
-              <Input
-                label="Team Logo URL"
+              <ImageUploadField
+                label="Team Logo"
+                type="logo"
                 value={teamFormData.logo}
-                onChange={(e) => setTeamFormData({ ...teamFormData, logo: e.target.value })}
-                placeholder="https://example.com/team-logo.png"
+                onChange={(logo) => setTeamFormData({ ...teamFormData, logo })}
+                previewAlt="Team logo"
               />
-              <Input
-                label="Roster Image URL"
+              <ImageUploadField
+                label="Roster Image"
+                type="roster"
                 value={teamFormData.roster}
-                onChange={(e) => setTeamFormData({ ...teamFormData, roster: e.target.value })}
-                placeholder="https://example.com/team-roster.png"
+                onChange={(roster) => setTeamFormData({ ...teamFormData, roster })}
+                previewAlt="Team roster"
+                previewClassName="h-20 w-32"
               />
             </div>
           </ModalContent>

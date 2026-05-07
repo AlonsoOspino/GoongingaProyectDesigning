@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "blob:migrate-existing-images": "node scripts/migrate-existing-image-links-to-blob.js"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.2.2",

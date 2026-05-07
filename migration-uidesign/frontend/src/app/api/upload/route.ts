@@ -1,6 +1,24 @@
 import { put, del } from '@vercel/blob'
 import { type NextRequest, NextResponse } from 'next/server'
 
+const BLOB_HOST_SUFFIX = '.public.blob.vercel-storage.com'
+
+function isVercelBlobUrl(value: string) {
+  try {
+    return new URL(value).hostname.endsWith(BLOB_HOST_SUFFIX)
+  } catch {
+    return false
+  }
+}
+
+function sanitizeSegment(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48) || 'image'
+}
+
 export async function POST(request: NextRequest) {
   try {
     if (!process.env.BLOB_READ_WRITE_TOKEN) {
@@ -12,7 +30,8 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData()
     const file = formData.get('file') as File
-    const type = formData.get('type') as string // 'logo' or 'roster'
+    const type = String(formData.get('type') || 'image')
+    const previousUrl = String(formData.get('previousUrl') || '')
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
@@ -39,12 +58,18 @@ export async function POST(request: NextRequest) {
     // Generate a unique filename with type prefix
     const timestamp = Date.now()
     const extension = file.name.split('.').pop()
-    const filename = `${type || 'image'}-${timestamp}.${extension}`
+    const filename = `${sanitizeSegment(type)}-${timestamp}.${extension}`
 
     // Upload to Vercel Blob (public access for team logos and rosters)
     const blob = await put(filename, file, {
       access: 'public',
     })
+
+    if (previousUrl && previousUrl !== blob.url && isVercelBlobUrl(previousUrl)) {
+      await del(previousUrl).catch((error) => {
+        console.warn('Old blob delete failed after replacement upload:', error)
+      })
+    }
 
     return NextResponse.json({ url: blob.url })
   } catch (error) {
@@ -65,8 +90,12 @@ export async function DELETE(request: NextRequest) {
 
     const { url } = await request.json()
 
-    if (!url) {
+    if (!url || typeof url !== 'string') {
       return NextResponse.json({ error: 'No URL provided' }, { status: 400 })
+    }
+
+    if (!isVercelBlobUrl(url)) {
+      return NextResponse.json({ success: true, skipped: true })
     }
 
     await del(url)

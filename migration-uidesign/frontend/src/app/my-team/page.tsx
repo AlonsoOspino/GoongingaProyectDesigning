@@ -13,8 +13,10 @@ import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Modal } from "@/components/ui/Modal";
+import { ImageUploadField } from "@/components/ui/ImageUploadField";
 import { MatchCard } from "@/components/matches/MatchCard";
 import type { Team, Match } from "@/lib/api/types";
+import { deleteReplacedBlobImage } from "@/lib/blobUpload";
 
 export default function MyTeamPage() {
   const { user, token, isAuthenticated, isHydrated } = useSession();
@@ -78,6 +80,10 @@ export default function MyTeamPage() {
         logo: editForm.logo || undefined,
         roster: editForm.roster || undefined,
       });
+      await Promise.allSettled([
+        deleteReplacedBlobImage(team.logo, editForm.logo),
+        deleteReplacedBlobImage(team.roster, editForm.roster),
+      ]);
       setTeam(updatedTeam);
       setEditModalOpen(false);
     } catch (error) {
@@ -356,17 +362,20 @@ export default function MyTeamPage() {
             onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
             placeholder="Enter team name"
           />
-          <Input
-            label="Team Logo URL"
+          <ImageUploadField
+            label="Team Logo"
+            type="logo"
             value={editForm.logo}
-            onChange={(e) => setEditForm({ ...editForm, logo: e.target.value })}
-            placeholder="https://example.com/team-logo.png"
+            onChange={(logo) => setEditForm({ ...editForm, logo })}
+            previewAlt="Team logo"
           />
-          <Input
-            label="Roster Image URL"
+          <ImageUploadField
+            label="Roster Image"
+            type="roster"
             value={editForm.roster}
-            onChange={(e) => setEditForm({ ...editForm, roster: e.target.value })}
-            placeholder="https://example.com/team-roster.png"
+            onChange={(roster) => setEditForm({ ...editForm, roster })}
+            previewAlt="Team roster"
+            previewClassName="h-20 w-32"
           />
           <div className="flex gap-3 pt-4">
             <Button

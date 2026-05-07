@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { ImageUploadField } from "@/components/ui/ImageUploadField";
+import { deleteReplacedBlobImage } from "@/lib/blobUpload";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -19,6 +21,7 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [originalProfilePic, setOriginalProfilePic] = useState("");
 
   const [form, setForm] = useState({
     nickname: "",
@@ -44,6 +47,7 @@ export default function ProfilePage() {
           profilePic: profile.profilePic || "",
           rank: String(profile.rank ?? 0),
         });
+        setOriginalProfilePic(profile.profilePic || "");
       } catch (err: any) {
         setError(err?.message || "Failed to load profile");
       } finally {
@@ -74,6 +78,7 @@ export default function ProfilePage() {
       };
 
       const updated = await updateMemberProfile(token, user.id, payload);
+      await deleteReplacedBlobImage(originalProfilePic, updated.profilePic);
 
       setSession(token, {
         id: updated.id,
@@ -84,6 +89,7 @@ export default function ProfilePage() {
       });
 
       setForm((prev) => ({ ...prev, password: "" }));
+      setOriginalProfilePic(updated.profilePic || "");
       setSuccess("Profile updated successfully");
     } catch (err: any) {
       setError(err?.message || "Failed to update profile");
@@ -168,11 +174,12 @@ export default function ProfilePage() {
             placeholder="Leave empty to keep current password"
           />
 
-          <Input
-            label="Profile Picture URL"
+          <ImageUploadField
+            label="Profile Picture"
+            type="profile"
             value={form.profilePic}
-            onChange={(e) => setForm((prev) => ({ ...prev, profilePic: e.target.value }))}
-            placeholder="https://example.com/avatar.png"
+            onChange={(profilePic) => setForm((prev) => ({ ...prev, profilePic }))}
+            previewAlt="Profile picture"
           />
 
           
