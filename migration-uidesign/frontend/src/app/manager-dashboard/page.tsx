@@ -702,8 +702,7 @@ export default function ManagerDashboardPage() {
 
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-xs text-muted">
-                Hero videos must be named by id (example: 1.mp4). Leaderboard.png and
-                MatchCards.png must match the file names on disk.
+                Hero videos must be named by id (example: 1.mp4).
               </p>
               <Button
                 onClick={handleSaveStreamSettings}

@@ -89,7 +89,16 @@ const update = async (req, res) => {
     if (req.user.id !== Number(req.params.id) && req.user.role !== "ADMIN") {
       return res.status(403).json({ message: "Forbidden: You can only update your own profile." });
     }
-    const { role, team, teamId, password, ...safeBody } = req.body;
+    const { role, team, teamId, password } = req.body;
+    const safeBody = {};
+
+    if (req.body.nickname !== undefined) safeBody.nickname = req.body.nickname;
+    if (req.body.user !== undefined) safeBody.user = req.body.user;
+    if (req.body.profilePic !== undefined) safeBody.profilePic = req.body.profilePic;
+    if (req.body.rank !== undefined) safeBody.rank = req.body.rank;
+    if (req.body.heroVideoFolderPath !== undefined) safeBody.heroVideoFolderPath = req.body.heroVideoFolderPath;
+    if (req.body.obsWebsocketPassword !== undefined) safeBody.obsWebsocketPassword = req.body.obsWebsocketPassword;
+
     if (password) {
       safeBody.passwordHash = await bcrypt.hash(password, 10);
     }
@@ -106,6 +115,12 @@ const adminUpdate = async (req, res) => {
     if (req.body.teamId !== undefined) {
       safeBody.teamId = await normalizeAdminTeamId(req.body.teamId);
     }
+    if (req.body.nickname !== undefined) safeBody.nickname = req.body.nickname;
+    if (req.body.user !== undefined) safeBody.user = req.body.user;
+    if (req.body.profilePic !== undefined) safeBody.profilePic = req.body.profilePic;
+    if (req.body.rank !== undefined) safeBody.rank = req.body.rank;
+    if (req.body.heroVideoFolderPath !== undefined) safeBody.heroVideoFolderPath = req.body.heroVideoFolderPath;
+    if (req.body.obsWebsocketPassword !== undefined) safeBody.obsWebsocketPassword = req.body.obsWebsocketPassword;
     if (password) {
       safeBody.passwordHash = await bcrypt.hash(password, 10);
     }
