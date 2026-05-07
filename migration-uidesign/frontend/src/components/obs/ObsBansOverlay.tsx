@@ -648,7 +648,7 @@ export default function ObsBansOverlay({
         ) {
           await obsManager.updateTextSource(
             inactiveTextSource,
-            ' '
+            ''
           );
 
           await obsManager.updateTextSource(
