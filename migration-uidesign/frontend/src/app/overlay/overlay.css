@@ -4,6 +4,12 @@
   padding: 0;
 }
 
+:root {
+  --overlay-width: 1280px;
+  --overlay-height: 720px;
+  --overlay-header-height: 112px;
+}
+
 html,
 body {
   width: 100%;
@@ -25,6 +31,16 @@ body {
 .overlay-stage {
   width: 1280px;
   height: 720px;
+  position: relative;
+  overflow: hidden;
+  background: transparent;
+  transform-origin: top left;
+  backface-visibility: hidden;
+}
+
+.overlay-stage {
+  width: var(--overlay-width);
+  height: var(--overlay-height);
   position: relative;
   overflow: hidden;
   background: transparent;

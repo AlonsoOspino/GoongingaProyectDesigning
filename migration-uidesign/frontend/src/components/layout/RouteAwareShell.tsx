@@ -9,6 +9,7 @@ import { TournamentTimer } from "@/components/layout/TournamentTimer";
 export function RouteAwareShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() || "";
   const isOverlayRoute = pathname.startsWith("/overlay");
+  const isDraftTableRoute = pathname.startsWith("/draft-table");
 
   if (isOverlayRoute) {
     return <>{children}</>;
@@ -16,7 +17,7 @@ export function RouteAwareShell({ children }: { children: ReactNode }) {
 
   return (
     <>
-      <TournamentTimer />
+      {!isDraftTableRoute && <TournamentTimer />}
       <Navbar />
       <main className="flex-1">{children}</main>
       <Footer />
