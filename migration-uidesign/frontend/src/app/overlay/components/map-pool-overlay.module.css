@@ -1,0 +1,164 @@
+.root {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-overlay-body), "Trebuchet MS", sans-serif;
+  color: #f2c47b;
+}
+
+.classic {
+  background:
+    radial-gradient(circle at 10% 16%, rgba(224, 189, 127, 0.14) 0, rgba(224, 189, 127, 0.14) 6%, transparent 6.5%),
+    radial-gradient(circle at 31% 10%, rgba(224, 189, 127, 0.12) 0, rgba(224, 189, 127, 0.12) 7%, transparent 7.5%),
+    radial-gradient(circle at 52% 20%, rgba(224, 189, 127, 0.14) 0, rgba(224, 189, 127, 0.14) 5.5%, transparent 6%),
+    radial-gradient(circle at 76% 12%, rgba(224, 189, 127, 0.1) 0, rgba(224, 189, 127, 0.1) 7%, transparent 7.5%),
+    radial-gradient(circle at 92% 18%, rgba(224, 189, 127, 0.16) 0, rgba(224, 189, 127, 0.16) 5%, transparent 5.5%),
+    linear-gradient(140deg, #161616 0%, #111111 48%, #090909 100%);
+}
+
+.clean {
+  background: #0f0f0f;
+}
+
+.titleBar {
+  height: 13%;
+  min-height: 86px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 4px solid #c99752;
+}
+
+.classic .titleBar {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.13) 0 20%, transparent 20% 50%, rgba(255, 255, 255, 0.08) 50% 70%, transparent 70% 100%),
+    linear-gradient(180deg, #f5f0e4 0%, #ebe3d0 100%);
+}
+
+.clean .titleBar {
+  background: #1c1c1c;
+}
+
+.titleText {
+  font-family: var(--font-overlay-display), var(--font-overlay-body), sans-serif;
+  text-transform: uppercase;
+  font-size: clamp(3rem, 6vw, 4rem);
+  letter-spacing: 0.04em;
+  color: #c99752;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
+  line-height: 1;
+}
+
+.grid {
+  height: 87%;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  background: #000;
+}
+
+.column {
+  min-width: 0;
+  min-height: 0;
+  border: 2px solid #000;
+  background: #68686d;
+  display: flex;
+  flex-direction: column;
+}
+
+.columnHeader {
+  height: 14%;
+  min-height: 58px;
+  border-bottom: 3px solid #000;
+  background: #606065;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-overlay-display), var(--font-overlay-body), sans-serif;
+  font-size: clamp(2rem, 4vw, 2.9rem);
+  letter-spacing: 0.03em;
+  color: #e0b06a;
+  text-transform: uppercase;
+}
+
+.mapStack {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mapTile {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+  border-top: 3px solid #000;
+  background: #48484d;
+}
+
+.mapTile:first-child {
+  border-top: 0;
+}
+
+.mapImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mapLabel {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  padding: 4px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(0, 0, 0, 0.56);
+  color: #f4d8a8;
+  font-family: var(--font-overlay-display), var(--font-overlay-body), sans-serif;
+  font-size: 1.1rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.emptyState {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  border-top: 3px solid #000;
+  background: #45454a;
+  color: #f0ca90;
+  font-family: var(--font-overlay-display), var(--font-overlay-body), sans-serif;
+  font-size: 1.6rem;
+  letter-spacing: 0.03em;
+}
+
+.statusScreen {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0e0e0e;
+  color: #f2c47b;
+  text-align: center;
+  padding: 24px;
+}
+
+.statusTitle {
+  font-family: var(--font-overlay-display), var(--font-overlay-body), sans-serif;
+  font-size: 3rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.statusHint {
+  margin-top: 10px;
+  font-size: 1.3rem;
+  color: #d6b17b;
+}

@@ -2,9 +2,7 @@ import type { ReactNode } from "react";
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { SessionProvider } from "@/features/session/SessionProvider";
-import { Navbar } from "@/components/layout/Navbar";
-import { Footer } from "@/components/layout/Footer";
-import { TournamentTimer } from "@/components/layout/TournamentTimer";
+import { RouteAwareShell } from "@/components/layout/RouteAwareShell";
 import "./globals.css";
 
 const inter = Inter({
@@ -36,10 +34,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} bg-background`}>
       <body className="min-h-screen flex flex-col font-sans antialiased">
         <SessionProvider>
-          <TournamentTimer />
-          <Navbar />
-          <main className="flex-1">{children}</main>
-          <Footer />
+          <RouteAwareShell>{children}</RouteAwareShell>
         </SessionProvider>
       </body>
     </html>

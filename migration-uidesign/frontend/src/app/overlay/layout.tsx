@@ -1,49 +1,28 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
+import { Bebas_Neue, Oswald } from "next/font/google";
 import "./overlay.css";
 
+const bebasNeue = Bebas_Neue({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-overlay-display",
+});
+
+const oswald = Oswald({
+  subsets: ["latin"],
+  variable: "--font-overlay-body",
+});
+
 export const metadata: Metadata = {
-  title: "Match Overlay",
-  description: "Live esports overlay for streaming",
+  title: "OBS Overlays",
+  description: "Overlay pages for OBS browser sources",
 };
 
-export default function OverlayLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function OverlayLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
-      <head>
-        {/* 🔴 CRÍTICO para OBS / Opera */}
-        <meta
-          name="viewport"
-          content="width=1920, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
-        />
-      </head>
-
-      <body
-        style={{
-          margin: 0,
-          padding: 0,
-          background: "transparent",
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            width: "1920px",
-            height: "1080px",
-
-            position: "relative",
-
-            /* 🔴 evita render inconsistente */
-            transformOrigin: "top left",
-            backfaceVisibility: "hidden",
-          }}
-        >
-          {children}
-        </div>
-      </body>
-    </html>
+    <div className={`${bebasNeue.variable} ${oswald.variable} overlay-root`}>
+      <div className="overlay-stage">{children}</div>
+    </div>
   );
 }

@@ -1,4 +1,4 @@
-export type BlobImageType = "logo" | "roster" | "profile" | "map" | "hero" | "image";
+export type BlobImageType = "logo" | "roster" | "banner" | "profile" | "map" | "hero" | "image";
 
 export function isVercelBlobUrl(value?: string | null) {
   if (!value) return false;
