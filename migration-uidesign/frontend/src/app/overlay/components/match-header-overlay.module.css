@@ -7,10 +7,10 @@
 .headerBar {
   position: relative;
   width: 100%;
-  height: calc(var(--overlay-header-height) * 0.75);
-  min-height: 84px;
-  border-bottom: 2px solid #d8d8d8;
-  background: #ffffff;
+  height: 12.75%;
+  min-height: 92px;
+  border-bottom: 1px solid rgba(216, 216, 216, 0.35);
+  background: transparent;
   overflow: hidden;
 }
 
@@ -28,6 +28,7 @@
   grid-template-columns: 1fr 1fr 1fr;
   align-items: center;
   gap: 0;
+  opacity: 0.65;
 }
 
 .lane,
@@ -50,14 +51,14 @@
 .centerBlank {
   width: 100%;
   height: 100%;
-  background: #ffffff;
+  background: transparent;
 }
 
 .bannerFrame,
 .logoFrame {
   height: 64px;
-  border: 1px solid #0d0d0d;
-  background: #0d0d0d;
+  border: 1px solid rgba(13, 13, 13, 0.72);
+  background: rgba(13, 13, 13, 0.72);
   overflow: hidden;
 }
 
@@ -92,15 +93,15 @@
   font-family: var(--font-overlay-display), var(--font-overlay-body), sans-serif;
   letter-spacing: 0.06em;
   color: #f4d39e;
-  background: #111111;
+  background: rgba(17, 17, 17, 0.72);
 }
 
 .scoreValue {
   height: 64px;
   display: grid;
   place-items: center;
-  border: 1px solid #0d0d0d;
-  background: #111111;
+  border: 1px solid rgba(13, 13, 13, 0.72);
+  background: rgba(17, 17, 17, 0.72);
   font-family: var(--font-overlay-display), var(--font-overlay-body), sans-serif;
   font-size: clamp(1.8rem, 2.8vw, 2.5rem);
   line-height: 1;
