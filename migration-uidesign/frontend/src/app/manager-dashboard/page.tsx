@@ -17,9 +17,7 @@ import {
   getMembers,
   createDraft,
   getDraftByMatchId,
-  getMemberProfileById,
   updateManagerMatch,
-  updateMemberProfile,
   finishPendingRegisters,
   getAllPlayerStats,
   uploadMatchStatsScreenshotPreview,
@@ -35,7 +33,6 @@ import {
 } from "@/lib/api";
 import { formatDateEST, formatDateTimeEST } from "@/lib/dateUtils";
 import type { PlayerStat } from "@/lib/api/types";
-import { testObsConnection } from "@/lib/obs/websocket";
 
 type TabValue = "scheduled" | "active" | "pending" | "stats";
 type MapType = "CONTROL" | "HYBRID" | "PAYLOAD" | "PUSH" | "FLASHPOINT";
@@ -45,12 +42,6 @@ type PendingUploadFormState = {
   image: File | null;
   mapType: MapType;
   matchTitle: string;
-};
-
-type StreamSettings = {
-  heroVideoFolderPath: string;
-  obsWebsocketUrl: string;
-  obsWebsocketPassword: string;
 };
 
 type PlayerCandidate = {
@@ -64,12 +55,6 @@ const DEFAULT_PENDING_UPLOAD_FORM: PendingUploadFormState = {
   image: null,
   mapType: "FLASHPOINT",
   matchTitle: "",
-};
-
-const DEFAULT_STREAM_SETTINGS: StreamSettings = {
-  heroVideoFolderPath: "",
-  obsWebsocketUrl: "",
-  obsWebsocketPassword: "",
 };
 
 const normalizeNicknameForMatch = (value: string) =>
@@ -155,20 +140,6 @@ export default function ManagerDashboardPage() {
   const [statsSearch, setStatsSearch] = useState("");
   const [statsTopFilter, setStatsTopFilter] = useState<string | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
-  const [streamSettings, setStreamSettings] = useState<StreamSettings>(DEFAULT_STREAM_SETTINGS);
-  const [streamSettingsLoading, setStreamSettingsLoading] = useState(false);
-  const [streamSettingsSaving, setStreamSettingsSaving] = useState(false);
-  const [streamSettingsStatus, setStreamSettingsStatus] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
-  const [obsTesting, setObsTesting] = useState(false);
-  const [obsTestResult, setObsTestResult] = useState<{
-    type: "success" | "error";
-    message: string;
-    hint?: string;
-  } | null>(null);
-
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const prevMatchesRef = useRef<Match[]>([]);
 
@@ -186,38 +157,6 @@ export default function ManagerDashboardPage() {
       }
     }
   }, []);
-
-  useEffect(() => {
-    if (!isAuthenticated || !user?.id || !token) return;
-    let cancelled = false;
-
-    const loadStreamSettings = async () => {
-      setStreamSettingsLoading(true);
-      try {
-        const profile = await getMemberProfileById(user.id, token);
-        if (cancelled) return;
-        setStreamSettings({
-          heroVideoFolderPath: profile.heroVideoFolderPath ?? "",
-          obsWebsocketUrl: profile.obsWebsocketUrl ?? "",
-          obsWebsocketPassword: "",
-        });
-      } catch (err: any) {
-        if (!cancelled) {
-          setStreamSettingsStatus({
-            type: "error",
-            message: err?.message || "Failed to load stream settings.",
-          });
-        }
-      } finally {
-        if (!cancelled) setStreamSettingsLoading(false);
-      }
-    };
-
-    loadStreamSettings();
-    return () => {
-      cancelled = true;
-    };
-  }, [isAuthenticated, user?.id, token]);
 
   useEffect(() => {
     if (isAuthenticated && user?.role === "MANAGER") {
@@ -239,82 +178,6 @@ export default function ManagerDashboardPage() {
       new Notification(title, { body, icon: "/favicon.ico", tag: "manager-notification" });
     }
   }, [notificationPermission]);
-
-  const handleTestObsConnection = async () => {
-    setObsTestResult(null);
-    const url = streamSettings.obsWebsocketUrl.trim();
-    const password = streamSettings.obsWebsocketPassword.trim();
-    if (!url) {
-      setObsTestResult({
-        type: "error",
-        message: "Enter the OBS WebSocket URL first.",
-        hint: "Example: ws://localhost:4455 (or 192.168.1.10:4455).",
-      });
-      return;
-    }
-    if (!password) {
-      setObsTestResult({
-        type: "error",
-        message: "Enter the OBS WebSocket password to test the connection.",
-        hint: "It is required even if you just saved one — the saved password is not loaded back into this form.",
-      });
-      return;
-    }
-
-    setObsTesting(true);
-    try {
-      const result = await testObsConnection({ url, password });
-      if (result.ok) {
-        setObsTestResult({
-          type: "success",
-          message: `Connected successfully to ${result.url}.`,
-        });
-      } else {
-        setObsTestResult({
-          type: "error",
-          message: result.message,
-          hint: result.hint,
-        });
-      }
-    } catch (err: any) {
-      setObsTestResult({
-        type: "error",
-        message: err?.message || "Unexpected error while testing OBS connection.",
-      });
-    } finally {
-      setObsTesting(false);
-    }
-  };
-
-  const handleSaveStreamSettings = async () => {
-    if (!token || !user?.id) return;
-    setStreamSettingsSaving(true);
-    setStreamSettingsStatus(null);
-
-    try {
-      const obsPassword = streamSettings.obsWebsocketPassword.trim();
-      const payload = {
-        heroVideoFolderPath: streamSettings.heroVideoFolderPath.trim() || null,
-        obsWebsocketUrl: streamSettings.obsWebsocketUrl.trim() || null,
-        ...(obsPassword ? { obsWebsocketPassword: obsPassword } : {}),
-      };
-
-      const updated = await updateMemberProfile(token, user.id, payload);
-      setStreamSettings({
-        heroVideoFolderPath: updated.heroVideoFolderPath ?? "",
-        obsWebsocketUrl: updated.obsWebsocketUrl ?? "",
-        obsWebsocketPassword: "",
-      });
-      setStreamSettingsStatus({ type: "success", message: "Stream settings saved." });
-    } catch (err: any) {
-      setStreamSettingsStatus({
-        type: "error",
-        message: err?.message || "Failed to save stream settings.",
-      });
-    } finally {
-      setStreamSettingsSaving(false);
-    }
-  };
 
   async function loadData(silent = false) {
     try {
@@ -708,115 +571,6 @@ export default function ManagerDashboardPage() {
             </Card>
           ))}
         </div>
-
-        <Card variant="bordered" className="mb-8">
-          <CardHeader>
-            <CardTitle>Stream Settings</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted">
-              Used by the OBS controller to load local assets for this manager.
-            </p>
-
-            {streamSettingsStatus && (
-              <div
-                className={`rounded-lg border px-3 py-2 text-sm ${
-                  streamSettingsStatus.type === "success"
-                    ? "bg-success/10 text-success border-success/30"
-                    : "bg-danger/10 text-danger border-danger/30"
-                }`}
-              >
-                {streamSettingsStatus.message}
-              </div>
-            )}
-
-            {obsTestResult && (
-              <div
-                className={`rounded-lg border px-3 py-2 text-sm ${
-                  obsTestResult.type === "success"
-                    ? "bg-success/10 text-success border-success/30"
-                    : "bg-danger/10 text-danger border-danger/30"
-                }`}
-              >
-                <p className="font-semibold">{obsTestResult.message}</p>
-                {obsTestResult.hint && (
-                  <p className="mt-1 text-xs opacity-90">{obsTestResult.hint}</p>
-                )}
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
-                label="Hero videos folder"
-                placeholder="C:\\OBS\\HeroVideos"
-                value={streamSettings.heroVideoFolderPath}
-                onChange={(e) =>
-                  setStreamSettings((prev) => ({
-                    ...prev,
-                    heroVideoFolderPath: e.target.value,
-                  }))
-                }
-                disabled={streamSettingsLoading || streamSettingsSaving}
-              />
-              <Input
-                label="OBS websocket URL"
-                placeholder="ws://localhost:4455"
-                value={streamSettings.obsWebsocketUrl}
-                onChange={(e) =>
-                  setStreamSettings((prev) => ({
-                    ...prev,
-                    obsWebsocketUrl: e.target.value,
-                  }))
-                }
-                disabled={streamSettingsLoading || streamSettingsSaving}
-              />
-              <Input
-                label="OBS WebSocket password"
-                type="password"
-                placeholder="Leave blank to keep current"
-                value={streamSettings.obsWebsocketPassword}
-                onChange={(e) =>
-                  setStreamSettings((prev) => ({
-                    ...prev,
-                    obsWebsocketPassword: e.target.value,
-                  }))
-                }
-                disabled={streamSettingsLoading || streamSettingsSaving}
-              />
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="text-xs text-muted space-y-1">
-                <p>Hero videos must be named by id (example: 1.mp4).</p>
-                <p>
-                  OBS URL format: <code>ws://HOST:4455</code> (default port). If you only enter an
-                  IP, port 4455 is assumed.
-                </p>
-                <p>
-                  If this app is open over <code>https://</code> the browser will block <code>ws://</code> to your
-                  local OBS. Open the overlay over <code>http://</code> on the streamer&apos;s machine.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="ghost"
-                  onClick={handleTestObsConnection}
-                  isLoading={obsTesting}
-                  disabled={streamSettingsLoading || streamSettingsSaving}
-                >
-                  Test OBS connection
-                </Button>
-                <Button
-                  onClick={handleSaveStreamSettings}
-                  isLoading={streamSettingsSaving}
-                  disabled={streamSettingsLoading}
-                >
-                  Save Settings
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Next match highlight */}
         {nextMatch && (

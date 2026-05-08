@@ -1,10 +1,15 @@
 import { setServerTimeFromDateHeader } from "@/lib/serverTime";
 
-const API_BASE =
+let API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
   process.env.API_BASE_URL ||
   "http://localhost:3000";
+
+export function setApiBase(url: string) {
+  if (!url) return;
+  API_BASE = url.replace(/\/$/, "");
+}
 
 export class ApiError extends Error {
   status: number;
