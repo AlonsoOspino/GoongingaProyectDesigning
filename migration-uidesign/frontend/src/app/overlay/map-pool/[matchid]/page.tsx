@@ -5,8 +5,10 @@ import { useParams } from "next/navigation";
 import { MapPoolOverlay } from "@/app/overlay/components/MapPoolOverlay";
 
 export default function MapPoolOverlayPage() {
-  const params = useParams<{ matchId: string }>();
-  const matchId = Number(params.matchId);
+  const params = useParams();
+  // support both `[matchId]` and `[matchid]` folder naming (case differences)
+  const rawId = (params as any).matchId ?? (params as any).matchid ?? (params as any).id;
+  const matchId = Number(rawId);
 
   useEffect(() => {
     const root = document.documentElement;
