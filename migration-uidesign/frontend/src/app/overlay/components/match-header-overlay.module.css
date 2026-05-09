@@ -9,7 +9,7 @@
   width: 100%;
   height: 12.75%;
   min-height: 92px;
-  border-bottom: 2px solid #d8d8d8;
+  border-bottom: 0;
   background: transparent;
   overflow: hidden;
 }
