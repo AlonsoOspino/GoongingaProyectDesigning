@@ -106,15 +106,53 @@ const getOtherTeamId = (match, actingTeamId) => {
   return actingTeamId === match.teamAId ? match.teamBId : match.teamAId;
 };
 
-const getAvailableMaps = async ({ match, pickedMapIds }) => {
+const getAvailableMaps = async ({ match, pickedMapIds, actions = [] }) => {
   // Current game is gameNumber+1 (gameNumber is last completed game, 0 at start)
   const currentGame = (match.gameNumber || 0) + 1;
   const poolIds = parseAllowedMapPool(match.mapsAllowedByRound, currentGame);
 
   if (currentGame === 5) {
+    // Game 5: show maps from mapsAllowedByRound["5"] + unpicked map from game 1
+    const game5PoolIds = parseAllowedMapPool(match.mapsAllowedByRound, 5);
+    const game1PoolIds = parseAllowedMapPool(match.mapsAllowedByRound, 1);
+    
+    // Find maps picked in game 1
+    const game1PickedMapIds = new Set(
+      actions
+        .filter((a) => a.action === "PICK" && a.gameNumber === 1)
+        .map((a) => Number(a.value))
+    );
+
+    // Build allowed map IDs: game5 pool + unpicked from game1
+    let allowedIds = new Set();
+    if (game5PoolIds) {
+      game5PoolIds.forEach((id) => allowedIds.add(id));
+    }
+    
+    // Add the map from game1 pool that wasn't picked
+    if (game1PoolIds) {
+      game1PoolIds.forEach((id) => {
+        if (!game1PickedMapIds.has(id)) {
+          allowedIds.add(id);
+        }
+      });
+    }
+
+    // If no explicit pools, fall back to type-based filtering
+    if (allowedIds.size === 0) {
+      const allowedTypes = getAllowedMapTypes(currentGame);
+      return prisma.map.findMany({
+        where: {
+          type: { in: allowedTypes },
+          id: { notIn: pickedMapIds },
+        },
+        orderBy: { id: "asc" },
+      });
+    }
+
     return prisma.map.findMany({
       where: {
-        id: { notIn: pickedMapIds },
+        id: { in: Array.from(allowedIds).filter((id) => !pickedMapIds.includes(id)) },
       },
       orderBy: { id: "asc" },
     });
@@ -186,7 +224,7 @@ const applyTimeoutIfNeeded = async (draft) => {
     if (alreadyPicked) return draft;
 
     const pickedMapIds = Array.isArray(draft.pickedMaps) ? draft.pickedMaps : [];
-    const availableMaps = await getAvailableMaps({ match: draft.match, pickedMapIds });
+    const availableMaps = await getAvailableMaps({ match: draft.match, pickedMapIds, actions: draft.actions });
     if (!availableMaps.length) {
       throw new Error("No available maps left for random timeout pick.");
     }
@@ -718,7 +756,7 @@ const buildDraftState = async (draft) => {
   const allowedMapTypes = getAllowedMapTypes(gameNumber);
   const pickedMapIds = Array.isArray(draft.pickedMaps) ? draft.pickedMaps : [];
 
-  const availableMaps = await getAvailableMaps({ match: draft.match, pickedMapIds });
+  const availableMaps = await getAvailableMaps({ match: draft.match, pickedMapIds, actions: draft.actions });
 
   const poolIds = parseAllowedMapPool(draft.match.mapsAllowedByRound, gameNumber);
   const allowedTypesFromPool = poolIds
