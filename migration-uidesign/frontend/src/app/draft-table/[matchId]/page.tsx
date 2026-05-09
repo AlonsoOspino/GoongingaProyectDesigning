@@ -64,6 +64,9 @@ export default function DraftTablePage() {
 
   const isManager = user?.role === "MANAGER";
   const isCaptain = user?.role === "CAPTAIN";
+  const isKeyAccess = Boolean(urlKey);
+  const isKeyViewerMode = isKeyAccess && !isManager;
+  const shouldRenderCompactHeader = !isKeyViewerMode;
   const myTeamId = user?.teamId;
   const isMyTurn = draftState?.currentTurnTeamId === myTeamId;
   const currentPhase = draftState?.phase as Phase;
@@ -449,7 +452,10 @@ export default function DraftTablePage() {
 
   if (!isHydrated || loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div
+        className={clsx("bg-background flex items-center justify-center", !isKeyAccess && "min-h-screen")}
+        style={isKeyAccess ? { width: "1920px", height: "1080px" } : undefined}
+      >
         <div className="flex flex-col items-center gap-4">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           <p className="text-muted">Loading draft table...</p>
@@ -461,7 +467,10 @@ export default function DraftTablePage() {
 
   if (error || !draftState) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div
+        className={clsx("bg-background flex items-center justify-center", !isKeyAccess && "min-h-screen")}
+        style={isKeyAccess ? { width: "1920px", height: "1080px" } : undefined}
+      >
         <Card variant="featured" className="max-w-md">
           <CardContent className="p-8 text-center">
             <p className="text-danger mb-4">{error || "Draft not found"}</p>
@@ -485,7 +494,10 @@ export default function DraftTablePage() {
     currentPhase === "BAN" && !!backgroundMapUrl && !backgroundReady;
 
   return (
-    <main className="relative min-h-screen bg-background">
+    <main
+      className={clsx("relative bg-background", !isKeyAccess && "min-h-screen")}
+      style={isKeyAccess ? { width: "1920px", height: "1080px", overflow: "hidden" } : undefined}
+    >
       {/* Map background — only paints once the bytes have loaded so we never
           flash a half-rendered image between phases. */}
       <MapBackground src={backgroundMapUrl} />
@@ -506,7 +518,7 @@ export default function DraftTablePage() {
         </div>
       )}
       <div className="relative z-10">
-      {/* Compact Header */}
+      {shouldRenderCompactHeader && (
         <header className="border-b border-border bg-surface/50 backdrop-blur-sm sticky top-0 z-10">
           <div className="max-w-7xl mx-auto px-4 py-3">
             <div className="flex items-center justify-between">
@@ -556,6 +568,7 @@ export default function DraftTablePage() {
             </div>
           </div>
         </header>
+      )}
 
       <div className="w-full px-3 md:px-6 py-6">
         {/* Phase Content */}

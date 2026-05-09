@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { clsx } from "clsx";
 import { useSession } from "@/features/session/SessionProvider";
@@ -24,12 +24,15 @@ const RECENT_NEWS_WINDOW_MS = RECENT_NEWS_WINDOW_HOURS * 60 * 60 * 1000;
 
 export function Navbar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { isAuthenticated, user, clearSession, isHydrated } = useSession();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isNavHidden, setIsNavHidden] = useState(false);
   const [hasRecentNews, setHasRecentNews] = useState(false);
   const isDraftTable = pathname.startsWith("/draft-table");
   const NAVBAR_STORAGE_KEY = "draftTableHideNavbar";
+  const hasDraftAccessKey = isDraftTable && Boolean(searchParams?.get("key"));
+  const shouldHideForKeyAccess = hasDraftAccessKey && user?.role !== "MANAGER";
 
   useEffect(() => {
     if (!isDraftTable) {
@@ -110,7 +113,7 @@ export function Navbar() {
 
   const dashboardLink = getDashboardLink();
 
-  if (isDraftTable && isNavHidden) return null;
+  if (isDraftTable && (isNavHidden || shouldHideForKeyAccess)) return null;
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 relative">

@@ -2,6 +2,75 @@ const matchService = require("../services/match");
 const prisma = require("../config/prisma");
 const { sendDiscordMatchScheduled, editDiscordMatchScheduled } = require("../utils/discordWebhook");
 
+const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj || {}, key);
+
+const toEpochMs = (value) => {
+  if (!value) return null;
+  const parsed = new Date(value).getTime();
+  return Number.isNaN(parsed) ? null : parsed;
+};
+
+const shouldNotifyScheduleChange = ({ requestBody, previousMatch, updatedMatch }) => {
+  if (!hasOwn(requestBody, "startDate")) return false;
+  if (!updatedMatch?.startDate) return false;
+
+  const previousMs = toEpochMs(previousMatch?.startDate);
+  const updatedMs = toEpochMs(updatedMatch.startDate);
+
+  if (updatedMs === null) return false;
+  if (!updatedMatch.discordMessageId) return true;
+
+  return previousMs !== updatedMs;
+};
+
+const notifyDiscordScheduleChange = async ({
+  matchId,
+  previousMatch,
+  updatedMatch,
+  requestBody,
+  contextLabel,
+}) => {
+  if (!shouldNotifyScheduleChange({ requestBody, previousMatch, updatedMatch })) {
+    return;
+  }
+
+  try {
+    const teams = await prisma.team.findMany({
+      where: { id: { in: [updatedMatch.teamAId, updatedMatch.teamBId] } },
+      select: { id: true, name: true, logo: true, discordRoleId: true },
+    });
+
+    const teamA = teams.find((t) => t.id === updatedMatch.teamAId);
+    const teamB = teams.find((t) => t.id === updatedMatch.teamBId);
+
+    const payload = {
+      teamAName: teamA?.name || "Team A",
+      teamBName: teamB?.name || "Team B",
+      teamAId: updatedMatch.teamAId,
+      teamBId: updatedMatch.teamBId,
+      teamADiscordRoleId: teamA?.discordRoleId || undefined,
+      teamBDiscordRoleId: teamB?.discordRoleId || undefined,
+      startDate: updatedMatch.startDate,
+    };
+
+    if (updatedMatch.discordMessageId) {
+      await editDiscordMatchScheduled({
+        messageId: updatedMatch.discordMessageId,
+        ...payload,
+      });
+      return;
+    }
+
+    const messageId = await sendDiscordMatchScheduled(payload);
+    if (messageId) {
+      await matchService.update(Number(matchId), { discordMessageId: messageId });
+      updatedMatch.discordMessageId = messageId;
+    }
+  } catch (notifyErr) {
+    console.error(`Failed to send/edit Discord match schedule message (${contextLabel}):`, notifyErr);
+  }
+};
+
 const getById = async (req, res) => {
   try {
     const match = await matchService.getById(Number(req.params.id));
@@ -44,7 +113,21 @@ const adminGenerateRoundRobin = async (req, res) => {
 const adminUpdate = async (req, res) => {
   try {
     const { id } = req.params;
-    const match = await matchService.update(Number(id), req.body);
+    const matchId = Number(id);
+    const previousMatch = await matchService.getById(matchId);
+    if (!previousMatch) {
+      return res.status(404).json({ message: "Match not found" });
+    }
+
+    const match = await matchService.update(matchId, req.body);
+    await notifyDiscordScheduleChange({
+      matchId,
+      previousMatch,
+      updatedMatch: match,
+      requestBody: req.body,
+      contextLabel: "adminUpdate",
+    });
+
     res.json(match);
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -69,8 +152,6 @@ const captainUpdate = async (req, res) => {
       return res.status(404).json({ message: "Match not found" });
     }
 
-    const previousStartDate = match.startDate ? new Date(match.startDate) : null;
-
     const captainTeamId = Number(req.user.teamId);
 
     if (captainTeamId === match.teamAId && req.body.teamAready !== undefined) {
@@ -94,52 +175,13 @@ const captainUpdate = async (req, res) => {
     }
 
     const updatedMatch = await matchService.update(Number(id), updateData);
-
-    // Handle Discord notifications for scheduling/rescheduling
-    if (req.body.startDate !== undefined && updatedMatch.startDate) {
-      try {
-        const teams = await prisma.team.findMany({
-          where: { id: { in: [updatedMatch.teamAId, updatedMatch.teamBId] } },
-          select: { id: true, name: true, logo: true, discordRoleId: true },
-        });
-        const teamA = teams.find((t) => t.id === updatedMatch.teamAId);
-        const teamB = teams.find((t) => t.id === updatedMatch.teamBId);
-        const teamAName = teamA?.name || "Team A";
-        const teamBName = teamB?.name || "Team B";
-
-        // If first time scheduling (no previous date), send new message
-        if (!previousStartDate) {
-          const messageId = await sendDiscordMatchScheduled({
-            teamAName,
-            teamBName,
-            teamAId: updatedMatch.teamAId,
-            teamBId: updatedMatch.teamBId,
-            teamADiscordRoleId: teamA?.discordRoleId || undefined,
-            teamBDiscordRoleId: teamB?.discordRoleId || undefined,
-            startDate: updatedMatch.startDate,
-          });
-          // Store the message ID for future edits
-          if (messageId) {
-            await matchService.update(Number(id), { discordMessageId: messageId });
-          }
-        }
-        // If rescheduling (already had a date), edit the existing message
-        else if (previousStartDate && updatedMatch.discordMessageId) {
-          await editDiscordMatchScheduled({
-            messageId: updatedMatch.discordMessageId,
-            teamAName,
-            teamBName,
-            teamAId: updatedMatch.teamAId,
-            teamBId: updatedMatch.teamBId,
-            teamADiscordRoleId: teamA?.discordRoleId || undefined,
-            teamBDiscordRoleId: teamB?.discordRoleId || undefined,
-            startDate: updatedMatch.startDate,
-          });
-        }
-      } catch (notifyErr) {
-        console.error("Failed to send/edit Discord match schedule message:", notifyErr);
-      }
-    }
+    await notifyDiscordScheduleChange({
+      matchId: Number(id),
+      previousMatch: match,
+      updatedMatch,
+      requestBody: req.body,
+      contextLabel: "captainUpdate",
+    });
 
     res.json(updatedMatch);
   } catch (err) {
@@ -149,6 +191,12 @@ const captainUpdate = async (req, res) => {
 const managerUpdate = async (req, res) => {
   try {
     const { id } = req.params;
+    const matchId = Number(id);
+    const previousMatch = await matchService.getById(matchId);
+    if (!previousMatch) {
+      return res.status(404).json({ message: "Match not found" });
+    }
+
     // Allow updating all fields except: id, bestOf, tournamentId, teamAId, teamBId, allowedMaps
     const forbiddenFields = ["id", "bestOf", "tournamentId", "teamAId", "teamBId", "allowedMaps"];
     const updateData = {};
@@ -160,7 +208,14 @@ const managerUpdate = async (req, res) => {
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ message: "No allowed fields to update." });
     }
-    const match = await matchService.update(Number(id), updateData);
+    const match = await matchService.update(matchId, updateData);
+    await notifyDiscordScheduleChange({
+      matchId,
+      previousMatch,
+      updatedMatch: match,
+      requestBody: req.body,
+      contextLabel: "managerUpdate",
+    });
     res.json(match);
   } catch (err) {
     res.status(400).json({ message: err.message });

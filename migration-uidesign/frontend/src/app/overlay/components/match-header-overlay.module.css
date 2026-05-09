@@ -55,7 +55,6 @@
 
 .bannerFrame,
 .logoFrame {
-  height: 64px;
   border: 1px solid #0d0d0d;
   background: #0d0d0d;
   overflow: hidden;
@@ -63,10 +62,14 @@
 
 .logoFrame {
   width: 70px;
+  height: 64px;
 }
 
 .bannerFrame {
   width: 100%;
+  height: auto;
+  max-height: 64px;
+  aspect-ratio: 1197 / 154;
 }
 
 .logoImage,
