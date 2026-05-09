@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { SessionProvider } from "@/features/session/SessionProvider";
@@ -34,7 +34,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} bg-background`}>
       <body className="min-h-screen flex flex-col font-sans antialiased">
         <SessionProvider>
-          <RouteAwareShell>{children}</RouteAwareShell>
+          <Suspense fallback={null}>
+            <RouteAwareShell>{children}</RouteAwareShell>
+          </Suspense>
         </SessionProvider>
       </body>
     </html>
