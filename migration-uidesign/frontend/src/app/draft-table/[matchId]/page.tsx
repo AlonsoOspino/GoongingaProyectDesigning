@@ -1014,7 +1014,9 @@ function MapPickingPhase({
           isObsKeyAccess
             ? "grid-cols-[120px_minmax(0,1fr)_120px] xl:grid-cols-[140px_minmax(0,1fr)_140px] gap-3"
             : "grid-cols-[140px_1fr_140px] xl:grid-cols-[160px_1fr_160px] gap-4",
-          isMapLocked ? "items-center" : "items-start"
+          // When in OBS manager-key mode, vertically center team blocks so
+          // logos and player names align with the map area.
+          isObsKeyAccess ? "items-center" : isMapLocked ? "items-center" : "items-start"
         )}
       >
         {/* Left - Team A: big logo on top, rectangle (name) below */}
