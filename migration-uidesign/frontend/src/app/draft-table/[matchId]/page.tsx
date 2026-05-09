@@ -1082,26 +1082,26 @@ function MapPickingPhase({
           {/* Map Grid */}
           {!currentMap && (
             <Card variant="featured">
-              <CardHeader className="pb-2 pt-3">
+              <CardHeader className={clsx("pb-2 pt-3", isObsKeyAccess && "pb-4")}>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">Available Maps</CardTitle>
+                  <CardTitle className={clsx("text-base", isObsKeyAccess && "text-lg font-bold")}>Available Maps</CardTitle>
                   {isCaptain && isMyTurn && (
                     <Badge variant="success" className="animate-pulse-glow">Your Turn</Badge>
                   )}
                 </div>
               </CardHeader>
-              <CardContent className="pb-4">
+              <CardContent className={clsx("pb-4", isObsKeyAccess && "pb-6")}>
                 {isCaptain && !isMyTurn && (
-                  <div className="mb-3 p-2 rounded-lg bg-surface-elevated text-center">
-                    <p className="text-xs text-muted">Waiting for {currentTeam?.name} to pick...</p>
+                  <div className={clsx("mb-3 p-2 rounded-lg bg-surface-elevated text-center", isObsKeyAccess && "mb-5 p-3")}>
+                    <p className={clsx("text-xs text-muted", isObsKeyAccess && "text-sm")}>Waiting for {currentTeam?.name} to pick...</p>
                   </div>
                 )}
 
                 <div className={clsx(
-                  "grid gap-3",
+                  "grid",
                   isObsKeyAccess
-                    ? "grid-cols-4 sm:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7"
-                    : "grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+                    ? "grid-cols-2 sm:grid-cols-2 gap-4"
+                    : "grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3"
                 )}>
                   {availableMaps.map((map) => {
                     const picked = isMapPicked(map.id);
@@ -1124,7 +1124,10 @@ function MapPickingPhase({
                             : "border-border cursor-default opacity-60"
                         )}
                       >
-                        <div className="aspect-video bg-surface-elevated">
+                        <div className={clsx(
+                          "bg-surface-elevated",
+                          isObsKeyAccess ? "aspect-square" : "aspect-video"
+                        )}>
                           {map.imgPath ? (
                             <img
                               src={resolveMapImageUrl(map.imgPath)}
@@ -1133,16 +1136,20 @@ function MapPickingPhase({
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
-                              <span className="text-sm font-bold text-muted">{map.description.charAt(0)}</span>
+                              <span className={clsx("font-bold text-muted", isObsKeyAccess ? "text-3xl" : "text-sm")}>
+                                {map.description.charAt(0)}
+                              </span>
                             </div>
                           )}
                         </div>
-                        <div className="p-2 bg-background">
-                          <p className="text-xs font-medium text-foreground truncate text-center">{map.description}</p>
+                        <div className={clsx("bg-background", isObsKeyAccess ? "p-4" : "p-2")}>
+                          <p className={clsx("font-medium text-foreground text-center", isObsKeyAccess ? "text-sm" : "text-xs truncate")}>
+                            {map.description}
+                          </p>
                         </div>
                         {picked && (
                           <div className="absolute inset-0 bg-background/70 flex items-center justify-center">
-                            <span className="text-[10px] text-muted font-semibold">USED</span>
+                            <span className={clsx("text-muted font-semibold", isObsKeyAccess ? "text-sm" : "text-[10px]")}>USED</span>
                           </div>
                         )}
                       </button>
