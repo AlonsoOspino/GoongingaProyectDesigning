@@ -45,6 +45,7 @@ export default function DraftTablePage() {
   const urlKey = searchParams?.get("key");
 
   const matchId = Number(params.matchId);
+  const isObsKeyAccess = Boolean(urlKey);
 
   const [draftState, setDraftState] = useState<DraftState | null>(null);
   const draftId = draftState?.id;
@@ -64,9 +65,8 @@ export default function DraftTablePage() {
 
   const isManager = user?.role === "MANAGER";
   const isCaptain = user?.role === "CAPTAIN";
-  const isKeyAccess = Boolean(urlKey);
-  const isKeyViewerMode = isKeyAccess && !isManager;
-  const shouldRenderCompactHeader = !isKeyViewerMode;
+  const isKeyAccess = isObsKeyAccess;
+  const shouldRenderCompactHeader = true;
   const myTeamId = user?.teamId;
   const isMyTurn = draftState?.currentTurnTeamId === myTeamId;
   const currentPhase = draftState?.phase as Phase;
@@ -495,7 +495,7 @@ export default function DraftTablePage() {
 
   return (
     <main
-      className={clsx("relative bg-background", !isKeyAccess && "min-h-screen")}
+      className={clsx("relative bg-background", !isKeyAccess && "min-h-screen", isObsKeyAccess && "overflow-hidden")}
       style={isKeyAccess ? { width: "1920px", height: "1080px", overflow: "hidden" } : undefined}
     >
       {/* Map background — only paints once the bytes have loaded so we never
@@ -520,7 +520,7 @@ export default function DraftTablePage() {
       <div className="relative z-10">
       {shouldRenderCompactHeader && (
         <header className="border-b border-border bg-surface/50 backdrop-blur-sm sticky top-0 z-10">
-          <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className={clsx("mx-auto px-4 py-3", isObsKeyAccess ? "max-w-[1440px]" : "max-w-7xl")}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-6">
                 <div className="flex items-center gap-3">
@@ -570,7 +570,7 @@ export default function DraftTablePage() {
         </header>
       )}
 
-      <div className="w-full px-3 md:px-6 py-6">
+      <div className={clsx("w-full py-6", isObsKeyAccess ? "px-6 mx-auto max-w-[1440px]" : "px-3 md:px-6")}>
         {/* Phase Content */}
         {currentPhase === "STARTING" && (
           <StartingPhase
@@ -599,6 +599,7 @@ export default function DraftTablePage() {
             onStartBan={handleStartBan}
             isMapPicked={isMapPicked}
             actionLoading={actionLoading}
+            isObsKeyAccess={isObsKeyAccess}
           />
         )}
 
@@ -627,6 +628,7 @@ export default function DraftTablePage() {
             getBanCountByRole={getBanCountByRole}
             canBanRole={canBanRole}
             actionLoading={actionLoading}
+            isObsKeyAccess={isObsKeyAccess}
           />
         )}
 
@@ -666,7 +668,7 @@ export default function DraftTablePage() {
       </div>
 
       {isManager && (
-        <div className="fixed bottom-6 right-6 z-40">
+        <div className={clsx("fixed right-6 z-40", isObsKeyAccess ? "top-6" : "bottom-6")}>
           <Button size="sm" variant="secondary" onClick={() => toggleNavbar(!isNavHidden)}>
             {isNavHidden ? "Show header" : "Hide header"}
           </Button>
@@ -690,7 +692,8 @@ export default function DraftTablePage() {
           }}
           disabled={pauseActionPending || pauseRequestedBy === myTeamId}
           className={clsx(
-            "fixed bottom-6 left-6 z-40 px-3 py-1.5 text-xs font-semibold rounded-lg shadow-md transition-all flex items-center gap-1.5",
+            "fixed left-6 z-40 px-3 py-1.5 text-xs font-semibold rounded-lg shadow-md transition-all flex items-center gap-1.5",
+            isObsKeyAccess ? "top-6" : "bottom-6",
             pauseRequestedBy === myTeamId
               ? "bg-surface border border-warning/50 text-warning cursor-not-allowed"
               : "bg-warning text-warning-foreground hover:bg-warning/90",
@@ -721,7 +724,8 @@ export default function DraftTablePage() {
           }}
           disabled={pauseActionPending}
           className={clsx(
-            "fixed bottom-6 left-6 z-40 px-4 py-2 text-sm font-semibold rounded-lg shadow-md transition-all flex items-center gap-2",
+            "fixed left-6 z-40 px-4 py-2 text-sm font-semibold rounded-lg shadow-md transition-all flex items-center gap-2",
+            isObsKeyAccess ? "top-6" : "bottom-6",
             isMatchPaused
               ? "bg-accent text-accent-foreground hover:bg-accent/90"
               : "bg-warning text-warning-foreground hover:bg-warning/90",
@@ -978,6 +982,7 @@ function MapPickingPhase({
   onStartBan,
   isMapPicked,
   actionLoading,
+  isObsKeyAccess,
 }: {
   isManager: boolean;
   isCaptain: boolean;
@@ -989,6 +994,7 @@ function MapPickingPhase({
   onStartBan: () => void;
   isMapPicked: (mapId: number) => boolean;
   actionLoading: boolean;
+  isObsKeyAccess: boolean;
 }) {
   const currentTeam = teams.find((t) => t.id === draftState.currentTurnTeamId);
   const teamA = teams.find((t) => t.id === draftState.match.teamAId);
@@ -1004,7 +1010,10 @@ function MapPickingPhase({
       {/* Three Column Layout - Team A | Map Selection | Team B */}
       <div
         className={clsx(
-          "flex-1 grid grid-cols-[140px_1fr_140px] xl:grid-cols-[160px_1fr_160px] gap-4",
+          "flex-1 grid",
+          isObsKeyAccess
+            ? "grid-cols-[120px_minmax(0,1fr)_120px] xl:grid-cols-[140px_minmax(0,1fr)_140px] gap-3"
+            : "grid-cols-[140px_1fr_140px] xl:grid-cols-[160px_1fr_160px] gap-4",
           isMapLocked ? "items-center" : "items-start"
         )}
       >
@@ -1088,7 +1097,12 @@ function MapPickingPhase({
                   </div>
                 )}
 
-                <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                <div className={clsx(
+                  "grid gap-3",
+                  isObsKeyAccess
+                    ? "grid-cols-4 sm:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7"
+                    : "grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+                )}>
                   {availableMaps.map((map) => {
                     const picked = isMapPicked(map.id);
                     const isCurrentMap = map.id === draftState.currentMapId;
@@ -1206,6 +1220,7 @@ function BanPhase({
   banWarning,
   setBanWarning,
   actionLoading,
+  isObsKeyAccess,
 }: {
   isManager: boolean;
   isCaptain: boolean;
@@ -1230,6 +1245,7 @@ function BanPhase({
   banWarning: string | null;
   setBanWarning: (warning: string | null) => void;
   actionLoading: boolean;
+  isObsKeyAccess: boolean;
 }) {
   const currentTeam = teams.find((t) => t.id === draftState.currentTurnTeamId);
   const teamA = teams.find((t) => t.id === draftState.match.teamAId);
@@ -1540,7 +1556,12 @@ function BanPhase({
         <div className="flex-1 h-px bg-border" />
         <span className="text-[10px] text-muted">{heroList.length}</span>
       </div>
-      <div className="grid grid-cols-7 sm:grid-cols-9 md:grid-cols-10 lg:grid-cols-12 xl:grid-cols-14 2xl:grid-cols-16 gap-1.5">
+      <div className={clsx(
+        "grid gap-1.5",
+        isObsKeyAccess
+          ? "grid-cols-5 sm:grid-cols-6 md:grid-cols-7 lg:grid-cols-8 xl:grid-cols-10 2xl:grid-cols-12"
+          : "grid-cols-7 sm:grid-cols-9 md:grid-cols-10 lg:grid-cols-12 xl:grid-cols-14 2xl:grid-cols-16"
+      )}>
         {heroList.map((hero) => {
           const banned = isHeroBanned(hero.id);
           const myTeamBannedBefore = wasHeroBannedByMyTeamBefore(hero.id);
@@ -1638,7 +1659,12 @@ function BanPhase({
       </div>
 
       {/* Full Width Layout - Team A Bans | Hero Grid | Team B Bans */}
-      <div className="flex-1 grid grid-cols-[140px_minmax(0,1fr)_140px] xl:grid-cols-[180px_minmax(0,1fr)_180px] gap-4">
+      <div className={clsx(
+        "flex-1 grid",
+        isObsKeyAccess
+          ? "grid-cols-[120px_minmax(0,1fr)_120px] xl:grid-cols-[150px_minmax(0,1fr)_150px] gap-3"
+          : "grid-cols-[140px_minmax(0,1fr)_140px] xl:grid-cols-[180px_minmax(0,1fr)_180px] gap-4"
+      )}>
         {/* LEFT - Team A: big logo on top, rectangle with name + bans below */}
         <div className="flex flex-col gap-4 h-fit">
           <div className={clsx(
@@ -1733,7 +1759,12 @@ function BanPhase({
                 {renderHeroSection("Support", supportHeroes, "bg-green-500")}
               </div>
             ) : (
-              <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 xl:grid-cols-14 2xl:grid-cols-16 gap-1.5">
+              <div className={clsx(
+                "grid gap-1.5",
+                isObsKeyAccess
+                  ? "grid-cols-5 sm:grid-cols-6 md:grid-cols-7 lg:grid-cols-8 xl:grid-cols-10 2xl:grid-cols-12"
+                  : "grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 xl:grid-cols-14 2xl:grid-cols-16"
+              )}>
                 {heroes.filter((h) => h.role === selectedRole).map((hero) => {
                   const banned = isHeroBanned(hero.id);
                   const canSelect = isCaptain && isMyTurn && !banned && canBanRole(hero.role);

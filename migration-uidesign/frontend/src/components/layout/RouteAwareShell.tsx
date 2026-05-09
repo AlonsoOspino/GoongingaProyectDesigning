@@ -16,7 +16,7 @@ export function RouteAwareShell({ children }: { children: ReactNode }) {
   const hasDraftAccessKey = isDraftTableRoute && Boolean(searchParams?.get("key"));
   const isKeyViewerMode = hasDraftAccessKey && user?.role !== "MANAGER";
 
-  if (isOverlayRoute || isKeyViewerMode) {
+  if (isOverlayRoute || hasDraftAccessKey || isKeyViewerMode) {
     return <>{children}</>;
   }
 
