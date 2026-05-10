@@ -31,10 +31,13 @@ const notifyDiscordScheduleChange = async ({
   contextLabel,
 }) => {
   if (!shouldNotifyScheduleChange({ requestBody, previousMatch, updatedMatch })) {
+    console.log(`[notifyDiscordScheduleChange] Skipping notification for match ${matchId} (${contextLabel}) - no schedule change`);
     return;
   }
 
   try {
+    console.log(`[notifyDiscordScheduleChange] Starting notification for match ${matchId} (${contextLabel})`);
+    
     // Fetch the latest match from DB to handle race conditions
     // Multiple requests might be updating the match simultaneously
     const currentMatch = await prisma.match.findUnique({
@@ -67,17 +70,24 @@ const notifyDiscordScheduleChange = async ({
     // Use current match from DB to check for existing message
     // This prevents race conditions where multiple requests try to send messages
     if (currentMatch.discordMessageId) {
+      console.log(`[notifyDiscordScheduleChange] Editing existing Discord message ${currentMatch.discordMessageId} for match ${matchId}`);
       await editDiscordMatchScheduled({
         messageId: currentMatch.discordMessageId,
         ...payload,
       });
+      console.log(`[notifyDiscordScheduleChange] Successfully edited Discord message for match ${matchId}`);
       return;
     }
 
     // Only send if no message exists yet
+    console.log(`[notifyDiscordScheduleChange] Sending new Discord message for match ${matchId}`);
     const messageId = await sendDiscordMatchScheduled(payload);
     if (messageId) {
+      console.log(`[notifyDiscordScheduleChange] Received messageId ${messageId}, saving to database for match ${matchId}`);
       await matchService.update(Number(matchId), { discordMessageId: messageId });
+      console.log(`[notifyDiscordScheduleChange] Successfully saved messageId for match ${matchId}`);
+    } else {
+      console.warn(`[notifyDiscordScheduleChange] sendDiscordMatchScheduled returned no messageId for match ${matchId}`);
     }
   } catch (notifyErr) {
     console.error(`Failed to send/edit Discord match schedule message (${contextLabel}):`, notifyErr);
@@ -133,16 +143,21 @@ const adminUpdate = async (req, res) => {
     }
 
     const match = await matchService.update(matchId, req.body);
-    await notifyDiscordScheduleChange({
+    
+    // Discord notification is async and shouldn't block the response
+    notifyDiscordScheduleChange({
       matchId,
       previousMatch,
       updatedMatch: match,
       requestBody: req.body,
       contextLabel: "adminUpdate",
+    }).catch((err) => {
+      console.error(`[adminUpdate] Discord notification error for match ${matchId}:`, err);
     });
 
     res.json(match);
   } catch (err) {
+    console.error(`[adminUpdate] Error updating match ${req.params.id}:`, err);
     res.status(400).json({ message: err.message });
   }
 };
@@ -187,17 +202,24 @@ const captainUpdate = async (req, res) => {
       return res.status(400).json({ message: "Captain can only update own team ready flag and startDate." });
     }
 
+    console.log(`[captainUpdate] Match ${id} update data:`, updateData);
     const updatedMatch = await matchService.update(Number(id), updateData);
-    await notifyDiscordScheduleChange({
+    console.log(`[captainUpdate] Match ${id} updated successfully. New startDate: ${updatedMatch.startDate}`);
+    
+    // Discord notification is async and shouldn't block the response
+    notifyDiscordScheduleChange({
       matchId: Number(id),
       previousMatch: match,
       updatedMatch,
       requestBody: req.body,
       contextLabel: "captainUpdate",
+    }).catch((err) => {
+      console.error(`[captainUpdate] Discord notification error for match ${id}:`, err);
     });
 
     res.json(updatedMatch);
   } catch (err) {
+    console.error(`[captainUpdate] Error updating match ${req.params.id}:`, err);
     res.status(400).json({ message: err.message });
   }
 };
@@ -222,15 +244,21 @@ const managerUpdate = async (req, res) => {
       return res.status(400).json({ message: "No allowed fields to update." });
     }
     const match = await matchService.update(matchId, updateData);
-    await notifyDiscordScheduleChange({
+    
+    // Discord notification is async and shouldn't block the response
+    notifyDiscordScheduleChange({
       matchId,
       previousMatch,
       updatedMatch: match,
       requestBody: req.body,
       contextLabel: "managerUpdate",
+    }).catch((err) => {
+      console.error(`[managerUpdate] Discord notification error for match ${matchId}:`, err);
     });
+
     res.json(match);
   } catch (err) {
+    console.error(`[managerUpdate] Error updating match ${req.params.id}:`, err);
     res.status(400).json({ message: err.message });
   }
 };
