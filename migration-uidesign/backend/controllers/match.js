@@ -71,15 +71,27 @@ const notifyDiscordScheduleChange = async ({
     // This prevents race conditions where multiple requests try to send messages
     if (currentMatch.discordMessageId) {
       console.log(`[notifyDiscordScheduleChange] Editing existing Discord message ${currentMatch.discordMessageId} for match ${matchId}`);
-      await editDiscordMatchScheduled({
-        messageId: currentMatch.discordMessageId,
-        ...payload,
-      });
-      console.log(`[notifyDiscordScheduleChange] Successfully edited Discord message for match ${matchId}`);
-      return;
+      try {
+        await editDiscordMatchScheduled({
+          messageId: currentMatch.discordMessageId,
+          ...payload,
+        });
+        console.log(`[notifyDiscordScheduleChange] Successfully edited Discord message for match ${matchId}`);
+        return;
+      } catch (editErr) {
+        // If message not found (404), clear the invalid messageId and send a new one
+        if (editErr.isMessageNotFound) {
+          console.warn(`[notifyDiscordScheduleChange] Discord message ${currentMatch.discordMessageId} not found (404) for match ${matchId}. Clearing messageId and sending new message.`);
+          await matchService.update(Number(matchId), { discordMessageId: null });
+          // Continue to send new message below
+        } else {
+          // Re-throw if it's a different error
+          throw editErr;
+        }
+      }
     }
 
-    // Only send if no message exists yet
+    // Only send if no message exists yet (or previous message was deleted)
     console.log(`[notifyDiscordScheduleChange] Sending new Discord message for match ${matchId}`);
     const messageId = await sendDiscordMatchScheduled(payload);
     if (messageId) {

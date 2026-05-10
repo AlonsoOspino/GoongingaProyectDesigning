@@ -150,7 +150,12 @@ async function editDiscordMatchScheduled({
 
   if (!response.ok) {
     const body = await response.text().catch(() => "");
-    throw new Error(`Discord edit failed (${response.status}): ${body}`);
+    const error = new Error(`Discord edit failed (${response.status}): ${body}`);
+    // Return special indicator if message not found (404)
+    if (response.status === 404) {
+      error.isMessageNotFound = true;
+    }
+    throw error;
   }
 
   return messageId;
