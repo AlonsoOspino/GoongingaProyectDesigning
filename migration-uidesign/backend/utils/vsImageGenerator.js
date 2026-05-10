@@ -151,19 +151,19 @@ async function drawCircularLogo(ctx, { imageUrl, x, y, diameter, accent, fallbac
   const radius = diameter / 2;
 
   ctx.save();
+  
+  // Draw square border instead of circle
   ctx.strokeStyle = accent;
   ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius + 6, 0, Math.PI * 2);
-  ctx.stroke();
+  ctx.strokeRect(x - 6, y - 6, diameter + 12, diameter + 12);
 
+  // Fill square background
   ctx.fillStyle = "rgba(8, 12, 20, 0.85)";
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.fillRect(x, y, diameter, diameter);
 
+  // Clip to square instead of circle
   ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.rect(x, y, diameter, diameter);
   ctx.clip();
 
   const loadedImage = await loadLogoImage(imageUrl);
@@ -182,9 +182,7 @@ async function drawCircularLogo(ctx, { imageUrl, x, y, diameter, accent, fallbac
     ctx.fillRect(x, y, diameter, diameter);
 
     ctx.fillStyle = "rgba(255, 255, 255, 0.14)";
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius * 0.78, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillRect(x + diameter * 0.1, y + diameter * 0.1, diameter * 0.8, diameter * 0.8);
 
     ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
     ctx.font = "bold 88px Arial";

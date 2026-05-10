@@ -35,6 +35,17 @@ const notifyDiscordScheduleChange = async ({
   }
 
   try {
+    // Fetch the latest match from DB to handle race conditions
+    // Multiple requests might be updating the match simultaneously
+    const currentMatch = await prisma.match.findUnique({
+      where: { id: matchId },
+    });
+
+    if (!currentMatch) {
+      console.error(`Match not found for Discord notification (${contextLabel}): ${matchId}`);
+      return;
+    }
+
     const teams = await prisma.team.findMany({
       where: { id: { in: [updatedMatch.teamAId, updatedMatch.teamBId] } },
       select: { id: true, name: true, logo: true, discordRoleId: true },
@@ -53,18 +64,20 @@ const notifyDiscordScheduleChange = async ({
       startDate: updatedMatch.startDate,
     };
 
-    if (updatedMatch.discordMessageId) {
+    // Use current match from DB to check for existing message
+    // This prevents race conditions where multiple requests try to send messages
+    if (currentMatch.discordMessageId) {
       await editDiscordMatchScheduled({
-        messageId: updatedMatch.discordMessageId,
+        messageId: currentMatch.discordMessageId,
         ...payload,
       });
       return;
     }
 
+    // Only send if no message exists yet
     const messageId = await sendDiscordMatchScheduled(payload);
     if (messageId) {
       await matchService.update(Number(matchId), { discordMessageId: messageId });
-      updatedMatch.discordMessageId = messageId;
     }
   } catch (notifyErr) {
     console.error(`Failed to send/edit Discord match schedule message (${contextLabel}):`, notifyErr);
