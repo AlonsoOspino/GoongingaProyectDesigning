@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "@/features/session/SessionProvider";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
@@ -75,6 +75,7 @@ export default function DraftTablePage() {
   const [overlayQueue, setOverlayQueue] = useState<DraftOverlay[]>([]);
   const [activeOverlay, setActiveOverlay] = useState<DraftOverlay | null>(null);
   const [overlayCountdown, setOverlayCountdown] = useState<number | null>(null);
+  const [keyScale, setKeyScale] = useState(1);
 
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -95,6 +96,8 @@ export default function DraftTablePage() {
   const currentPhase = draftState?.phase as Phase;
   const isMapSelectionLocked = currentPhase === "MAPPICKING" && Boolean(draftState?.currentMapId);
   const isOverlayActive = Boolean(activeOverlay);
+  const overlayPositionClass = isKeyAccess ? "absolute" : "fixed";
+  const floatingPositionClass = isKeyAccess ? "absolute" : "fixed";
 
   const teamA = teams.find((t) => t.id === draftState?.match?.teamAId);
   const teamB = teams.find((t) => t.id === draftState?.match?.teamBId);
@@ -475,6 +478,28 @@ export default function DraftTablePage() {
   );
 
   useEffect(() => {
+    if (!isKeyAccess) return;
+
+    const updateScale = () => {
+      const scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+      setKeyScale(Number.isFinite(scale) && scale > 0 ? scale : 1);
+    };
+
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => window.removeEventListener("resize", updateScale);
+  }, [isKeyAccess]);
+
+  const wrapKeyView = (content: ReactNode) =>
+    isKeyAccess ? (
+      <div className="min-h-screen w-screen bg-black flex items-center justify-center">
+        {content}
+      </div>
+    ) : (
+      content
+    );
+
+  useEffect(() => {
     if (activeOverlay || overlayQueue.length === 0) return;
     setActiveOverlay(overlayQueue[0]);
     setOverlayQueue((prev) => prev.slice(1));
@@ -620,10 +645,19 @@ export default function DraftTablePage() {
   }, []);
 
   if (!isHydrated || loading) {
-    return (
+    return wrapKeyView(
       <div
         className={clsx("bg-background flex items-center justify-center", !isKeyAccess && "min-h-screen")}
-        style={isKeyAccess ? { width: "1920px", height: "1080px" } : undefined}
+        style={
+          isKeyAccess
+            ? {
+                width: "1920px",
+                height: "1080px",
+                transform: `scale(${keyScale})`,
+                transformOrigin: "center",
+              }
+            : undefined
+        }
       >
         <div className="flex flex-col items-center gap-4">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -635,10 +669,19 @@ export default function DraftTablePage() {
 
 
   if (error || !draftState) {
-    return (
+    return wrapKeyView(
       <div
         className={clsx("bg-background flex items-center justify-center", !isKeyAccess && "min-h-screen")}
-        style={isKeyAccess ? { width: "1920px", height: "1080px" } : undefined}
+        style={
+          isKeyAccess
+            ? {
+                width: "1920px",
+                height: "1080px",
+                transform: `scale(${keyScale})`,
+                transformOrigin: "center",
+              }
+            : undefined
+        }
       >
         <Card variant="featured" className="max-w-md">
           <CardContent className="p-8 text-center">
@@ -662,17 +705,27 @@ export default function DraftTablePage() {
   const waitingForBanBackground =
     currentPhase === "BAN" && !!backgroundMapUrl && !backgroundReady;
 
-  return (
+  return wrapKeyView(
     <main
       className={clsx("relative bg-background", !isKeyAccess && "min-h-screen", isObsKeyAccess && "overflow-hidden")}
-      style={isKeyAccess ? { width: "1920px", height: "1080px", overflow: "hidden" } : undefined}
+      style={
+        isKeyAccess
+          ? {
+              width: "1920px",
+              height: "1080px",
+              overflow: "hidden",
+              transform: `scale(${keyScale})`,
+              transformOrigin: "center",
+            }
+          : undefined
+      }
     >
       {/* Map background — only paints once the bytes have loaded so we never
           flash a half-rendered image between phases. */}
-      <MapBackground src={backgroundMapUrl} />
+      <MapBackground src={backgroundMapUrl} position={isKeyAccess ? "container" : "viewport"} />
 
       {waitingForBanBackground && (
-        <div className="fixed inset-0 z-50 bg-background flex items-center justify-center">
+        <div className={clsx(overlayPositionClass, "inset-0 z-50 bg-background flex items-center justify-center")}>
           <div className="flex flex-col items-center gap-4">
             <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
             <p className="text-sm uppercase tracking-widest text-muted">
@@ -688,7 +741,7 @@ export default function DraftTablePage() {
       )}
 
       {activeOverlay && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div className={clsx(overlayPositionClass, "inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm")}>
           <div className="w-[min(620px,92vw)] rounded-2xl border border-border/60 bg-gradient-to-br from-surface/95 via-surface-elevated/95 to-surface/90 p-6 shadow-2xl shadow-black/40 ring-1 ring-white/10 animate-fade-in">
             {activeOverlay.kind === "MAP_PICKING_COUNTDOWN" || activeOverlay.kind === "BAN_START_COUNTDOWN" ? (
               <div className="text-center">
@@ -784,7 +837,7 @@ export default function DraftTablePage() {
           </div>
         </div>
       )}
-      <div className="relative z-10">
+      <div className="relative z-10 w-full h-full">
       {shouldRenderCompactHeader && (
         <header className="border-b border-border bg-surface/50 backdrop-blur-sm sticky top-0 z-10">
           <div className={clsx("mx-auto px-4 py-3", isObsKeyAccess ? "max-w-[1440px]" : "max-w-7xl")}>
@@ -936,7 +989,7 @@ export default function DraftTablePage() {
       </div>
 
       {isManager && (
-        <div className={clsx("fixed right-6 z-40", isObsKeyAccess ? "top-6" : "bottom-6")}>
+        <div className={clsx(floatingPositionClass, "right-6 z-40", isObsKeyAccess ? "top-6" : "bottom-6")}>
           <Button size="sm" variant="secondary" onClick={() => toggleNavbar(!isNavHidden)}>
             {isNavHidden ? "Show header" : "Hide header"}
           </Button>
@@ -960,7 +1013,8 @@ export default function DraftTablePage() {
           }}
           disabled={pauseActionPending || pauseRequestedBy === myTeamId}
           className={clsx(
-            "fixed left-6 z-40 px-3 py-1.5 text-xs font-semibold rounded-lg shadow-md transition-all flex items-center gap-1.5",
+            floatingPositionClass,
+            "left-6 z-40 px-3 py-1.5 text-xs font-semibold rounded-lg shadow-md transition-all flex items-center gap-1.5",
             isObsKeyAccess ? "top-6" : "bottom-6",
             pauseRequestedBy === myTeamId
               ? "bg-surface border border-warning/50 text-warning cursor-not-allowed"
@@ -992,7 +1046,8 @@ export default function DraftTablePage() {
           }}
           disabled={pauseActionPending}
           className={clsx(
-            "fixed left-6 z-40 px-4 py-2 text-sm font-semibold rounded-lg shadow-md transition-all flex items-center gap-2",
+            floatingPositionClass,
+            "left-6 z-40 px-4 py-2 text-sm font-semibold rounded-lg shadow-md transition-all flex items-center gap-2",
             isObsKeyAccess ? "top-6" : "bottom-6",
             isMatchPaused
               ? "bg-accent text-accent-foreground hover:bg-accent/90"
@@ -1013,7 +1068,7 @@ export default function DraftTablePage() {
 
       {/* Manager-only: floating pause-request notification when a captain asks */}
       {isManager && pauseRequestedBy && !isMatchPaused && (
-        <div className="fixed top-24 right-6 z-40 w-80 bg-surface border-2 border-warning rounded-xl shadow-2xl shadow-warning/20 animate-fade-in">
+        <div className={clsx(floatingPositionClass, "top-24 right-6 z-40 w-80 bg-surface border-2 border-warning rounded-xl shadow-2xl shadow-warning/20 animate-fade-in")}>
           <div className="p-4">
             <div className="flex items-center gap-2 mb-3">
               <div className="w-8 h-8 rounded-full bg-warning/20 border-2 border-warning flex items-center justify-center flex-shrink-0">
@@ -1075,7 +1130,7 @@ export default function DraftTablePage() {
 
       {/* Full-screen GAME PAUSED overlay (server-driven) */}
       {isMatchPaused && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center">
+        <div className={clsx(overlayPositionClass, "inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center")}>
           <div className="bg-surface border-2 border-warning rounded-2xl p-8 max-w-md text-center shadow-2xl shadow-warning/20 animate-fade-in">
             <div className="w-20 h-20 rounded-full bg-warning/20 border-4 border-warning mx-auto mb-6 flex items-center justify-center">
               <svg className="w-10 h-10 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1148,96 +1203,99 @@ function StartingPhase({
 
   const cardSizeClass = isObsKeyAccess ? "max-w-4xl" : "max-w-2xl";
   const cardPaddingClass = isObsKeyAccess ? "p-12" : "p-8";
+  const keyScaleStyle = isObsKeyAccess ? { transform: "scale(1.3, 1.7)", transformOrigin: "center" } : undefined;
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh]">
-      <Card variant="featured" className={clsx("w-full", cardSizeClass)}>
-        <CardContent className={cardPaddingClass}>
-          <h2 className="text-2xl font-bold text-center text-foreground mb-2">
-            {match.gameNumber === 0 ? "Waiting to Start" : `Ready for Game ${match.gameNumber + 1}?`}
-          </h2>
-          <p className="text-sm text-muted text-center mb-8">
-            Captains can mark ready; manager can start when match operations are prepared
-          </p>
-          
-          <div className="flex items-center justify-center gap-12 mb-8">
-            <div className="text-center">
-              <div className="w-20 h-20 rounded-full bg-[color:var(--color-team-a)]/20 border-2 border-[color:var(--color-team-a)] mx-auto mb-3 flex items-center justify-center">
-                <span className="text-2xl font-bold text-[color:var(--color-team-a)]">
-                  {teamA?.name?.charAt(0) || "A"}
-                </span>
+      <div style={keyScaleStyle}>
+        <Card variant="featured" className={clsx("w-full", cardSizeClass)}>
+          <CardContent className={cardPaddingClass}>
+            <h2 className="text-2xl font-bold text-center text-foreground mb-2">
+              {match.gameNumber === 0 ? "Waiting to Start" : `Ready for Game ${match.gameNumber + 1}?`}
+            </h2>
+            <p className="text-sm text-muted text-center mb-8">
+              Captains can mark ready; manager can start when match operations are prepared
+            </p>
+            
+            <div className="flex items-center justify-center gap-12 mb-8">
+              <div className="text-center">
+                <div className="w-20 h-20 rounded-full bg-[color:var(--color-team-a)]/20 border-2 border-[color:var(--color-team-a)] mx-auto mb-3 flex items-center justify-center">
+                  <span className="text-2xl font-bold text-[color:var(--color-team-a)]">
+                    {teamA?.name?.charAt(0) || "A"}
+                  </span>
+                </div>
+                <p className="font-semibold text-foreground mb-2">{teamA?.name}</p>
+                <Badge variant={match.teamAready ? "success" : "default"}>
+                  {match.teamAready ? "Ready" : "Not Ready"}
+                </Badge>
               </div>
-              <p className="font-semibold text-foreground mb-2">{teamA?.name}</p>
-              <Badge variant={match.teamAready ? "success" : "default"}>
-                {match.teamAready ? "Ready" : "Not Ready"}
-              </Badge>
-            </div>
 
-            <div className="text-4xl font-bold text-muted">VS</div>
+              <div className="text-4xl font-bold text-muted">VS</div>
 
-            <div className="text-center">
-              <div className="w-20 h-20 rounded-full bg-[color:var(--color-team-b)]/20 border-2 border-[color:var(--color-team-b)] mx-auto mb-3 flex items-center justify-center">
-                <span className="text-2xl font-bold text-[color:var(--color-team-b)]">
-                  {teamB?.name?.charAt(0) || "B"}
-                </span>
+              <div className="text-center">
+                <div className="w-20 h-20 rounded-full bg-[color:var(--color-team-b)]/20 border-2 border-[color:var(--color-team-b)] mx-auto mb-3 flex items-center justify-center">
+                  <span className="text-2xl font-bold text-[color:var(--color-team-b)]">
+                    {teamB?.name?.charAt(0) || "B"}
+                  </span>
+                </div>
+                <p className="font-semibold text-foreground mb-2">{teamB?.name}</p>
+                <Badge variant={match.teamBready ? "success" : "default"}>
+                  {match.teamBready ? "Ready" : "Not Ready"}
+                </Badge>
               </div>
-              <p className="font-semibold text-foreground mb-2">{teamB?.name}</p>
-              <Badge variant={match.teamBready ? "success" : "default"}>
-                {match.teamBready ? "Ready" : "Not Ready"}
-              </Badge>
             </div>
-          </div>
 
-          {/* Captain Ready Button */}
-          {isCaptain && !amIReady && (
-            <div className="text-center mb-6">
-              <Button size="lg" onClick={onSetReady} disabled={actionLoading} className="px-8">
-                {actionLoading ? "Setting ready..." : "I'm Ready!"}
-              </Button>
-              <p className="text-xs text-muted mt-2">Click to confirm you are ready to play</p>
-            </div>
-          )}
+            {/* Captain Ready Button */}
+            {isCaptain && !amIReady && (
+              <div className="text-center mb-6">
+                <Button size="lg" onClick={onSetReady} disabled={actionLoading} className="px-8">
+                  {actionLoading ? "Setting ready..." : "I'm Ready!"}
+                </Button>
+                <p className="text-xs text-muted mt-2">Click to confirm you are ready to play</p>
+              </div>
+            )}
 
-          {isCaptain && amIReady && (
-            <div className="text-center mb-6">
-              <Badge variant="success" className="text-sm px-4 py-2">You are ready</Badge>
-              <p className="text-xs text-muted mt-2">Waiting for manager to start...</p>
-            </div>
-          )}
+            {isCaptain && amIReady && (
+              <div className="text-center mb-6">
+                <Badge variant="success" className="text-sm px-4 py-2">You are ready</Badge>
+                <p className="text-xs text-muted mt-2">Waiting for manager to start...</p>
+              </div>
+            )}
 
-          {isManager && (
-            <div className="text-center">
-              {!bothReady && (
-                <p className="text-muted mb-4 text-sm">
-                  One or both captains are not marked ready yet.
-                </p>
-              )}
-              <div className="flex flex-wrap items-center justify-center gap-3">
-                {canUndoResult && (
-                  <Button
-                    size="lg"
-                    variant="secondary"
-                    onClick={onUndoResult}
-                    disabled={actionLoading}
+            {isManager && (
+              <div className="text-center">
+                {!bothReady && (
+                  <p className="text-muted mb-4 text-sm">
+                    One or both captains are not marked ready yet.
+                  </p>
+                )}
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  {canUndoResult && (
+                    <Button
+                      size="lg"
+                      variant="secondary"
+                      onClick={onUndoResult}
+                      disabled={actionLoading}
+                      className="px-8"
+                    >
+                      Fix Last Result
+                    </Button>
+                  )}
+                  <Button 
+                    size="lg" 
+                    onClick={onStart} 
+                    disabled={actionLoading} 
                     className="px-8"
                   >
-                    Fix Last Result
+                    {actionLoading ? "Starting..." : "Start Map Picking"}
                   </Button>
-                )}
-                <Button 
-                  size="lg" 
-                  onClick={onStart} 
-                  disabled={actionLoading} 
-                  className="px-8"
-                >
-                  {actionLoading ? "Starting..." : "Start Map Picking"}
-                </Button>
+                </div>
+                {!bothReady && <p className="text-xs text-muted mt-2">Manager override is active.</p>}
               </div>
-              {!bothReady && <p className="text-xs text-muted mt-2">Manager override is active.</p>}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
@@ -1534,6 +1592,7 @@ function BanPhase({
   const teamB = teams.find((t) => t.id === draftState.match.teamBId);
   const currentMap = draftState.allMaps?.find((m) => m.id === draftState.currentMapId);
   const currentGameNumber = (draftState.match.gameNumber || 0) + 1;
+  const toastPositionClass = isObsKeyAccess ? "absolute" : "fixed";
 
   const teamABans = teamA ? getBannedHeroesByTeam(teamA.id) : [];
   const teamBBans = teamB ? getBannedHeroesByTeam(teamB.id) : [];
@@ -1919,7 +1978,7 @@ function BanPhase({
     <div className="min-h-[85vh] flex flex-col">
       {/* Warning Toast */}
       {banWarning && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
+        <div className={clsx(toastPositionClass, "top-20 left-1/2 -translate-x-1/2 z-50 animate-fade-in")}>
           <div className="bg-warning text-warning-foreground px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />

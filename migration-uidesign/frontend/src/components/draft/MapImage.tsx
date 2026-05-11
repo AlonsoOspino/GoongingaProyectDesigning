@@ -141,21 +141,35 @@ export function MapImage({
  * across every phase transition (BAN -> PLAYING -> END_MAP -> ...)
  * with no flicker and no re-fetch.
  */
-export function MapBackground({ src }: { src: string | null | undefined }) {
+export function MapBackground({
+  src,
+  position = "viewport",
+}: {
+  src: string | null | undefined;
+  position?: "viewport" | "container";
+}) {
   const ready = useImageReady(src);
 
   if (!ready || !src) return null;
+
+  const positionClass = position === "container" ? "absolute" : "fixed";
 
   return (
     <>
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed inset-0 z-0 bg-cover bg-center bg-no-repeat transition-opacity duration-300"
+        className={clsx(
+          "pointer-events-none inset-0 z-0 bg-cover bg-center bg-no-repeat transition-opacity duration-300",
+          positionClass
+        )}
         style={{ backgroundImage: `url(${src})` }}
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed inset-0 z-0 bg-background/75"
+        className={clsx(
+          "pointer-events-none inset-0 z-0 bg-background/75",
+          positionClass
+        )}
       />
     </>
   );
