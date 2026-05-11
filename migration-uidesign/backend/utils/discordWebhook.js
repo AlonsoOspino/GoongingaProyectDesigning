@@ -1,8 +1,88 @@
 const DEFAULT_ROLE_MENTION = "@unknown-role";
 const SERVER_ICON = "https://m.media-amazon.com/images/I/416gr5R0fdL.jpg";
+const EST_TIMEZONE = "America/New_York";
 
-function unixTime(dateValue) {
-  return Math.floor(new Date(dateValue).getTime() / 1000);
+function getOrdinalSuffix(day) {
+  if (day % 100 >= 11 && day % 100 <= 13) return "th";
+  switch (day % 10) {
+    case 1:
+      return "st";
+    case 2:
+      return "nd";
+    case 3:
+      return "rd";
+    default:
+      return "th";
+  }
+}
+
+function getEstDateParts(dateValue) {
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return null;
+
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: EST_TIMEZONE,
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+  }).formatToParts(date);
+
+  const mapped = {};
+  for (const part of parts) {
+    if (part.type !== "literal") mapped[part.type] = part.value;
+  }
+
+  const year = Number(mapped.year);
+  const month = Number(mapped.month);
+  const day = Number(mapped.day);
+
+  if (!year || !month || !day) return null;
+  return { year, month, day };
+}
+
+function formatEstDateTime(dateValue) {
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return "TBD";
+
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: EST_TIMEZONE,
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).formatToParts(date);
+
+  const mapped = {};
+  for (const part of parts) {
+    if (part.type !== "literal") mapped[part.type] = part.value;
+  }
+
+  const day = Number(mapped.day);
+  if (!day || !mapped.month || !mapped.hour || !mapped.dayPeriod) return "TBD";
+
+  const dayOrdinal = `${day}${getOrdinalSuffix(day)}`;
+  const period = mapped.dayPeriod.toUpperCase();
+  const time = mapped.minute === "00"
+    ? `${mapped.hour} ${period}`
+    : `${mapped.hour}:${mapped.minute} ${period}`;
+
+  return `${dayOrdinal} ${mapped.month} ${time} EST`;
+}
+
+function formatStartsIn(dateValue) {
+  const startParts = getEstDateParts(dateValue);
+  const todayParts = getEstDateParts(new Date());
+
+  if (!startParts || !todayParts) return "TBD";
+
+  const startUtc = Date.UTC(startParts.year, startParts.month - 1, startParts.day);
+  const todayUtc = Date.UTC(todayParts.year, todayParts.month - 1, todayParts.day);
+  const diffDays = Math.round((startUtc - todayUtc) / 86400000);
+
+  if (diffDays <= 0) return "today";
+  if (diffDays === 1) return "1 day";
+  return `${diffDays} days`;
 }
 
 function roleMention(roleId) {
@@ -26,7 +106,8 @@ function buildMentions(teamARoleId, teamBRoleId) {
 }
 
 function buildEmbed({ teamAName, teamBName, startDate, matchBannerUrl, isReschedule = false }) {
-  const unix = unixTime(startDate);
+  const estStart = formatEstDateTime(startDate);
+  const startsIn = formatStartsIn(startDate);
 
   return {
     color: isReschedule ? 0xf59e0b : 0x5865f2,
@@ -38,8 +119,8 @@ function buildEmbed({ teamAName, teamBName, startDate, matchBannerUrl, isResched
     },
     title: `${teamAName} vs ${teamBName}`,
     description: isReschedule
-      ? `**Schedule Update**\n\n**New Time**\n<t:${unix}:F>\n\n**Starts**\n<t:${unix}:R>\n\nCaptains agreed to a new battle time.`
-      : `**A new series has been scheduled**\n\n**Start**\n<t:${unix}:F>\n\n**Countdown**\n<t:${unix}:R>\n\nDrafts await.`,
+      ? `**Schedule Update**\n\n**New Time (EST)**\n${estStart}\n\n**Starts In**\n${startsIn}\n\nCaptains agreed to a new battle time.`
+      : `**A new series has been scheduled**\n\n**Start (EST)**\n${estStart}\n\n**Starts In**\n${startsIn}\n\nDrafts await.`,
     fields: [
       { name: "Team One", value: `**${teamAName}**`, inline: true },
       { name: "Series", value: "Best of 5", inline: true },
