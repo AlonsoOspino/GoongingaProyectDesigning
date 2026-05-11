@@ -34,6 +34,11 @@ import { MapImage, MapBackground, useImageReady, preloadImages } from "@/compone
 
 const POLL_INTERVAL = 3000;
 const TURN_DURATION = 75;
+const KEY_CANVAS_WIDTH = 1920;
+const KEY_CANVAS_HEIGHT = 1080;
+const KEY_STAGE_WIDTH = Math.round(1280 * 1.1);
+const KEY_STAGE_HEIGHT = Math.round(720 * 1.1);
+const KEY_STAGE_SCALE = KEY_STAGE_WIDTH / KEY_CANVAS_WIDTH;
 
 type Phase = "STARTING" | "MAPPICKING" | "BAN" | "PLAYING" | "ENDMAP" | "FINISHED";
 type OverlayKind = "BAN" | "MAP_PICK" | "MAP_PICKING_COUNTDOWN" | "BAN_START_COUNTDOWN";
@@ -75,7 +80,7 @@ export default function DraftTablePage() {
   const [overlayQueue, setOverlayQueue] = useState<DraftOverlay[]>([]);
   const [activeOverlay, setActiveOverlay] = useState<DraftOverlay | null>(null);
   const [overlayCountdown, setOverlayCountdown] = useState<number | null>(null);
-  const [keyScale, setKeyScale] = useState(1);
+  const [keyFitScale, setKeyFitScale] = useState(1);
 
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -481,8 +486,11 @@ export default function DraftTablePage() {
     if (!isKeyAccess) return;
 
     const updateScale = () => {
-      const scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
-      setKeyScale(Number.isFinite(scale) && scale > 0 ? scale : 1);
+      const scale = Math.min(
+        window.innerWidth / KEY_CANVAS_WIDTH,
+        window.innerHeight / KEY_CANVAS_HEIGHT
+      );
+      setKeyFitScale(Number.isFinite(scale) && scale > 0 ? scale : 1);
     };
 
     updateScale();
@@ -492,8 +500,35 @@ export default function DraftTablePage() {
 
   const wrapKeyView = (content: ReactNode) =>
     isKeyAccess ? (
-      <div className="min-h-screen w-screen bg-black flex items-center justify-center">
-        {content}
+      <div className="min-h-screen w-screen bg-black flex items-start justify-center">
+        <div
+          className="relative"
+          style={{
+            width: `${KEY_CANVAS_WIDTH}px`,
+            height: `${KEY_CANVAS_HEIGHT}px`,
+            transform: `scale(${keyFitScale})`,
+            transformOrigin: "top center",
+          }}
+        >
+          <div
+            className="absolute top-0 left-1/2 -translate-x-1/2 overflow-hidden"
+            style={{
+              width: `${KEY_STAGE_WIDTH}px`,
+              height: `${KEY_STAGE_HEIGHT}px`,
+            }}
+          >
+            <div
+              style={{
+                width: `${KEY_CANVAS_WIDTH}px`,
+                height: `${KEY_CANVAS_HEIGHT}px`,
+                transform: `scale(${KEY_STAGE_SCALE})`,
+                transformOrigin: "top center",
+              }}
+            >
+              {content}
+            </div>
+          </div>
+        </div>
       </div>
     ) : (
       content
@@ -651,10 +686,8 @@ export default function DraftTablePage() {
         style={
           isKeyAccess
             ? {
-                width: "1920px",
-                height: "1080px",
-                transform: `scale(${keyScale})`,
-                transformOrigin: "center",
+                width: `${KEY_CANVAS_WIDTH}px`,
+                height: `${KEY_CANVAS_HEIGHT}px`,
               }
             : undefined
         }
@@ -675,10 +708,8 @@ export default function DraftTablePage() {
         style={
           isKeyAccess
             ? {
-                width: "1920px",
-                height: "1080px",
-                transform: `scale(${keyScale})`,
-                transformOrigin: "center",
+                width: `${KEY_CANVAS_WIDTH}px`,
+                height: `${KEY_CANVAS_HEIGHT}px`,
               }
             : undefined
         }
@@ -711,11 +742,9 @@ export default function DraftTablePage() {
       style={
         isKeyAccess
           ? {
-              width: "1920px",
-              height: "1080px",
+              width: `${KEY_CANVAS_WIDTH}px`,
+              height: `${KEY_CANVAS_HEIGHT}px`,
               overflow: "hidden",
-              transform: `scale(${keyScale})`,
-              transformOrigin: "center",
             }
           : undefined
       }
