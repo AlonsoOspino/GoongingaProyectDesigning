@@ -1109,7 +1109,15 @@ export default function DraftTablePage() {
         )}
 
         {/* Draft History - Only shown after PENDINGRESULT/FINISHED */}
-        {showDraftHistory && <DraftHistory draftState={draftState} teams={teams} getHeroById={getHeroById} />}
+        {showDraftHistory && (
+          <DraftHistory
+            draftState={draftState}
+            teams={teams}
+            getHeroById={getHeroById}
+            isManager={isManager}
+            isObsKeyAccess={isObsKeyAccess}
+          />
+        )}
       </div>
 
       {isManager && (
@@ -2770,10 +2778,14 @@ function DraftHistory({
   draftState,
   teams,
   getHeroById,
+  isManager,
+  isObsKeyAccess,
 }: {
   draftState: DraftState;
   teams: Team[];
   getHeroById: (heroId: number) => Hero | null;
+  isManager: boolean;
+  isObsKeyAccess: boolean;
 }) {
   const actions = draftState.actions || [];
   const maps = draftState.allMaps || [];
@@ -2805,13 +2817,53 @@ function DraftHistory({
     return acc;
   }, {} as Record<number, typeof actions>);
 
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const loopTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    // Only enable for manager + key view
+    if (!isManager || !isObsKeyAccess) return;
+    const el = scrollRef.current;
+    if (!el) return;
+
+    let stopped = false;
+
+    const scrollDownThenUp = () => {
+      if (!el || stopped) return;
+      const maxScroll = el.scrollHeight - el.clientHeight;
+      if (maxScroll <= 0) return;
+      // Scroll to bottom
+      el.scrollTo({ top: maxScroll, behavior: "smooth" });
+      // Wait for scroll + pause, then scroll back
+      loopTimerRef.current = window.setTimeout(() => {
+        if (!el || stopped) return;
+        el.scrollTo({ top: 0, behavior: "smooth" });
+        // After returning to top, schedule next cycle
+        loopTimerRef.current = window.setTimeout(() => {
+          if (!stopped) scrollDownThenUp();
+        }, 2000);
+      }, 3000);
+    };
+
+    // Give layout a moment to settle before starting
+    loopTimerRef.current = window.setTimeout(() => {
+      if (!stopped) scrollDownThenUp();
+    }, 500);
+
+    return () => {
+      stopped = true;
+      if (loopTimerRef.current) window.clearTimeout(loopTimerRef.current);
+    };
+  // Re-run when actions length changes so new content restarts the loop
+  }, [isManager, isObsKeyAccess, actions.length]);
+
   return (
     <Card variant="featured" className="mt-8">
       <CardHeader>
         <CardTitle className="text-lg">Draft History</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-6 max-h-80 overflow-y-auto">
+        <div ref={scrollRef} className="space-y-6 max-h-80 overflow-y-auto">
           {Object.entries(actionsByGame)
             .sort(([a], [b]) => Number(a) - Number(b))
             .map(([gameNum, gameActions]) => (
