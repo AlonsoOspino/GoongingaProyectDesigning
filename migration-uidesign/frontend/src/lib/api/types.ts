@@ -42,7 +42,8 @@ export interface Team {
   id: number;
   name: string;
   logo?: string | null;
-  bannerURL?: string | null;
+  bannerLeft?: string | null;
+  bannerRight?: string | null;
   roster?: string | null;
   discordRoleId?: string | null;
   victories: number;

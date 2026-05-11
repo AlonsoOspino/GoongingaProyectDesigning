@@ -270,8 +270,8 @@ export function WincardsOverlay({ matchId }: WincardsOverlayProps) {
               )}
             </div>
             <div className={styles.bannerFrame}>
-              {teamA?.bannerURL ? (
-                <img className={styles.teamBanner} src={teamAssetUrl(teamA.bannerURL)} alt="" />
+              {teamA?.bannerLeft ? (
+                <img className={styles.teamBanner} src={teamAssetUrl(teamA.bannerLeft)} alt="" />
               ) : (
                 <div className={styles.assetFallback}>BANNER</div>
               )}
@@ -286,8 +286,8 @@ export function WincardsOverlay({ matchId }: WincardsOverlayProps) {
 
           <div className={clsx(styles.teamSide, styles.teamSideRight)}>
             <div className={styles.bannerFrame}>
-              {teamB?.bannerURL ? (
-                <img className={styles.teamBanner} src={teamAssetUrl(teamB.bannerURL)} alt="" />
+              {teamB?.bannerRight ? (
+                <img className={styles.teamBanner} src={teamAssetUrl(teamB.bannerRight)} alt="" />
               ) : (
                 <div className={styles.assetFallback}>BANNER</div>
               )}

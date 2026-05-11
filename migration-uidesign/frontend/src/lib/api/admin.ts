@@ -124,7 +124,8 @@ export async function getMatchById(matchId: number) {
 export interface CreateTeamPayload {
   name: string;
   logo?: string;
-  bannerURL?: string;
+  bannerLeft?: string;
+  bannerRight?: string;
   roster?: string;
   discordRoleId?: string;
   tournamentId: number;

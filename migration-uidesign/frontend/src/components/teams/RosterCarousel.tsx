@@ -55,7 +55,7 @@ export function RosterCarousel({ items, shouldStretchSingleRoster = false }: Ros
         className={`group block w-full animate-cascade-in ${rosterIsStretched ? "flex-1" : ""}`}
       >
         <div className={`relative w-full overflow-hidden rounded-xl border border-border/60 bg-surface/40 transition-transform group-hover:-translate-y-1 ${rosterIsStretched ? "h-full" : ""}`}>
-          <div className={`relative w-full ${rosterIsStretched ? "h-full min-h-[25rem]" : "h-72 md:h-80 lg:h-96"}`}>
+          <div className={`relative w-full ${rosterIsStretched ? "h-full min-h-[28rem]" : "h-80 md:h-96 lg:h-[28rem]"}`}>
             <Image
               src={activeItem.rosterSrc}
               alt={`${activeItem.name} roster`}

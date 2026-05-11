@@ -54,7 +54,8 @@
 }
 
 .bannerFrame,
-.logoFrame {
+.logoFrame,
+.banStack {
   border: 1px solid #0d0d0d;
   background: #0d0d0d;
   overflow: hidden;
@@ -63,6 +64,39 @@
 .logoFrame {
   width: 70px;
   height: 64px;
+}
+
+.banStack {
+  width: 70px;
+  height: 64px;
+  position: relative;
+}
+
+.banSlot {
+  position: absolute;
+  left: 50%;
+  width: 40px;
+  height: 40px;
+  transform: translateX(-50%);
+  border: 1px solid #0d0d0d;
+  background: #171717;
+  display: grid;
+  place-items: center;
+}
+
+.banSlotTop {
+  top: -2px;
+}
+
+.banSlotBottom {
+  top: 26px;
+}
+
+.banImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .bannerFrame {
@@ -87,7 +121,8 @@
   object-fit: cover;
 }
 
-.fallback {
+.fallback,
+.banFallback {
   width: 100%;
   height: 100%;
   display: grid;
@@ -96,6 +131,12 @@
   letter-spacing: 0.06em;
   color: #f4d39e;
   background: #111111;
+}
+
+.banFallback {
+  font-size: 1.1rem;
+  color: #c8c8c8;
+  background: #2a2a2a;
 }
 
 .scoreValue {

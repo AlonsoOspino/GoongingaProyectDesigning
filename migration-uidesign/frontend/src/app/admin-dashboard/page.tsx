@@ -969,7 +969,13 @@ function TeamsSection({ token }: { token: string }) {
   const [showMembersModal, setShowMembersModal] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
-  const [formData, setFormData] = useState<Partial<CreateTeamPayload>>({ name: "", logo: "", bannerURL: "", roster: "" });
+  const [formData, setFormData] = useState<Partial<CreateTeamPayload>>({
+    name: "",
+    logo: "",
+    bannerLeft: "",
+    bannerRight: "",
+    roster: "",
+  });
   const [bulkCount, setBulkCount] = useState<number>(4);
   const [bulkPrefix, setBulkPrefix] = useState<string>("Team");
   const [memberSearch, setMemberSearch] = useState("");
@@ -1053,7 +1059,7 @@ function TeamsSection({ token }: { token: string }) {
                     <TableCell>
                       <div className="flex gap-2">
                         <Button variant="secondary" size="sm" onClick={() => { setSelectedTeam(team); setMemberSearch(""); setShowMembersModal(true); }}>Members</Button>
-                        <Button variant="ghost" size="sm" onClick={() => { setSelectedTeam(team); setFormData({ name: team.name, logo: team.logo || "", bannerURL: team.bannerURL || "", roster: team.roster || "", discordRoleId: (team as any).discordRoleId || "" }); setShowEditModal(true); }}>Edit</Button>
+                        <Button variant="ghost" size="sm" onClick={() => { setSelectedTeam(team); setFormData({ name: team.name, logo: team.logo || "", bannerLeft: team.bannerLeft || "", bannerRight: team.bannerRight || "", roster: team.roster || "", discordRoleId: (team as any).discordRoleId || "" }); setShowEditModal(true); }}>Edit</Button>
                         <Button variant="danger" size="sm" onClick={async () => {
                           if (!confirm("Delete team?")) return;
                           try { await adminDeleteTeam(token, team.id); showNotif("success", "Team deleted"); loadData(); }
@@ -1082,11 +1088,19 @@ function TeamsSection({ token }: { token: string }) {
               previewAlt="Team logo"
             />
             <ImageUploadField
-              label="Team Banner"
+              label="Team Banner (Left)"
               type="banner"
-              value={formData.bannerURL || ""}
-              onChange={(bannerURL) => setFormData({ ...formData, bannerURL })}
-              previewAlt="Team banner"
+              value={formData.bannerLeft || ""}
+              onChange={(bannerLeft) => setFormData({ ...formData, bannerLeft })}
+              previewAlt="Team banner left"
+              previewClassName="h-20 w-32"
+            />
+            <ImageUploadField
+              label="Team Banner (Right)"
+              type="banner"
+              value={formData.bannerRight || ""}
+              onChange={(bannerRight) => setFormData({ ...formData, bannerRight })}
+              previewAlt="Team banner right"
               previewClassName="h-20 w-32"
             />
             <ImageUploadField
@@ -1123,11 +1137,19 @@ function TeamsSection({ token }: { token: string }) {
               previewAlt="Team logo"
             />
             <ImageUploadField
-              label="Team Banner"
+              label="Team Banner (Left)"
               type="banner"
-              value={formData.bannerURL || ""}
-              onChange={(bannerURL) => setFormData({ ...formData, bannerURL })}
-              previewAlt="Team banner"
+              value={formData.bannerLeft || ""}
+              onChange={(bannerLeft) => setFormData({ ...formData, bannerLeft })}
+              previewAlt="Team banner left"
+              previewClassName="h-20 w-32"
+            />
+            <ImageUploadField
+              label="Team Banner (Right)"
+              type="banner"
+              value={formData.bannerRight || ""}
+              onChange={(bannerRight) => setFormData({ ...formData, bannerRight })}
+              previewAlt="Team banner right"
               previewClassName="h-20 w-32"
             />
             <ImageUploadField
@@ -1148,14 +1170,16 @@ function TeamsSection({ token }: { token: string }) {
               const payload: any = {
                 name: formData.name,
                 logo: formData.logo,
-                bannerURL: formData.bannerURL,
+                bannerLeft: formData.bannerLeft,
+                bannerRight: formData.bannerRight,
                 roster: formData.roster,
                 discordRoleId: (formData as any).discordRoleId === "" ? null : (formData as any).discordRoleId,
               };
               await adminUpdateTeam(token, selectedTeam.id, payload);
               await Promise.allSettled([
                 deleteReplacedBlobImage(selectedTeam.logo, payload.logo),
-                deleteReplacedBlobImage(selectedTeam.bannerURL, payload.bannerURL),
+                deleteReplacedBlobImage(selectedTeam.bannerLeft, payload.bannerLeft),
+                deleteReplacedBlobImage(selectedTeam.bannerRight, payload.bannerRight),
                 deleteReplacedBlobImage(selectedTeam.roster, payload.roster),
               ]);
               setShowEditModal(false);

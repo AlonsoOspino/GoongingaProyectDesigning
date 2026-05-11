@@ -44,7 +44,8 @@ model Team {
   tournamentId  Int
   discordRoleId String?
   defeats       Int           @default(0)
-  bannerURL     String?
+  bannerLeft    String?
+  bannerRight   String?
   draftActions  DraftAction[]
   matchesA      Match[]       @relation("TeamA")
   matchesB      Match[]       @relation("TeamB")
