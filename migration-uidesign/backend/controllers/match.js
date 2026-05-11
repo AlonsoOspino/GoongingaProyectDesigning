@@ -60,6 +60,8 @@ const notifyDiscordScheduleChange = async ({
     const payload = {
       teamAName: teamA?.name || "Team A",
       teamBName: teamB?.name || "Team B",
+      teamALogo: teamA?.logo || null,
+      teamBLogo: teamB?.logo || null,
       teamAId: updatedMatch.teamAId,
       teamBId: updatedMatch.teamBId,
       teamADiscordRoleId: teamA?.discordRoleId || undefined,

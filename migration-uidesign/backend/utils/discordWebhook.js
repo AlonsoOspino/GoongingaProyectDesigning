@@ -1,3 +1,4 @@
+const { createHash } = require("crypto");
 const DEFAULT_ROLE_MENTION = "@unknown-role";
 const SERVER_ICON = "https://m.media-amazon.com/images/I/416gr5R0fdL.jpg";
 const EST_TIMEZONE = "America/New_York";
@@ -132,8 +133,22 @@ function buildEmbed({ teamAName, teamBName, startDate, matchBannerUrl, isResched
   };
 }
 
-function buildVsImageUrl({ appUrl, teamAId, teamBId, startDate }) {
-  const cacheKey = startDate ? new Date(startDate).getTime() : Date.now();
+function buildImageCacheKey({ startDate, teamAName, teamBName, teamALogo, teamBLogo }) {
+  const hash = createHash("sha1");
+  hash.update(String(startDate || ""));
+  hash.update("|");
+  hash.update(String(teamAName || ""));
+  hash.update("|");
+  hash.update(String(teamBName || ""));
+  hash.update("|");
+  hash.update(String(teamALogo || ""));
+  hash.update("|");
+  hash.update(String(teamBLogo || ""));
+  return hash.digest("hex").slice(0, 12);
+}
+
+function buildVsImageUrl({ appUrl, teamAId, teamBId, startDate, teamAName, teamBName, teamALogo, teamBLogo }) {
+  const cacheKey = buildImageCacheKey({ startDate, teamAName, teamBName, teamALogo, teamBLogo });
   return `${appUrl}/match/${teamAId}/${teamBId}/vs-image?v=${cacheKey}`;
 }
 
@@ -143,6 +158,8 @@ async function sendDiscordMatchScheduled({
   teamAId,
   teamBId,
   startDate,
+  teamALogo,
+  teamBLogo,
   teamADiscordRoleId,
   teamBDiscordRoleId,
   matchBannerUrl,
@@ -152,7 +169,16 @@ async function sendDiscordMatchScheduled({
   if (!webhookUrl) return null;
 
   const mentions = buildMentions(teamADiscordRoleId, teamBDiscordRoleId);
-  const vsImageUrl = buildVsImageUrl({ appUrl, teamAId, teamBId, startDate });
+  const vsImageUrl = buildVsImageUrl({
+    appUrl,
+    teamAId,
+    teamBId,
+    startDate,
+    teamAName,
+    teamBName,
+    teamALogo,
+    teamBLogo,
+  });
 
   const payload = {
     content: mentions
@@ -193,6 +219,8 @@ async function editDiscordMatchScheduled({
   teamAId,
   teamBId,
   startDate,
+  teamALogo,
+  teamBLogo,
   teamADiscordRoleId,
   teamBDiscordRoleId,
   matchBannerUrl,
@@ -203,7 +231,16 @@ async function editDiscordMatchScheduled({
   if (!webhookUrl || !messageId) return null;
 
   const mentions = buildMentions(teamADiscordRoleId, teamBDiscordRoleId);
-  const vsImageUrl = buildVsImageUrl({ appUrl, teamAId, teamBId, startDate });
+  const vsImageUrl = buildVsImageUrl({
+    appUrl,
+    teamAId,
+    teamBId,
+    startDate,
+    teamAName,
+    teamBName,
+    teamALogo,
+    teamBLogo,
+  });
 
   const payload = {
     content: mentions
