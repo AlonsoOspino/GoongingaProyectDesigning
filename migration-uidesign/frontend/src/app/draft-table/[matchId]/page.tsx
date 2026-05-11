@@ -36,6 +36,19 @@ const POLL_INTERVAL = 3000;
 const TURN_DURATION = 75;
 
 type Phase = "STARTING" | "MAPPICKING" | "BAN" | "PLAYING" | "ENDMAP" | "FINISHED";
+type OverlayKind = "BAN" | "MAP_PICK" | "MAP_PICKING_COUNTDOWN" | "BAN_START_COUNTDOWN";
+
+type DraftOverlay = {
+  id: string;
+  kind: OverlayKind;
+  title: string;
+  subtitle?: string;
+  team?: Team;
+  hero?: Hero | null;
+  map?: GameMap | null;
+  durationMs: number;
+  countdownFrom?: number;
+};
 
 export default function DraftTablePage() {
   const params = useParams();
@@ -59,9 +72,19 @@ export default function DraftTablePage() {
   const [heroCacheById, setHeroCacheById] = useState<Record<number, Hero>>({});
   const [pauseActionPending, setPauseActionPending] = useState(false);
   const [isNavHidden, setIsNavHidden] = useState(false);
+  const [overlayQueue, setOverlayQueue] = useState<DraftOverlay[]>([]);
+  const [activeOverlay, setActiveOverlay] = useState<DraftOverlay | null>(null);
+  const [overlayCountdown, setOverlayCountdown] = useState<number | null>(null);
 
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const overlayTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const overlayCountdownRef = useRef<NodeJS.Timeout | null>(null);
+  const seenActionIdsRef = useRef<Set<number>>(new Set());
+  const hasInitializedActionsRef = useRef(false);
+  const hasInitializedPhaseRef = useRef(false);
+  const prevPhaseRef = useRef<Phase | null>(null);
+  const overlayIdRef = useRef(0);
 
   const isManager = user?.role === "MANAGER";
   const isCaptain = user?.role === "CAPTAIN";
@@ -71,6 +94,7 @@ export default function DraftTablePage() {
   const isMyTurn = draftState?.currentTurnTeamId === myTeamId;
   const currentPhase = draftState?.phase as Phase;
   const isMapSelectionLocked = currentPhase === "MAPPICKING" && Boolean(draftState?.currentMapId);
+  const isOverlayActive = Boolean(activeOverlay);
 
   const teamA = teams.find((t) => t.id === draftState?.match?.teamAId);
   const teamB = teams.find((t) => t.id === draftState?.match?.teamBId);
@@ -150,7 +174,7 @@ export default function DraftTablePage() {
     // pick/ban is being submitted to the server. Once the action is
     // confirmed and the next turn arrives, the server's fresh
     // `remainingSeconds` re-runs this effect and the timer resumes.
-    if (isMatchPaused || actionLoading) {
+    if (isMatchPaused || actionLoading || isOverlayActive) {
       return;
     }
 
@@ -161,7 +185,7 @@ export default function DraftTablePage() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [draftState?.remainingSeconds, currentPhase, isMatchPaused, actionLoading, isMapSelectionLocked]);
+  }, [draftState?.remainingSeconds, currentPhase, isMatchPaused, actionLoading, isMapSelectionLocked, isOverlayActive]);
 
   useEffect(() => {
     const heroes = draftState?.heroes || [];
@@ -431,6 +455,139 @@ export default function DraftTablePage() {
     [draftState?.heroes, heroCacheById]
   );
 
+  const enqueueOverlay = useCallback((overlay: DraftOverlay) => {
+    setOverlayQueue((prev) => [...prev, overlay]);
+  }, []);
+
+  const getTeamById = useCallback(
+    (teamId?: number | null) => teams.find((team) => team.id === teamId),
+    [teams]
+  );
+
+  const getTeamToneClass = useCallback(
+    (teamId?: number | null) => {
+      if (!teamId) return "text-foreground";
+      if (teamId === teamA?.id) return "text-[color:var(--color-team-a)]";
+      if (teamId === teamB?.id) return "text-[color:var(--color-team-b)]";
+      return "text-foreground";
+    },
+    [teamA?.id, teamB?.id]
+  );
+
+  useEffect(() => {
+    if (activeOverlay || overlayQueue.length === 0) return;
+    setActiveOverlay(overlayQueue[0]);
+    setOverlayQueue((prev) => prev.slice(1));
+  }, [activeOverlay, overlayQueue]);
+
+  useEffect(() => {
+    if (!activeOverlay) {
+      setOverlayCountdown(null);
+      if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
+      if (overlayCountdownRef.current) clearInterval(overlayCountdownRef.current);
+      return;
+    }
+
+    if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
+    if (overlayCountdownRef.current) clearInterval(overlayCountdownRef.current);
+
+    overlayTimerRef.current = setTimeout(() => {
+      setActiveOverlay(null);
+    }, activeOverlay.durationMs);
+
+    if (activeOverlay.countdownFrom) {
+      setOverlayCountdown(activeOverlay.countdownFrom);
+      overlayCountdownRef.current = setInterval(() => {
+        setOverlayCountdown((prev) => (prev && prev > 1 ? prev - 1 : 1));
+      }, 1000);
+    } else {
+      setOverlayCountdown(null);
+    }
+  }, [activeOverlay]);
+
+  useEffect(() => {
+    if (!draftState?.actions) return;
+
+    if (!hasInitializedActionsRef.current) {
+      draftState.actions.forEach((action) => seenActionIdsRef.current.add(action.id));
+      hasInitializedActionsRef.current = true;
+      return;
+    }
+
+    const newActions = draftState.actions.filter(
+      (action) => !seenActionIdsRef.current.has(action.id)
+    );
+
+    if (!newActions.length) return;
+
+    newActions.forEach((action) => {
+      seenActionIdsRef.current.add(action.id);
+      if (action.gameNumber !== currentGameNumber) return;
+
+      if (action.action === "BAN") {
+        const team = getTeamById(action.teamId);
+        const hero = action.value ? getHeroById(action.value) : null;
+        enqueueOverlay({
+          id: `ban-${action.id}-${overlayIdRef.current++}`,
+          kind: "BAN",
+          title: team?.name ? `${team.name} has banned` : "A team has banned",
+          subtitle: hero?.name ?? (action.value ? "Unknown Hero" : "No Ban"),
+          team,
+          hero,
+          durationMs: 3000,
+        });
+      }
+
+      if (action.action === "PICK") {
+        const team = getTeamById(action.teamId);
+        const map = draftState.allMaps?.find((entry) => entry.id === action.value) || null;
+        enqueueOverlay({
+          id: `pick-${action.id}-${overlayIdRef.current++}`,
+          kind: "MAP_PICK",
+          title: team?.name ? `${team.name} picked` : "Map picked",
+          subtitle: map?.description ?? (action.value ? "Unknown Map" : "Map"),
+          team,
+          map,
+          durationMs: 3000,
+        });
+      }
+    });
+  }, [draftState?.actions, currentGameNumber, draftState?.allMaps, enqueueOverlay, getHeroById, getTeamById]);
+
+  useEffect(() => {
+    if (!currentPhase) return;
+
+    if (!hasInitializedPhaseRef.current) {
+      prevPhaseRef.current = currentPhase;
+      hasInitializedPhaseRef.current = true;
+      return;
+    }
+
+    const prevPhase = prevPhaseRef.current;
+
+    if (currentPhase === "MAPPICKING" && prevPhase !== "MAPPICKING") {
+      enqueueOverlay({
+        id: `map-start-${overlayIdRef.current++}`,
+        kind: "MAP_PICKING_COUNTDOWN",
+        title: "MAP PICKING STARTS IN",
+        durationMs: 5000,
+        countdownFrom: 5,
+      });
+    }
+
+    if (currentPhase === "BAN" && prevPhase !== "BAN") {
+      enqueueOverlay({
+        id: `ban-start-${overlayIdRef.current++}`,
+        kind: "BAN_START_COUNTDOWN",
+        title: "BAN DRAFT STARTS IN",
+        durationMs: 5000,
+        countdownFrom: 5,
+      });
+    }
+
+    prevPhaseRef.current = currentPhase;
+  }, [currentPhase, enqueueOverlay]);
+
   // Use the currently-selected map as the page backdrop for captains and
   // managers. We compute the URL here (before any early return) so the
   // useImageReady hook below always runs in the same order on every render.
@@ -449,6 +606,13 @@ export default function DraftTablePage() {
       .filter((u): u is string => !!u);
     if (urls.length) preloadImages(urls);
   }, [draftState?.allMaps]);
+
+  useEffect(() => {
+    return () => {
+      if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
+      if (overlayCountdownRef.current) clearInterval(overlayCountdownRef.current);
+    };
+  }, []);
 
   if (!isHydrated || loading) {
     return (
@@ -513,6 +677,104 @@ export default function DraftTablePage() {
               <p className="text-xs text-muted/70">
                 Preparing {backgroundMap.description}
               </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeOverlay && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-[min(620px,92vw)] rounded-2xl border border-border/60 bg-gradient-to-br from-surface/95 via-surface-elevated/95 to-surface/90 p-6 shadow-2xl shadow-black/40 ring-1 ring-white/10 animate-fade-in">
+            {activeOverlay.kind === "MAP_PICKING_COUNTDOWN" || activeOverlay.kind === "BAN_START_COUNTDOWN" ? (
+              <div className="text-center">
+                <p className="text-[11px] uppercase tracking-[0.35em] text-muted">Get Ready</p>
+                <h2 className="text-3xl md:text-4xl font-black text-foreground mt-2">
+                  {activeOverlay.title}
+                </h2>
+                <div className="mt-5 text-6xl md:text-7xl font-black text-primary">
+                  {overlayCountdown ?? activeOverlay.countdownFrom ?? 5}
+                </div>
+                <p className="text-xs text-muted mt-4">Timer resumes when the alert ends.</p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-5 text-center">
+                <div className="flex items-center justify-center gap-3">
+                  <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-border bg-surface-elevated">
+                    {activeOverlay.team?.logo ? (
+                      <img
+                        src={activeOverlay.team.logo}
+                        alt={activeOverlay.team.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-sm font-bold text-muted">
+                        {activeOverlay.team?.name?.charAt(0) || "T"}
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-left">
+                    <p className="text-[11px] uppercase tracking-widest text-muted">
+                      {activeOverlay.kind === "BAN" ? "Ban Alert" : "Map Pick"}
+                    </p>
+                    <p
+                      className={clsx(
+                        "text-2xl md:text-3xl font-black",
+                        getTeamToneClass(activeOverlay.team?.id)
+                      )}
+                    >
+                      {activeOverlay.title}
+                    </p>
+                  </div>
+                </div>
+
+                {activeOverlay.kind === "BAN" && (
+                  <div className="flex items-center gap-4">
+                    <div className="w-24 h-24 rounded-xl overflow-hidden border-2 border-danger/60 bg-danger/10">
+                      {activeOverlay.hero?.imgPath ? (
+                        <img
+                          src={resolveHeroImageUrl(activeOverlay.hero.imgPath)}
+                          alt={activeOverlay.hero.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-2xl font-black text-danger">
+                          {activeOverlay.hero?.name?.charAt(0) || "?"}
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-left">
+                      <p className="text-[11px] uppercase tracking-widest text-muted">Hero</p>
+                      <p className="text-2xl md:text-3xl font-black text-danger">
+                        {activeOverlay.subtitle}
+                      </p>
+                      {activeOverlay.hero?.role && (
+                        <Badge variant="danger" className="mt-2">
+                          {activeOverlay.hero.role}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {activeOverlay.kind === "MAP_PICK" && (
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-full max-w-md rounded-xl overflow-hidden border-2 border-primary/50">
+                      <MapImage
+                        src={activeOverlay.map?.imgPath ? resolveMapImageUrl(activeOverlay.map.imgPath) : null}
+                        alt={activeOverlay.subtitle ?? "Map"}
+                        fallbackInitial={activeOverlay.map?.description?.charAt(0) || "M"}
+                        className="w-full aspect-video"
+                      />
+                    </div>
+                    <p className="text-2xl md:text-3xl font-black text-foreground">
+                      {activeOverlay.subtitle}
+                    </p>
+                    {activeOverlay.map?.type && (
+                      <Badge variant="primary">{activeOverlay.map.type}</Badge>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

@@ -3,6 +3,8 @@ const prisma = require("../config/prisma");
 const mapOrder = ["CONTROL", "HYBRID", "PAYLOAD", "PUSH", "FLASHPOINT"];
 // Timer is 75 seconds per turn
 const TURN_TIMEOUT_MS = 75 * 1000;
+const ALERT_HOLD_MS = 3 * 1000;
+const PHASE_START_HOLD_MS = 5 * 1000;
 
 const normalizeGameNumber = (value) => {
   const parsed = Number(value);
@@ -274,6 +276,7 @@ const applyTimeoutIfNeeded = async (draft) => {
           pickedMaps: [...freshPickedMapIds, randomMap.id],
           currentMapId: randomMap.id,
           currentTurnTeamId: originalTurnTeamId,
+          phaseStartedAt: new Date(Date.now() + ALERT_HOLD_MS),
         },
         include: {
           match: true,
@@ -334,6 +337,7 @@ const applyTimeoutIfNeeded = async (draft) => {
           totalBansAfter >= 4
             ? originalTurnTeamId
             : getOtherTeamId(fresh.match, originalTurnTeamId),
+        phaseStartedAt: new Date(Date.now() + ALERT_HOLD_MS),
       },
       include: {
         match: true,
@@ -452,7 +456,7 @@ const startMapPicking = async (draftId, user) => {
         phase: "MAPPICKING",
         currentTurnTeamId: turnStarter,
         currentMapId: null,
-        phaseStartedAt: new Date(),
+        phaseStartedAt: new Date(Date.now() + PHASE_START_HOLD_MS),
       },
       include: {
         actions: { orderBy: { order: "asc" } },
@@ -531,7 +535,7 @@ const pickMap = async (draftId, payload, user) => {
         pickedMaps: [...pickedMapIds, mapId],
         currentMapId: mapId,
         currentTurnTeamId: actingTeamId,
-        phaseStartedAt: new Date(),
+        phaseStartedAt: new Date(Date.now() + ALERT_HOLD_MS),
       },
       include: {
         actions: { orderBy: { order: "asc" } },
@@ -565,7 +569,7 @@ const startBan = async (draftId, user) => {
     data: {
       phase: "BAN",
       currentTurnTeamId: firstBanTeam,
-      phaseStartedAt: new Date(),
+      phaseStartedAt: new Date(Date.now() + PHASE_START_HOLD_MS),
     },
     include: {
       actions: { orderBy: { order: "asc" } },
@@ -691,7 +695,7 @@ const banHero = async (draftId, payload, user) => {
         bannedHeroes: heroId ? [...bannedHeroes, heroId] : bannedHeroes,
         currentTurnTeamId: getOtherTeamId(freshDraft.match, actingTeamId),
         phase: totalBansAfter >= 4 ? "PLAYING" : "BAN",
-        phaseStartedAt: new Date(),
+        phaseStartedAt: new Date(Date.now() + ALERT_HOLD_MS),
       },
       include: {
         actions: { orderBy: { order: "asc" } },
