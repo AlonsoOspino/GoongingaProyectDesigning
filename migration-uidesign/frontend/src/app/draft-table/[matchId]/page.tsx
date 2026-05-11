@@ -540,7 +540,12 @@ export default function DraftTablePage() {
 
       if (action.action === "PICK") {
         const team = getTeamById(action.teamId);
-        const map = draftState.allMaps?.find((entry) => entry.id === action.value) || null;
+        const pickedMapId = Number(action.value);
+        const map =
+          draftState.allMaps?.find((entry) => entry.id === pickedMapId) ||
+          draftState.availableMaps?.find((entry) => entry.id === pickedMapId) ||
+          draftState.allMaps?.find((entry) => entry.id === draftState.currentMapId) ||
+          null;
         enqueueOverlay({
           id: `pick-${action.id}-${overlayIdRef.current++}`,
           kind: "MAP_PICK",
@@ -838,6 +843,7 @@ export default function DraftTablePage() {
           <StartingPhase
             isManager={isManager}
             isCaptain={isCaptain}
+            isObsKeyAccess={isObsKeyAccess}
             teamA={teamA}
             teamB={teamB}
             match={draftState.match}
@@ -1115,6 +1121,7 @@ export default function DraftTablePage() {
 function StartingPhase({
   isManager,
   isCaptain,
+  isObsKeyAccess,
   teamA,
   teamB,
   match,
@@ -1126,6 +1133,7 @@ function StartingPhase({
 }: {
   isManager: boolean;
   isCaptain: boolean;
+  isObsKeyAccess: boolean;
   teamA?: Team;
   teamB?: Team;
   match: DraftState["match"];
@@ -1138,10 +1146,13 @@ function StartingPhase({
   const bothReady = match.teamAready === 1 && match.teamBready === 1;
   const canUndoResult = isManager && match.status !== "FINISHED" && (match.mapResults?.length || 0) > 0;
 
+  const cardSizeClass = isObsKeyAccess ? "max-w-4xl" : "max-w-2xl";
+  const cardPaddingClass = isObsKeyAccess ? "p-12" : "p-8";
+
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh]">
-      <Card variant="featured" className="w-full max-w-2xl">
-        <CardContent className="p-8">
+      <Card variant="featured" className={clsx("w-full", cardSizeClass)}>
+        <CardContent className={cardPaddingClass}>
           <h2 className="text-2xl font-bold text-center text-foreground mb-2">
             {match.gameNumber === 0 ? "Waiting to Start" : `Ready for Game ${match.gameNumber + 1}?`}
           </h2>
@@ -2510,8 +2521,9 @@ function DraftHistory({
       return "Skipped";
     }
     if (action.action === "PICK" && action.value) {
-      const map = maps.find((m) => m.id === action.value);
-      return map ? `Picked ${map.description}` : `Picked Map #${action.value}`;
+      const pickedMapId = Number(action.value);
+      const map = maps.find((m) => m.id === pickedMapId);
+      return map ? `Picked ${map.description}` : `Picked Map #${pickedMapId}`;
     }
     if (action.action === "BAN" && action.value) {
       const hero = getHeroById(action.value);
