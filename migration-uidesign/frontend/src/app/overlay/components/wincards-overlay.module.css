@@ -45,27 +45,15 @@
 
 .teamSide {
   min-width: 0;
-  display: grid;
-  grid-template-columns: 92px minmax(0, 1fr);
-  gap: 10px;
+  display: flex;
   align-items: center;
 }
 
-.teamSideRight {
-  grid-template-columns: minmax(0, 1fr) 92px;
-}
-
-.logoFrame,
 .bannerFrame {
   border: 2px solid #0b0b0b;
   background: rgba(24, 24, 24, 0.78);
   box-shadow: inset 0 0 0 1px rgba(224, 176, 106, 0.42);
   overflow: hidden;
-}
-
-.logoFrame {
-  width: 92px;
-  height: 86px;
 }
 
 .bannerFrame {
@@ -75,15 +63,10 @@
   aspect-ratio: 1197 / 154;
 }
 
-.teamLogo,
 .teamBanner {
   width: 100%;
   height: 100%;
   display: block;
-}
-
-.teamLogo {
-  object-fit: cover;
 }
 
 .teamBanner {
