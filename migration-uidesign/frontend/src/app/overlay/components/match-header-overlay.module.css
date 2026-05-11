@@ -40,11 +40,11 @@
 }
 
 .lane {
-  grid-template-columns: minmax(0, 1fr) 70px 48px;
+  grid-template-columns: minmax(0, 1fr) 56px;
 }
 
 .laneRight {
-  grid-template-columns: 48px 70px minmax(0, 1fr);
+  grid-template-columns: 56px minmax(0, 1fr);
 }
 
 .centerBlank {
@@ -67,29 +67,27 @@
 }
 
 .banStack {
-  width: 70px;
+  width: auto;
   height: 64px;
   position: relative;
+  display: flex;
+  align-items: center;
 }
 
 .banSlot {
-  position: absolute;
-  left: 50%;
-  width: 40px;
-  height: 40px;
-  transform: translateX(-50%);
+  position: relative;
+  left: auto;
+  width: 48px;
+  height: 64px;
   border: 1px solid #0d0d0d;
   background: #171717;
   display: grid;
   place-items: center;
+  flex: 0 0 auto;
 }
 
-.banSlotTop {
-  top: -2px;
-}
-
-.banSlotBottom {
-  top: 26px;
+.banSlot + .banSlot {
+  margin-left: -8px;
 }
 
 .banImage {
@@ -100,10 +98,26 @@
 }
 
 .bannerFrame {
+  position: relative;
   width: 100%;
   height: auto;
   max-height: 64px;
   aspect-ratio: 1197 / 154;
+}
+
+.banStackOverlay {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+}
+
+.banStackLeft {
+  left: -2px;
+}
+
+.banStackRight {
+  right: -2px;
 }
 
 .logoImage,

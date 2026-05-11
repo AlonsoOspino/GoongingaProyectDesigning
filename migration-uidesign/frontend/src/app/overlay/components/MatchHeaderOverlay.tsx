@@ -157,27 +157,27 @@ export function MatchHeaderOverlay({ matchId }: MatchHeaderOverlayProps) {
               ) : (
                 <div className={styles.fallback}>BANNER</div>
               )}
-            </div>
-            <div className={styles.banStack}>
-              {teamABans.map((heroId, index) => {
-                const hero = heroId ? heroesById.get(heroId) : null;
-                return (
-                  <div
-                    key={`team-a-ban-${index}`}
-                    className={`${styles.banSlot} ${index === 0 ? styles.banSlotTop : styles.banSlotBottom}`}
-                  >
-                    {hero?.imgPath ? (
-                      <img
-                        className={styles.banImage}
-                        src={resolveHeroImageUrl(hero.imgPath)}
-                        alt={hero.name || ""}
-                      />
-                    ) : (
-                      <div className={styles.banFallback}>-</div>
-                    )}
-                  </div>
-                );
-              })}
+              <div className={`${styles.banStack} ${styles.banStackOverlay} ${styles.banStackRight}`}>
+                {teamABans.map((heroId, index) => {
+                  const hero = heroId ? heroesById.get(heroId) : null;
+                  return (
+                    <div
+                      key={`team-a-ban-${index}`}
+                      className={`${styles.banSlot} ${index === 0 ? styles.banSlotTop : styles.banSlotBottom}`}
+                    >
+                      {hero?.imgPath ? (
+                        <img
+                          className={styles.banImage}
+                          src={resolveHeroImageUrl(hero.imgPath)}
+                          alt={hero.name || ""}
+                        />
+                      ) : (
+                        <div className={styles.banFallback}>-</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
             <div className={styles.scoreValue}>{match.mapWinsTeamA}</div>
           </section>
@@ -186,27 +186,6 @@ export function MatchHeaderOverlay({ matchId }: MatchHeaderOverlayProps) {
 
           <section className={styles.laneRight}>
             <div className={styles.scoreValue}>{match.mapWinsTeamB}</div>
-            <div className={styles.banStack}>
-              {teamBBans.map((heroId, index) => {
-                const hero = heroId ? heroesById.get(heroId) : null;
-                return (
-                  <div
-                    key={`team-b-ban-${index}`}
-                    className={`${styles.banSlot} ${index === 0 ? styles.banSlotTop : styles.banSlotBottom}`}
-                  >
-                    {hero?.imgPath ? (
-                      <img
-                        className={styles.banImage}
-                        src={resolveHeroImageUrl(hero.imgPath)}
-                        alt={hero.name || ""}
-                      />
-                    ) : (
-                      <div className={styles.banFallback}>-</div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
             <div className={styles.bannerFrame}>
               {teamB?.bannerRight ? (
                 <img
@@ -217,6 +196,27 @@ export function MatchHeaderOverlay({ matchId }: MatchHeaderOverlayProps) {
               ) : (
                 <div className={styles.fallback}>BANNER</div>
               )}
+              <div className={`${styles.banStack} ${styles.banStackOverlay} ${styles.banStackLeft}`}>
+                {teamBBans.map((heroId, index) => {
+                  const hero = heroId ? heroesById.get(heroId) : null;
+                  return (
+                    <div
+                      key={`team-b-ban-${index}`}
+                      className={`${styles.banSlot} ${index === 0 ? styles.banSlotTop : styles.banSlotBottom}`}
+                    >
+                      {hero?.imgPath ? (
+                        <img
+                          className={styles.banImage}
+                          src={resolveHeroImageUrl(hero.imgPath)}
+                          alt={hero.name || ""}
+                        />
+                      ) : (
+                        <div className={styles.banFallback}>-</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </section>
         </div>

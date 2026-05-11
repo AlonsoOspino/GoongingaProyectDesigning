@@ -24,13 +24,11 @@ const assertPositiveInt = (value, fieldName) => {
 
 const getAllowedMapTypes = (gameNumber) => {
   const safeGameNumber = normalizeGameNumber(gameNumber);
-  const requiredType = mapOrder[(safeGameNumber - 1) % 5];
-
-  if (safeGameNumber === 5) {
-    return ["CONTROL"];
+  if (safeGameNumber <= 5) {
+    return [mapOrder[safeGameNumber - 1] || "CONTROL"];
   }
 
-  return requiredType ? [requiredType] : ["CONTROL"];
+  return [mapOrder[(safeGameNumber - 5) % 5] || "CONTROL"];
 };
 
 const getRoundKey = (gameNumber) => {

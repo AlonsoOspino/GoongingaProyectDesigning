@@ -718,6 +718,54 @@ export default function DraftTablePage() {
   const waitingForBanBackground =
     currentPhase === "BAN" && !!backgroundMapUrl && !backgroundReady;
 
+  const headerTeamABans = teamA ? getBannedHeroesByTeam(teamA.id).slice(0, 2) : [];
+  const headerTeamBBans = teamB ? getBannedHeroesByTeam(teamB.id).slice(0, 2) : [];
+  const getHeaderBanSlots = (bans: (number | null)[]) => [bans[0] ?? null, bans[1] ?? null];
+  const headerBanSizeClass = isObsKeyAccess ? "w-8 h-8" : "w-10 h-10";
+  const headerBanStackClass = isObsKeyAccess ? "h-14 w-8" : "h-16 w-10";
+  const headerBanStackOffset = isObsKeyAccess ? 18 : 22;
+
+  const renderHeaderBanSlot = (heroId: number | null, tone: "A" | "B") => {
+    const hero = heroId ? getHeroById(heroId) : null;
+    const toneClasses =
+      tone === "A"
+        ? "border-red-400/80 bg-red-500/15 text-red-200"
+        : "border-blue-400/80 bg-blue-500/15 text-blue-200";
+
+    if (!heroId || !hero) {
+      return (
+        <div
+          className={clsx(
+            "rounded-lg border border-dashed border-border/70 bg-surface/40 flex items-center justify-center",
+            headerBanSizeClass
+          )}
+        >
+          <span className={clsx("text-[9px] font-semibold", tone === "A" ? "text-red-200" : "text-blue-200")}>-</span>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className={clsx("rounded-lg overflow-hidden border", headerBanSizeClass, toneClasses)}
+      >
+        {hero.imgPath ? (
+          <img
+            src={resolveHeroImageUrl(hero.imgPath)}
+            alt={hero.name}
+            className="w-full h-full object-cover grayscale"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <span className={clsx("text-[10px] font-bold", tone === "A" ? "text-red-200" : "text-blue-200")}>
+              {hero.name?.charAt(0) || "?"}
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return wrapKeyView(
     <main
       className={clsx("relative bg-background", !isKeyAccess && "min-h-screen", isObsKeyAccess && "overflow-hidden")}
@@ -734,152 +782,198 @@ export default function DraftTablePage() {
       {/* Map background — only paints once the bytes have loaded so we never
           flash a half-rendered image between phases. */}
       <MapBackground src={backgroundMapUrl} position={isKeyAccess ? "container" : "viewport"} />
-
-      {waitingForBanBackground && (
-        <div className={clsx(overlayPositionClass, "inset-0 z-50 bg-background flex items-center justify-center")}>
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm uppercase tracking-widest text-muted">
-              Loading ban phase...
-            </p>
-            {backgroundMap?.description && (
-              <p className="text-xs text-muted/70">
-                Preparing {backgroundMap.description}
+      <div className="relative w-full h-full">
+        {waitingForBanBackground && (
+          <div className={clsx(overlayPositionClass, "inset-0 z-50 bg-background flex items-center justify-center")}>
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              <p className="text-sm uppercase tracking-widest text-muted">
+                Loading ban phase...
               </p>
-            )}
+              {backgroundMap?.description && (
+                <p className="text-xs text-muted/70">
+                  Preparing {backgroundMap.description}
+                </p>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {activeOverlay && (
-        <div
-          className={clsx(
-            overlayPositionClass,
-            "inset-0 z-50 flex justify-center bg-black/60 backdrop-blur-sm",
-            overlayAlignClass
-          )}
-        >
-          <div className="w-[min(620px,92vw)] rounded-2xl border border-border/60 bg-gradient-to-br from-surface/95 via-surface-elevated/95 to-surface/90 p-6 shadow-2xl shadow-black/40 ring-1 ring-white/10 animate-fade-in">
-            {activeOverlay.kind === "MAP_PICKING_COUNTDOWN" || activeOverlay.kind === "BAN_START_COUNTDOWN" ? (
-              <div className="text-center">
-                <p className="text-[11px] uppercase tracking-[0.35em] text-muted">Get Ready</p>
-                <h2 className="text-3xl md:text-4xl font-black text-foreground mt-2">
-                  {activeOverlay.title}
-                </h2>
-                <div className="mt-5 text-6xl md:text-7xl font-black text-primary">
-                  {overlayCountdown ?? activeOverlay.countdownFrom ?? 5}
-                </div>
-                <p className="text-xs text-muted mt-4">Timer resumes when the alert ends.</p>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-5 text-center">
-                <div className="flex items-center justify-center gap-3">
-                  <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-border bg-surface-elevated">
-                    {activeOverlay.team?.logo ? (
-                      <img
-                        src={activeOverlay.team.logo}
-                        alt={activeOverlay.team.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-sm font-bold text-muted">
-                        {activeOverlay.team?.name?.charAt(0) || "T"}
-                      </div>
-                    )}
+        {activeOverlay && (
+          <div
+            className={clsx(
+              overlayPositionClass,
+              "inset-0 z-50 flex justify-center bg-black/60 backdrop-blur-sm",
+              overlayAlignClass
+            )}
+          >
+            <div className="w-[min(620px,92vw)] rounded-2xl border border-border/60 bg-gradient-to-br from-surface/95 via-surface-elevated/95 to-surface/90 p-6 shadow-2xl shadow-black/40 ring-1 ring-white/10 animate-fade-in">
+              {activeOverlay.kind === "MAP_PICKING_COUNTDOWN" || activeOverlay.kind === "BAN_START_COUNTDOWN" ? (
+                <div className="text-center">
+                  <p className="text-[11px] uppercase tracking-[0.35em] text-muted">Get Ready</p>
+                  <h2 className="text-3xl md:text-4xl font-black text-foreground mt-2">
+                    {activeOverlay.title}
+                  </h2>
+                  <div className="mt-5 text-6xl md:text-7xl font-black text-primary">
+                    {overlayCountdown ?? activeOverlay.countdownFrom ?? 5}
                   </div>
-                  <div className="text-left">
-                    <p className="text-[11px] uppercase tracking-widest text-muted">
-                      {activeOverlay.kind === "BAN" ? "Ban Alert" : "Map Pick"}
-                    </p>
-                    <p
-                      className={clsx(
-                        "text-2xl md:text-3xl font-black",
-                        getTeamToneClass(activeOverlay.team?.id)
-                      )}
-                    >
-                      {activeOverlay.title}
-                    </p>
-                  </div>
+                  <p className="text-xs text-muted mt-4">Timer resumes when the alert ends.</p>
                 </div>
-
-                {activeOverlay.kind === "BAN" && (
-                  <div className="flex items-center gap-4">
-                    <div className="w-24 h-24 rounded-xl overflow-hidden border-2 border-danger/60 bg-danger/10">
-                      {activeOverlay.hero?.imgPath ? (
+              ) : (
+                <div className="flex flex-col items-center gap-5 text-center">
+                  <div className="flex items-center justify-center gap-3">
+                    <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-border bg-surface-elevated">
+                      {activeOverlay.team?.logo ? (
                         <img
-                          src={resolveHeroImageUrl(activeOverlay.hero.imgPath)}
-                          alt={activeOverlay.hero.name}
+                          src={activeOverlay.team.logo}
+                          alt={activeOverlay.team.name}
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-2xl font-black text-danger">
-                          {activeOverlay.hero?.name?.charAt(0) || "?"}
+                        <div className="w-full h-full flex items-center justify-center text-sm font-bold text-muted">
+                          {activeOverlay.team?.name?.charAt(0) || "T"}
                         </div>
                       )}
                     </div>
                     <div className="text-left">
-                      <p className="text-[11px] uppercase tracking-widest text-muted">Hero</p>
-                      <p className="text-2xl md:text-3xl font-black text-danger">
+                      <p className="text-[11px] uppercase tracking-widest text-muted">
+                        {activeOverlay.kind === "BAN" ? "Ban Alert" : "Map Pick"}
+                      </p>
+                      <p
+                        className={clsx(
+                          "text-2xl md:text-3xl font-black",
+                          getTeamToneClass(activeOverlay.team?.id)
+                        )}
+                      >
+                        {activeOverlay.title}
+                      </p>
+                    </div>
+                  </div>
+
+                  {activeOverlay.kind === "BAN" && (
+                    <div className="flex items-center gap-4">
+                      <div className="w-24 h-24 rounded-xl overflow-hidden border-2 border-danger/60 bg-danger/10">
+                        {activeOverlay.hero?.imgPath ? (
+                          <img
+                            src={resolveHeroImageUrl(activeOverlay.hero.imgPath)}
+                            alt={activeOverlay.hero.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-2xl font-black text-danger">
+                            {activeOverlay.hero?.name?.charAt(0) || "?"}
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-left">
+                        <p className="text-[11px] uppercase tracking-widest text-muted">Hero</p>
+                        <p className="text-2xl md:text-3xl font-black text-danger">
+                          {activeOverlay.subtitle}
+                        </p>
+                        {activeOverlay.hero?.role && (
+                          <Badge variant="danger" className="mt-2">
+                            {activeOverlay.hero.role}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {activeOverlay.kind === "MAP_PICK" && (
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-full max-w-md rounded-xl overflow-hidden border-2 border-primary/50">
+                        <MapImage
+                          src={activeOverlay.map?.imgPath ? resolveMapImageUrl(activeOverlay.map.imgPath) : null}
+                          alt={activeOverlay.subtitle ?? "Map"}
+                          fallbackInitial={activeOverlay.map?.description?.charAt(0) || "M"}
+                          className="w-full aspect-video"
+                        />
+                      </div>
+                      <p className="text-2xl md:text-3xl font-black text-foreground">
                         {activeOverlay.subtitle}
                       </p>
-                      {activeOverlay.hero?.role && (
-                        <Badge variant="danger" className="mt-2">
-                          {activeOverlay.hero.role}
-                        </Badge>
+                      {activeOverlay.map?.type && (
+                        <Badge variant="primary">{activeOverlay.map.type}</Badge>
                       )}
                     </div>
-                  </div>
-                )}
-
-                {activeOverlay.kind === "MAP_PICK" && (
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="w-full max-w-md rounded-xl overflow-hidden border-2 border-primary/50">
-                      <MapImage
-                        src={activeOverlay.map?.imgPath ? resolveMapImageUrl(activeOverlay.map.imgPath) : null}
-                        alt={activeOverlay.subtitle ?? "Map"}
-                        fallbackInitial={activeOverlay.map?.description?.charAt(0) || "M"}
-                        className="w-full aspect-video"
-                      />
-                    </div>
-                    <p className="text-2xl md:text-3xl font-black text-foreground">
-                      {activeOverlay.subtitle}
-                    </p>
-                    {activeOverlay.map?.type && (
-                      <Badge variant="primary">{activeOverlay.map.type}</Badge>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
-      <div className="relative z-10 w-full h-full">
+        )}
+        <div className="relative z-10 w-full h-full">
         {shouldRenderCompactHeader && (
-          <header className="border-b border-border bg-surface/50 backdrop-blur-sm sticky top-0 z-10">
+          <header className="relative border-b border-border bg-surface/50 backdrop-blur-sm sticky top-0 z-10">
             <div
               className={clsx(
-                "mx-auto py-3",
-                isObsKeyAccess ? `${KEY_CONTENT_MAX_WIDTH} px-8` : "max-w-7xl px-4"
+                "relative mx-auto py-3",
+                isObsKeyAccess ? `${KEY_CONTENT_MAX_WIDTH} px-6` : "max-w-7xl px-4"
               )}
             >
+              <div className="absolute inset-0 pointer-events-none z-20">
+                <div className="absolute left-0 top-1/2 -translate-y-1/2">
+                  <div className={clsx("relative", headerBanStackClass)}>
+                    {getHeaderBanSlots(headerTeamBBans).map((heroId, idx) => (
+                      <div
+                        key={`header-ban-B-${idx}`}
+                        className="absolute left-0"
+                        style={{ top: `${idx * headerBanStackOffset}px` }}
+                      >
+                        {renderHeaderBanSlot(heroId, "B")}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="absolute right-0 top-1/2 -translate-y-1/2">
+                  <div className={clsx("relative", headerBanStackClass)}>
+                    {getHeaderBanSlots(headerTeamABans).map((heroId, idx) => (
+                      <div
+                        key={`header-ban-A-${idx}`}
+                        className="absolute right-0"
+                        style={{ top: `${idx * headerBanStackOffset}px` }}
+                      >
+                        {renderHeaderBanSlot(heroId, "A")}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-6">
                   <div className="flex items-center gap-3">
-                    <span className="text-lg font-semibold text-[color:var(--color-team-a)]">{teamA?.name}</span>
-                    <span className="text-2xl font-bold text-foreground">{draftState.match.mapWinsTeamA}</span>
+                    <span
+                      className={clsx(
+                        "font-semibold text-[color:var(--color-team-a)]",
+                        isObsKeyAccess ? "text-2xl" : "text-lg"
+                      )}
+                    >
+                      {teamA?.name}
+                    </span>
+                    <span className={clsx("font-bold text-foreground", isObsKeyAccess ? "text-4xl" : "text-2xl")}>
+                      {draftState.match.mapWinsTeamA}
+                    </span>
                     <span className="text-muted">-</span>
-                    <span className="text-2xl font-bold text-foreground">{draftState.match.mapWinsTeamB}</span>
-                    <span className="text-lg font-semibold text-[color:var(--color-team-b)]">{teamB?.name}</span>
+                    <span className={clsx("font-bold text-foreground", isObsKeyAccess ? "text-4xl" : "text-2xl")}>
+                      {draftState.match.mapWinsTeamB}
+                    </span>
+                    <span
+                      className={clsx(
+                        "font-semibold text-[color:var(--color-team-b)]",
+                        isObsKeyAccess ? "text-2xl" : "text-lg"
+                      )}
+                    >
+                      {teamB?.name}
+                    </span>
                   </div>
-                  <Badge variant="outline" className="text-xs">
+                  <Badge variant="outline" className={clsx(isObsKeyAccess ? "text-sm" : "text-xs")}>
                     Game {currentGameNumber}
                   </Badge>
                 </div>
                 <div className="flex items-center gap-4">
                   {/* Ready Status for Manager */}
                   {isManager && currentPhase === "STARTING" && (
-                    <div className="flex items-center gap-2 text-xs">
+                    <div className={clsx("flex items-center gap-2", isObsKeyAccess ? "text-sm" : "text-xs")}>
                       <div className={clsx("w-2 h-2 rounded-full", draftState.match.teamAready ? "bg-success" : "bg-muted")} />
                       <span className="text-muted">{teamA?.name?.substring(0, 8)}</span>
                       <div className={clsx("w-2 h-2 rounded-full ml-2", draftState.match.teamBready ? "bg-success" : "bg-muted")} />
@@ -892,14 +986,15 @@ export default function DraftTablePage() {
                       currentPhase === "FINISHED" ? "success" :
                       currentPhase === "BAN" ? "danger" : "primary"
                     }
-                    className="px-3 py-1"
+                    className={clsx("px-3 py-1", isObsKeyAccess && "text-sm px-4 py-1.5")}
                   >
                     {currentPhase}
                   </Badge>
                   {(currentPhase === "BAN" || currentPhase === "MAPPICKING") && !isMapSelectionLocked && (
                     <div
                       className={clsx(
-                        "text-2xl font-mono font-bold tabular-nums",
+                        "font-mono font-bold tabular-nums",
+                        isObsKeyAccess ? "text-3xl" : "text-2xl",
                         timeLeft <= 15 ? "text-danger animate-timer-pulse" : "text-foreground"
                       )}
                     >
@@ -915,7 +1010,7 @@ export default function DraftTablePage() {
         <div
           className={clsx(
             "w-full py-6",
-            isObsKeyAccess ? `mx-auto ${KEY_CONTENT_MAX_WIDTH} px-8` : "px-3 md:px-6"
+            isObsKeyAccess ? `mx-auto ${KEY_CONTENT_MAX_WIDTH} px-6` : "px-3 md:px-6"
           )}
         >
           {/* Phase Content */}
@@ -985,6 +1080,7 @@ export default function DraftTablePage() {
             draftState={draftState}
             teams={teams}
             isManager={isManager}
+            isObsKeyAccess={isObsKeyAccess}
             onEndGame={handleEndGame}
             actionLoading={actionLoading}
           />
@@ -1004,6 +1100,7 @@ export default function DraftTablePage() {
             onSetReady={handleSetReady}
             getBannedHeroesByTeam={getBannedHeroesByTeam}
             actionLoading={actionLoading}
+            isObsKeyAccess={isObsKeyAccess}
           />
         )}
 
@@ -1193,6 +1290,7 @@ export default function DraftTablePage() {
           </div>
         </div>
       )}
+        </div>
       </div>
     </main>
   );
@@ -1228,45 +1326,57 @@ function StartingPhase({
   const bothReady = match.teamAready === 1 && match.teamBready === 1;
   const canUndoResult = isManager && match.status !== "FINISHED" && (match.mapResults?.length || 0) > 0;
 
-  const cardSizeClass = isObsKeyAccess ? "max-w-4xl" : "max-w-2xl";
-  const cardPaddingClass = isObsKeyAccess ? "p-12" : "p-8";
-  const keyScaleStyle = isObsKeyAccess ? { transform: "scale(1.3, 1.7)", transformOrigin: "center" } : undefined;
+  const cardSizeClass = isObsKeyAccess ? "max-w-5xl" : "max-w-2xl";
+  const cardPaddingClass = isObsKeyAccess ? "p-14" : "p-8";
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh]">
-      <div style={keyScaleStyle}>
-        <Card variant="featured" className={clsx("w-full", cardSizeClass)}>
-          <CardContent className={cardPaddingClass}>
-            <h2 className="text-2xl font-bold text-center text-foreground mb-2">
+      <Card variant="featured" className={clsx("w-full", cardSizeClass)}>
+        <CardContent className={cardPaddingClass}>
+          <h2 className={clsx("font-bold text-center text-foreground mb-2", isObsKeyAccess ? "text-3xl" : "text-2xl")}>
               {match.gameNumber === 0 ? "Waiting to Start" : `Ready for Game ${match.gameNumber + 1}?`}
             </h2>
-            <p className="text-sm text-muted text-center mb-8">
+            <p className={clsx("text-muted text-center mb-8", isObsKeyAccess ? "text-base" : "text-sm")}>
               Captains can mark ready; manager can start when match operations are prepared
             </p>
             
             <div className="flex items-center justify-center gap-12 mb-8">
               <div className="text-center">
-                <div className="w-20 h-20 rounded-full bg-[color:var(--color-team-a)]/20 border-2 border-[color:var(--color-team-a)] mx-auto mb-3 flex items-center justify-center">
-                  <span className="text-2xl font-bold text-[color:var(--color-team-a)]">
+                <div
+                  className={clsx(
+                    "rounded-full bg-[color:var(--color-team-a)]/20 border-2 border-[color:var(--color-team-a)] mx-auto mb-3 flex items-center justify-center",
+                    isObsKeyAccess ? "w-28 h-28" : "w-20 h-20"
+                  )}
+                >
+                  <span className={clsx("font-bold text-[color:var(--color-team-a)]", isObsKeyAccess ? "text-3xl" : "text-2xl")}>
                     {teamA?.name?.charAt(0) || "A"}
                   </span>
                 </div>
-                <p className="font-semibold text-foreground mb-2">{teamA?.name}</p>
-                <Badge variant={match.teamAready ? "success" : "default"}>
+                <p className={clsx("font-semibold text-foreground mb-2", isObsKeyAccess ? "text-lg" : "text-base")}>
+                  {teamA?.name}
+                </p>
+                <Badge variant={match.teamAready ? "success" : "default"} className={clsx(isObsKeyAccess && "text-sm px-4 py-1")}>
                   {match.teamAready ? "Ready" : "Not Ready"}
                 </Badge>
               </div>
 
-              <div className="text-4xl font-bold text-muted">VS</div>
+              <div className={clsx("font-bold text-muted", isObsKeyAccess ? "text-5xl" : "text-4xl")}>VS</div>
 
               <div className="text-center">
-                <div className="w-20 h-20 rounded-full bg-[color:var(--color-team-b)]/20 border-2 border-[color:var(--color-team-b)] mx-auto mb-3 flex items-center justify-center">
-                  <span className="text-2xl font-bold text-[color:var(--color-team-b)]">
+                <div
+                  className={clsx(
+                    "rounded-full bg-[color:var(--color-team-b)]/20 border-2 border-[color:var(--color-team-b)] mx-auto mb-3 flex items-center justify-center",
+                    isObsKeyAccess ? "w-28 h-28" : "w-20 h-20"
+                  )}
+                >
+                  <span className={clsx("font-bold text-[color:var(--color-team-b)]", isObsKeyAccess ? "text-3xl" : "text-2xl")}>
                     {teamB?.name?.charAt(0) || "B"}
                   </span>
                 </div>
-                <p className="font-semibold text-foreground mb-2">{teamB?.name}</p>
-                <Badge variant={match.teamBready ? "success" : "default"}>
+                <p className={clsx("font-semibold text-foreground mb-2", isObsKeyAccess ? "text-lg" : "text-base")}>
+                  {teamB?.name}
+                </p>
+                <Badge variant={match.teamBready ? "success" : "default"} className={clsx(isObsKeyAccess && "text-sm px-4 py-1")}>
                   {match.teamBready ? "Ready" : "Not Ready"}
                 </Badge>
               </div>
@@ -1275,24 +1385,30 @@ function StartingPhase({
             {/* Captain Ready Button */}
             {isCaptain && !amIReady && (
               <div className="text-center mb-6">
-                <Button size="lg" onClick={onSetReady} disabled={actionLoading} className="px-8">
+                <Button size="lg" onClick={onSetReady} disabled={actionLoading} className={clsx("px-8", isObsKeyAccess && "text-lg px-10")}> 
                   {actionLoading ? "Setting ready..." : "I'm Ready!"}
                 </Button>
-                <p className="text-xs text-muted mt-2">Click to confirm you are ready to play</p>
+                <p className={clsx("text-muted mt-2", isObsKeyAccess ? "text-sm" : "text-xs")}>
+                  Click to confirm you are ready to play
+                </p>
               </div>
             )}
 
             {isCaptain && amIReady && (
               <div className="text-center mb-6">
-                <Badge variant="success" className="text-sm px-4 py-2">You are ready</Badge>
-                <p className="text-xs text-muted mt-2">Waiting for manager to start...</p>
+                <Badge variant="success" className={clsx("text-sm px-4 py-2", isObsKeyAccess && "text-base px-5 py-2.5")}>
+                  You are ready
+                </Badge>
+                <p className={clsx("text-muted mt-2", isObsKeyAccess ? "text-sm" : "text-xs")}>
+                  Waiting for manager to start...
+                </p>
               </div>
             )}
 
             {isManager && (
               <div className="text-center">
                 {!bothReady && (
-                  <p className="text-muted mb-4 text-sm">
+                  <p className={clsx("text-muted mb-4", isObsKeyAccess ? "text-base" : "text-sm")}>
                     One or both captains are not marked ready yet.
                   </p>
                 )}
@@ -1303,7 +1419,7 @@ function StartingPhase({
                       variant="secondary"
                       onClick={onUndoResult}
                       disabled={actionLoading}
-                      className="px-8"
+                      className={clsx("px-8", isObsKeyAccess && "text-lg px-10")}
                     >
                       Fix Last Result
                     </Button>
@@ -1312,17 +1428,20 @@ function StartingPhase({
                     size="lg" 
                     onClick={onStart} 
                     disabled={actionLoading} 
-                    className="px-8"
+                    className={clsx("px-8", isObsKeyAccess && "text-lg px-10")}
                   >
                     {actionLoading ? "Starting..." : "Start Map Picking"}
                   </Button>
                 </div>
-                {!bothReady && <p className="text-xs text-muted mt-2">Manager override is active.</p>}
+                {!bothReady && (
+                  <p className={clsx("text-muted mt-2", isObsKeyAccess ? "text-sm" : "text-xs")}>
+                    Manager override is active.
+                  </p>
+                )}
               </div>
             )}
           </CardContent>
         </Card>
-      </div>
     </div>
   );
 }
@@ -1370,7 +1489,7 @@ function MapPickingPhase({
         className={clsx(
           "flex-1 grid",
           isObsKeyAccess
-            ? "grid-cols-[120px_minmax(0,1fr)_120px] xl:grid-cols-[140px_minmax(0,1fr)_140px] gap-3"
+            ? "grid-cols-[220px_minmax(0,1fr)_220px] xl:grid-cols-[260px_minmax(0,1fr)_260px] gap-6"
             : "grid-cols-[140px_1fr_140px] xl:grid-cols-[160px_1fr_160px] gap-4",
           // When in OBS manager-key mode, vertically center team blocks so
           // logos and player names align with the map area.
@@ -1389,7 +1508,7 @@ function MapPickingPhase({
               <img src={teamA.logo} alt={teamA.name} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full bg-[color:var(--color-team-a)]/20 flex items-center justify-center">
-                <span className="text-5xl font-black text-[color:var(--color-team-a)]">
+                <span className={clsx("font-black text-[color:var(--color-team-a)]", isObsKeyAccess ? "text-6xl" : "text-5xl")}>
                   {teamA?.name?.charAt(0) || "A"}
                 </span>
               </div>
@@ -1401,10 +1520,12 @@ function MapPickingPhase({
               ? "bg-[color:var(--color-team-a)]/20 border-[color:var(--color-team-a)] animate-turn-glow-teal"
               : "bg-surface-elevated/50 border-border"
           )}>
-            <span className="text-base font-bold text-foreground text-center leading-tight uppercase tracking-wide break-words">
+            <span className={clsx("font-bold text-foreground text-center leading-tight uppercase tracking-wide break-words", isObsKeyAccess ? "text-lg" : "text-base")}>
               {teamA?.name}
             </span>
-            {isTeamATurn && <Badge variant="primary" className="text-[10px] px-2 animate-pulse">Picking</Badge>}
+            {isTeamATurn && (
+              <Badge variant="primary" className={clsx("px-2 animate-pulse", isObsKeyAccess ? "text-sm" : "text-[10px]")}>Picking</Badge>
+            )}
           </div>
         </div>
 
@@ -1413,7 +1534,7 @@ function MapPickingPhase({
           {/* Selected Map Display - Central */}
           {currentMap ? (
             <div className="flex flex-col items-center">
-              <div className="relative w-full max-w-md rounded-xl overflow-hidden border-4 border-primary shadow-2xl shadow-primary/30">
+              <div className={clsx("relative w-full rounded-xl overflow-hidden border-4 border-primary shadow-2xl shadow-primary/30", isObsKeyAccess ? "max-w-3xl" : "max-w-md")}>
                 <MapImage
                   src={currentMap.imgPath ? resolveMapImageUrl(currentMap.imgPath) : null}
                   alt={currentMap.description}
@@ -1444,7 +1565,7 @@ function MapPickingPhase({
             <Card variant="featured">
               <CardHeader className={clsx("pb-2 pt-3", isObsKeyAccess && "pb-4")}>
                 <div className="flex items-center justify-between">
-                  <CardTitle className={clsx("text-base", isObsKeyAccess && "text-lg font-bold")}>Available Maps</CardTitle>
+                  <CardTitle className={clsx("text-base", isObsKeyAccess && "text-xl font-bold")}>Available Maps</CardTitle>
                   {isCaptain && isMyTurn && (
                     <Badge variant="success" className="animate-pulse-glow">Your Turn</Badge>
                   )}
@@ -1453,14 +1574,14 @@ function MapPickingPhase({
               <CardContent className={clsx("pb-4", isObsKeyAccess && "pb-6")}>
                 {isCaptain && !isMyTurn && (
                   <div className={clsx("mb-3 p-2 rounded-lg bg-surface-elevated text-center", isObsKeyAccess && "mb-5 p-3")}>
-                    <p className={clsx("text-xs text-muted", isObsKeyAccess && "text-sm")}>Waiting for {currentTeam?.name} to pick...</p>
+                    <p className={clsx("text-xs text-muted", isObsKeyAccess && "text-base")}>Waiting for {currentTeam?.name} to pick...</p>
                   </div>
                 )}
 
                 <div className={clsx(
                   "grid",
                   isObsKeyAccess
-                    ? "grid-cols-2 sm:grid-cols-2 gap-4"
+                    ? "grid-cols-3 gap-6"
                     : "grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3"
                 )}>
                   {availableMaps.map((map) => {
@@ -1486,7 +1607,7 @@ function MapPickingPhase({
                       >
                         <div className={clsx(
                           "bg-surface-elevated",
-                          isObsKeyAccess ? "aspect-square" : "aspect-video"
+                          isObsKeyAccess ? "aspect-video" : "aspect-video"
                         )}>
                           {map.imgPath ? (
                             <img
@@ -1496,20 +1617,20 @@ function MapPickingPhase({
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
-                              <span className={clsx("font-bold text-muted", isObsKeyAccess ? "text-3xl" : "text-sm")}>
+                              <span className={clsx("font-bold text-muted", isObsKeyAccess ? "text-4xl" : "text-sm")}>
                                 {map.description.charAt(0)}
                               </span>
                             </div>
                           )}
                         </div>
                         <div className={clsx("bg-background", isObsKeyAccess ? "p-4" : "p-2")}>
-                          <p className={clsx("font-medium text-foreground text-center", isObsKeyAccess ? "text-sm" : "text-xs truncate")}>
+                          <p className={clsx("font-medium text-foreground text-center", isObsKeyAccess ? "text-base" : "text-xs truncate")}>
                             {map.description}
                           </p>
                         </div>
                         {picked && (
                           <div className="absolute inset-0 bg-background/70 flex items-center justify-center">
-                            <span className={clsx("text-muted font-semibold", isObsKeyAccess ? "text-sm" : "text-[10px]")}>USED</span>
+                            <span className={clsx("text-muted font-semibold", isObsKeyAccess ? "text-base" : "text-[10px]")}>USED</span>
                           </div>
                         )}
                       </button>
@@ -1538,7 +1659,7 @@ function MapPickingPhase({
               <img src={teamB.logo} alt={teamB.name} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full bg-[color:var(--color-team-b)]/20 flex items-center justify-center">
-                <span className="text-5xl font-black text-[color:var(--color-team-b)]">
+                <span className={clsx("font-black text-[color:var(--color-team-b)]", isObsKeyAccess ? "text-6xl" : "text-5xl")}>
                   {teamB?.name?.charAt(0) || "B"}
                 </span>
               </div>
@@ -1550,10 +1671,12 @@ function MapPickingPhase({
               ? "bg-[color:var(--color-team-b)]/20 border-[color:var(--color-team-b)] animate-turn-glow-cyan"
               : "bg-surface-elevated/50 border-border"
           )}>
-            <span className="text-base font-bold text-foreground text-center leading-tight uppercase tracking-wide break-words">
+            <span className={clsx("font-bold text-foreground text-center leading-tight uppercase tracking-wide break-words", isObsKeyAccess ? "text-lg" : "text-base")}>
               {teamB?.name}
             </span>
-            {isTeamBTurn && <Badge variant="primary" className="text-[10px] px-2 animate-pulse">Picking</Badge>}
+            {isTeamBTurn && (
+              <Badge variant="primary" className={clsx("px-2 animate-pulse", isObsKeyAccess ? "text-sm" : "text-[10px]")}>Picking</Badge>
+            )}
           </div>
         </div>
       </div>
@@ -1920,14 +2043,14 @@ function BanPhase({
     <div className="mb-1.5">
       <div className="flex items-center gap-2 mb-1 border-b border-border pb-0.5">
         <div className={clsx("w-1 h-3 rounded-full", roleColor)} />
-        <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider">{title}</h4>
+        <h4 className={clsx("font-bold text-foreground uppercase tracking-wider", isObsKeyAccess ? "text-xs" : "text-[10px]")}>{title}</h4>
         <div className="flex-1 h-px bg-border" />
-        <span className="text-[10px] text-muted">{heroList.length}</span>
+        <span className={clsx("text-muted", isObsKeyAccess ? "text-xs" : "text-[10px]")}>{heroList.length}</span>
       </div>
       <div className={clsx(
         "grid gap-1.5",
         isObsKeyAccess
-          ? "grid-cols-5 sm:grid-cols-6 md:grid-cols-7 lg:grid-cols-8 xl:grid-cols-10 2xl:grid-cols-12"
+          ? "grid-cols-5 sm:grid-cols-5 md:grid-cols-5 lg:grid-cols-5 xl:grid-cols-10 2xl:grid-cols-12"
           : "grid-cols-7 sm:grid-cols-9 md:grid-cols-10 lg:grid-cols-12 xl:grid-cols-14 2xl:grid-cols-16"
       )}>
         {heroList.map((hero) => {
@@ -1942,6 +2065,7 @@ function BanPhase({
 
   // Render compact ban slot (square)
   const renderBanSlot = (heroId: number | null, index: number, teamColor: "LEFT" | "RIGHT") => {
+    const slotSizeClass = isObsKeyAccess ? "w-32 h-36" : "w-24 h-28";
     const colorClasses =
       teamColor === "LEFT"
         ? {
@@ -1962,12 +2086,13 @@ function BanPhase({
         <div
           key={`noban-${index}`}
           className={clsx(
-            "w-24 h-28 rounded-xl border-2 flex items-center justify-center",
+            "rounded-xl border-2 flex items-center justify-center",
+            slotSizeClass,
             colorClasses.border,
             colorClasses.slotBg
           )}
         >
-          <span className={clsx("text-[11px] font-bold uppercase", colorClasses.text)}>Skip</span>
+          <span className={clsx(isObsKeyAccess ? "text-sm" : "text-[11px]", "font-bold uppercase", colorClasses.text)}>Skip</span>
         </div>
       );
     }
@@ -1976,18 +2101,24 @@ function BanPhase({
     return (
       <div
         key={heroId}
-        className={clsx("w-24 h-28 rounded-xl overflow-hidden border-2", colorClasses.border, colorClasses.bg)}
+        className={clsx("rounded-xl overflow-hidden border-2", slotSizeClass, colorClasses.border, colorClasses.bg)}
       >
         {hero?.imgPath ? (
           <>
-            <img src={resolveHeroImageUrl(hero.imgPath)} alt={hero.name} className="w-full h-20 object-contain grayscale" />
-            <div className="px-1 py-1.5 bg-background/80">
-              <p className={clsx("text-[11px] font-semibold text-center truncate", colorClasses.text)}>{hero.name}</p>
+            <img
+              src={resolveHeroImageUrl(hero.imgPath)}
+              alt={hero.name}
+              className={clsx("w-full object-contain grayscale", isObsKeyAccess ? "h-24" : "h-20")}
+            />
+            <div className={clsx("px-1 bg-background/80", isObsKeyAccess ? "py-2" : "py-1.5")}>
+              <p className={clsx(isObsKeyAccess ? "text-sm" : "text-[11px]", "font-semibold text-center truncate", colorClasses.text)}>
+                {hero.name}
+              </p>
             </div>
           </>
         ) : (
-          <div className="w-full h-24 flex items-center justify-center">
-            <span className={clsx("text-sm font-bold", colorClasses.text)}>#{heroId}</span>
+          <div className={clsx("w-full flex items-center justify-center", isObsKeyAccess ? "h-28" : "h-24")}>
+            <span className={clsx(isObsKeyAccess ? "text-base" : "text-sm", "font-bold", colorClasses.text)}>#{heroId}</span>
           </div>
         )}
       </div>
@@ -1996,8 +2127,13 @@ function BanPhase({
 
   // Render empty ban slot (square)
   const renderEmptySlot = (slotNum: number) => (
-    <div className="w-24 h-28 rounded-xl border-2 border-dashed border-border flex items-center justify-center bg-surface-elevated/30">
-      <span className="text-sm text-muted">{slotNum}</span>
+    <div
+      className={clsx(
+        "rounded-xl border-2 border-dashed border-border flex items-center justify-center bg-surface-elevated/30",
+        isObsKeyAccess ? "w-32 h-36" : "w-24 h-28"
+      )}
+    >
+      <span className={clsx(isObsKeyAccess ? "text-base" : "text-sm", "text-muted")}>{slotNum}</span>
     </div>
   );
 
@@ -2018,10 +2154,21 @@ function BanPhase({
       {/* Playing on Map Header */}
       <div className="text-center mb-4">
         {currentMap && (
-          <div className="inline-flex items-center gap-4 bg-gradient-to-r from-primary/10 to-accent/10 border-2 border-primary/50 rounded-lg px-6 py-3 shadow-lg shadow-primary/20">
-            <span className="text-xs text-primary uppercase tracking-widest font-bold">Playing On</span>
-            <span className="text-2xl font-black text-foreground">{currentMap.description}</span>
-            <Badge variant="primary" className="px-3 py-1">{currentMap.type}</Badge>
+          <div
+            className={clsx(
+              "inline-flex items-center gap-4 bg-gradient-to-r from-primary/10 to-accent/10 border-2 border-primary/50 rounded-lg shadow-lg shadow-primary/20",
+              isObsKeyAccess ? "px-8 py-4" : "px-6 py-3"
+            )}
+          >
+            <span className={clsx("text-primary uppercase tracking-widest font-bold", isObsKeyAccess ? "text-sm" : "text-xs")}>
+              Playing On
+            </span>
+            <span className={clsx("font-black text-foreground", isObsKeyAccess ? "text-3xl" : "text-2xl")}>
+              {currentMap.description}
+            </span>
+            <Badge variant="primary" className={clsx(isObsKeyAccess ? "text-sm px-4 py-1.5" : "px-3 py-1")}>
+              {currentMap.type}
+            </Badge>
           </div>
         )}
       </div>
@@ -2030,7 +2177,7 @@ function BanPhase({
       <div className={clsx(
         "flex-1 grid",
         isObsKeyAccess
-          ? "grid-cols-[120px_minmax(0,1fr)_120px] xl:grid-cols-[150px_minmax(0,1fr)_150px] gap-3"
+          ? "grid-cols-[220px_minmax(0,1fr)_220px] xl:grid-cols-[260px_minmax(0,1fr)_260px] gap-6"
           : "grid-cols-[140px_minmax(0,1fr)_140px] xl:grid-cols-[180px_minmax(0,1fr)_180px] gap-4"
       )}>
         {/* LEFT - Team A: big logo on top, rectangle with name + bans below */}
@@ -2045,7 +2192,7 @@ function BanPhase({
               <img src={teamA.logo} alt={teamA.name} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full bg-red-500/20 flex items-center justify-center">
-                <span className="text-5xl font-black text-red-300">
+                <span className={clsx("font-black text-red-300", isObsKeyAccess ? "text-6xl" : "text-5xl")}>
                   {teamA?.name?.charAt(0) || "A"}
                 </span>
               </div>
@@ -2058,10 +2205,12 @@ function BanPhase({
               : "bg-red-500/10 border-red-500/40"
           )}>
             <div className="flex flex-col items-center gap-1">
-              <span className="text-base font-bold text-red-200 text-center leading-tight uppercase tracking-wide break-words">
+              <span className={clsx("font-bold text-red-200 text-center leading-tight uppercase tracking-wide break-words", isObsKeyAccess ? "text-lg" : "text-base")}>
                 {teamA?.name}
               </span>
-              {isTeamATurn && <Badge variant="danger" className="text-[10px] px-2 animate-pulse">Banning</Badge>}
+              {isTeamATurn && (
+                <Badge variant="danger" className={clsx("px-2 animate-pulse", isObsKeyAccess ? "text-sm" : "text-[10px]")}>Banning</Badge>
+              )}
             </div>
             <div className="flex flex-col items-center gap-2 w-full">
               {teamABans.length === 0 ? (
@@ -2084,9 +2233,11 @@ function BanPhase({
           {/* Controls Bar */}
           <div className="flex items-center justify-between mb-3 px-2">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-foreground uppercase tracking-wide">Hero Bans</span>
+              <span className={clsx("font-bold text-foreground uppercase tracking-wide", isObsKeyAccess ? "text-base" : "text-sm")}>
+                Hero Bans
+              </span>
               {isCaptain && isMyTurn && myTeamId && getTeamTotalBans(myTeamId) < 2 && (
-                <Badge variant="warning" className="animate-pulse-glow text-xs">Your Turn</Badge>
+                <Badge variant="warning" className={clsx("animate-pulse-glow", isObsKeyAccess ? "text-sm" : "text-xs")}>Your Turn</Badge>
               )}
             </div>
             <div className="flex items-center gap-2">
@@ -2097,7 +2248,7 @@ function BanPhase({
                   variant={selectedRole === role ? "default" : "ghost"}
                   onClick={() => setSelectedRole(role)}
                   size="sm"
-                  className="text-xs px-3"
+                  className={clsx(isObsKeyAccess ? "text-sm px-4" : "text-xs px-3")}
                 >
                   {role === "ALL" ? "All" : role}
                 </Button>
@@ -2108,13 +2259,17 @@ function BanPhase({
           {/* Status Messages */}
           {isCaptain && myTeamId && getTeamTotalBans(myTeamId) >= 2 && (
             <div className="mb-3 p-2 rounded-lg bg-success/10 border border-success/30 text-center">
-              <p className="text-xs text-success font-semibold">Your team has completed both bans</p>
+              <p className={clsx("text-success font-semibold", isObsKeyAccess ? "text-sm" : "text-xs")}>
+                Your team has completed both bans
+              </p>
             </div>
           )}
           
           {isCaptain && !isMyTurn && myTeamId && getTeamTotalBans(myTeamId) < 2 && (
             <div className="mb-3 p-2 rounded-lg bg-surface-elevated border border-border text-center">
-              <p className="text-xs text-muted">Waiting for {currentTeam?.name} to ban...</p>
+              <p className={clsx("text-muted", isObsKeyAccess ? "text-sm" : "text-xs")}>
+                Waiting for {currentTeam?.name} to ban...
+              </p>
             </div>
           )}
 
@@ -2130,7 +2285,7 @@ function BanPhase({
               <div className={clsx(
                 "grid gap-1.5",
                 isObsKeyAccess
-                  ? "grid-cols-5 sm:grid-cols-6 md:grid-cols-7 lg:grid-cols-8 xl:grid-cols-10 2xl:grid-cols-12"
+                  ? "grid-cols-6 sm:grid-cols-7 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 2xl:grid-cols-14"
                   : "grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 xl:grid-cols-14 2xl:grid-cols-16"
               )}>
                 {heroes.filter((h) => h.role === selectedRole).map((hero) => {
@@ -2150,7 +2305,7 @@ function BanPhase({
                 size="sm"
                 onClick={() => onBanHero(null)}
                 disabled={actionLoading}
-                className="text-muted hover:text-foreground text-xs"
+                className={clsx("text-muted hover:text-foreground", isObsKeyAccess ? "text-sm" : "text-xs")}
               >
                 Skip Ban
               </Button>
@@ -2170,7 +2325,7 @@ function BanPhase({
               <img src={teamB.logo} alt={teamB.name} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full bg-blue-500/20 flex items-center justify-center">
-                <span className="text-5xl font-black text-blue-300">
+                <span className={clsx("font-black text-blue-300", isObsKeyAccess ? "text-6xl" : "text-5xl")}>
                   {teamB?.name?.charAt(0) || "B"}
                 </span>
               </div>
@@ -2183,10 +2338,12 @@ function BanPhase({
               : "bg-blue-500/10 border-blue-500/40"
           )}>
             <div className="flex flex-col items-center gap-1">
-              <span className="text-base font-bold text-blue-200 text-center leading-tight uppercase tracking-wide break-words">
+              <span className={clsx("font-bold text-blue-200 text-center leading-tight uppercase tracking-wide break-words", isObsKeyAccess ? "text-lg" : "text-base")}>
                 {teamB?.name}
               </span>
-              {isTeamBTurn && <Badge variant="danger" className="text-[10px] px-2 animate-pulse">Banning</Badge>}
+              {isTeamBTurn && (
+                <Badge variant="danger" className={clsx("px-2 animate-pulse", isObsKeyAccess ? "text-sm" : "text-[10px]")}>Banning</Badge>
+              )}
             </div>
             <div className="flex flex-col items-center gap-2 w-full">
               {teamBBans.length === 0 ? (
@@ -2214,12 +2371,14 @@ function PlayingPhase({
   draftState,
   teams,
   isManager,
+  isObsKeyAccess,
   onEndGame,
   actionLoading,
 }: {
   draftState: DraftState;
   teams: Team[];
   isManager: boolean;
+  isObsKeyAccess: boolean;
   onEndGame: () => void;
   actionLoading: boolean;
 }) {
@@ -2230,11 +2389,13 @@ function PlayingPhase({
   return (
     <div className="min-h-[80vh] flex flex-col items-center justify-center gap-8">
       {/* Game is Playing Display */}
-      <Card variant="featured" className="max-w-2xl w-full">
+      <Card variant="featured" className={clsx("w-full", isObsKeyAccess ? "max-w-4xl" : "max-w-2xl")}>
         <CardContent className="p-8">
           <div className="text-center mb-8">
-            <p className="text-muted mb-2 text-sm uppercase tracking-wide">Now Playing</p>
-            <h1 className="text-4xl md:text-5xl font-black mb-4">
+            <p className={clsx("text-muted mb-2 uppercase tracking-wide", isObsKeyAccess ? "text-base" : "text-sm")}>
+              Now Playing
+            </p>
+            <h1 className={clsx("font-black mb-4", isObsKeyAccess ? "text-5xl md:text-6xl" : "text-4xl md:text-5xl")}>
               <span className="text-[color:var(--color-team-a)]">{teamA?.name}</span>
               <span className="text-muted mx-4">vs</span>
               <span className="text-[color:var(--color-team-b)]">{teamB?.name}</span>
@@ -2249,11 +2410,15 @@ function PlayingPhase({
                   src={currentMap.imgPath ? resolveMapImageUrl(currentMap.imgPath) : null}
                   alt={currentMap.description}
                   fallbackInitial={currentMap.description.charAt(0)}
-                  className="w-full h-64"
+                  className={clsx("w-full", isObsKeyAccess ? "h-80" : "h-64")}
                 />
               </div>
-              <p className="text-center mt-4 text-lg font-semibold">{currentMap.description}</p>
-              <p className="text-center text-muted text-sm mt-1">Map Type: {currentMap.type}</p>
+              <p className={clsx("text-center mt-4 font-semibold", isObsKeyAccess ? "text-xl" : "text-lg")}>
+                {currentMap.description}
+              </p>
+              <p className={clsx("text-center text-muted mt-1", isObsKeyAccess ? "text-base" : "text-sm")}>
+                Map Type: {currentMap.type}
+              </p>
             </div>
           )}
 
@@ -2262,7 +2427,7 @@ function PlayingPhase({
             <div className="flex justify-center">
               <Button
                 size="lg"
-                className="px-8 bg-success hover:bg-success/90"
+                className={clsx("bg-success hover:bg-success/90", isObsKeyAccess ? "px-10 text-lg" : "px-8")}
                 onClick={onEndGame}
                 disabled={actionLoading}
               >
@@ -2273,7 +2438,9 @@ function PlayingPhase({
 
           {!isManager && (
             <div className="text-center text-muted">
-              <p className="text-sm">Waiting for manager to mark game as ended...</p>
+              <p className={clsx(isObsKeyAccess ? "text-base" : "text-sm")}>
+                Waiting for manager to mark game as ended...
+              </p>
             </div>
           )}
         </CardContent>
@@ -2297,6 +2464,7 @@ function EndMapPhase({
   onSetReady,
   getBannedHeroesByTeam,
   actionLoading,
+  isObsKeyAccess,
 }: {
   isManager: boolean;
   isCaptain: boolean;
@@ -2310,6 +2478,7 @@ function EndMapPhase({
   onSetReady: () => void;
   getBannedHeroesByTeam: (teamId: number) => (number | null)[];
   actionLoading: boolean;
+  isObsKeyAccess: boolean;
 }) {
   const winsNeeded = Math.ceil(draftState.match.bestOf / 2);
   const teamAWins = draftState.match.mapWinsTeamA;
@@ -2383,10 +2552,10 @@ function EndMapPhase({
       {currentMap && (
         <div className="flex-1 flex flex-col items-center justify-center py-8">
           <div className="text-center mb-6">
-            <p className="text-lg text-primary uppercase tracking-widest font-bold mb-2 animate-pulse">
+            <p className={clsx("text-primary uppercase tracking-widest font-bold mb-2 animate-pulse", isObsKeyAccess ? "text-xl" : "text-lg")}>
               Playing On Map...
             </p>
-            <div className="relative w-full max-w-2xl rounded-2xl overflow-hidden border-4 border-primary shadow-2xl shadow-primary/40">
+            <div className={clsx("relative w-full rounded-2xl overflow-hidden border-4 border-primary shadow-2xl shadow-primary/40", isObsKeyAccess ? "max-w-4xl" : "max-w-2xl")}>
               <MapImage
                 src={currentMap.imgPath ? resolveMapImageUrl(currentMap.imgPath) : null}
                 alt={currentMap.description}
@@ -2395,8 +2564,12 @@ function EndMapPhase({
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
               <div className="absolute bottom-0 left-0 right-0 p-6 text-center">
-                <p className="text-4xl font-black text-white mb-2">{currentMap.description}</p>
-                <Badge variant="primary" className="text-lg px-4 py-2">{currentMap.type}</Badge>
+                <p className={clsx("font-black text-white mb-2", isObsKeyAccess ? "text-5xl" : "text-4xl")}>
+                  {currentMap.description}
+                </p>
+                <Badge variant="primary" className={clsx(isObsKeyAccess ? "text-xl px-5 py-2.5" : "text-lg px-4 py-2")}>
+                  {currentMap.type}
+                </Badge>
               </div>
             </div>
           </div>
@@ -2404,27 +2577,35 @@ function EndMapPhase({
           {/* Score Display */}
           <div className="flex items-center justify-center gap-8 mb-6">
             <div className="text-center">
-              <div className="w-12 h-12 rounded-full bg-[color:var(--color-team-a)]/30 border-2 border-[color:var(--color-team-a)] flex items-center justify-center mx-auto mb-2">
-                <span className="text-lg font-bold text-[color:var(--color-team-a)]">
+              <div className={clsx("rounded-full bg-[color:var(--color-team-a)]/30 border-2 border-[color:var(--color-team-a)] flex items-center justify-center mx-auto mb-2", isObsKeyAccess ? "w-16 h-16" : "w-12 h-12")}>
+                <span className={clsx("font-bold text-[color:var(--color-team-a)]", isObsKeyAccess ? "text-2xl" : "text-lg")}>
                   {teamA?.name?.charAt(0) || "A"}
                 </span>
               </div>
-              <p className="text-sm text-foreground font-semibold mb-1">{teamA?.name}</p>
-              <p className="text-3xl font-bold text-[color:var(--color-team-a)]">{teamAWins}</p>
+              <p className={clsx("text-foreground font-semibold mb-1", isObsKeyAccess ? "text-base" : "text-sm")}>
+                {teamA?.name}
+              </p>
+              <p className={clsx("font-bold text-[color:var(--color-team-a)]", isObsKeyAccess ? "text-4xl" : "text-3xl")}>
+                {teamAWins}
+              </p>
             </div>
-            <div className="text-3xl text-muted font-bold">-</div>
+            <div className={clsx("text-muted font-bold", isObsKeyAccess ? "text-4xl" : "text-3xl")}>-</div>
             <div className="text-center">
-              <div className="w-12 h-12 rounded-full bg-[color:var(--color-team-b)]/30 border-2 border-[color:var(--color-team-b)] flex items-center justify-center mx-auto mb-2">
-                <span className="text-lg font-bold text-[color:var(--color-team-b)]">
+              <div className={clsx("rounded-full bg-[color:var(--color-team-b)]/30 border-2 border-[color:var(--color-team-b)] flex items-center justify-center mx-auto mb-2", isObsKeyAccess ? "w-16 h-16" : "w-12 h-12")}>
+                <span className={clsx("font-bold text-[color:var(--color-team-b)]", isObsKeyAccess ? "text-2xl" : "text-lg")}>
                   {teamB?.name?.charAt(0) || "B"}
                 </span>
               </div>
-              <p className="text-sm text-foreground font-semibold mb-1">{teamB?.name}</p>
-              <p className="text-3xl font-bold text-[color:var(--color-team-b)]">{teamBWins}</p>
+              <p className={clsx("text-foreground font-semibold mb-1", isObsKeyAccess ? "text-base" : "text-sm")}>
+                {teamB?.name}
+              </p>
+              <p className={clsx("font-bold text-[color:var(--color-team-b)]", isObsKeyAccess ? "text-4xl" : "text-3xl")}>
+                {teamBWins}
+              </p>
             </div>
           </div>
 
-          <p className="text-xs text-muted">
+          <p className={clsx("text-muted", isObsKeyAccess ? "text-sm" : "text-xs")}>
             Game {currentGameNumber} | Best of {draftState.match.bestOf} | First to {winsNeeded}
           </p>
         </div>
