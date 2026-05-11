@@ -36,9 +36,7 @@ const POLL_INTERVAL = 3000;
 const TURN_DURATION = 75;
 const KEY_CANVAS_WIDTH = 1920;
 const KEY_CANVAS_HEIGHT = 1080;
-const KEY_STAGE_WIDTH = Math.round(1280 * 1.1);
-const KEY_STAGE_HEIGHT = Math.round(720 * 1.1);
-const KEY_STAGE_SCALE = KEY_STAGE_WIDTH / KEY_CANVAS_WIDTH;
+const KEY_CONTENT_MAX_WIDTH = "max-w-[1840px]";
 
 type Phase = "STARTING" | "MAPPICKING" | "BAN" | "PLAYING" | "ENDMAP" | "FINISHED";
 type OverlayKind = "BAN" | "MAP_PICK" | "MAP_PICKING_COUNTDOWN" | "BAN_START_COUNTDOWN";
@@ -102,6 +100,7 @@ export default function DraftTablePage() {
   const isMapSelectionLocked = currentPhase === "MAPPICKING" && Boolean(draftState?.currentMapId);
   const isOverlayActive = Boolean(activeOverlay);
   const overlayPositionClass = isKeyAccess ? "absolute" : "fixed";
+  const overlayAlignClass = isKeyAccess ? "items-start pt-8" : "items-center";
   const floatingPositionClass = isKeyAccess ? "absolute" : "fixed";
 
   const teamA = teams.find((t) => t.id === draftState?.match?.teamAId);
@@ -510,24 +509,7 @@ export default function DraftTablePage() {
             transformOrigin: "top center",
           }}
         >
-          <div
-            className="absolute top-0 left-1/2 -translate-x-1/2 overflow-hidden"
-            style={{
-              width: `${KEY_STAGE_WIDTH}px`,
-              height: `${KEY_STAGE_HEIGHT}px`,
-            }}
-          >
-            <div
-              style={{
-                width: `${KEY_CANVAS_WIDTH}px`,
-                height: `${KEY_CANVAS_HEIGHT}px`,
-                transform: `scale(${KEY_STAGE_SCALE})`,
-                transformOrigin: "top center",
-              }}
-            >
-              {content}
-            </div>
-          </div>
+          {content}
         </div>
       </div>
     ) : (
@@ -770,7 +752,13 @@ export default function DraftTablePage() {
       )}
 
       {activeOverlay && (
-        <div className={clsx(overlayPositionClass, "inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm")}>
+        <div
+          className={clsx(
+            overlayPositionClass,
+            "inset-0 z-50 flex justify-center bg-black/60 backdrop-blur-sm",
+            overlayAlignClass
+          )}
+        >
           <div className="w-[min(620px,92vw)] rounded-2xl border border-border/60 bg-gradient-to-br from-surface/95 via-surface-elevated/95 to-surface/90 p-6 shadow-2xl shadow-black/40 ring-1 ring-white/10 animate-fade-in">
             {activeOverlay.kind === "MAP_PICKING_COUNTDOWN" || activeOverlay.kind === "BAN_START_COUNTDOWN" ? (
               <div className="text-center">
@@ -867,60 +855,70 @@ export default function DraftTablePage() {
         </div>
       )}
       <div className="relative z-10 w-full h-full">
-      {shouldRenderCompactHeader && (
-        <header className="border-b border-border bg-surface/50 backdrop-blur-sm sticky top-0 z-10">
-          <div className={clsx("mx-auto px-4 py-3", isObsKeyAccess ? "max-w-[1440px]" : "max-w-7xl")}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-6">
-                <div className="flex items-center gap-3">
-                  <span className="text-lg font-semibold text-[color:var(--color-team-a)]">{teamA?.name}</span>
-                  <span className="text-2xl font-bold text-foreground">{draftState.match.mapWinsTeamA}</span>
-                  <span className="text-muted">-</span>
-                  <span className="text-2xl font-bold text-foreground">{draftState.match.mapWinsTeamB}</span>
-                  <span className="text-lg font-semibold text-[color:var(--color-team-b)]">{teamB?.name}</span>
+        {shouldRenderCompactHeader && (
+          <header className="border-b border-border bg-surface/50 backdrop-blur-sm sticky top-0 z-10">
+            <div
+              className={clsx(
+                "mx-auto py-3",
+                isObsKeyAccess ? `${KEY_CONTENT_MAX_WIDTH} px-8` : "max-w-7xl px-4"
+              )}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg font-semibold text-[color:var(--color-team-a)]">{teamA?.name}</span>
+                    <span className="text-2xl font-bold text-foreground">{draftState.match.mapWinsTeamA}</span>
+                    <span className="text-muted">-</span>
+                    <span className="text-2xl font-bold text-foreground">{draftState.match.mapWinsTeamB}</span>
+                    <span className="text-lg font-semibold text-[color:var(--color-team-b)]">{teamB?.name}</span>
+                  </div>
+                  <Badge variant="outline" className="text-xs">
+                    Game {currentGameNumber}
+                  </Badge>
                 </div>
-                <Badge variant="outline" className="text-xs">
-                  Game {currentGameNumber}
-                </Badge>
-              </div>
-              <div className="flex items-center gap-4">
-                {/* Ready Status for Manager */}
-                {isManager && currentPhase === "STARTING" && (
-                  <div className="flex items-center gap-2 text-xs">
-                    <div className={clsx("w-2 h-2 rounded-full", draftState.match.teamAready ? "bg-success" : "bg-muted")} />
-                    <span className="text-muted">{teamA?.name?.substring(0, 8)}</span>
-                    <div className={clsx("w-2 h-2 rounded-full ml-2", draftState.match.teamBready ? "bg-success" : "bg-muted")} />
-                    <span className="text-muted">{teamB?.name?.substring(0, 8)}</span>
-                  </div>
-                )}
-                <Badge
-                  variant={
-                    currentPhase === "STARTING" ? "default" :
-                    currentPhase === "FINISHED" ? "success" :
-                    currentPhase === "BAN" ? "danger" : "primary"
-                  }
-                  className="px-3 py-1"
-                >
-                  {currentPhase}
-                </Badge>
-                {(currentPhase === "BAN" || currentPhase === "MAPPICKING") && !isMapSelectionLocked && (
-                  <div
-                    className={clsx(
-                      "text-2xl font-mono font-bold tabular-nums",
-                      timeLeft <= 15 ? "text-danger animate-timer-pulse" : "text-foreground"
-                    )}
+                <div className="flex items-center gap-4">
+                  {/* Ready Status for Manager */}
+                  {isManager && currentPhase === "STARTING" && (
+                    <div className="flex items-center gap-2 text-xs">
+                      <div className={clsx("w-2 h-2 rounded-full", draftState.match.teamAready ? "bg-success" : "bg-muted")} />
+                      <span className="text-muted">{teamA?.name?.substring(0, 8)}</span>
+                      <div className={clsx("w-2 h-2 rounded-full ml-2", draftState.match.teamBready ? "bg-success" : "bg-muted")} />
+                      <span className="text-muted">{teamB?.name?.substring(0, 8)}</span>
+                    </div>
+                  )}
+                  <Badge
+                    variant={
+                      currentPhase === "STARTING" ? "default" :
+                      currentPhase === "FINISHED" ? "success" :
+                      currentPhase === "BAN" ? "danger" : "primary"
+                    }
+                    className="px-3 py-1"
                   >
-                    {formatTime(timeLeft)}
-                  </div>
-                )}
+                    {currentPhase}
+                  </Badge>
+                  {(currentPhase === "BAN" || currentPhase === "MAPPICKING") && !isMapSelectionLocked && (
+                    <div
+                      className={clsx(
+                        "text-2xl font-mono font-bold tabular-nums",
+                        timeLeft <= 15 ? "text-danger animate-timer-pulse" : "text-foreground"
+                      )}
+                    >
+                      {formatTime(timeLeft)}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        </header>
-      )}
+          </header>
+        )}
 
-      <div className={clsx("w-full py-6", isObsKeyAccess ? "px-6 mx-auto max-w-[1440px]" : "px-3 md:px-6")}>
-        {/* Phase Content */}
+        <div
+          className={clsx(
+            "w-full py-6",
+            isObsKeyAccess ? `mx-auto ${KEY_CONTENT_MAX_WIDTH} px-8` : "px-3 md:px-6"
+          )}
+        >
+          {/* Phase Content */}
         {currentPhase === "STARTING" && (
           <StartingPhase
             isManager={isManager}
