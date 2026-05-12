@@ -211,21 +211,31 @@ const isScoreboardNoiseLine = (line) => {
   return prefixBlocked.some((token) => normalized.startsWith(token));
 };
 
-const extractNicknameCandidateFromLine = (line) => {
+const extractNicknameToken = (line) => {
   const raw = String(line || "").trim();
   if (!raw) return "";
   if (isScoreboardNoiseLine(raw)) return "";
-  if (!isMostlyUppercase(raw)) return "";
 
   const withoutLevel = raw.replace(/^\d{1,3}\)?\s+/, "").replace(/^\W+/, "").trim();
   if (!withoutLevel) return "";
   if (isScoreboardNoiseLine(withoutLevel)) return "";
+
+  const leadingToken = withoutLevel.match(/^([A-Z0-9_]{3,24})(?=\s|$)/);
+  if (leadingToken) {
+    return leadingToken[1];
+  }
+
+  if (!isMostlyUppercase(withoutLevel)) return "";
 
   const normalized = normalizeName(withoutLevel);
   if (normalized.length < 3) return "";
   if (!/[A-Z]/.test(normalized)) return "";
 
   return withoutLevel;
+};
+
+const extractNicknameCandidateFromLine = (line) => {
+  return extractNicknameToken(line);
 };
 
 const isLikelyStatTokenLine = (line) => {
@@ -317,15 +327,8 @@ const extractUppercaseNicknameCandidates = (text) => {
   const seen = new Set();
 
   for (const raw of lines) {
-    if (isScoreboardNoiseLine(raw)) continue;
-
-    const withoutLevel = raw.replace(/^\d{1,3}\)?\s+/, "").replace(/^\W+/, "").trim();
+    const withoutLevel = extractNicknameToken(raw);
     if (!withoutLevel) continue;
-    if (isScoreboardNoiseLine(withoutLevel)) continue;
-
-    // User constraint: in-game nicknames are uppercase and may contain digits/spaces.
-    if (!/^[A-Z0-9 ]{3,24}$/.test(withoutLevel)) continue;
-    if (!/[A-Z]/.test(withoutLevel)) continue;
 
     const key = normalizeName(withoutLevel);
     if (!key || seen.has(key)) continue;
