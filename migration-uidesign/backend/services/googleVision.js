@@ -80,7 +80,7 @@ const extractOcrFromBuffer = async (buffer) => {
       result = await extractFromApiKey(buffer, apiKey);
     } else {
       const visionClient = getClient();
-      [result] = await visionClient.textDetection({ image: { content: buffer } });
+      [result] = await visionClient.documentTextDetection({ image: { content: buffer } });
     }
   } catch (err) {
     const message = String(err?.message || "");
@@ -97,8 +97,53 @@ const extractOcrFromBuffer = async (buffer) => {
     throw new Error(`Google Vision OCR failed: ${message || "unknown error"}`);
   }
 
-  const annotations = Array.isArray(result?.textAnnotations) ? result.textAnnotations : [];
-  const text = annotations[0]?.description || "";
+  const flattenWords = (annotationResult) => {
+    const pages = annotationResult?.fullTextAnnotation?.pages;
+    if (!Array.isArray(pages)) return [];
+
+    const words = [];
+    for (const page of pages) {
+      for (const block of page.blocks || []) {
+        for (const paragraph of block.paragraphs || []) {
+          for (const word of paragraph.words || []) {
+            const description = (word.symbols || []).map((symbol) => String(symbol?.text || "")).join("");
+            const vertices = Array.isArray(word?.boundingBox?.vertices) ? word.boundingBox.vertices : [];
+            const xs = vertices.map((v) => Number(v?.x || 0));
+            const ys = vertices.map((v) => Number(v?.y || 0));
+            words.push({
+              text: description,
+              confidence: Number(word?.confidence || 0),
+              bbox: {
+                x0: xs.length ? Math.min(...xs) : 0,
+                y0: ys.length ? Math.min(...ys) : 0,
+                x1: xs.length ? Math.max(...xs) : 0,
+                y1: ys.length ? Math.max(...ys) : 0,
+              },
+            });
+          }
+        }
+      }
+    }
+    return words;
+  };
+
+  let annotations = Array.isArray(result?.textAnnotations) ? result.textAnnotations : [];
+  let text = annotations[0]?.description || result?.fullTextAnnotation?.text || "";
+
+  const documentWords = flattenWords(result);
+  if (documentWords.length) {
+    annotations = [{ description: text }, ...documentWords.map((word) => ({
+      description: word.text,
+      confidence: word.confidence,
+      boundingPoly: { vertices: [
+        { x: word.bbox.x0, y: word.bbox.y0 },
+        { x: word.bbox.x1, y: word.bbox.y0 },
+        { x: word.bbox.x1, y: word.bbox.y1 },
+        { x: word.bbox.x0, y: word.bbox.y1 },
+      ] },
+    }))];
+  }
+
   if (!text.trim()) {
     throw new Error("No text detected in image.");
   }
