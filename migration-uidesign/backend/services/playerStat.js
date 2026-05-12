@@ -157,24 +157,6 @@ const detectPlayerRowByNickname = (lines, nickname) => {
   return null;
 };
 
-const parseGenericRows = (text) => {
-  const content = String(text || "");
-  const pattern = /([A-Za-z0-9_]{3,20})[^\n\d]{0,30}(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})\s+([\d,]{1,8})\s+([\d,]{1,8})\s+([\d,]{1,8})/g;
-  const rows = [];
-  for (const m of content.matchAll(pattern)) {
-    rows.push({
-      nickname: m[1],
-      kills: parseScoreNumber(m[2]),
-      assists: parseScoreNumber(m[3]),
-      deaths: parseScoreNumber(m[4]),
-      damage: parseScoreNumber(m[5]),
-      healing: parseScoreNumber(m[6]),
-      mitigation: parseScoreNumber(m[7]),
-    });
-  }
-  return rows;
-};
-
 const isMostlyUppercase = (value) => {
   const letters = String(value || "").replace(/[^A-Za-z]/g, "");
   if (!letters.length) return false;
@@ -295,56 +277,199 @@ const getNicknameTokenFromRow = (rowWords, firstNumericX) => {
   return candidates.sort((a, b) => b.length - a.length)[0];
 };
 
-const parseRowsFromLineBlocks = (text) => {
-  const lines = String(text || "")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
+// ============================================================================
+// ROW RECONSTRUCTION - Pure spatial, no text order dependency
+// ============================================================================
 
-  const rows = [];
-  for (let i = 0; i < lines.length; i += 1) {
-    if (/^VS$/i.test(lines[i])) continue;
+const mergeNumericFragments = (numericWords, columnCenters, columnTolerance) => {
+  if (!numericWords.length) return { values: {}, assignedWords: [] };
 
-    if (!isStandaloneNumberLine(lines[i])) continue;
+  const valuesByKey = {};
+  const assignedWords = {};
 
-    const blockValues = [];
-    let endIndex = i;
-    while (endIndex < lines.length && endIndex <= i + 16 && isStandaloneNumberLine(lines[endIndex])) {
-      blockValues.push(parseScoreNumber(lines[endIndex]));
-      endIndex += 1;
+  numericWords.forEach((word) => {
+    const x = wordCenterX(word);
+    const assignment = assignStatValueToColumn(x, columnCenters);
+    if (!assignment) return;
+
+    const parsed = parseScoreNumber(word.text);
+    if (!Number.isFinite(parsed) || parsed < 0) return;
+
+    if (valuesByKey[assignment.key] === undefined) {
+      valuesByKey[assignment.key] = parsed;
+      assignedWords[assignment.key] = word;
+    } else {
+      const current = valuesByKey[assignment.key];
+      if (parsed > current || wordWidth(word) > wordWidth(assignedWords[assignment.key])) {
+        valuesByKey[assignment.key] = parsed;
+        assignedWords[assignment.key] = word;
+      }
     }
+  });
 
-    if (blockValues.length < 6) {
-      i = endIndex - 1;
-      continue;
-    }
+  return { values: valuesByKey, assignedWords };
+};
 
-    const tuple = {
-      kills: blockValues[0],
-      assists: blockValues[1],
-      deaths: blockValues[2],
-      damage: blockValues[3],
-      healing: blockValues[4],
-      mitigation: blockValues[5],
-    };
+const reconstructRowFromCluster = (rowCluster, columnCenters, minStatX) => {
+  if (!rowCluster || !rowCluster.words.length) return null;
 
-    if (!isLikelyStatTuple(tuple)) {
-      i = endIndex - 1;
-      continue;
-    }
+  const numericWords = rowCluster.words
+    .filter((w) => looksNumericToken(w.text) && wordCenterX(w) >= minStatX)
+    .sort((a, b) => wordCenterX(a) - wordCenterX(b));
 
-    const nickname = findNearestNicknameBeforeIndex(lines, i);
-    if (!nickname) {
-      i = endIndex - 1;
-      continue;
-    }
+  if (numericWords.length < 6) return null;
 
-    rows.push({ nickname, confidence: 0.6, ...tuple });
-    i = endIndex - 1;
+  const { values: statValues, assignedWords } = mergeNumericFragments(
+    numericWords,
+    columnCenters,
+    calculateDynamicColumnTolerance(columnCenters)
+  );
+
+  if (
+    statValues.E === undefined ||
+    statValues.A === undefined ||
+    statValues.D === undefined ||
+    statValues.DMG === undefined
+  ) {
+    return null;
   }
 
-  const confidence = rows.length > 0 ? Math.min(0.75, rows.length / 10 * 0.7) : 0;
-  return { rows, confidence, strategy: "line-blocks" };
+  const reconstructionScore = calculateRowReconstructionScore(
+    statValues,
+    assignedWords,
+    columnCenters,
+    rowCluster
+  );
+
+  return {
+    kills: statValues.E ?? 0,
+    assists: statValues.A ?? 0,
+    deaths: statValues.D ?? 0,
+    damage: statValues.DMG ?? 0,
+    healing: statValues.H ?? 0,
+    mitigation: statValues.MIT ?? 0,
+    reconstructionScore: reconstructionScore.score,
+    reconstructionDetail: reconstructionScore.detail,
+    method: "spatial-reconstruction",
+    assignedWords,
+  };
+};
+
+const calculateRowReconstructionScore = (statValues, assignedWords, columnCenters, rowCluster) => {
+  let score = 0.75;
+  const details = {};
+
+  if (Object.keys(statValues).length >= 6) {
+    details.completeStats = true;
+    score += 0.15;
+  } else if (Object.keys(statValues).length >= 4) {
+    details.partialStats = true;
+    score += 0.05;
+  }
+
+  const validStats = Object.entries(statValues).every(([key, val]) => {
+    if (key === "E") return val <= 120;
+    if (key === "A") return val <= 120;
+    if (key === "D") return val <= 120;
+    if (["DMG", "H", "MIT"].includes(key)) return val >= 0 && val <= 120000;
+    return false;
+  });
+
+  if (validStats) {
+    details.validRanges = true;
+    score += 0.1;
+  }
+
+  const columnQuality = Object.entries(assignedWords).reduce((sum, [key, word]) => {
+    const x = wordCenterX(word);
+    const cx = columnCenters[key];
+    const distance = Math.abs(x - cx);
+    const tolerance = calculateDynamicColumnTolerance(columnCenters);
+    return sum + (1 - Math.min(1, distance / (tolerance * 2)));
+  }, 0) / Math.max(1, Object.keys(assignedWords).length);
+
+  score += columnQuality * 0.05;
+  details.columnQuality = columnQuality;
+
+  return {
+    score: Math.min(1, score),
+    detail: details,
+  };
+};
+
+const extractNicknameFromRowGeometry = (rowCluster, minStatX) => {
+  const nicknameWords = rowCluster.words.filter(
+    (w) => wordCenterX(w) < minStatX - 20 && /[A-Za-z]/.test(w.text)
+  );
+
+  if (!nicknameWords.length) return null;
+
+  const merged = mergeAdjacentNicknameWords(nicknameWords, 25);
+  const candidates = merged
+    .filter((group) => {
+      const text = group.text;
+      if (text.length < 3 || text.length > 35) return false;
+      if (!/[A-Za-z]/.test(text)) return false;
+      if (isRankTitle({ text })) return false;
+      return true;
+    })
+    .map((group) => ({
+      text: group.text,
+      confidence: Math.min(1, 0.7 + group.words.length * 0.15),
+      bbox: group.bbox,
+    }));
+
+  if (!candidates.length) return null;
+
+  const best = candidates.sort((a, b) => b.confidence - a.confidence)[0];
+  return {
+    text: best.text,
+    confidence: best.confidence,
+  };
+};
+
+const reconstructScoreboardRows = (ocrWords, columnCenters) => {
+  if (!Array.isArray(ocrWords) || !ocrWords.length) {
+    return { rows: [], score: 0 };
+  }
+
+  const rows = clusterRowsByY(ocrWords);
+  if (!rows.length) {
+    return { rows: [], score: 0 };
+  }
+
+  if (!columnCenters) {
+    return { rows: [], score: 0 };
+  }
+
+  const minStatX = estimateColumnMinX(columnCenters);
+  const reconstructed = [];
+  let validRowCount = 0;
+
+  for (const rowCluster of rows) {
+    const stats = reconstructRowFromCluster(rowCluster, columnCenters, minStatX);
+    if (!stats) continue;
+
+    const nickname = extractNicknameFromRowGeometry(rowCluster, minStatX);
+    if (!nickname) continue;
+
+    reconstructed.push({
+      nickname: nickname.text,
+      nicknameConfidence: nickname.confidence,
+      ...stats,
+      y: rowCluster.y,
+    });
+
+    validRowCount += 1;
+  }
+
+  const overallScore = reconstructed.length > 0 ? Math.min(1, validRowCount / 10) : 0;
+
+  return {
+    rows: reconstructed.sort((a, b) => a.y - b.y),
+    score: overallScore,
+    validRowCount,
+  };
 };
 
 const parseGenericRows = (text) => {
@@ -1048,46 +1173,31 @@ const detectStatsByWordGeometry = (ocrWords, players) => {
 
 const parseRowsFromNumericGrid = (ocrWords) => {
   if (!Array.isArray(ocrWords) || !ocrWords.length) {
-    return { rows: [], confidence: 0 };
+    return { rows: [], confidence: 0, strategy: "numeric-grid" };
   }
 
   const rows = clusterRowsByY(ocrWords);
   if (!rows.length) {
-    return { rows: [], confidence: 0 };
+    return { rows: [], confidence: 0, strategy: "numeric-grid" };
   }
 
   const columnCenters = detectColumnCenters(rows);
-  const parsedRows = [];
-
-  for (const row of rows) {
-    const minStatX = estimateColumnMinX(columnCenters || {});
-    const numericWords = row.words
-      .filter((w) => looksNumericToken(w.text) && wordCenterX(w) >= minStatX)
-      .sort((a, b) => wordCenterX(a) - wordCenterX(b));
-
-    if (numericWords.length < 6) continue;
-
-    const statsResult = parseStatsFromRowWords(row.words, columnCenters);
-    if (!statsResult || !statsResult.stats) continue;
-
-    const nickname = pickBestNicknameCandidateFromRow(row.words, minStatX) || "Unknown";
-    parsedRows.push({
-      y: row.y,
-      nickname,
-      confidence: statsResult.confidence,
-      nicknameConfidence: statsResult.confidence * 0.85,
-      statConfidence: statsResult.confidence,
-      method: statsResult.method,
-      ...statsResult.stats,
-    });
+  if (!columnCenters) {
+    return { rows: [], confidence: 0, strategy: "numeric-grid" };
   }
 
-  const confidence = parsedRows.length > 0 ? Math.min(1, parsedRows.length / 10 * 0.9) : 0;
+  const { rows: reconstructed, score, validRowCount } = reconstructScoreboardRows(
+    ocrWords,
+    columnCenters
+  );
+
+  const confidence = Math.max(0, Math.min(1, score + 0.15));
 
   return {
-    rows: parsedRows.sort((a, b) => a.y - b.y),
+    rows: reconstructed,
     confidence,
-    strategy: "numeric-grid",
+    strategy: "spatial-reconstruction",
+    validRowCount,
   };
 };
 
@@ -1164,13 +1274,23 @@ const ensureUserInMatch = async (matchId, userId) => {
 };
 
 // ============================================================================
-// PIPELINE ORCHESTRATOR - Selects best strategy based on confidence
+// PIPELINE ORCHESTRATOR - Spatial reconstruction as primary strategy
 // ============================================================================
 
 const executeParsingPipeline = async (text, ocrWords, players) => {
   const strategies = [];
 
   if (Array.isArray(ocrWords) && ocrWords.length > 0) {
+    const spatialResult = parseRowsFromNumericGrid(ocrWords);
+    if (spatialResult.rows.length > 0) {
+      strategies.push({
+        name: "spatial-reconstruction",
+        confidence: spatialResult.confidence,
+        rows: spatialResult.rows,
+        rowCount: spatialResult.rows.length,
+      });
+    }
+
     const geometryResult = detectStatsByWordGeometry(ocrWords, players);
     if (geometryResult.rowCount > 0) {
       strategies.push({
@@ -1180,26 +1300,6 @@ const executeParsingPipeline = async (text, ocrWords, players) => {
         rowCount: geometryResult.rowCount,
       });
     }
-
-    const gridResult = parseRowsFromNumericGrid(ocrWords);
-    if (gridResult.rows.length > 0) {
-      strategies.push({
-        name: "numeric-grid",
-        confidence: gridResult.confidence,
-        rows: gridResult.rows,
-        rowCount: gridResult.rows.length,
-      });
-    }
-  }
-
-  const linesResult = parseRowsFromLineBlocks(text);
-  if (linesResult.rows.length > 0) {
-    strategies.push({
-      name: "line-blocks",
-      confidence: linesResult.confidence,
-      rows: linesResult.rows,
-      rowCount: linesResult.rows.length,
-    });
   }
 
   const genericResult = parseGenericRows(text);
@@ -1237,7 +1337,9 @@ const matchRowsToPlayers = (rows, players) => {
       }
     }
 
-    if (bestPlayer && bestScore >= 0.7) {
+    const minThreshold = row.nicknameConfidence !== undefined && row.nicknameConfidence < 0.6 ? 0.65 : 0.7;
+
+    if (bestPlayer && bestScore >= minThreshold) {
       usedPlayers.add(bestPlayer.id);
       matched.push({
         player: bestPlayer,
