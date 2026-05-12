@@ -753,6 +753,25 @@ const previewMatchStatsFromOcrText = async ({
       .map((row) => [normalizeName(row.nickname), row])
   );
   const geometryByPlayerId = detectStatsByWordGeometry(ocrWords, players);
+  const geometryRows = players
+    .slice(0, 10)
+    .map((player) => {
+      const stats = geometryByPlayerId.get(player.id);
+      if (!stats) return null;
+      return {
+        nickname: player.nickname,
+        userId: player.id,
+        role: "DPS",
+        kills: stats.kills ?? 0,
+        assists: stats.assists ?? 0,
+        deaths: stats.deaths ?? 0,
+        damage: stats.damage ?? 0,
+        healing: stats.healing ?? 0,
+        mitigation: stats.mitigation ?? 0,
+        userFound: true,
+      };
+    })
+    .filter(Boolean);
   const numericGridRows = parseRowsFromNumericGrid(ocrWords);
   const rowSources = [
     { kind: "grid", rows: numericGridRows, score: numericGridRows.length > 0 ? numericGridRows.length + 100 : 0 },
@@ -760,7 +779,7 @@ const previewMatchStatsFromOcrText = async ({
     { kind: "fallback", rows: fallbackRows, score: Math.max(0, fallbackRows.length - 1) },
   ];
   const selectedRows = rowSources.reduce((best, candidate) => (candidate.score > best.score ? candidate : best));
-  const baseRows = selectedRows.rows;
+  const baseRows = geometryRows.length ? geometryRows : selectedRows.rows;
   const remainingPlayers = [...players.slice(0, 10)];
   const remainingGridRows = selectedRows.kind === "grid" ? [...numericGridRows] : [];
   const rows = [];
