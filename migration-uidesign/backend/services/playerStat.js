@@ -404,29 +404,103 @@ const extractNicknameFromRowGeometry = (rowCluster, minStatX) => {
 
   if (!nicknameWords.length) return null;
 
-  const merged = mergeAdjacentNicknameWords(nicknameWords, 25);
-  const candidates = merged
+  const aggressiveMerge = mergeAdjacentNicknameWords(nicknameWords, 35);
+
+  const candidates = aggressiveMerge
     .filter((group) => {
       const text = group.text;
       if (text.length < 3 || text.length > 35) return false;
       if (!/[A-Za-z]/.test(text)) return false;
       if (isRankTitle({ text })) return false;
+      const hasUppercase = /[A-Z]/.test(text);
+      const hasLowercase = /[a-z]/.test(text);
+      if (hasLowercase && !hasUppercase) return false;
       return true;
     })
-    .map((group) => ({
-      text: group.text,
-      confidence: Math.min(1, 0.7 + group.words.length * 0.15),
-      bbox: group.bbox,
-    }));
+    .map((group) => {
+      const mergeBonus = (group.words.length - 1) * 0.1;
+      const bboxWidth = group.bbox.x1 - group.bbox.x0;
+      const densityScore = Math.max(0, 1 - bboxWidth / 300);
+
+      return {
+        text: group.text,
+        wordCount: group.words.length,
+        confidence: Math.min(1, 0.65 + group.words.length * 0.12 + densityScore * 0.05),
+        bbox: group.bbox,
+      };
+    });
 
   if (!candidates.length) return null;
 
-  const best = candidates.sort((a, b) => b.confidence - a.confidence)[0];
+  const best = candidates.sort((a, b) => {
+    if (b.wordCount !== a.wordCount) return b.wordCount - a.wordCount;
+    return b.confidence - a.confidence;
+  })[0];
+
   return {
     text: best.text,
     confidence: best.confidence,
   };
 };
+
+
+const deduplicateReconstructedRows = (rows) => {
+  if (rows.length <= 1) return rows;
+
+  const minQualityThreshold = 0.55;
+  const filtered = rows.filter((r) => {
+    const qualityScore = (r.reconstructionScore || 0) + (r.nicknameConfidence || 0);
+    const qualityMean = qualityScore / 2;
+    return qualityMean >= minQualityThreshold;
+  });
+
+  if (!filtered.length) return [];
+
+  const deduped = [];
+  const usedIndices = new Set();
+
+  filtered.forEach((row, idx) => {
+    if (usedIndices.has(idx)) return;
+
+    let best = row;
+    let bestIdx = idx;
+    const duplicates = [idx];
+
+    for (let j = idx + 1; j < filtered.length; j++) {
+      if (usedIndices.has(j)) continue;
+
+      const other = filtered[j];
+      const nicknameScore = nicknameMatchScore(row.nickname, other.nickname);
+      const yProximity = Math.abs(row.y - other.y);
+
+      const nicknameSimilar = nicknameScore >= 0.65;
+      const geometricallyClose = yProximity <= 45;
+      const botherReasonableQuality =
+        (other.reconstructionScore || 0) >= 0.5 && (other.nicknameConfidence || 0) >= 0.4;
+
+      if (nicknameSimilar && geometricallyClose && botherReasonableQuality) {
+        duplicates.push(j);
+
+        const bestQuality = (best.reconstructionScore || 0) + (best.nicknameConfidence || 0);
+        const otherQuality = (other.reconstructionScore || 0) + (other.nicknameConfidence || 0);
+
+        if (
+          otherQuality > bestQuality ||
+          (otherQuality === bestQuality && other.kills > best.kills)
+        ) {
+          best = other;
+          bestIdx = j;
+        }
+      }
+    }
+
+    deduped.push(best);
+    duplicates.forEach((di) => usedIndices.add(di));
+  });
+
+  return deduped.sort((a, b) => a.y - b.y);
+};
+
 
 const reconstructScoreboardRows = (ocrWords, columnCenters) => {
   if (!Array.isArray(ocrWords) || !ocrWords.length) {
@@ -463,12 +537,16 @@ const reconstructScoreboardRows = (ocrWords, columnCenters) => {
     validRowCount += 1;
   }
 
-  const overallScore = reconstructed.length > 0 ? Math.min(1, validRowCount / 10) : 0;
+  const dedupedRows = deduplicateReconstructedRows(
+    reconstructed.sort((a, b) => a.y - b.y)
+  );
+
+  const overallScore = dedupedRows.length > 0 ? Math.min(1, dedupedRows.length / 10) : 0;
 
   return {
-    rows: reconstructed.sort((a, b) => a.y - b.y),
+    rows: dedupedRows,
     score: overallScore,
-    validRowCount,
+    validRowCount: dedupedRows.length,
   };
 };
 
@@ -677,16 +755,31 @@ const isGarbageWord = (word) => {
   if (!text) return true;
 
   if (text.length === 1) return true;
+
   if (/%/.test(text)) return true;
   if (/^[\d,]+%$/.test(text)) return true;
+
   if (text.match(/^[^a-zA-Z0-9]{1,3}$/)) return true;
 
   const width = wordWidth(word);
   const height = wordHeight(word);
   if (width < 2 || height < 2) return true;
 
+  if (width > 1000 || height > 1000) return true;
+
+  if (!isLooksLikeScoreboardContent(text)) {
+    if (!/^[A-Za-z0-9_,]+$/.test(text)) return true;
+  }
+
   return false;
 };
+
+const isLooksLikeScoreboardContent = (text) => {
+  if (/^[A-Za-z0-9_]{2,35}$/.test(text)) return true;
+  if (/^[\d,]+$/.test(text)) return true;
+  return false;
+};
+
 
 const isUIWord = (word) => {
   const token = tokenizeForMatch(word?.text || "");
@@ -1173,25 +1266,31 @@ const detectStatsByWordGeometry = (ocrWords, players) => {
 
 const parseRowsFromNumericGrid = (ocrWords) => {
   if (!Array.isArray(ocrWords) || !ocrWords.length) {
-    return { rows: [], confidence: 0, strategy: "numeric-grid" };
+    return { rows: [], confidence: 0, strategy: "spatial-reconstruction" };
   }
 
-  const rows = clusterRowsByY(ocrWords);
+  const reliableWords = ocrWords.filter(isReliableWord);
+  if (reliableWords.length === 0) {
+    return { rows: [], confidence: 0, strategy: "spatial-reconstruction" };
+  }
+
+  const rows = clusterRowsByY(reliableWords);
   if (!rows.length) {
-    return { rows: [], confidence: 0, strategy: "numeric-grid" };
+    return { rows: [], confidence: 0, strategy: "spatial-reconstruction" };
   }
 
   const columnCenters = detectColumnCenters(rows);
   if (!columnCenters) {
-    return { rows: [], confidence: 0, strategy: "numeric-grid" };
+    return { rows: [], confidence: 0, strategy: "spatial-reconstruction" };
   }
 
   const { rows: reconstructed, score, validRowCount } = reconstructScoreboardRows(
-    ocrWords,
+    reliableWords,
     columnCenters
   );
 
-  const confidence = Math.max(0, Math.min(1, score + 0.15));
+  const baseConfidence = score + 0.15;
+  const confidence = Math.max(0, Math.min(1, baseConfidence));
 
   return {
     rows: reconstructed,
