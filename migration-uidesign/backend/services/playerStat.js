@@ -215,13 +215,26 @@ const extractNicknameToken = (line) => {
   const raw = String(line || "").trim();
   if (!raw) return "";
   if (isScoreboardNoiseLine(raw)) return "";
+  if (raw.includes(":")) return "";
 
+  const hadLevelPrefix = /^\d{1,3}\)?\s+/.test(raw);
   const withoutLevel = raw.replace(/^\d{1,3}\)?\s+/, "").replace(/^\W+/, "").trim();
   if (!withoutLevel) return "";
   if (isScoreboardNoiseLine(withoutLevel)) return "";
+  if (/^[\d,]/.test(withoutLevel)) return "";
+  if (hadLevelPrefix && !/[a-z]/.test(withoutLevel)) return "";
 
-  const leadingToken = withoutLevel.match(/^([A-Z0-9_]{3,24})(?=\s|$)/);
+  const leadingToken = withoutLevel.match(/^([A-Z][A-Z0-9_]{2,23})(?=\s|$)/);
   if (leadingToken) {
+    const remainder = withoutLevel.slice(leadingToken[1].length).trim();
+    if (remainder) {
+      if (!/[a-z]/.test(remainder)) {
+        return "";
+      }
+      if (isScoreboardNoiseLine(remainder)) {
+        return "";
+      }
+    }
     return leadingToken[1];
   }
 
