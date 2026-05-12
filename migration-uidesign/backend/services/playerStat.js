@@ -281,11 +281,91 @@ const findNearestNicknameBeforeIndex = (lines, index) => {
   return "";
 };
 
-const isStandaloneNumberLine = (line) => {
-  const raw = String(line || "").trim();
-  if (!raw) return false;
-  if (!/^\d[\d,]*$/.test(raw)) return false;
-  return Number.isFinite(parseScoreNumber(raw));
+// ============================================================================
+// STRATEGY 2: TEXT-BASED PARSING - Secondary strategies for fallback
+// ============================================================================
+
+const getNicknameTokenFromRow = (rowWords, firstNumericX) => {
+  const candidates = rowWords
+    .filter((w) => wordCenterX(w) < firstNumericX - 24)
+    .map((w) => String(w.text || "").trim())
+    .filter((t) => /[A-Za-z]/.test(t) && t.length >= 3);
+
+  if (!candidates.length) return "";
+  return candidates.sort((a, b) => b.length - a.length)[0];
+};
+
+const parseRowsFromLineBlocks = (text) => {
+  const lines = String(text || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const rows = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    if (/^VS$/i.test(lines[i])) continue;
+
+    if (!isStandaloneNumberLine(lines[i])) continue;
+
+    const blockValues = [];
+    let endIndex = i;
+    while (endIndex < lines.length && endIndex <= i + 16 && isStandaloneNumberLine(lines[endIndex])) {
+      blockValues.push(parseScoreNumber(lines[endIndex]));
+      endIndex += 1;
+    }
+
+    if (blockValues.length < 6) {
+      i = endIndex - 1;
+      continue;
+    }
+
+    const tuple = {
+      kills: blockValues[0],
+      assists: blockValues[1],
+      deaths: blockValues[2],
+      damage: blockValues[3],
+      healing: blockValues[4],
+      mitigation: blockValues[5],
+    };
+
+    if (!isLikelyStatTuple(tuple)) {
+      i = endIndex - 1;
+      continue;
+    }
+
+    const nickname = findNearestNicknameBeforeIndex(lines, i);
+    if (!nickname) {
+      i = endIndex - 1;
+      continue;
+    }
+
+    rows.push({ nickname, confidence: 0.6, ...tuple });
+    i = endIndex - 1;
+  }
+
+  const confidence = rows.length > 0 ? Math.min(0.75, rows.length / 10 * 0.7) : 0;
+  return { rows, confidence, strategy: "line-blocks" };
+};
+
+const parseGenericRows = (text) => {
+  const content = String(text || "");
+  const pattern = /([A-Za-z0-9_]{3,20})[^\n\d]{0,30}(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})\s+([\d,]{1,8})\s+([\d,]{1,8})\s+([\d,]{1,8})/g;
+  const rows = [];
+  for (const m of content.matchAll(pattern)) {
+    rows.push({
+      nickname: m[1],
+      confidence: 0.55,
+      kills: parseScoreNumber(m[2]),
+      assists: parseScoreNumber(m[3]),
+      deaths: parseScoreNumber(m[4]),
+      damage: parseScoreNumber(m[5]),
+      healing: parseScoreNumber(m[6]),
+      mitigation: parseScoreNumber(m[7]),
+    });
+  }
+
+  const confidence = rows.length > 0 ? Math.min(0.65, rows.length / 10 * 0.6) : 0;
+  return { rows, confidence, strategy: "generic-regex" };
 };
 
 const parseRowsFromLineBlocks = (text) => {
@@ -411,14 +491,73 @@ const nicknameMatchScore = (ocrToken, playerNickname) => {
   return 0;
 };
 
+// ============================================================================
+// GEOMETRY HELPERS - Robust bounding box operations without hardcodes
+// ============================================================================
+
 const wordCenterX = (word) => (Number(word?.bbox?.x0 || 0) + Number(word?.bbox?.x1 || 0)) / 2;
 const wordCenterY = (word) => (Number(word?.bbox?.y0 || 0) + Number(word?.bbox?.y1 || 0)) / 2;
+const wordWidth = (word) => (Number(word?.bbox?.x1 || 0) - Number(word?.bbox?.x0 || 0));
+const wordHeight = (word) => (Number(word?.bbox?.y1 || 0) - Number(word?.bbox?.y0 || 0));
 
-const clusterRowsByY = (words, tolerance = 12) => {
+const getWordBounds = (words) => {
+  if (!words.length) return { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+  const xs = words.map(wordCenterX);
+  const ys = words.map(wordCenterY);
+  return {
+    minX: Math.min(...xs),
+    maxX: Math.max(...xs),
+    minY: Math.min(...ys),
+    maxY: Math.max(...ys),
+  };
+};
+
+const calculateYDensity = (ys) => {
+  if (ys.length < 2) return 0;
+  const sorted = [...ys].sort((a, b) => a - b);
+  const gaps = [];
+  for (let i = 1; i < sorted.length; i++) {
+    gaps.push(sorted[i] - sorted[i - 1]);
+  }
+  const avgGap = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+  const stdDev = Math.sqrt(gaps.reduce((sum, g) => sum + Math.pow(g - avgGap, 2), 0) / gaps.length);
+  return { avgGap, stdDev, gaps };
+};
+
+const detectRowTolerance = (words) => {
+  const ys = words.map(wordCenterY);
+  if (ys.length < 3) return 14;
+  const { stdDev } = calculateYDensity(ys);
+  return Math.max(8, Math.min(20, stdDev * 0.6));
+};
+
+const identifyOutlierYs = (ys, tolerance) => {
+  const sorted = [...ys].sort((a, b) => a - b);
+  const outliers = new Set();
+  for (let i = 0; i < sorted.length; i++) {
+    const neighbors = sorted.filter((y) => Math.abs(y - sorted[i]) <= tolerance * 2);
+    if (neighbors.length < 2) {
+      outliers.add(sorted[i]);
+    }
+  }
+  return outliers;
+};
+
+const clusterRowsByY = (words, manualTolerance = null) => {
+  if (!Array.isArray(words) || !words.length) return [];
+
   const sorted = [...words].sort((a, b) => wordCenterY(a) - wordCenterY(b));
+  const tolerance = manualTolerance ?? detectRowTolerance(sorted);
+  const outlierYs = identifyOutlierYs(
+    sorted.map(wordCenterY),
+    tolerance
+  );
+
   const rows = [];
   for (const word of sorted) {
     const y = wordCenterY(word);
+    if (outlierYs.has(y)) continue;
+
     const existing = rows.find((row) => Math.abs(row.y - y) <= tolerance);
     if (existing) {
       existing.words.push(word);
@@ -427,16 +566,20 @@ const clusterRowsByY = (words, tolerance = 12) => {
       rows.push({ y, words: [word] });
     }
   }
+
   for (const row of rows) {
     row.words.sort((a, b) => wordCenterX(a) - wordCenterX(b));
   }
+
   return rows;
 };
 
-const looksNumericToken = (text) => /^\d[\d,]*$/.test(String(text || "").trim());
+// ============================================================================
+// COLUMN DETECTION - Dynamic, no hardcodes
+// ============================================================================
 
 const headerAlias = {
-  E: ["E", "ELIMS", "ELIMS", "ELIM"],
+  E: ["E", "ELIMS", "ELIM"],
   A: ["A", "ASSISTS", "AST"],
   D: ["D", "DEATHS", "DEATH"],
   DMG: ["DMG", "DAMAGE"],
@@ -456,78 +599,142 @@ const classifyHeaderKey = (text) => {
   return null;
 };
 
-const detectColumnCenters = (rows) => {
-  let best = null;
+const analyzeColumnStructure = (rows) => {
+  const columnProposals = [];
 
   for (const row of rows) {
     const centers = {};
+    const headerCandidates = [];
+
     for (const word of row.words) {
       const key = classifyHeaderKey(word.text);
-      if (!key || centers[key] !== undefined) continue;
+      if (!key) continue;
+      if (centers[key] !== undefined) continue;
       centers[key] = wordCenterX(word);
+      headerCandidates.push({ key, x: wordCenterX(word), text: word.text });
     }
 
-    const foundCount = Object.keys(centers).length;
-    if (foundCount >= 4) {
-      if (!best || foundCount > Object.keys(best.centers).length) {
-        best = { y: row.y, centers };
+    if (Object.keys(centers).length >= 4) {
+      columnProposals.push({
+        y: row.y,
+        centers,
+        numHeaders: Object.keys(centers).length,
+        headerCandidates,
+      });
+    }
+  }
+
+  return columnProposals.sort((a, b) => b.numHeaders - a.numHeaders);
+};
+
+const mergeColumnCenters = (proposals) => {
+  if (!proposals.length) return null;
+
+  const best = proposals[0];
+  const merged = { ...best.centers };
+
+  for (const proposal of proposals.slice(1, 5)) {
+    for (const [key, x] of Object.entries(proposal.centers)) {
+      if (merged[key] === undefined) {
+        merged[key] = x;
+      } else {
+        merged[key] = (merged[key] + x) / 2;
       }
     }
   }
 
-  return best?.centers || null;
+  return Object.keys(merged).length >= 4 ? merged : null;
+};
+
+const detectColumnCenters = (rows) => {
+  const proposals = analyzeColumnStructure(rows);
+  if (!proposals.length) return null;
+  return mergeColumnCenters(proposals);
+};
+
+const estimateColumnMinX = (columnCenters) => {
+  if (!columnCenters || !Object.keys(columnCenters).length) return 300;
+  const minColX = Math.min(...Object.values(columnCenters));
+  return Math.max(50, minColX - 150);
+};
+
+// ============================================================================
+// STAT PARSING - Robust column-based and fallback heuristics
+// ============================================================================
+
+const looksNumericToken = (text) => /^\d[\d,]*$/.test(String(text || "").trim());
+
+const assignStatValueToColumn = (x, columnCenters) => {
+  let bestKey = null;
+  let bestDistance = Number.POSITIVE_INFINITY;
+
+  for (const key of ["E", "A", "D", "DMG", "H", "MIT"]) {
+    const cx = columnCenters[key];
+    if (cx === undefined) continue;
+    const distance = Math.abs(x - cx);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestKey = key;
+    }
+  }
+
+  const avgColSpacing = Object.values(columnCenters).length > 1
+    ? (Math.max(...Object.values(columnCenters)) - Math.min(...Object.values(columnCenters))) /
+      (Object.values(columnCenters).length - 1)
+    : 100;
+
+  const maxMatchDistance = avgColSpacing * 0.35;
+
+  if (bestKey && bestDistance <= maxMatchDistance) {
+    return { key: bestKey, distance: bestDistance };
+  }
+
+  return null;
 };
 
 const parseStatsFromRowWords = (rowWords, columnCenters) => {
-  const minStatX = columnCenters?.E !== undefined ? columnCenters.E - 70 : 300;
-  const numericWords = rowWords.filter((w) => looksNumericToken(w.text) && wordCenterX(w) >= minStatX);
+  if (!columnCenters) return null;
+
+  const minStatX = estimateColumnMinX(columnCenters);
+  const numericWords = rowWords
+    .filter((w) => looksNumericToken(w.text) && wordCenterX(w) >= minStatX)
+    .sort((a, b) => wordCenterX(a) - wordCenterX(b));
+
   if (!numericWords.length) return null;
 
-  if (columnCenters) {
-    const valuesByKey = {};
-    for (const word of numericWords) {
-      const x = wordCenterX(word);
-      let nearestKey = null;
-      let nearestDistance = Number.POSITIVE_INFINITY;
-      for (const key of ["E", "A", "D", "DMG", "H", "MIT"]) {
-        const cx = columnCenters[key];
-        if (cx === undefined) continue;
-        const distance = Math.abs(x - cx);
-        if (distance < nearestDistance) {
-          nearestDistance = distance;
-          nearestKey = key;
-        }
-      }
+  const valuesByKey = {};
+  for (const word of numericWords) {
+    const x = wordCenterX(word);
+    const assignment = assignStatValueToColumn(x, columnCenters);
+    if (!assignment) continue;
 
-      if (!nearestKey || nearestDistance > 90) continue;
-      const parsed = parseScoreNumber(word.text);
-      if (!Number.isFinite(parsed)) continue;
-      if (valuesByKey[nearestKey] === undefined || parsed > valuesByKey[nearestKey]) {
-        valuesByKey[nearestKey] = parsed;
-      }
-    }
+    const parsed = parseScoreNumber(word.text);
+    if (!Number.isFinite(parsed)) continue;
 
-    if (
-      valuesByKey.E !== undefined &&
-      valuesByKey.A !== undefined &&
-      valuesByKey.D !== undefined &&
-      valuesByKey.DMG !== undefined
-    ) {
-      return {
-        kills: valuesByKey.E ?? 0,
-        assists: valuesByKey.A ?? 0,
-        deaths: valuesByKey.D ?? 0,
-        damage: valuesByKey.DMG ?? 0,
-        healing: valuesByKey.H ?? 0,
-        mitigation: valuesByKey.MIT ?? 0,
-      };
+    if (valuesByKey[assignment.key] === undefined || parsed > valuesByKey[assignment.key]) {
+      valuesByKey[assignment.key] = parsed;
     }
   }
 
-  // Fallback when headers are unreadable: use left-to-right numeric sequence heuristic.
+  if (
+    valuesByKey.E !== undefined &&
+    valuesByKey.A !== undefined &&
+    valuesByKey.D !== undefined &&
+    valuesByKey.DMG !== undefined
+  ) {
+    return {
+      kills: valuesByKey.E ?? 0,
+      assists: valuesByKey.A ?? 0,
+      deaths: valuesByKey.D ?? 0,
+      damage: valuesByKey.DMG ?? 0,
+      healing: valuesByKey.H ?? 0,
+      mitigation: valuesByKey.MIT ?? 0,
+    };
+  }
+
   const numbers = numericWords
-    .sort((a, b) => wordCenterX(a) - wordCenterX(b))
-    .map((w) => parseScoreNumber(w.text));
+    .map((w) => parseScoreNumber(w.text))
+    .filter((n) => Number.isFinite(n));
 
   for (let i = 0; i + 5 < numbers.length; i += 1) {
     const e = numbers[i];
@@ -536,7 +743,7 @@ const parseStatsFromRowWords = (rowWords, columnCenters) => {
     const dmg = numbers[i + 3];
     const heal = numbers[i + 4];
     const mit = numbers[i + 5];
-    if (e <= 120 && a <= 120 && d <= 120 && dmg >= 0) {
+    if (e <= 120 && a <= 120 && d <= 120 && dmg >= 0 && dmg <= 100000) {
       return { kills: e, assists: a, deaths: d, damage: dmg, healing: heal, mitigation: mit };
     }
   }
@@ -544,14 +751,27 @@ const parseStatsFromRowWords = (rowWords, columnCenters) => {
   return null;
 };
 
+// ============================================================================
+// STRATEGY 1: GEOMETRY-FIRST PARSING - Primary strategy, most reliable
+// ============================================================================
+
 const detectStatsByWordGeometry = (ocrWords, players) => {
   if (!Array.isArray(ocrWords) || !ocrWords.length) {
-    return new Map();
+    return { detected: new Map(), rowCount: 0, confidence: 0 };
   }
 
-  const rows = clusterRowsByY(ocrWords, 14);
+  const rows = clusterRowsByY(ocrWords);
+  if (!rows.length) {
+    return { detected: new Map(), rowCount: 0, confidence: 0 };
+  }
+
   const columnCenters = detectColumnCenters(rows);
+  if (!columnCenters) {
+    return { detected: new Map(), rowCount: 0, confidence: 0 };
+  }
+
   const detected = new Map();
+  let successCount = 0;
 
   for (const player of players) {
     let bestWord = null;
@@ -565,81 +785,83 @@ const detectStatsByWordGeometry = (ocrWords, players) => {
       }
     }
 
-    if (!bestWord || bestScore < 0.7) continue;
+    if (!bestWord || bestScore < 0.65) continue;
+
     const targetY = wordCenterY(bestWord);
     let row = null;
-    let nearest = Number.POSITIVE_INFINITY;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+
     for (const candidate of rows) {
       const distance = Math.abs(candidate.y - targetY);
-      if (distance < nearest) {
-        nearest = distance;
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
         row = candidate;
       }
     }
 
-    if (!row || nearest > 20) continue;
+    if (!row) continue;
+
+    const avgRowHeight = rows.reduce((sum, r) => sum + r.words.length, 0) / rows.length;
+    const maxYDistance = Math.max(15, avgRowHeight * 2);
+    if (nearestDistance > maxYDistance) continue;
+
     const stats = parseStatsFromRowWords(row.words, columnCenters);
     if (!stats) continue;
+
     detected.set(player.id, stats);
+    successCount += 1;
   }
 
-  return detected;
-};
+  const confidence = players.length > 0 ? successCount / players.length : 0;
 
-const getNicknameTokenFromRow = (rowWords, firstNumericX) => {
-  const candidates = rowWords
-    .filter((w) => wordCenterX(w) < firstNumericX - 24)
-    .map((w) => String(w.text || "").trim())
-    .filter((t) => /[A-Za-z]/.test(t) && t.length >= 3);
-
-  if (!candidates.length) return "";
-  return candidates.sort((a, b) => b.length - a.length)[0];
-};
-
-const parseStatWindow = (numbers) => {
-  for (let i = 0; i + 5 < numbers.length; i += 1) {
-    const e = numbers[i];
-    const a = numbers[i + 1];
-    const d = numbers[i + 2];
-    const dmg = numbers[i + 3];
-    const heal = numbers[i + 4];
-    const mit = numbers[i + 5];
-
-    const validCore = e <= 120 && a <= 120 && d <= 120;
-    const validLarge = dmg <= 100000 && heal <= 100000 && mit <= 100000;
-    if (validCore && validLarge) {
-      return { kills: e, assists: a, deaths: d, damage: dmg, healing: heal, mitigation: mit };
-    }
-  }
-  return null;
+  return {
+    detected,
+    rowCount: successCount,
+    confidence: Math.min(1, confidence + (columnCenters ? 0.15 : 0)),
+    strategy: "geometry",
+  };
 };
 
 const parseRowsFromNumericGrid = (ocrWords) => {
-  if (!Array.isArray(ocrWords) || !ocrWords.length) return [];
+  if (!Array.isArray(ocrWords) || !ocrWords.length) {
+    return { rows: [], confidence: 0 };
+  }
 
-  const rows = clusterRowsByY(ocrWords, 14);
+  const rows = clusterRowsByY(ocrWords);
+  if (!rows.length) {
+    return { rows: [], confidence: 0 };
+  }
+
+  const columnCenters = detectColumnCenters(rows);
   const parsedRows = [];
 
   for (const row of rows) {
+    const minStatX = estimateColumnMinX(columnCenters || {});
     const numericWords = row.words
-      .filter((w) => looksNumericToken(w.text))
-      .filter((w) => wordCenterX(w) > 300)
+      .filter((w) => looksNumericToken(w.text) && wordCenterX(w) >= minStatX)
       .sort((a, b) => wordCenterX(a) - wordCenterX(b));
 
     if (numericWords.length < 6) continue;
-    const values = numericWords.map((w) => parseScoreNumber(w.text));
-    const tuple = parseStatWindow(values);
-    if (!tuple) continue;
+
+    const stats = parseStatsFromRowWords(row.words, columnCenters);
+    if (!stats) continue;
 
     const nickname = getNicknameTokenFromRow(row.words, wordCenterX(numericWords[0]));
     parsedRows.push({
       y: row.y,
       nickname,
-      ...tuple,
+      confidence: columnCenters ? 0.85 : 0.65,
+      ...stats,
     });
   }
 
-  return parsedRows.sort((a, b) => a.y - b.y);
+  const confidence = parsedRows.length > 0 ? Math.min(1, parsedRows.length / 10 * 0.9) : 0;
+
+  return {
+    rows: parsedRows.sort((a, b) => a.y - b.y),
+    confidence,
+    strategy: "numeric-grid",
+  };
 };
 
 const popBestRowForNickname = (rows, nickname) => {
@@ -714,127 +936,132 @@ const ensureUserInMatch = async (matchId, userId) => {
   }
 };
 
-const previewMatchStatsFromOcrText = async ({
-  text,
-  ocrWords,
-  templateDuration,
-  matchId,
-  mapType,
-}) => {
-  const parsedMatchId = Number(matchId);
-  if (!Number.isInteger(parsedMatchId) || parsedMatchId <= 0) {
-    throw new Error("matchId must be a positive integer.");
+// ============================================================================
+// PIPELINE ORCHESTRATOR - Selects best strategy based on confidence
+// ============================================================================
+
+const executeParsingPipeline = async (text, ocrWords, players) => {
+  const strategies = [];
+
+  if (Array.isArray(ocrWords) && ocrWords.length > 0) {
+    const geometryResult = detectStatsByWordGeometry(ocrWords, players);
+    if (geometryResult.rowCount > 0) {
+      strategies.push({
+        name: "geometry-player-matched",
+        confidence: geometryResult.confidence,
+        detected: geometryResult.detected,
+        rowCount: geometryResult.rowCount,
+      });
+    }
+
+    const gridResult = parseRowsFromNumericGrid(ocrWords);
+    if (gridResult.rows.length > 0) {
+      strategies.push({
+        name: "numeric-grid",
+        confidence: gridResult.confidence,
+        rows: gridResult.rows,
+        rowCount: gridResult.rows.length,
+      });
+    }
   }
 
-  const { players } = await getMatchPlayers(parsedMatchId);
-  const lines = String(text || "")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  const normalizedMapType = mapType ? parseEnum(mapType, MAP_TYPES, "mapType") : detectMapType(text);
-  const lineBlockRows = parseRowsFromLineBlocks(text);
-  const uppercaseCandidates = extractUppercaseNicknameCandidates(text);
-  const candidateRows = uppercaseCandidates
-    .map((nickname) => ({ nickname, ...(detectPlayerRowByNickname(lines, nickname) || {}) }))
-    .filter((row) => isLikelyStatTuple(row));
-  const mergedLineRows = [];
-  const seenLineRows = new Set();
-  for (const row of [...lineBlockRows, ...candidateRows]) {
-    const key = normalizeName(row.nickname);
-    if (!key || seenLineRows.has(key)) continue;
-    seenLineRows.add(key);
-    mergedLineRows.push(row);
-  }
-  const fallbackRows = parseGenericRows(text);
-  const fallbackByName = new Map(
-    [...mergedLineRows, ...fallbackRows]
-      .filter((row) => normalizeName(row.nickname).length > 0)
-      .map((row) => [normalizeName(row.nickname), row])
-  );
-  const geometryByPlayerId = detectStatsByWordGeometry(ocrWords, players);
-  const geometryRows = players
-    .slice(0, 10)
-    .map((player) => {
-      const stats = geometryByPlayerId.get(player.id);
-      if (!stats) return null;
-      return {
-        nickname: player.nickname,
-        userId: player.id,
-        role: "DPS",
-        kills: stats.kills ?? 0,
-        assists: stats.assists ?? 0,
-        deaths: stats.deaths ?? 0,
-        damage: stats.damage ?? 0,
-        healing: stats.healing ?? 0,
-        mitigation: stats.mitigation ?? 0,
-        userFound: true,
-      };
-    })
-    .filter(Boolean);
-  const numericGridRows = parseRowsFromNumericGrid(ocrWords);
-  const rowSources = [
-    { kind: "grid", rows: numericGridRows, score: numericGridRows.length > 0 ? numericGridRows.length + 100 : 0 },
-    { kind: "lines", rows: mergedLineRows, score: mergedLineRows.length },
-    { kind: "fallback", rows: fallbackRows, score: Math.max(0, fallbackRows.length - 1) },
-  ];
-  const selectedRows = rowSources.reduce((best, candidate) => (candidate.score > best.score ? candidate : best));
-  const baseRows = geometryRows.length ? geometryRows : selectedRows.rows;
-  const remainingPlayers = [...players.slice(0, 10)];
-  const remainingGridRows = selectedRows.kind === "grid" ? [...numericGridRows] : [];
-  const rows = [];
-
-  for (const parsedRow of baseRows.slice(0, 10)) {
-    const matchedPlayer = popBestPlayerForNickname(remainingPlayers, parsedRow.nickname);
-    const fallbackByMatchedNickname = matchedPlayer
-      ? detectPlayerRowByNickname(lines, matchedPlayer.nickname) || fallbackByName.get(normalizeName(matchedPlayer.nickname))
-      : null;
-
-    const detected = {
-      kills: parsedRow.kills ?? fallbackByMatchedNickname?.kills ?? 0,
-      assists: parsedRow.assists ?? fallbackByMatchedNickname?.assists ?? 0,
-      deaths: parsedRow.deaths ?? fallbackByMatchedNickname?.deaths ?? 0,
-      damage: parsedRow.damage ?? fallbackByMatchedNickname?.damage ?? 0,
-      healing: parsedRow.healing ?? fallbackByMatchedNickname?.healing ?? 0,
-      mitigation: parsedRow.mitigation ?? fallbackByMatchedNickname?.mitigation ?? 0,
-    };
-
-    rows.push({
-      nickname: parsedRow.nickname || matchedPlayer?.nickname || "",
-      userId: matchedPlayer?.id ?? null,
-      role: "DPS",
-      kills: detected.kills,
-      assists: detected.assists,
-      deaths: detected.deaths,
-      damage: detected.damage,
-      healing: detected.healing,
-      mitigation: detected.mitigation,
-      userFound: Boolean(matchedPlayer),
+  const linesResult = parseRowsFromLineBlocks(text);
+  if (linesResult.rows.length > 0) {
+    strategies.push({
+      name: "line-blocks",
+      confidence: linesResult.confidence,
+      rows: linesResult.rows,
+      rowCount: linesResult.rows.length,
     });
   }
 
-  for (const player of remainingPlayers) {
-    if (rows.length >= 10) break;
+  const genericResult = parseGenericRows(text);
+  if (genericResult.rows.length > 0) {
+    strategies.push({
+      name: "generic-regex",
+      confidence: genericResult.confidence,
+      rows: genericResult.rows,
+      rowCount: genericResult.rows.length,
+    });
+  }
 
-    const gridByNickname = popBestRowForNickname(remainingGridRows, player.nickname);
-    const detected =
-      gridByNickname ||
-      geometryByPlayerId.get(player.id) ||
-      detectPlayerRowByNickname(lines, player.nickname) ||
-      fallbackByName.get(normalizeName(player.nickname)) ||
-      null;
+  strategies.sort((a, b) => b.confidence - a.confidence);
+
+  return {
+    primary: strategies[0] || null,
+    strategies,
+  };
+};
+
+const matchRowsToPlayers = (rows, players) => {
+  const matched = [];
+  const usedPlayers = new Set();
+
+  for (const row of rows) {
+    let bestPlayer = null;
+    let bestScore = 0;
+
+    for (const player of players) {
+      if (usedPlayers.has(player.id)) continue;
+      const score = nicknameMatchScore(row.nickname, player.nickname);
+      if (score > bestScore) {
+        bestScore = score;
+        bestPlayer = player;
+      }
+    }
+
+    if (bestPlayer && bestScore >= 0.7) {
+      usedPlayers.add(bestPlayer.id);
+      matched.push({
+        player: bestPlayer,
+        row,
+        matchScore: bestScore,
+      });
+    }
+  }
+
+  return { matched, usedPlayers };
+};
+
+const buildFinalRowsList = (primaryMatches, allPlayers) => {
+  const rows = [];
+  const coveredPlayerIds = new Set();
+
+  for (const match of primaryMatches) {
+    coveredPlayerIds.add(match.player.id);
+    rows.push({
+      nickname: match.player.nickname,
+      userId: match.player.id,
+      role: "DPS",
+      kills: match.row.kills ?? 0,
+      assists: match.row.assists ?? 0,
+      deaths: match.row.deaths ?? 0,
+      damage: match.row.damage ?? 0,
+      healing: match.row.healing ?? 0,
+      mitigation: match.row.mitigation ?? 0,
+      userFound: true,
+      matchScore: match.matchScore,
+      rowSource: match.row.strategy || "unknown",
+    });
+  }
+
+  for (const player of allPlayers.slice(0, 10)) {
+    if (rows.length >= 10) break;
+    if (coveredPlayerIds.has(player.id)) continue;
 
     rows.push({
       nickname: player.nickname,
       userId: player.id,
       role: "DPS",
-      kills: detected?.kills ?? 0,
-      assists: detected?.assists ?? 0,
-      deaths: detected?.deaths ?? 0,
-      damage: detected?.damage ?? 0,
-      healing: detected?.healing ?? 0,
-      mitigation: detected?.mitigation ?? 0,
+      kills: 0,
+      assists: 0,
+      deaths: 0,
+      damage: 0,
+      healing: 0,
+      mitigation: 0,
       userFound: true,
+      matchScore: 0,
+      rowSource: "missing",
     });
   }
 
@@ -850,8 +1077,62 @@ const previewMatchStatsFromOcrText = async ({
       healing: 0,
       mitigation: 0,
       userFound: false,
+      matchScore: 0,
+      rowSource: "empty",
     });
   }
+
+  return rows.slice(0, 10);
+};
+
+const previewMatchStatsFromOcrText = async ({
+  text,
+  ocrWords,
+  templateDuration,
+  matchId,
+  mapType,
+}) => {
+  const parsedMatchId = Number(matchId);
+  if (!Number.isInteger(parsedMatchId) || parsedMatchId <= 0) {
+    throw new Error("matchId must be a positive integer.");
+  }
+
+  const { players } = await getMatchPlayers(parsedMatchId);
+
+  const normalizedMapType = mapType
+    ? parseEnum(mapType, MAP_TYPES, "mapType")
+    : detectMapType(text);
+
+  const pipelineResult = await executeParsingPipeline(text, ocrWords, players);
+
+  let primaryRows = [];
+  let pipelineConfidence = 0;
+  let selectedStrategy = "none";
+
+  if (pipelineResult.primary) {
+    const primary = pipelineResult.primary;
+    selectedStrategy = primary.name;
+    pipelineConfidence = primary.confidence;
+
+    if (primary.detected instanceof Map) {
+      for (const [playerId, stats] of primary.detected.entries()) {
+        const player = players.find((p) => p.id === playerId);
+        if (player) {
+          primaryRows.push({
+            nickname: player.nickname,
+            userId: player.id,
+            ...stats,
+            strategy: selectedStrategy,
+          });
+        }
+      }
+    } else if (Array.isArray(primary.rows)) {
+      primaryRows = primary.rows.slice(0, 10);
+    }
+  }
+
+  const { matched: playerMatches } = matchRowsToPlayers(primaryRows, players);
+  const finalRows = buildFinalRowsList(playerMatches, players);
 
   let gameDuration = 0;
   if (Number.isInteger(templateDuration) && templateDuration > 0) {
@@ -867,9 +1148,18 @@ const previewMatchStatsFromOcrText = async ({
   return {
     mapType: normalizedMapType,
     gameDuration,
-    rows,
+    rows: finalRows,
     players,
     ocrPreview: String(text || "").slice(0, 2000),
+    parsingStats: {
+      confidence: pipelineConfidence,
+      strategy: selectedStrategy,
+      availableStrategies: pipelineResult.strategies.map((s) => ({
+        name: s.name,
+        confidence: s.confidence,
+        rowCount: s.rowCount,
+      })),
+    },
   };
 };
 
