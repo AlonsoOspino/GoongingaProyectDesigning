@@ -90,7 +90,14 @@ const normalizeName = (value) =>
     .toUpperCase();
 
 const parseScoreNumber = (value) => {
-  const parsed = Number(String(value || "").replace(/,/g, ""));
+  const raw = String(value || "").trim();
+  if (!raw) return 0;
+
+  const compact = raw.replace(/\s+/g, "");
+  const looksGroupedThousands = /^\d{1,3}(?:[.,]\d{3})+$/.test(compact);
+  const normalized = looksGroupedThousands ? compact.replace(/[.,]/g, "") : compact.replace(/,/g, "");
+
+  const parsed = Number(normalized);
   return Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : 0;
 };
 
@@ -114,7 +121,7 @@ const extractDurationFromScoreboard = (text) => {
 };
 
 const extractStatTuple = (chunk) => {
-  const numbers = [...String(chunk || "").matchAll(/\d[\d,]*/g)].map((m) => parseScoreNumber(m[0]));
+  const numbers = [...String(chunk || "").matchAll(/\d[\d,.]*/g)].map((m) => parseScoreNumber(m[0]));
   for (let i = 0; i + 5 < numbers.length; i += 1) {
     const e = numbers[i];
     const a = numbers[i + 1];
@@ -236,7 +243,7 @@ const extractNicknameCandidateFromLine = (line) => {
 const isLikelyStatTokenLine = (line) => {
   const raw = String(line || "").trim();
   if (!raw) return false;
-  if (!/^\d[\d,]*$/.test(raw)) return false;
+  if (!/^\d[\d,.]*$/.test(raw)) return false;
 
   const value = parseScoreNumber(raw);
   if (!Number.isFinite(value)) return false;
@@ -251,7 +258,7 @@ const isLikelyStatTuple = (tuple) => {
 };
 
 const collectNumbersFromLine = (line) =>
-  [...String(line || "").matchAll(/\d[\d,]*/g)].map((m) => parseScoreNumber(m[0]));
+  [...String(line || "").matchAll(/\d[\d,.]*/g)].map((m) => parseScoreNumber(m[0]));
 
 const findNearestNicknameBeforeIndex = (lines, index) => {
   for (let i = index - 1; i >= 0 && i >= index - 8; i -= 1) {
@@ -261,6 +268,191 @@ const findNearestNicknameBeforeIndex = (lines, index) => {
     }
   }
   return "";
+};
+
+const collectCandidateNicknameTokensFromLine = (line) => {
+  const tokens = String(line || "")
+    .split(/\s+/)
+    .map((t) => String(t || "").trim())
+    .filter(Boolean);
+
+  const candidates = [];
+  for (const token of tokens) {
+    const normalized = normalizeName(token);
+    if (!normalized) continue;
+    if (normalized.length < 3 || normalized.length > 24) continue;
+    if (!/[A-Z]/.test(normalized)) continue;
+    if (isScoreboardNoiseLine(normalized)) continue;
+    candidates.push(normalized);
+  }
+
+  return candidates;
+};
+
+const extractBestStatTupleFromNumbers = (numbers) => {
+  if (!Array.isArray(numbers) || numbers.length < 6) return null;
+
+  let best = null;
+  for (let i = 0; i + 5 < numbers.length; i += 1) {
+    const candidate = {
+      kills: numbers[i],
+      assists: numbers[i + 1],
+      deaths: numbers[i + 2],
+      damage: numbers[i + 3],
+      healing: numbers[i + 4],
+      mitigation: numbers[i + 5],
+    };
+
+    if (!isLikelyStatTuple(candidate)) continue;
+
+    // Bias toward real stat tuples and away from level/% noise fragments.
+    if (candidate.damage < 500) continue;
+
+    const score =
+      candidate.damage +
+      candidate.healing +
+      candidate.mitigation +
+      (candidate.kills + candidate.assists + candidate.deaths) * 25;
+
+    if (!best || score > best.score) {
+      best = { ...candidate, score };
+    }
+  }
+
+  return best
+    ? {
+        kills: best.kills,
+        assists: best.assists,
+        deaths: best.deaths,
+        damage: best.damage,
+        healing: best.healing,
+        mitigation: best.mitigation,
+      }
+    : null;
+};
+
+const extractStatTupleNearLineIndex = (lines, index) => {
+  const from = Math.max(0, index - 2);
+  const to = Math.min(lines.length - 1, index + 16);
+  const numbers = [];
+  for (let i = from; i <= to; i += 1) {
+    const line = String(lines[i] || "");
+    if (!line || /^VS$/i.test(line.trim())) continue;
+    for (const match of line.matchAll(/\d[\d,.]*/g)) {
+      numbers.push(parseScoreNumber(match[0]));
+    }
+  }
+  return extractBestStatTupleFromNumbers(numbers);
+};
+
+const detectPlayerRowByNicknameFuzzy = (lines, nickname) => {
+  const candidates = [];
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const raw = String(lines[i] || "").trim();
+    if (!raw) continue;
+    if (isScoreboardNoiseLine(raw)) continue;
+
+    const extracted = extractNicknameCandidateFromLine(raw);
+    const lineCandidates = new Set();
+    if (extracted) lineCandidates.add(normalizeName(extracted));
+    for (const token of collectCandidateNicknameTokensFromLine(raw)) {
+      lineCandidates.add(token);
+    }
+
+    let localBest = 0;
+    for (const candidate of lineCandidates) {
+      const score = nicknameMatchScore(candidate, nickname);
+      if (score > localBest) localBest = score;
+    }
+
+    if (localBest < 0.62) continue;
+    const tuple = extractStatTupleNearLineIndex(lines, i);
+    if (!tuple) continue;
+    candidates.push({ tuple, matchScore: localBest, lineIndex: i });
+  }
+
+  return candidates;
+};
+
+const tupleLooksLikeScoreboardStats = (tuple) => {
+  if (!tuple || !isLikelyStatTuple(tuple)) return false;
+
+  const maxBigStat = Math.max(tuple.damage, tuple.healing, tuple.mitigation);
+  if (maxBigStat < 1000) return false;
+
+  // Real scoreboard rows almost always have at least one of these clearly above noise.
+  if (tuple.healing < 200 && tuple.mitigation < 200) return false;
+
+  const kadTotal = Number(tuple.kills || 0) + Number(tuple.assists || 0) + Number(tuple.deaths || 0);
+  if (kadTotal > 150) return false;
+
+  if (tuple.damage < 300 && tuple.healing < 300 && tuple.mitigation < 300) return false;
+  return true;
+};
+
+const detectRowsFromTextByPlayers = (text, players) => {
+  const lines = String(text || "")
+    .split(/\r?\n/)
+    .map((line) => String(line || "").trim())
+    .filter(Boolean);
+
+  if (!lines.length || !Array.isArray(players) || !players.length) return [];
+
+  const candidates = [];
+  for (const player of players) {
+    const fuzzyCandidates = detectPlayerRowByNicknameFuzzy(lines, player.nickname);
+    for (const candidate of fuzzyCandidates) {
+      if (!tupleLooksLikeScoreboardStats(candidate.tuple)) continue;
+
+      const tupleQuality = statMagnitude(candidate.tuple);
+      const normalizedTupleQuality = Math.min(1, tupleQuality / 45000);
+      const combinedScore = candidate.matchScore * 0.7 + normalizedTupleQuality * 0.3;
+
+      candidates.push({
+        player,
+        tuple: candidate.tuple,
+        lineIndex: candidate.lineIndex,
+        matchScore: candidate.matchScore,
+        tupleQuality,
+        combinedScore,
+      });
+    }
+  }
+
+  const usedPlayers = new Set();
+  const usedTupleKeys = new Set();
+  const selected = [];
+
+  candidates
+    .sort((a, b) => b.combinedScore - a.combinedScore)
+    .forEach((candidate) => {
+      if (usedPlayers.has(candidate.player.id)) return;
+      const tupleKey = [
+        candidate.tuple.kills,
+        candidate.tuple.assists,
+        candidate.tuple.deaths,
+        candidate.tuple.damage,
+        candidate.tuple.healing,
+        candidate.tuple.mitigation,
+      ].join("|");
+      if (usedTupleKeys.has(tupleKey)) return;
+
+      usedPlayers.add(candidate.player.id);
+      usedTupleKeys.add(tupleKey);
+      selected.push({
+        player: candidate.player,
+        row: {
+          nickname: candidate.player.nickname,
+          ...candidate.tuple,
+          strategy: "text-nickname-fuzzy",
+          nicknameConfidence: Math.max(0.62, Math.min(0.9, candidate.matchScore)),
+        },
+        matchScore: Math.max(0.62, Math.min(0.9, candidate.matchScore)),
+      });
+    });
+
+  return selected;
 };
 
 // ============================================================================
@@ -576,7 +768,7 @@ const reconstructScoreboardRows = (ocrWords, columnCenters) => {
 
 const parseGenericRows = (text) => {
   const content = String(text || "");
-  const pattern = /([A-Za-z0-9_]{3,20})[^\n\d]{0,30}(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})\s+([\d,]{1,8})\s+([\d,]{1,8})\s+([\d,]{1,8})/g;
+  const pattern = /([A-Za-z0-9_]{3,20})[^\n\d]{0,30}(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})\s+([\d,.]{1,10})\s+([\d,.]{1,10})\s+([\d,.]{1,10})/g;
   const rows = [];
   for (const m of content.matchAll(pattern)) {
     rows.push({
@@ -971,7 +1163,7 @@ const estimateColumnMinX = (columnCenters) => {
 // STAT PARSING - Robust column-based and fallback heuristics
 // ============================================================================
 
-const looksNumericToken = (text) => /^\d[\d,]*$/.test(String(text || "").trim());
+const looksNumericToken = (text) => /^\d[\d,.]*$/.test(String(text || "").trim());
 
 const calculateDynamicColumnTolerance = (columnCenters) => {
   if (!columnCenters || Object.keys(columnCenters).length < 2) {
@@ -1187,44 +1379,55 @@ const detectStatsByWordGeometry = (ocrWords, players) => {
   let successCount = 0;
 
   for (const player of players) {
-    let bestWord = null;
-    let bestScore = 0;
+    const nicknameCandidates = ocrWords
+      .map((word) => ({
+        word,
+        score: nicknameMatchScore(word.text, player.nickname),
+      }))
+      .filter((entry) => entry.score >= 0.62)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10);
 
-    for (const word of ocrWords) {
-      const score = nicknameMatchScore(word.text, player.nickname);
-      if (score > bestScore) {
-        bestScore = score;
-        bestWord = word;
+    if (!nicknameCandidates.length) continue;
+
+    let bestParsed = null;
+    for (const candidateWord of nicknameCandidates) {
+      const targetY = wordCenterY(candidateWord.word);
+      let row = null;
+      let nearestDistance = Number.POSITIVE_INFINITY;
+
+      for (const candidateRow of rows) {
+        const distance = Math.abs(candidateRow.y - targetY);
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          row = candidateRow;
+        }
+      }
+
+      if (!row) continue;
+
+      const avgRowHeight = rows.reduce((sum, r) => sum + r.height, 0) / rows.length;
+      const maxYDistance = Math.max(18, avgRowHeight * 1.7);
+      if (nearestDistance > maxYDistance) continue;
+
+      const stats = parseStatsFromRowWords(row.words, columnCenters);
+      if (!stats || !stats.stats) continue;
+
+      const candidateQuality = (stats.confidence || 0) * 0.65 + candidateWord.score * 0.35;
+      if (!bestParsed || candidateQuality > bestParsed.quality) {
+        bestParsed = {
+          stats,
+          quality: candidateQuality,
+        };
       }
     }
 
-    if (!bestWord || bestScore < 0.65) continue;
-
-    const targetY = wordCenterY(bestWord);
-    let row = null;
-    let nearestDistance = Number.POSITIVE_INFINITY;
-
-    for (const candidate of rows) {
-      const distance = Math.abs(candidate.y - targetY);
-      if (distance < nearestDistance) {
-        nearestDistance = distance;
-        row = candidate;
-      }
-    }
-
-    if (!row) continue;
-
-    const avgRowHeight = rows.reduce((sum, r) => sum + r.words.length, 0) / rows.length;
-    const maxYDistance = Math.max(15, avgRowHeight * 2);
-    if (nearestDistance > maxYDistance) continue;
-
-    const stats = parseStatsFromRowWords(row.words, columnCenters);
-    if (!stats || !stats.stats) continue;
+    if (!bestParsed || !bestParsed.stats?.stats) continue;
 
     detected.set(player.id, {
-      ...stats.stats,
-      confidence: stats.confidence,
-      method: stats.method,
+      ...bestParsed.stats.stats,
+      confidence: bestParsed.stats.confidence,
+      method: bestParsed.stats.method,
     });
     successCount += 1;
   }
@@ -1501,6 +1704,40 @@ const buildFinalRowsList = (primaryMatches, allPlayers) => {
   return rows.slice(0, 10);
 };
 
+const statMagnitude = (row) =>
+  Number(row?.damage || 0) +
+  Number(row?.healing || 0) +
+  Number(row?.mitigation || 0) +
+  (Number(row?.kills || 0) + Number(row?.assists || 0) + Number(row?.deaths || 0)) * 25;
+
+const mergePlayerMatches = (primaryMatches, fallbackMatches) => {
+  const byPlayerId = new Map();
+
+  for (const match of primaryMatches || []) {
+    byPlayerId.set(match.player.id, match);
+  }
+
+  for (const fallback of fallbackMatches || []) {
+    const existing = byPlayerId.get(fallback.player.id);
+    if (!existing) {
+      byPlayerId.set(fallback.player.id, fallback);
+      continue;
+    }
+
+    const existingMagnitude = statMagnitude(existing.row);
+    const fallbackMagnitude = statMagnitude(fallback.row);
+
+    if (
+      fallbackMagnitude > existingMagnitude * 1.1 ||
+      (existingMagnitude === 0 && fallbackMagnitude > 0)
+    ) {
+      byPlayerId.set(fallback.player.id, fallback);
+    }
+  }
+
+  return Array.from(byPlayerId.values());
+};
+
 const previewMatchStatsFromOcrText = async ({
   text,
   ocrWords,
@@ -1548,7 +1785,12 @@ const previewMatchStatsFromOcrText = async ({
   }
 
   const { matched: playerMatches } = matchRowsToPlayers(primaryRows, players);
-  const finalRows = buildFinalRowsList(playerMatches, players);
+  const textFallbackMatches = detectRowsFromTextByPlayers(text, players);
+  const combinedMatches =
+    playerMatches.length >= 8
+      ? playerMatches
+      : mergePlayerMatches(playerMatches, textFallbackMatches);
+  const finalRows = buildFinalRowsList(combinedMatches, players);
 
   let gameDuration = 0;
   if (Number.isInteger(templateDuration) && templateDuration > 0) {
@@ -1575,6 +1817,8 @@ const previewMatchStatsFromOcrText = async ({
         confidence: s.confidence,
         rowCount: s.rowCount,
       })),
+      textFallbackMatches: textFallbackMatches.length,
+      combinedMatches: combinedMatches.length,
     },
   };
 };
