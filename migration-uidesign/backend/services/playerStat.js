@@ -804,14 +804,26 @@ const isUIWord = (word) => {
 
 const rankTitlePatterns = [
   /^[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*$/,
+  /^[A-Z][a-z']+(?:\s+[A-Z][a-z']+)*$/,
+  /^\w+[']\w+$/,
+  /^(?:The\s+)?[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:'s)?(?:\s+[A-Z][a-z]+)*$/,
 ];
 
 const isRankTitle = (word) => {
   const text = String(word?.text || "").trim();
-  if (text.length < 4 || text.length > 30) return false;
+  if (text.length < 4 || text.length > 35) return false;
   if (!/[a-z]/.test(text)) return false;
 
-  return rankTitlePatterns.some((pat) => pat.test(text));
+  if (rankTitlePatterns.some((pat) => pat.test(text))) {
+    return true;
+  }
+
+  const hasApostropheAndMixedCase = /'/.test(text) && /[A-Z]/.test(text) && /[a-z]/.test(text);
+  if (hasApostropheAndMixedCase) {
+    return true;
+  }
+
+  return false;
 };
 
 const isReliableWord = (word) => {
@@ -1378,15 +1390,18 @@ const ensureUserInMatch = async (matchId, userId) => {
 
 const executeParsingPipeline = async (text, ocrWords, players) => {
   const strategies = [];
+  let hasSpatialResults = false;
 
   if (Array.isArray(ocrWords) && ocrWords.length > 0) {
     const spatialResult = parseRowsFromNumericGrid(ocrWords);
     if (spatialResult.rows.length > 0) {
+      hasSpatialResults = true;
       strategies.push({
         name: "spatial-reconstruction",
-        confidence: spatialResult.confidence,
+        confidence: Math.min(1, spatialResult.confidence + 0.25),
         rows: spatialResult.rows,
         rowCount: spatialResult.rows.length,
+        priority: 100,
       });
     }
 
@@ -1397,21 +1412,26 @@ const executeParsingPipeline = async (text, ocrWords, players) => {
         confidence: geometryResult.confidence,
         detected: geometryResult.detected,
         rowCount: geometryResult.rowCount,
+        priority: 80,
       });
     }
   }
 
   const genericResult = parseGenericRows(text);
-  if (genericResult.rows.length > 0) {
+  if (genericResult.rows.length > 0 && !hasSpatialResults) {
     strategies.push({
       name: "generic-regex",
       confidence: genericResult.confidence,
       rows: genericResult.rows,
       rowCount: genericResult.rows.length,
+      priority: 10,
     });
   }
 
-  strategies.sort((a, b) => b.confidence - a.confidence);
+  strategies.sort((a, b) => {
+    if (b.priority !== a.priority) return b.priority - a.priority;
+    return b.confidence - a.confidence;
+  });
 
   return {
     primary: strategies[0] || null,
