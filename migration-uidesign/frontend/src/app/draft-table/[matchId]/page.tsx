@@ -73,6 +73,7 @@ export default function DraftTablePage() {
   const [selectedRole, setSelectedRole] = useState<"ALL" | "TANK" | "DPS" | "SUPPORT">("ALL");
   const [banWarning, setBanWarning] = useState<string | null>(null);
   const [heroCacheById, setHeroCacheById] = useState<Record<number, Hero>>({});
+  const [mapCacheById, setMapCacheById] = useState<Record<number, GameMap>>({});
   const [pauseActionPending, setPauseActionPending] = useState(false);
   const [isNavHidden, setIsNavHidden] = useState(false);
   const [overlayQueue, setOverlayQueue] = useState<DraftOverlay[]>([]);
@@ -205,6 +206,18 @@ export default function DraftTablePage() {
       return next;
     });
   }, [draftState?.heroes]);
+
+  useEffect(() => {
+    const maps = [...(draftState?.allMaps || []), ...(draftState?.availableMaps || [])];
+    if (!maps.length) return;
+    setMapCacheById((prev) => {
+      const next = { ...prev };
+      for (const map of maps) {
+        next[map.id] = map;
+      }
+      return next;
+    });
+  }, [draftState?.allMaps, draftState?.availableMaps]);
 
   async function loadData() {
     try {
@@ -460,6 +473,17 @@ export default function DraftTablePage() {
     },
     [draftState?.heroes, heroCacheById]
   );
+  const getMapById = useCallback(
+    (mapId?: number | null) => {
+      if (!mapId || !Number.isFinite(mapId)) return null;
+      const liveMap =
+        draftState?.allMaps?.find((map) => map.id === mapId) ||
+        draftState?.availableMaps?.find((map) => map.id === mapId);
+      if (liveMap) return liveMap;
+      return mapCacheById[mapId] || null;
+    },
+    [draftState?.allMaps, draftState?.availableMaps, mapCacheById]
+  );
 
   const enqueueOverlay = useCallback((overlay: DraftOverlay) => {
     setOverlayQueue((prev) => [...prev, overlay]);
@@ -562,8 +586,10 @@ export default function DraftTablePage() {
     if (!newActions.length) return;
 
     newActions.forEach((action) => {
-      seenActionIdsRef.current.add(action.id);
-      if (action.gameNumber !== currentGameNumber) return;
+      if (action.gameNumber !== currentGameNumber) {
+        seenActionIdsRef.current.add(action.id);
+        return;
+      }
 
       if (action.action === "BAN") {
         const team = getTeamById(action.teamId);
@@ -577,28 +603,35 @@ export default function DraftTablePage() {
           hero,
           durationMs: 3000,
         });
+        seenActionIdsRef.current.add(action.id);
+        return;
       }
 
       if (action.action === "PICK") {
         const team = getTeamById(action.teamId);
         const pickedMapId = Number(action.value);
-        const map =
-          draftState.allMaps?.find((entry) => entry.id === pickedMapId) ||
-          draftState.availableMaps?.find((entry) => entry.id === pickedMapId) ||
-          draftState.allMaps?.find((entry) => entry.id === draftState.currentMapId) ||
-          null;
+        const map = getMapById(pickedMapId) || getMapById(draftState.currentMapId);
+        if (!map && Number.isFinite(pickedMapId)) {
+          // Sometimes the action arrives one poll before the map list;
+          // defer until map metadata is available to avoid "Unknown Map".
+          return;
+        }
         enqueueOverlay({
           id: `pick-${action.id}-${overlayIdRef.current++}`,
           kind: "MAP_PICK",
           title: team?.name ? `${team.name} picked` : "Map picked",
-          subtitle: map?.description ?? (action.value ? "Unknown Map" : "Map"),
+          subtitle: map?.description ?? "Map selected",
           team,
           map,
           durationMs: 3000,
         });
+        seenActionIdsRef.current.add(action.id);
+        return;
       }
+
+      seenActionIdsRef.current.add(action.id);
     });
-  }, [draftState?.actions, currentGameNumber, draftState?.allMaps, enqueueOverlay, getHeroById, getTeamById]);
+  }, [draftState?.actions, currentGameNumber, draftState?.currentMapId, enqueueOverlay, getHeroById, getMapById, getTeamById]);
 
   useEffect(() => {
     if (!currentPhase) return;

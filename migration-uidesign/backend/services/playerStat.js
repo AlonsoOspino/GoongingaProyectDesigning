@@ -193,12 +193,53 @@ const isScoreboardNoiseLine = (line) => {
   return prefixBlocked.some((token) => normalized.startsWith(token));
 };
 
+const extractNicknameToken = (line) => {
+  const raw = String(line || "").trim();
+  if (!raw) return "";
+  if (isScoreboardNoiseLine(raw)) return "";
+  if (raw.includes(":")) return "";
+
+  const hadLevelPrefix = /^\d{1,3}\)?\s+/.test(raw);
+  const withoutLevel = raw.replace(/^\d{1,3}\)?\s+/, "").replace(/^\W+/, "").trim();
+  if (!withoutLevel) return "";
+  if (isScoreboardNoiseLine(withoutLevel)) return "";
+  if (/^[\d,]/.test(withoutLevel)) return "";
+  if (hadLevelPrefix && !/[a-z]/.test(withoutLevel)) return "";
+
+  const leadingToken = withoutLevel.match(/^([A-Z][A-Z0-9_]{2,23})(?=\s|$)/);
   if (leadingToken) {
     const remainder = withoutLevel.slice(leadingToken[1].length).trim();
     if (remainder) {
       if (!/[a-z]/.test(remainder)) {
         return "";
       }
+      if (isScoreboardNoiseLine(remainder)) {
+        return "";
+      }
+    }
+    return leadingToken[1];
+  }
+
+  if (!isMostlyUppercase(withoutLevel)) return "";
+
+  const normalized = normalizeName(withoutLevel);
+  if (normalized.length < 3) return "";
+  if (!/[A-Z]/.test(normalized)) return "";
+
+  return withoutLevel;
+};
+
+const extractNicknameCandidateFromLine = (line) => {
+  return extractNicknameToken(line);
+};
+
+const isLikelyStatTokenLine = (line) => {
+  const raw = String(line || "").trim();
+  if (!raw) return false;
+  if (!/^\d[\d,]*$/.test(raw)) return false;
+
+  const value = parseScoreNumber(raw);
+  if (!Number.isFinite(value)) return false;
   return value <= 120000;
 };
 
@@ -533,6 +574,27 @@ const reconstructScoreboardRows = (ocrWords, columnCenters) => {
   };
 };
 
+const parseGenericRows = (text) => {
+  const content = String(text || "");
+  const pattern = /([A-Za-z0-9_]{3,20})[^\n\d]{0,30}(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})\s+([\d,]{1,8})\s+([\d,]{1,8})\s+([\d,]{1,8})/g;
+  const rows = [];
+  for (const m of content.matchAll(pattern)) {
+    rows.push({
+      nickname: m[1],
+      confidence: 0.55,
+      kills: parseScoreNumber(m[2]),
+      assists: parseScoreNumber(m[3]),
+      deaths: parseScoreNumber(m[4]),
+      damage: parseScoreNumber(m[5]),
+      healing: parseScoreNumber(m[6]),
+      mitigation: parseScoreNumber(m[7]),
+    });
+  }
+
+  const confidence = rows.length > 0 ? Math.min(0.65, rows.length / 10 * 0.6) : 0;
+  return { rows, confidence, strategy: "generic-regex" };
+};
+
 const tokenizeForMatch = (value) => normalizeName(value);
 
 const normalizeForFuzzyNickname = (value) =>
@@ -646,7 +708,11 @@ const isGarbageWord = (word) => {
   const text = String(word?.text || "").trim();
   if (!text) return true;
 
-  if (text.length === 1) return true;
+  if (text.length === 1) {
+    const token = tokenizeForMatch(text);
+    const allowSingles = new Set(["E", "A", "D", "H", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]);
+    if (!allowSingles.has(token)) return true;
+  }
 
   if (/%/.test(text)) return true;
   if (/^[\d,]+%$/.test(text)) return true;
@@ -1285,12 +1351,14 @@ const ensureUserInMatch = async (matchId, userId) => {
 // PIPELINE ORCHESTRATOR - Spatial reconstruction as primary strategy
 // ============================================================================
 
-const executeParsingPipeline = async (_text, ocrWords) => {
+const executeParsingPipeline = async (text, ocrWords, players) => {
   const strategies = [];
+  let spatialRowCount = 0;
 
   if (Array.isArray(ocrWords) && ocrWords.length > 0) {
     const spatialResult = parseRowsFromNumericGrid(ocrWords);
     if (spatialResult.rows.length > 0) {
+      spatialRowCount = spatialResult.rows.length;
       strategies.push({
         name: "spatial-reconstruction",
         confidence: Math.min(1, spatialResult.confidence + 0.25),
@@ -1299,10 +1367,37 @@ const executeParsingPipeline = async (_text, ocrWords) => {
         priority: 100,
       });
     }
+
+    if (Array.isArray(players) && players.length > 0) {
+      const geometryResult = detectStatsByWordGeometry(ocrWords, players);
+      if (geometryResult.rowCount > 0) {
+        const geometryPriority =
+          geometryResult.rowCount >= Math.max(6, spatialRowCount + 2) ? 115 : 95;
+        strategies.push({
+          name: "geometry-player-matched",
+          confidence: geometryResult.confidence,
+          detected: geometryResult.detected,
+          rowCount: geometryResult.rowCount,
+          priority: geometryPriority,
+        });
+      }
+    }
+  }
+
+  const genericResult = parseGenericRows(text);
+  if (genericResult.rows.length > 0 && !spatialRowCount) {
+    strategies.push({
+      name: "generic-regex",
+      confidence: genericResult.confidence,
+      rows: genericResult.rows,
+      rowCount: genericResult.rows.length,
+      priority: 10,
+    });
   }
 
   strategies.sort((a, b) => {
     if (b.priority !== a.priority) return b.priority - a.priority;
+    if (b.rowCount !== a.rowCount) return b.rowCount - a.rowCount;
     return b.confidence - a.confidence;
   });
 
