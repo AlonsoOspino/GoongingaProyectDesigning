@@ -287,6 +287,15 @@ const mergeNumericFragments = (numericWords, columnCenters, columnTolerance) => 
   const valuesByKey = {};
   const assignedWords = {};
 
+  const validRanges = {
+    E: { min: 0, max: 150 },
+    A: { min: 0, max: 150 },
+    D: { min: 0, max: 150 },
+    DMG: { min: 0, max: 200000 },
+    H: { min: 0, max: 200000 },
+    MIT: { min: 0, max: 200000 },
+  };
+
   numericWords.forEach((word) => {
     const x = wordCenterX(word);
     const assignment = assignStatValueToColumn(x, columnCenters);
@@ -295,12 +304,18 @@ const mergeNumericFragments = (numericWords, columnCenters, columnTolerance) => 
     const parsed = parseScoreNumber(word.text);
     if (!Number.isFinite(parsed) || parsed < 0) return;
 
+    const range = validRanges[assignment.key];
+    if (parsed > range.max) return;
+
     if (valuesByKey[assignment.key] === undefined) {
       valuesByKey[assignment.key] = parsed;
       assignedWords[assignment.key] = word;
     } else {
       const current = valuesByKey[assignment.key];
-      if (parsed > current || wordWidth(word) > wordWidth(assignedWords[assignment.key])) {
+      const currentDist = Math.abs(wordCenterX(assignedWords[assignment.key]) - (columnCenters[assignment.key] || 0));
+      const newDist = Math.abs(x - (columnCenters[assignment.key] || 0));
+      
+      if (newDist < currentDist || parsed > current) {
         valuesByKey[assignment.key] = parsed;
         assignedWords[assignment.key] = word;
       }
@@ -356,7 +371,7 @@ const reconstructRowFromCluster = (rowCluster, columnCenters, minStatX) => {
 };
 
 const calculateRowReconstructionScore = (statValues, assignedWords, columnCenters, rowCluster) => {
-  let score = 0.75;
+  let score = 0.78;
   const details = {};
 
   if (Object.keys(statValues).length >= 6) {
@@ -364,7 +379,7 @@ const calculateRowReconstructionScore = (statValues, assignedWords, columnCenter
     score += 0.15;
   } else if (Object.keys(statValues).length >= 4) {
     details.partialStats = true;
-    score += 0.05;
+    score += 0.08;
   }
 
   const validStats = Object.entries(statValues).every(([key, val]) => {
@@ -377,7 +392,7 @@ const calculateRowReconstructionScore = (statValues, assignedWords, columnCenter
 
   if (validStats) {
     details.validRanges = true;
-    score += 0.1;
+    score += 0.12;
   }
 
   const columnQuality = Object.entries(assignedWords).reduce((sum, [key, word]) => {
@@ -388,8 +403,17 @@ const calculateRowReconstructionScore = (statValues, assignedWords, columnCenter
     return sum + (1 - Math.min(1, distance / (tolerance * 2)));
   }, 0) / Math.max(1, Object.keys(assignedWords).length);
 
-  score += columnQuality * 0.05;
+  score += columnQuality * 0.06;
   details.columnQuality = columnQuality;
+
+  const yVariance = rowCluster.words.map(wordCenterY);
+  if (yVariance.length > 1) {
+    const yMean = yVariance.reduce((a, b) => a + b) / yVariance.length;
+    const yStdDev = Math.sqrt(yVariance.reduce((sum, y) => sum + Math.pow(y - yMean, 2)) / yVariance.length);
+    const yAlignment = Math.max(0, 1 - yStdDev / 20);
+    score += yAlignment * 0.04;
+    details.yAlignment = yAlignment;
+  }
 
   return {
     score: Math.min(1, score),
@@ -447,7 +471,7 @@ const extractNicknameFromRowGeometry = (rowCluster, minStatX) => {
 const deduplicateReconstructedRows = (rows) => {
   if (rows.length <= 1) return rows;
 
-  const minQualityThreshold = 0.55;
+  const minQualityThreshold = 0.50;
   const filtered = rows.filter((r) => {
     const qualityScore = (r.reconstructionScore || 0) + (r.nicknameConfidence || 0);
     const qualityMean = qualityScore / 2;
@@ -473,10 +497,10 @@ const deduplicateReconstructedRows = (rows) => {
       const nicknameScore = nicknameMatchScore(row.nickname, other.nickname);
       const yProximity = Math.abs(row.y - other.y);
 
-      const nicknameSimilar = nicknameScore >= 0.65;
-      const geometricallyClose = yProximity <= 45;
+      const nicknameSimilar = nicknameScore >= 0.62;
+      const geometricallyClose = yProximity <= 65;
       const botherReasonableQuality =
-        (other.reconstructionScore || 0) >= 0.5 && (other.nicknameConfidence || 0) >= 0.4;
+        (other.reconstructionScore || 0) >= 0.48 && (other.nicknameConfidence || 0) >= 0.38;
 
       if (nicknameSimilar && geometricallyClose && botherReasonableQuality) {
         duplicates.push(j);
@@ -486,7 +510,7 @@ const deduplicateReconstructedRows = (rows) => {
 
         if (
           otherQuality > bestQuality ||
-          (otherQuality === bestQuality && other.kills > best.kills)
+          (Math.abs(otherQuality - bestQuality) < 0.01 && other.kills > best.kills)
         ) {
           best = other;
           bestIdx = j;
@@ -681,14 +705,18 @@ const nicknameMatchScore = (ocrToken, playerNickname) => {
   if (!a || !b) return 0;
   if (a === b) return 1;
   if ((a.includes(b) || b.includes(a)) && Math.min(a.length, b.length) >= 4) return 0.9;
-  if (a.slice(0, 5) === b.slice(0, 5) && Math.min(a.length, b.length) >= 5) return 0.75;
+  if (a.slice(0, 5) === b.slice(0, 5) && Math.min(a.length, b.length) >= 5) return 0.78;
 
   const maxLen = Math.max(a.length, b.length);
   if (maxLen >= 4) {
     const distance = levenshteinDistance(a, b);
     const similarity = 1 - distance / maxLen;
-    if (similarity >= 0.85) return 0.84;
-    if (similarity >= 0.72) return 0.72;
+    
+    const lastCharMatch = a[a.length - 1] === b[b.length - 1] ? 0.05 : 0;
+    
+    if (similarity >= 0.8) return Math.min(1, 0.82 + lastCharMatch);
+    if (similarity >= 0.72) return Math.min(1, 0.73 + lastCharMatch * 0.5);
+    if (similarity >= 0.65) return 0.65;
   }
 
   return 0;
@@ -729,9 +757,9 @@ const calculateYDensity = (ys) => {
 
 const detectRowTolerance = (words) => {
   const ys = words.map(wordCenterY);
-  if (ys.length < 3) return 14;
+  if (ys.length < 3) return 12;
   const { stdDev } = calculateYDensity(ys);
-  return Math.max(8, Math.min(20, stdDev * 0.6));
+  return Math.max(10, Math.min(22, stdDev * 0.5));
 };
 
 const identifyOutlierYs = (ys, tolerance) => {
@@ -876,7 +904,11 @@ const belongsToSameRow = (word1, word2, rowTolerance) => {
 
   if (yDistance <= rowTolerance) return true;
 
-  return hasSignificantBboxOverlap(word1, word2, 0.2);
+  if (yDistance <= rowTolerance * 1.5 && hasSignificantBboxOverlap(word1, word2, 0.3)) {
+    return true;
+  }
+
+  return false;
 };
 
 const clusterRowsByY = (words, manualTolerance = null) => {
@@ -1019,7 +1051,8 @@ const calculateDynamicColumnTolerance = (columnCenters) => {
   const minX = Math.min(...values);
   const maxX = Math.max(...values);
   const spacing = (maxX - minX) / (Object.keys(columnCenters).length - 1 || 1);
-  return Math.max(40, spacing * 0.3);
+  const baseTolerance = Math.max(35, spacing * 0.25);
+  return Math.min(120, baseTolerance);
 };
 
 const assignStatValueToColumn = (x, columnCenters) => {
