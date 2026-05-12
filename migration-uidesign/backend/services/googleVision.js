@@ -13,7 +13,7 @@ const extractFromApiKey = async (buffer, apiKey) => {
       requests: [
         {
           image: { content },
-          features: [{ type: "TEXT_DETECTION", maxResults: 1 }],
+          features: [{ type: "DOCUMENT_TEXT_DETECTION", maxResults: 1 }],
         },
       ],
     }),
