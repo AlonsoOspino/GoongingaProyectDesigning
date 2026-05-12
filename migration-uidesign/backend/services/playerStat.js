@@ -543,11 +543,121 @@ const identifyOutlierYs = (ys, tolerance) => {
   return outliers;
 };
 
+// ============================================================================
+// OCR FILTERING & GARBAGE DETECTION - Clean OCR before parsing
+// ============================================================================
+
+const isGarbageWord = (word) => {
+  const text = String(word?.text || "").trim();
+  if (!text) return true;
+
+  if (text.length === 1) return true;
+  if (/%/.test(text)) return true;
+  if (/^[\d,]+%$/.test(text)) return true;
+  if (text.match(/^[^a-zA-Z0-9]{1,3}$/)) return true;
+
+  const width = wordWidth(word);
+  const height = wordHeight(word);
+  if (width < 2 || height < 2) return true;
+
+  return false;
+};
+
+const isUIWord = (word) => {
+  const token = tokenizeForMatch(word?.text || "");
+  if (!token) return false;
+
+  const uiKeywords = [
+    "FPS",
+    "TMP",
+    "VRM",
+    "PING",
+    "TIME",
+    "INTERACT",
+    "VS",
+    "ROUND",
+    "PHASE",
+    "ATHENA",
+    "CIRCUITROYAL",
+  ];
+
+  return uiKeywords.some((kw) => token === kw || token.startsWith(kw));
+};
+
+const rankTitlePatterns = [
+  /^[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*$/,
+];
+
+const isRankTitle = (word) => {
+  const text = String(word?.text || "").trim();
+  if (text.length < 4 || text.length > 30) return false;
+  if (!/[a-z]/.test(text)) return false;
+
+  return rankTitlePatterns.some((pat) => pat.test(text));
+};
+
+const isReliableWord = (word) => {
+  return !isGarbageWord(word) && !isUIWord(word) && !isRankTitle(word);
+};
+
+// ============================================================================
+// ADAPTIVE ROW HEIGHT & OVERLAP DETECTION
+// ============================================================================
+
+const estimateRowHeight = (words) => {
+  if (!words.length) return 20;
+  const heights = words
+    .map(wordHeight)
+    .filter((h) => h > 0 && h < 100)
+    .sort((a, b) => a - b);
+
+  if (!heights.length) return 20;
+  const median = heights[Math.floor(heights.length / 2)];
+  return Math.max(15, median * 1.3);
+};
+
+const getBboxOverlap = (y1, h1, y2, h2) => {
+  const top1 = y1;
+  const bottom1 = y1 + h1;
+  const top2 = y2;
+  const bottom2 = y2 + h2;
+
+  const overlapTop = Math.max(top1, top2);
+  const overlapBottom = Math.min(bottom1, bottom2);
+
+  if (overlapBottom <= overlapTop) return 0;
+  return (overlapBottom - overlapTop) / Math.min(h1, h2);
+};
+
+const hasSignificantBboxOverlap = (word1, word2, threshold = 0.3) => {
+  const y1 = Number(word1?.bbox?.y0 || 0);
+  const y2 = Number(word2?.bbox?.y0 || 0);
+  const h1 = wordHeight(word1);
+  const h2 = wordHeight(word2);
+
+  const overlap = getBboxOverlap(y1, h1, y2, h2);
+  return overlap >= threshold;
+};
+
+const belongsToSameRow = (word1, word2, rowTolerance) => {
+  const y1 = wordCenterY(word1);
+  const y2 = wordCenterY(word2);
+  const yDistance = Math.abs(y1 - y2);
+
+  if (yDistance <= rowTolerance) return true;
+
+  return hasSignificantBboxOverlap(word1, word2, 0.2);
+};
+
 const clusterRowsByY = (words, manualTolerance = null) => {
   if (!Array.isArray(words) || !words.length) return [];
 
-  const sorted = [...words].sort((a, b) => wordCenterY(a) - wordCenterY(b));
+  const cleanWords = words.filter(isReliableWord);
+  if (!cleanWords.length) return [];
+
+  const sorted = [...cleanWords].sort((a, b) => wordCenterY(a) - wordCenterY(b));
   const tolerance = manualTolerance ?? detectRowTolerance(sorted);
+  const rowHeight = estimateRowHeight(sorted);
   const outlierYs = identifyOutlierYs(
     sorted.map(wordCenterY),
     tolerance
@@ -558,12 +668,19 @@ const clusterRowsByY = (words, manualTolerance = null) => {
     const y = wordCenterY(word);
     if (outlierYs.has(y)) continue;
 
-    const existing = rows.find((row) => Math.abs(row.y - y) <= tolerance);
-    if (existing) {
-      existing.words.push(word);
-      existing.y = (existing.y * (existing.words.length - 1) + y) / existing.words.length;
+    let assignedRow = null;
+    for (const candidate of rows) {
+      if (belongsToSameRow(word, candidate.words[0], tolerance)) {
+        assignedRow = candidate;
+        break;
+      }
+    }
+
+    if (assignedRow) {
+      assignedRow.words.push(word);
+      assignedRow.y = (assignedRow.y * (assignedRow.words.length - 1) + y) / assignedRow.words.length;
     } else {
-      rows.push({ y, words: [word] });
+      rows.push({ y, words: [word], height: rowHeight });
     }
   }
 
@@ -571,7 +688,7 @@ const clusterRowsByY = (words, manualTolerance = null) => {
     row.words.sort((a, b) => wordCenterX(a) - wordCenterX(b));
   }
 
-  return rows;
+  return rows.filter((row) => row.words.length >= 2);
 };
 
 // ============================================================================
@@ -664,6 +781,17 @@ const estimateColumnMinX = (columnCenters) => {
 
 const looksNumericToken = (text) => /^\d[\d,]*$/.test(String(text || "").trim());
 
+const calculateDynamicColumnTolerance = (columnCenters) => {
+  if (!columnCenters || Object.keys(columnCenters).length < 2) {
+    return 80;
+  }
+  const values = Object.values(columnCenters);
+  const minX = Math.min(...values);
+  const maxX = Math.max(...values);
+  const spacing = (maxX - minX) / (Object.keys(columnCenters).length - 1 || 1);
+  return Math.max(40, spacing * 0.3);
+};
+
 const assignStatValueToColumn = (x, columnCenters) => {
   let bestKey = null;
   let bestDistance = Number.POSITIVE_INFINITY;
@@ -678,31 +806,110 @@ const assignStatValueToColumn = (x, columnCenters) => {
     }
   }
 
-  const avgColSpacing = Object.values(columnCenters).length > 1
-    ? (Math.max(...Object.values(columnCenters)) - Math.min(...Object.values(columnCenters))) /
-      (Object.values(columnCenters).length - 1)
-    : 100;
+  const dynamicTolerance = calculateDynamicColumnTolerance(columnCenters);
 
-  const maxMatchDistance = avgColSpacing * 0.35;
-
-  if (bestKey && bestDistance <= maxMatchDistance) {
-    return { key: bestKey, distance: bestDistance };
+  if (bestKey && bestDistance <= dynamicTolerance) {
+    return { key: bestKey, distance: bestDistance, tolerance: dynamicTolerance };
   }
 
   return null;
 };
 
+// ============================================================================
+// NICKNAME EXTRACTION FROM GEOMETRY - Improved multi-word support
+// ============================================================================
+
+const mergeAdjacentNicknameWords = (words, maxDistance = 15) => {
+  if (!words.length) return [];
+
+  const sorted = [...words].sort((a, b) => wordCenterX(a) - wordCenterX(b));
+  const merged = [];
+
+  let currentGroup = [sorted[0]];
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = currentGroup[currentGroup.length - 1];
+    const curr = sorted[i];
+    const x1 = Number(prev?.bbox?.x1 || 0);
+    const x2 = Number(curr?.bbox?.x0 || 0);
+    const gap = x2 - x1;
+
+    if (gap <= maxDistance) {
+      currentGroup.push(curr);
+    } else {
+      merged.push({
+        words: currentGroup,
+        text: currentGroup.map((w) => w.text).join(""),
+        bbox: {
+          x0: Number(currentGroup[0]?.bbox?.x0 || 0),
+          x1: Number(currentGroup[currentGroup.length - 1]?.bbox?.x1 || 0),
+        },
+      });
+      currentGroup = [curr];
+    }
+  }
+
+  if (currentGroup.length > 0) {
+    merged.push({
+      words: currentGroup,
+      text: currentGroup.map((w) => w.text).join(""),
+      bbox: {
+        x0: Number(currentGroup[0]?.bbox?.x0 || 0),
+        x1: Number(currentGroup[currentGroup.length - 1]?.bbox?.x1 || 0),
+      },
+    });
+  }
+
+  return merged;
+};
+
+const extractNicknamesFromRowWords = (rowWords, minStatX) => {
+  const candidates = rowWords.filter((w) => wordCenterX(w) < minStatX - 10);
+  if (!candidates.length) return [];
+
+  const merged = mergeAdjacentNicknameWords(candidates, 20);
+
+  return merged
+    .filter((group) => {
+      const text = group.text;
+      if (text.length < 3 || text.length > 30) return false;
+      if (!/[A-Z]/.test(text)) return false;
+      if (isRankTitle({ text })) return false;
+      return true;
+    })
+    .map((group) => ({
+      text: group.text,
+      bbox: group.bbox,
+      wordCount: group.words.length,
+      confidence: Math.min(1, group.words.length * 0.4),
+    }));
+};
+
+const pickBestNicknameCandidateFromRow = (rowWords, minStatX) => {
+  const candidates = extractNicknamesFromRowWords(rowWords, minStatX);
+  if (!candidates.length) return null;
+
+  const sorted = candidates.sort((a, b) => {
+    if (b.wordCount !== a.wordCount) return b.wordCount - a.wordCount;
+    return b.bbox.x1 - b.bbox.x0 - (a.bbox.x1 - a.bbox.x0);
+  });
+
+  return sorted[0].text || null;
+};
+
 const parseStatsFromRowWords = (rowWords, columnCenters) => {
-  if (!columnCenters) return null;
+  if (!columnCenters) return { stats: null, confidence: 0 };
 
   const minStatX = estimateColumnMinX(columnCenters);
   const numericWords = rowWords
     .filter((w) => looksNumericToken(w.text) && wordCenterX(w) >= minStatX)
     .sort((a, b) => wordCenterX(a) - wordCenterX(b));
 
-  if (!numericWords.length) return null;
+  if (!numericWords.length) return { stats: null, confidence: 0 };
 
   const valuesByKey = {};
+  let assignmentQuality = 0;
+  let validAssignments = 0;
+
   for (const word of numericWords) {
     const x = wordCenterX(word);
     const assignment = assignStatValueToColumn(x, columnCenters);
@@ -711,10 +918,15 @@ const parseStatsFromRowWords = (rowWords, columnCenters) => {
     const parsed = parseScoreNumber(word.text);
     if (!Number.isFinite(parsed)) continue;
 
-    if (valuesByKey[assignment.key] === undefined || parsed > valuesByKey[assignment.key]) {
+    if (valuesByKey[assignment.key] === undefined) {
       valuesByKey[assignment.key] = parsed;
+      validAssignments += 1;
+      const qualityScore = 1 - Math.min(1, assignment.distance / assignment.tolerance);
+      assignmentQuality += qualityScore;
     }
   }
+
+  const avgAssignmentQuality = validAssignments > 0 ? assignmentQuality / validAssignments : 0;
 
   if (
     valuesByKey.E !== undefined &&
@@ -723,12 +935,16 @@ const parseStatsFromRowWords = (rowWords, columnCenters) => {
     valuesByKey.DMG !== undefined
   ) {
     return {
-      kills: valuesByKey.E ?? 0,
-      assists: valuesByKey.A ?? 0,
-      deaths: valuesByKey.D ?? 0,
-      damage: valuesByKey.DMG ?? 0,
-      healing: valuesByKey.H ?? 0,
-      mitigation: valuesByKey.MIT ?? 0,
+      stats: {
+        kills: valuesByKey.E ?? 0,
+        assists: valuesByKey.A ?? 0,
+        deaths: valuesByKey.D ?? 0,
+        damage: valuesByKey.DMG ?? 0,
+        healing: valuesByKey.H ?? 0,
+        mitigation: valuesByKey.MIT ?? 0,
+      },
+      confidence: Math.min(1, 0.85 + avgAssignmentQuality * 0.15),
+      method: "column-detection",
     };
   }
 
@@ -744,11 +960,15 @@ const parseStatsFromRowWords = (rowWords, columnCenters) => {
     const heal = numbers[i + 4];
     const mit = numbers[i + 5];
     if (e <= 120 && a <= 120 && d <= 120 && dmg >= 0 && dmg <= 100000) {
-      return { kills: e, assists: a, deaths: d, damage: dmg, healing: heal, mitigation: mit };
+      return {
+        stats: { kills: e, assists: a, deaths: d, damage: dmg, healing: heal, mitigation: mit },
+        confidence: 0.72,
+        method: "left-to-right-fallback",
+      };
     }
   }
 
-  return null;
+  return { stats: null, confidence: 0 };
 };
 
 // ============================================================================
@@ -806,9 +1026,13 @@ const detectStatsByWordGeometry = (ocrWords, players) => {
     if (nearestDistance > maxYDistance) continue;
 
     const stats = parseStatsFromRowWords(row.words, columnCenters);
-    if (!stats) continue;
+    if (!stats || !stats.stats) continue;
 
-    detected.set(player.id, stats);
+    detected.set(player.id, {
+      ...stats.stats,
+      confidence: stats.confidence,
+      method: stats.method,
+    });
     successCount += 1;
   }
 
@@ -843,15 +1067,18 @@ const parseRowsFromNumericGrid = (ocrWords) => {
 
     if (numericWords.length < 6) continue;
 
-    const stats = parseStatsFromRowWords(row.words, columnCenters);
-    if (!stats) continue;
+    const statsResult = parseStatsFromRowWords(row.words, columnCenters);
+    if (!statsResult || !statsResult.stats) continue;
 
-    const nickname = getNicknameTokenFromRow(row.words, wordCenterX(numericWords[0]));
+    const nickname = pickBestNicknameCandidateFromRow(row.words, minStatX) || "Unknown";
     parsedRows.push({
       y: row.y,
       nickname,
-      confidence: columnCenters ? 0.85 : 0.65,
-      ...stats,
+      confidence: statsResult.confidence,
+      nicknameConfidence: statsResult.confidence * 0.85,
+      statConfidence: statsResult.confidence,
+      method: statsResult.method,
+      ...statsResult.stats,
     });
   }
 
