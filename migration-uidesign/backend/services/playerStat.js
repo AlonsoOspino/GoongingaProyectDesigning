@@ -268,6 +268,26 @@ const isLikelyStatTuple = (tuple) => {
   return true;
 };
 
+const collectNumbersFromLine = (line) =>
+  [...String(line || "").matchAll(/\d[\d,]*/g)].map((m) => parseScoreNumber(m[0]));
+
+const findNearestNicknameBeforeIndex = (lines, index) => {
+  for (let i = index - 1; i >= 0 && i >= index - 8; i -= 1) {
+    const nickname = extractNicknameCandidateFromLine(lines[i]);
+    if (nickname) {
+      return nickname;
+    }
+  }
+  return "";
+};
+
+const isStandaloneNumberLine = (line) => {
+  const raw = String(line || "").trim();
+  if (!raw) return false;
+  if (!/^\d[\d,]*$/.test(raw)) return false;
+  return Number.isFinite(parseScoreNumber(raw));
+};
+
 const parseRowsFromLineBlocks = (text) => {
   const lines = String(text || "")
     .split(/\r?\n/)
@@ -278,53 +298,42 @@ const parseRowsFromLineBlocks = (text) => {
   for (let i = 0; i < lines.length; i += 1) {
     if (/^VS$/i.test(lines[i])) continue;
 
-    let nickname = extractNicknameCandidateFromLine(lines[i]);
-    let nicknameIndex = i;
+    if (!isStandaloneNumberLine(lines[i])) continue;
 
-    // Some OCR lines split level and nickname into two lines: "58" then "DECEMBER 10TH".
-    if (!nickname && isLikelyStatTokenLine(lines[i]) && i + 1 < lines.length) {
-      const nextNickname = extractNicknameCandidateFromLine(lines[i + 1]);
-      if (nextNickname) {
-        nickname = nextNickname;
-        nicknameIndex = i + 1;
-      }
+    const blockValues = [];
+    let endIndex = i;
+    while (endIndex < lines.length && endIndex <= i + 16 && isStandaloneNumberLine(lines[endIndex])) {
+      blockValues.push(parseScoreNumber(lines[endIndex]));
+      endIndex += 1;
     }
 
-    if (!nickname) continue;
-
-    const values = [];
-    let j = nicknameIndex + 1;
-    while (j < lines.length && j <= nicknameIndex + 16 && values.length < 6) {
-      if (/^VS$/i.test(lines[j])) break;
-
-      // Stop if another nickname candidate appears before finding a full tuple.
-      if (extractNicknameCandidateFromLine(lines[j])) {
-        break;
-      }
-
-      for (const m of lines[j].matchAll(/\d[\d,]*/g)) {
-        values.push(parseScoreNumber(m[0]));
-        if (values.length >= 6) break;
-      }
-
-      j += 1;
+    if (blockValues.length < 6) {
+      i = endIndex - 1;
+      continue;
     }
-
-    if (values.length < 6) continue;
 
     const tuple = {
-      kills: values[0],
-      assists: values[1],
-      deaths: values[2],
-      damage: values[3],
-      healing: values[4],
-      mitigation: values[5],
+      kills: blockValues[0],
+      assists: blockValues[1],
+      deaths: blockValues[2],
+      damage: blockValues[3],
+      healing: blockValues[4],
+      mitigation: blockValues[5],
     };
 
-    if (!isLikelyStatTuple(tuple)) continue;
+    if (!isLikelyStatTuple(tuple)) {
+      i = endIndex - 1;
+      continue;
+    }
+
+    const nickname = findNearestNicknameBeforeIndex(lines, i);
+    if (!nickname) {
+      i = endIndex - 1;
+      continue;
+    }
 
     rows.push({ nickname, ...tuple });
-    i = j - 1;
+    i = endIndex - 1;
   }
 
   return rows;
@@ -745,9 +754,15 @@ const previewMatchStatsFromOcrText = async ({
   );
   const geometryByPlayerId = detectStatsByWordGeometry(ocrWords, players);
   const numericGridRows = parseRowsFromNumericGrid(ocrWords);
-  const baseRows = mergedLineRows.length ? mergedLineRows : numericGridRows.length ? numericGridRows : fallbackRows;
+  const rowSources = [
+    { kind: "grid", rows: numericGridRows, score: numericGridRows.length > 0 ? numericGridRows.length + 100 : 0 },
+    { kind: "lines", rows: mergedLineRows, score: mergedLineRows.length },
+    { kind: "fallback", rows: fallbackRows, score: Math.max(0, fallbackRows.length - 1) },
+  ];
+  const selectedRows = rowSources.reduce((best, candidate) => (candidate.score > best.score ? candidate : best));
+  const baseRows = selectedRows.rows;
   const remainingPlayers = [...players.slice(0, 10)];
-  const remainingGridRows = mergedLineRows.length ? [] : [...numericGridRows];
+  const remainingGridRows = selectedRows.kind === "grid" ? [...numericGridRows] : [];
   const rows = [];
 
   for (const parsedRow of baseRows.slice(0, 10)) {
