@@ -193,53 +193,12 @@ const isScoreboardNoiseLine = (line) => {
   return prefixBlocked.some((token) => normalized.startsWith(token));
 };
 
-const extractNicknameToken = (line) => {
-  const raw = String(line || "").trim();
-  if (!raw) return "";
-  if (isScoreboardNoiseLine(raw)) return "";
-  if (raw.includes(":")) return "";
-
-  const hadLevelPrefix = /^\d{1,3}\)?\s+/.test(raw);
-  const withoutLevel = raw.replace(/^\d{1,3}\)?\s+/, "").replace(/^\W+/, "").trim();
-  if (!withoutLevel) return "";
-  if (isScoreboardNoiseLine(withoutLevel)) return "";
-  if (/^[\d,]/.test(withoutLevel)) return "";
-  if (hadLevelPrefix && !/[a-z]/.test(withoutLevel)) return "";
-
-  const leadingToken = withoutLevel.match(/^([A-Z][A-Z0-9_]{2,23})(?=\s|$)/);
   if (leadingToken) {
     const remainder = withoutLevel.slice(leadingToken[1].length).trim();
     if (remainder) {
       if (!/[a-z]/.test(remainder)) {
         return "";
       }
-      if (isScoreboardNoiseLine(remainder)) {
-        return "";
-      }
-    }
-    return leadingToken[1];
-  }
-
-  if (!isMostlyUppercase(withoutLevel)) return "";
-
-  const normalized = normalizeName(withoutLevel);
-  if (normalized.length < 3) return "";
-  if (!/[A-Z]/.test(normalized)) return "";
-
-  return withoutLevel;
-};
-
-const extractNicknameCandidateFromLine = (line) => {
-  return extractNicknameToken(line);
-};
-
-const isLikelyStatTokenLine = (line) => {
-  const raw = String(line || "").trim();
-  if (!raw) return false;
-  if (!/^\d[\d,]*$/.test(raw)) return false;
-
-  const value = parseScoreNumber(raw);
-  if (!Number.isFinite(value)) return false;
   return value <= 120000;
 };
 
@@ -572,101 +531,6 @@ const reconstructScoreboardRows = (ocrWords, columnCenters) => {
     score: overallScore,
     validRowCount: dedupedRows.length,
   };
-};
-
-const parseGenericRows = (text) => {
-  const content = String(text || "");
-  const pattern = /([A-Za-z0-9_]{3,20})[^\n\d]{0,30}(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})\s+([\d,]{1,8})\s+([\d,]{1,8})\s+([\d,]{1,8})/g;
-  const rows = [];
-  for (const m of content.matchAll(pattern)) {
-    rows.push({
-      nickname: m[1],
-      confidence: 0.55,
-      kills: parseScoreNumber(m[2]),
-      assists: parseScoreNumber(m[3]),
-      deaths: parseScoreNumber(m[4]),
-      damage: parseScoreNumber(m[5]),
-      healing: parseScoreNumber(m[6]),
-      mitigation: parseScoreNumber(m[7]),
-    });
-  }
-
-  const confidence = rows.length > 0 ? Math.min(0.65, rows.length / 10 * 0.6) : 0;
-  return { rows, confidence, strategy: "generic-regex" };
-};
-
-const parseRowsFromLineBlocks = (text) => {
-  const lines = String(text || "")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  const rows = [];
-  for (let i = 0; i < lines.length; i += 1) {
-    if (/^VS$/i.test(lines[i])) continue;
-
-    if (!isStandaloneNumberLine(lines[i])) continue;
-
-    const blockValues = [];
-    let endIndex = i;
-    while (endIndex < lines.length && endIndex <= i + 16 && isStandaloneNumberLine(lines[endIndex])) {
-      blockValues.push(parseScoreNumber(lines[endIndex]));
-      endIndex += 1;
-    }
-
-    if (blockValues.length < 6) {
-      i = endIndex - 1;
-      continue;
-    }
-
-    const tuple = {
-      kills: blockValues[0],
-      assists: blockValues[1],
-      deaths: blockValues[2],
-      damage: blockValues[3],
-      healing: blockValues[4],
-      mitigation: blockValues[5],
-    };
-
-    if (!isLikelyStatTuple(tuple)) {
-      i = endIndex - 1;
-      continue;
-    }
-
-    const nickname = findNearestNicknameBeforeIndex(lines, i);
-    if (!nickname) {
-      i = endIndex - 1;
-      continue;
-    }
-
-    rows.push({ nickname, ...tuple });
-    i = endIndex - 1;
-  }
-
-  return rows;
-};
-
-const extractUppercaseNicknameCandidates = (text) => {
-  const lines = String(text || "")
-    .split(/\r?\n/)
-    .map((line) => String(line || "").trim())
-    .filter(Boolean);
-
-  const candidates = [];
-  const seen = new Set();
-
-  for (const raw of lines) {
-    const withoutLevel = extractNicknameToken(raw);
-    if (!withoutLevel) continue;
-
-    const key = normalizeName(withoutLevel);
-    if (!key || seen.has(key)) continue;
-
-    seen.add(key);
-    candidates.push(withoutLevel);
-  }
-
-  return candidates;
 };
 
 const tokenizeForMatch = (value) => normalizeName(value);
@@ -1421,14 +1285,12 @@ const ensureUserInMatch = async (matchId, userId) => {
 // PIPELINE ORCHESTRATOR - Spatial reconstruction as primary strategy
 // ============================================================================
 
-const executeParsingPipeline = async (text, ocrWords, players) => {
+const executeParsingPipeline = async (_text, ocrWords) => {
   const strategies = [];
-  let hasSpatialResults = false;
 
   if (Array.isArray(ocrWords) && ocrWords.length > 0) {
     const spatialResult = parseRowsFromNumericGrid(ocrWords);
     if (spatialResult.rows.length > 0) {
-      hasSpatialResults = true;
       strategies.push({
         name: "spatial-reconstruction",
         confidence: Math.min(1, spatialResult.confidence + 0.25),
@@ -1437,28 +1299,6 @@ const executeParsingPipeline = async (text, ocrWords, players) => {
         priority: 100,
       });
     }
-
-    const geometryResult = detectStatsByWordGeometry(ocrWords, players);
-    if (geometryResult.rowCount > 0) {
-      strategies.push({
-        name: "geometry-player-matched",
-        confidence: geometryResult.confidence,
-        detected: geometryResult.detected,
-        rowCount: geometryResult.rowCount,
-        priority: 80,
-      });
-    }
-  }
-
-  const genericResult = parseGenericRows(text);
-  if (genericResult.rows.length > 0 && !hasSpatialResults) {
-    strategies.push({
-      name: "generic-regex",
-      confidence: genericResult.confidence,
-      rows: genericResult.rows,
-      rowCount: genericResult.rows.length,
-      priority: 10,
-    });
   }
 
   strategies.sort((a, b) => {

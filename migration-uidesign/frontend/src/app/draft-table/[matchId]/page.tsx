@@ -419,12 +419,11 @@ export default function DraftTablePage() {
     ).length;
   };
 
-  const getBanCountByRole = (teamId: number, role: "TANK" | "DPS" | "SUPPORT") => {
+  const getBanCountByRole = (_teamId: number, role: "TANK" | "DPS" | "SUPPORT") => {
     if (!draftState?.actions || !draftState?.heroes) return 0;
     const heroesOfRole = draftState.heroes.filter((h) => h.role === role).map((h) => h.id);
     return draftState.actions.filter(
       (a) =>
-        a.teamId === teamId &&
         a.action === "BAN" &&
         a.gameNumber === currentGameNumber &&
         a.value !== null &&
@@ -1758,10 +1757,36 @@ function BanPhase({
   const isTeamATurn = draftState.currentTurnTeamId === teamA?.id;
   const isTeamBTurn = draftState.currentTurnTeamId === teamB?.id;
 
-  // Group heroes by roleadfasdf
+  // Group heroes by role
   const tankHeroes = heroes.filter((h) => h.role === "TANK");
   const dpsHeroes = heroes.filter((h) => h.role === "DPS");
   const supportHeroes = heroes.filter((h) => h.role === "SUPPORT");
+  const showBanTeamMarkers = isManager || isObsKeyAccess;
+  const heroRoleById = useMemo(() => {
+    const byId: Record<number, "TANK" | "DPS" | "SUPPORT"> = {};
+    for (const hero of heroes) {
+      byId[hero.id] = hero.role;
+    }
+    return byId;
+  }, [heroes]);
+  const roleBanCounts = useMemo(() => {
+    const counts: Record<"TANK" | "DPS" | "SUPPORT", number> = {
+      TANK: 0,
+      DPS: 0,
+      SUPPORT: 0,
+    };
+    for (const action of draftState.actions || []) {
+      if (action.action !== "BAN" || action.gameNumber !== currentGameNumber || action.value === null) continue;
+      const role = heroRoleById[action.value];
+      if (role) {
+        counts[role] += 1;
+      }
+    }
+    return counts;
+  }, [draftState.actions, currentGameNumber, heroRoleById]);
+  const lockedRoles = (["TANK", "DPS", "SUPPORT"] as const).filter((role) => roleBanCounts[role] >= 2);
+  const isRoleLocked = (role: "TANK" | "DPS" | "SUPPORT") => roleBanCounts[role] >= 2;
+  const getRoleLimitMessage = (role: "TANK" | "DPS" | "SUPPORT") => `NO MORE ${role} BANS!`;
 
   const renderBannedHero = (heroId: number | null, index: number) => {
     // If heroId is null, show "NO BAN" slot
@@ -1819,9 +1844,8 @@ function BanPhase({
     }
     
     // Check role-specific limit (max 2 per role counting both teams)
-    if (!canBanRole(hero.role)) {
-      const roleName = hero.role.charAt(0) + hero.role.slice(1).toLowerCase();
-      setBanWarning(`Maximum 2 ${roleName} heroes can be banned per game. Choose a different role.`);
+    if (isRoleLocked(hero.role) || !canBanRole(hero.role)) {
+      setBanWarning(getRoleLimitMessage(hero.role));
       setTimeout(() => setBanWarning(null), 3000);
       return;
     }
@@ -1880,7 +1904,7 @@ function BanPhase({
   }, []);
 
   const renderHeroCard = (hero: Hero, canSelect: boolean, banned: boolean) => {
-    const roleAtLimit = !canBanRole(hero.role);
+    const roleAtLimit = isRoleLocked(hero.role);
     const teamDone = myTeamId ? getTeamTotalBans(myTeamId) >= 2 : false;
     
     // Check if hero was banned in previous games
@@ -1902,8 +1926,7 @@ function BanPhase({
       
       // Show warning for role limit
       if (roleAtLimit) {
-        const roleName = hero.role.charAt(0) + hero.role.slice(1).toLowerCase();
-        setBanWarning(`Maximum 2 ${roleName} heroes can be banned per game. Choose a different role.`);
+        setBanWarning(getRoleLimitMessage(hero.role));
         setTimeout(() => setBanWarning(null), 3000);
         return;
       }
@@ -1922,9 +1945,9 @@ function BanPhase({
       ? "text-blue-300"
       : "text-muted";
 
-    // Manager-only: previous-game bans are shown "turned off" (full grayscale).
+    // Manager-style (including manager-key): previous-game bans are shown "turned off" (full grayscale).
     // The colored top stripe + tooltip still identify which team banned them.
-    const managerGrayFilter = !banned && isManager && wasBannedBefore
+    const managerGrayFilter = !banned && !roleAtLimit && showBanTeamMarkers && wasBannedBefore
       ? "grayscale(100%)"
       : undefined;
 
@@ -1941,23 +1964,24 @@ function BanPhase({
             // Current game banned - GRAY tones
             banned
               ? "border-muted/50 cursor-not-allowed grayscale"
+              // Role locked (2 bans already reached for this role in this game)
+              : roleAtLimit
+              ? "border-muted/50 cursor-not-allowed grayscale"
               // Previous game banned by my team (captain view) - RED tones
               : isCaptain && myTeamBannedBefore
               ? "border-danger/70 cursor-not-allowed"
               // Previous game banned (manager view)
-              : isManager && wasBannedBefore
+              : showBanTeamMarkers && wasBannedBefore
               ? "border-border/70 cursor-not-allowed"
               : teamDone
               ? "border-border cursor-not-allowed opacity-40"
-              : roleAtLimit && isCaptain
-              ? "border-warning/50 cursor-pointer opacity-60"
               : canSelect
               ? "border-border hover:border-danger hover:ring-2 hover:ring-danger/30 cursor-pointer hover:scale-110 hover:z-10"
               // Manager: available heroes stay fully lit. Captain (not their turn): keep dimmed.
-              : clsx("border-border cursor-default", !isManager && "opacity-60")
+              : clsx("border-border cursor-default", !isManager && !isObsKeyAccess && "opacity-60")
           )}
         >
-          {!banned && isManager && wasBannedBefore && (
+          {!banned && showBanTeamMarkers && wasBannedBefore && (
             <div className="absolute top-1 left-1 z-20 flex items-center gap-1 rounded-full border border-border/70 bg-surface/80 px-1.5 py-1">
               {prevBannedByTeamAOnly && <span className="h-2 w-2 rounded-full bg-red-500" />}
               {prevBannedByTeamBOnly && <span className="h-2 w-2 rounded-full bg-blue-500" />}
@@ -1978,10 +2002,12 @@ function BanPhase({
                   "w-full h-full object-cover", 
                   // Current game banned - grayscale
                   banned && "grayscale opacity-50",
+                  // Role-locked heroes - grayscale for all viewers
+                  !banned && roleAtLimit && "grayscale opacity-45",
                   // Previous game banned by my team (captain) - red tint
-                  !banned && isCaptain && myTeamBannedBefore && "opacity-60",
-                  // Manager: previously-banned heroes look "turned off"
-                  !banned && isManager && wasBannedBefore && "opacity-40",
+                  !banned && !roleAtLimit && isCaptain && myTeamBannedBefore && "opacity-60",
+                  // Manager-style: previously-banned heroes look "turned off"
+                  !banned && !roleAtLimit && showBanTeamMarkers && wasBannedBefore && "opacity-40",
                   canSelect && "group-hover:brightness-110"
                 )}
                 style={managerGrayFilter ? { filter: managerGrayFilter } : undefined}
@@ -1994,17 +2020,17 @@ function BanPhase({
               </div>
             )}
             {/* Red overlay for captain - previous game ban by their team */}
-            {!banned && isCaptain && myTeamBannedBefore && (
+            {!banned && !roleAtLimit && isCaptain && myTeamBannedBefore && (
               <div className="absolute inset-0 bg-danger/30" />
             )}
           </div>
           <div className={clsx(
             "px-1 py-0.5 text-center",
-            !banned && wasBannedBefore ? "bg-surface-elevated" : "bg-background"
+            !banned && (wasBannedBefore || roleAtLimit) ? "bg-surface-elevated" : "bg-background"
           )}>
             <span className={clsx(
               "text-[10px] truncate block font-semibold leading-tight",
-              !banned && wasBannedBefore ? managerLabelTone : "text-foreground"
+              roleAtLimit ? "text-muted" : !banned && wasBannedBefore ? managerLabelTone : "text-foreground"
             )}>
               {hero.name}
             </span>
@@ -2024,7 +2050,7 @@ function BanPhase({
             />
           )}
           {/* Previous game banned overlay for captain - diagonal red lines (ban indicator) */}
-          {!banned && isCaptain && myTeamBannedBefore && (
+          {!banned && !roleAtLimit && isCaptain && myTeamBannedBefore && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="relative w-full h-full flex items-center justify-center">
                 <svg className="absolute w-6 h-6 text-danger" fill="currentColor" viewBox="0 0 24 24">
@@ -2036,7 +2062,7 @@ function BanPhase({
           )}
         </button>
         {/* Tooltip for manager showing which team banned */}
-        {isManager && wasBannedBefore && !banned && hoveredHero === hero.id && (
+        {showBanTeamMarkers && wasBannedBefore && !banned && hoveredHero === hero.id && (
           <div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-surface-elevated border border-border rounded text-[10px] whitespace-nowrap shadow-lg">
             <span className={clsx("font-medium", managerLabelTone)}>Banned by: </span>
             <span className="text-foreground">{prevBanInfo.teamNames.join(" & ")}</span>
@@ -2150,7 +2176,7 @@ function BanPhase({
       {/* Warning Toast */}
       {banWarning && (
         <div className={clsx(toastPositionClass, "top-20 left-1/2 -translate-x-1/2 z-50 animate-fade-in")}>
-          <div className="bg-warning text-warning-foreground px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
+          <div className="bg-danger text-danger-foreground px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
@@ -2256,7 +2282,10 @@ function BanPhase({
                   variant={selectedRole === role ? "default" : "ghost"}
                   onClick={() => setSelectedRole(role)}
                   size="sm"
-                  className={clsx(isObsKeyAccess ? "text-sm px-4" : "text-xs px-3")}
+                  className={clsx(
+                    isObsKeyAccess ? "text-sm px-4" : "text-xs px-3",
+                    role !== "ALL" && isRoleLocked(role) && "text-danger"
+                  )}
                 >
                   {role === "ALL" ? "All" : role}
                 </Button>
@@ -2265,6 +2294,21 @@ function BanPhase({
           </div>
 
           {/* Status Messages */}
+          {lockedRoles.length > 0 && (
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              {lockedRoles.map((role) => (
+                <div
+                  key={role}
+                  className="rounded-lg border border-danger/60 bg-danger/15 px-3 py-1.5"
+                >
+                  <p className={clsx("font-bold uppercase tracking-wide text-danger", isObsKeyAccess ? "text-sm" : "text-xs")}>
+                    {getRoleLimitMessage(role)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+
           {isCaptain && myTeamId && getTeamTotalBans(myTeamId) >= 2 && (
             <div className="mb-3 p-2 rounded-lg bg-success/10 border border-success/30 text-center">
               <p className={clsx("text-success font-semibold", isObsKeyAccess ? "text-sm" : "text-xs")}>
@@ -2298,7 +2342,8 @@ function BanPhase({
               )}>
                 {heroes.filter((h) => h.role === selectedRole).map((hero) => {
                   const banned = isHeroBanned(hero.id);
-                  const canSelect = isCaptain && isMyTurn && !banned && canBanRole(hero.role);
+                  const myTeamBannedBefore = wasHeroBannedByMyTeamBefore(hero.id);
+                  const canSelect = isCaptain && isMyTurn && !banned && !myTeamBannedBefore && canBanRole(hero.role);
                   return renderHeroCard(hero, canSelect, banned);
                 })}
               </div>
