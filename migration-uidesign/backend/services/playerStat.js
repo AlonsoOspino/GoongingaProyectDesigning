@@ -1091,9 +1091,16 @@ const headerAlias = {
 const classifyHeaderKey = (text) => {
   const token = tokenizeForMatch(text);
   if (!token) return null;
+
+  for (const key of Object.keys(headerAlias)) {
+    if (headerAlias[key].some((alias) => token === alias)) {
+      return key;
+    }
+  }
+
   for (const key of Object.keys(headerAlias)) {
     const aliases = headerAlias[key];
-    if (aliases.some((alias) => token === alias || token.includes(alias))) {
+    if (aliases.some((alias) => alias.length > 1 && token.includes(alias))) {
       return key;
     }
   }
@@ -1660,7 +1667,7 @@ const buildFinalRowsList = (primaryMatches, allPlayers) => {
       mitigation: match.row.mitigation ?? 0,
       userFound: true,
       matchScore: match.matchScore,
-      rowSource: match.row.strategy || "unknown",
+      rowSource: match.row.strategy || match.row.method || "unknown",
     });
   }
 
@@ -1726,6 +1733,15 @@ const mergePlayerMatches = (primaryMatches, fallbackMatches) => {
 
     const existingMagnitude = statMagnitude(existing.row);
     const fallbackMagnitude = statMagnitude(fallback.row);
+    const existingSource = existing.row?.strategy || existing.row?.method || "";
+    const existingIsStrongSpatial =
+      existing.matchScore >= 0.9 &&
+      existingMagnitude > 0 &&
+      /spatial|column|geometry/.test(existingSource);
+
+    if (existingIsStrongSpatial) {
+      continue;
+    }
 
     if (
       fallbackMagnitude > existingMagnitude * 1.1 ||

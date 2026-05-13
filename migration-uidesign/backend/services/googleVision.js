@@ -5,9 +5,9 @@ let client = null;
 
 const OCR_REGION_LAYOUT = Object.freeze({
   // Central scoreboard area (blue + red tables).
-  scoreboard: { left: 0.24, top: 0.14, width: 0.54, height: 0.79 },
+  scoreboard: { left: 0.25, top: 0.14, width: 0.5, height: 0.74 },
   // Top-right area where map + TIME are displayed.
-  timer: { left: 0.79, top: 0.0, width: 0.21, height: 0.14 },
+  timer: { left: 0.82, top: 0.0, width: 0.18, height: 0.08 },
 });
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -182,8 +182,22 @@ const extractFixedRegions = async (buffer) => {
   const timerRect = makeRect(OCR_REGION_LAYOUT.timer);
 
   const [scoreboardBuffer, timerBuffer] = await Promise.all([
-    sharp(buffer, { failOn: "none" }).extract(scoreboardRect).png().toBuffer(),
-    sharp(buffer, { failOn: "none" }).extract(timerRect).png().toBuffer(),
+    sharp(buffer, { failOn: "none" })
+      .extract(scoreboardRect)
+      .resize({ width: scoreboardRect.width * 2, withoutEnlargement: false })
+      .grayscale()
+      .normalize()
+      .sharpen()
+      .png()
+      .toBuffer(),
+    sharp(buffer, { failOn: "none" })
+      .extract(timerRect)
+      .resize({ width: timerRect.width * 2, withoutEnlargement: false })
+      .grayscale()
+      .normalize()
+      .sharpen()
+      .png()
+      .toBuffer(),
   ]);
 
   return { scoreboardBuffer, timerBuffer };
