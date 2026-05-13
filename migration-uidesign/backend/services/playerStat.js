@@ -823,6 +823,7 @@ const nicknameMatchScore = (ocrToken, playerNickname) => {
   if (!a || !b) return 0;
   if (a === b) return 1;
   if ((a.includes(b) || b.includes(a)) && Math.min(a.length, b.length) >= 4) return 0.9;
+  if (b.length >= 2 && b.length <= 3 && a.startsWith(b) && a.length >= b.length + 2) return 0.86;
   if (a.slice(0, 5) === b.slice(0, 5) && Math.min(a.length, b.length) >= 5) return 0.78;
 
   const maxLen = Math.max(a.length, b.length);
@@ -1621,7 +1622,7 @@ const matchRowsToPlayers = (rows, players) => {
   const matched = [];
   const usedPlayers = new Set();
 
-  for (const row of rows) {
+  for (const [rowIndex, row] of rows.entries()) {
     let bestPlayer = null;
     let bestScore = 0;
 
@@ -1642,6 +1643,7 @@ const matchRowsToPlayers = (rows, players) => {
         player: bestPlayer,
         row,
         matchScore: bestScore,
+        rowIndex,
       });
     }
   }
@@ -1717,6 +1719,16 @@ const statMagnitude = (row) =>
   Number(row?.mitigation || 0) +
   (Number(row?.kills || 0) + Number(row?.assists || 0) + Number(row?.deaths || 0)) * 25;
 
+const statTupleKey = (row) =>
+  [
+    row?.kills ?? 0,
+    row?.assists ?? 0,
+    row?.deaths ?? 0,
+    row?.damage ?? 0,
+    row?.healing ?? 0,
+    row?.mitigation ?? 0,
+  ].join("|");
+
 const mergePlayerMatches = (primaryMatches, fallbackMatches) => {
   const byPlayerId = new Map();
 
@@ -1754,6 +1766,102 @@ const mergePlayerMatches = (primaryMatches, fallbackMatches) => {
   return Array.from(byPlayerId.values());
 };
 
+const getSpatialRowsFromPipeline = (pipelineResult) => {
+  const strategies = Array.isArray(pipelineResult?.strategies) ? pipelineResult.strategies : [];
+  const spatial = strategies.find(
+    (strategy) => strategy?.name === "spatial-reconstruction" && Array.isArray(strategy.rows)
+  );
+  return spatial ? spatial.rows.slice(0, 10) : [];
+};
+
+const inferSideTeamIds = ({ spatialRows, matches, match }) => {
+  const counts = {
+    top: new Map(),
+    bottom: new Map(),
+  };
+
+  const sideForIndex = (index) => (index < Math.ceil(spatialRows.length / 2) ? "top" : "bottom");
+
+  for (const entry of matches || []) {
+    let rowIndex = Number.isInteger(entry.rowIndex) ? entry.rowIndex : -1;
+    if (rowIndex < 0) {
+      const key = statTupleKey(entry.row);
+      rowIndex = spatialRows.findIndex((row) => statTupleKey(row) === key);
+    }
+    if (rowIndex < 0) continue;
+    const side = sideForIndex(rowIndex);
+    const teamId = Number(entry.player?.teamId || 0);
+    if (!teamId) continue;
+    counts[side].set(teamId, (counts[side].get(teamId) || 0) + 1);
+  }
+
+  const pickBestTeam = (side) => {
+    let bestTeamId = null;
+    let bestCount = 0;
+    for (const [teamId, count] of counts[side].entries()) {
+      if (count > bestCount) {
+        bestTeamId = teamId;
+        bestCount = count;
+      }
+    }
+    return bestTeamId;
+  };
+
+  let topTeamId = pickBestTeam("top");
+  let bottomTeamId = pickBestTeam("bottom");
+  const matchTeamIds = [match?.teamAId, match?.teamBId].filter(Boolean);
+
+  if (topTeamId && !bottomTeamId) {
+    bottomTeamId = matchTeamIds.find((id) => id !== topTeamId) || null;
+  } else if (!topTeamId && bottomTeamId) {
+    topTeamId = matchTeamIds.find((id) => id !== bottomTeamId) || null;
+  }
+
+  return { topTeamId, bottomTeamId, sideForIndex };
+};
+
+const addTeamOrderFallbackMatches = ({ matches, spatialRows, players, match }) => {
+  if (!Array.isArray(spatialRows) || spatialRows.length < 8) return matches;
+
+  const usedPlayerIds = new Set(matches.map((entry) => entry.player?.id).filter(Boolean));
+  const usedTupleKeys = new Set(matches.map((entry) => statTupleKey(entry.row)));
+  const { topTeamId, bottomTeamId, sideForIndex } = inferSideTeamIds({ spatialRows, matches, match });
+
+  if (!topTeamId && !bottomTeamId) return matches;
+
+  const nextMatches = [...matches];
+
+  for (const side of ["top", "bottom"]) {
+    const teamId = side === "top" ? topTeamId : bottomTeamId;
+    if (!teamId) continue;
+
+    const sideRows = spatialRows
+      .map((row, rowIndex) => ({ row, rowIndex, side: sideForIndex(rowIndex) }))
+      .filter((entry) => entry.side === side && statMagnitude(entry.row) > 0 && !usedTupleKeys.has(statTupleKey(entry.row)));
+
+    const sidePlayers = players.filter((player) => player.teamId === teamId && !usedPlayerIds.has(player.id));
+
+    const assignmentCount = Math.min(sideRows.length, sidePlayers.length);
+    for (let i = 0; i < assignmentCount; i += 1) {
+      const rowEntry = sideRows[i];
+      const player = sidePlayers[i];
+      usedPlayerIds.add(player.id);
+      usedTupleKeys.add(statTupleKey(rowEntry.row));
+      nextMatches.push({
+        player,
+        row: {
+          ...rowEntry.row,
+          strategy: "spatial-team-order-fallback",
+        },
+        matchScore: 0.45,
+        rowIndex: rowEntry.rowIndex,
+      });
+    }
+  }
+
+  return nextMatches;
+};
+
 const previewMatchStatsFromOcrText = async ({
   text,
   ocrWords,
@@ -1766,7 +1874,7 @@ const previewMatchStatsFromOcrText = async ({
     throw new Error("matchId must be a positive integer.");
   }
 
-  const { players } = await getMatchPlayers(parsedMatchId);
+  const { match, players } = await getMatchPlayers(parsedMatchId);
 
   const normalizedMapType = mapType
     ? parseEnum(mapType, MAP_TYPES, "mapType")
@@ -1802,10 +1910,20 @@ const previewMatchStatsFromOcrText = async ({
 
   const { matched: playerMatches } = matchRowsToPlayers(primaryRows, players);
   const textFallbackMatches = detectRowsFromTextByPlayers(text, players);
-  const combinedMatches =
+  const mergedMatches =
     playerMatches.length >= 8
       ? playerMatches
       : mergePlayerMatches(playerMatches, textFallbackMatches);
+  const spatialRows = getSpatialRowsFromPipeline(pipelineResult);
+  const combinedMatches =
+    mergedMatches.length >= Math.min(10, players.length)
+      ? mergedMatches
+      : addTeamOrderFallbackMatches({
+          matches: mergedMatches,
+          spatialRows,
+          players,
+          match,
+        });
   const finalRows = buildFinalRowsList(combinedMatches, players);
 
   let gameDuration = 0;
@@ -1834,6 +1952,7 @@ const previewMatchStatsFromOcrText = async ({
         rowCount: s.rowCount,
       })),
       textFallbackMatches: textFallbackMatches.length,
+      teamOrderFallbackMatches: combinedMatches.length - mergedMatches.length,
       combinedMatches: combinedMatches.length,
     },
   };
