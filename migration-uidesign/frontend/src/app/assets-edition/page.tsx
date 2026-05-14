@@ -28,8 +28,8 @@ import { LeaderboardOverlayFromData } from "@/app/overlay/components/Leaderboard
 
 const OVERLAY_WIDTH = 1920;
 const OVERLAY_HEIGHT = 1080;
-const PREVIEW_WIDTH = 480;
-const PREVIEW_HEIGHT = 270;
+const PREVIEW_WIDTH = 680;
+const PREVIEW_HEIGHT = 382;
 const previewScale = PREVIEW_WIDTH / OVERLAY_WIDTH;
 
 interface SliderInputProps {
@@ -42,27 +42,71 @@ interface SliderInputProps {
 }
 
 function SliderInput({ label, value, min, max, step = 1, onChange }: SliderInputProps) {
+  const pct = max > min ? Math.round(((value - min) / (max - min)) * 100) : 0;
+
   return (
-    <label className="text-sm">
-      <span className="text-muted">{label}</span>
-      <div className="mt-2 flex items-center gap-3">
-        <input
-          type="range"
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          onChange={(e) => onChange(Number(e.target.value))}
-          className="flex-1 h-2 bg-border rounded-lg appearance-none cursor-pointer accent-primary"
-          style={{
-            background: `linear-gradient(to right, hsl(var(--primary)) 0%, hsl(var(--primary)) ${
-              ((value - min) / (max - min)) * 100
-            }%, hsl(var(--border)) ${((value - min) / (max - min)) * 100}%, hsl(var(--border)) 100%)`,
-          }}
-        />
-        <span className="text-sm font-mono w-12 text-right">{value}</span>
-      </div>
-    </label>
+    <div className="rounded-lg bg-surface-elevated p-3 border border-border/50">
+      <label className="text-sm">
+        <span className="text-muted text-xs uppercase tracking-wide font-semibold">{label}</span>
+        <div className="mt-3 flex items-center gap-3">
+          <style jsx>{`
+            input[type="range"] {
+              width: 100%;
+              height: 8px;
+              border-radius: 4px;
+              background: transparent;
+              outline: none;
+              -webkit-appearance: none;
+              appearance: none;
+            }
+            input[type="range"]::-webkit-slider-thumb {
+              -webkit-appearance: none;
+              appearance: none;
+              width: 18px;
+              height: 18px;
+              border-radius: 3px;
+              background: hsl(var(--primary));
+              cursor: pointer;
+              box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+              border: 2px solid hsl(var(--background));
+            }
+            input[type="range"]::-moz-range-thumb {
+              width: 18px;
+              height: 18px;
+              border-radius: 3px;
+              background: hsl(var(--primary));
+              cursor: pointer;
+              border: 2px solid hsl(var(--background));
+              box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+            }
+            input[type="range"]::-moz-range-track {
+              background: transparent;
+              border: none;
+              height: 8px;
+            }
+            input[type="range"]::-webkit-slider-runnable-track {
+              background: transparent;
+              height: 8px;
+              border-radius: 4px;
+            }
+          `}</style>
+          <input
+            type="range"
+            min={min}
+            max={max}
+            step={step}
+            value={value}
+            onChange={(e) => onChange(Number(e.target.value))}
+            className="flex-1"
+            style={{
+              background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${pct}%, rgba(255,255,255,0.06) ${pct}%, rgba(255,255,255,0.06) 100%)`,
+              boxShadow: "inset 0 1px 2px rgba(0,0,0,0.25)",
+            }}
+          />
+          <span className="text-sm font-mono w-12 text-right px-2 py-1 rounded bg-background">{value}</span>
+        </div>
+      </label>
+    </div>
   );
 }
 
@@ -350,11 +394,12 @@ export default function AssetsEditionPage() {
         </Card>
 
         {selectedMatch && (
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            <div className="space-y-6">
-              <Card>
+          <div className="grid grid-cols-1 xl:grid-cols-[400px_1fr] gap-6 items-start">
+            {/* Left Column: Controls */}
+            <div className="space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto pr-2">
+              <Card className="border-border/60 bg-surface-elevated/80">
                 <CardHeader>
-                  <CardTitle>Background</CardTitle>
+                  <CardTitle className="text-lg">Background</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <label className="block text-sm">
@@ -387,11 +432,11 @@ export default function AssetsEditionPage() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="border-border/60 bg-surface-elevated/80">
                 <CardHeader>
-                  <CardTitle>Week Title Style</CardTitle>
+                  <CardTitle className="text-lg">Week Title</CardTitle>
                 </CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                <CardContent className="space-y-3">
                   <SliderInput
                     label="Week number"
                     value={settings.weekNumber}
@@ -405,10 +450,10 @@ export default function AssetsEditionPage() {
                     }
                   />
 
-                  <label className="text-sm">
-                    <span className="text-muted">Font</span>
+                  <label className="text-sm rounded-lg bg-surface-elevated p-3 border border-border/50 block">
+                    <span className="text-muted text-xs uppercase tracking-wide font-semibold">Font</span>
                     <select
-                      className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
+                      className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                       value={settings.title.fontFamily}
                       onChange={(event) =>
                         updateSettings((prev) => ({
@@ -425,11 +470,11 @@ export default function AssetsEditionPage() {
                     </select>
                   </label>
 
-                  <label className="text-sm">
-                    <span className="text-muted">Color</span>
+                  <label className="text-sm rounded-lg bg-surface-elevated p-3 border border-border/50 block">
+                    <span className="text-muted text-xs uppercase tracking-wide font-semibold">Color</span>
                     <input
                       type="color"
-                      className="mt-1 h-10 w-full rounded-md border border-border bg-background"
+                      className="mt-2 h-10 w-full rounded-md border border-border bg-background"
                       value={settings.title.color}
                       onChange={(event) =>
                         updateSettings((prev) => ({
@@ -481,15 +526,15 @@ export default function AssetsEditionPage() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="border-border/60 bg-surface-elevated/80">
                 <CardHeader>
-                  <CardTitle>Leaderboard Style</CardTitle>
+                  <CardTitle className="text-lg">Leaderboard</CardTitle>
                 </CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  <label className="text-sm">
-                    <span className="text-muted">Font</span>
+                <CardContent className="space-y-3">
+                  <label className="text-sm rounded-lg bg-surface-elevated p-3 border border-border/50 block">
+                    <span className="text-muted text-xs uppercase tracking-wide font-semibold">Font</span>
                     <select
-                      className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
+                      className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                       value={settings.leaderboard.fontFamily}
                       onChange={(event) =>
                         updateSettings((prev) => ({
@@ -506,11 +551,11 @@ export default function AssetsEditionPage() {
                     </select>
                   </label>
 
-                  <label className="text-sm">
-                    <span className="text-muted">Color</span>
+                  <label className="text-sm rounded-lg bg-surface-elevated p-3 border border-border/50 block">
+                    <span className="text-muted text-xs uppercase tracking-wide font-semibold">Color</span>
                     <input
                       type="color"
-                      className="mt-1 h-10 w-full rounded-md border border-border bg-background"
+                      className="mt-2 h-10 w-full rounded-md border border-border bg-background"
                       value={settings.leaderboard.color}
                       onChange={(event) =>
                         updateSettings((prev) => ({
@@ -602,15 +647,15 @@ export default function AssetsEditionPage() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="border-border/60 bg-surface-elevated/80">
                 <CardHeader>
-                  <CardTitle>Match Cards Style</CardTitle>
+                  <CardTitle className="text-lg">Match Cards</CardTitle>
                 </CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  <label className="text-sm">
-                    <span className="text-muted">Font</span>
+                <CardContent className="space-y-3">
+                  <label className="text-sm rounded-lg bg-surface-elevated p-3 border border-border/50 block">
+                    <span className="text-muted text-xs uppercase tracking-wide font-semibold">Font</span>
                     <select
-                      className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
+                      className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                       value={settings.matches.fontFamily}
                       onChange={(event) =>
                         updateSettings((prev) => ({
@@ -627,11 +672,11 @@ export default function AssetsEditionPage() {
                     </select>
                   </label>
 
-                  <label className="text-sm">
-                    <span className="text-muted">Color</span>
+                  <label className="text-sm rounded-lg bg-surface-elevated p-3 border border-border/50 block">
+                    <span className="text-muted text-xs uppercase tracking-wide font-semibold">Color</span>
                     <input
                       type="color"
-                      className="mt-1 h-10 w-full rounded-md border border-border bg-background"
+                      className="mt-2 h-10 w-full rounded-md border border-border bg-background"
                       value={settings.matches.color}
                       onChange={(event) =>
                         updateSettings((prev) => ({
@@ -749,7 +794,7 @@ export default function AssetsEditionPage() {
                 </CardContent>
               </Card>
 
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3 pt-2">
                 <Button onClick={() => void handleSave()} disabled={saving || loadingOverlayData}>
                   {saving ? "Saving..." : "Save overlay"}
                 </Button>
@@ -757,9 +802,11 @@ export default function AssetsEditionPage() {
               </div>
             </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Live Preview (1920x1080)</CardTitle>
+            {/* Right Column: Preview */}
+            <div className="flex flex-col">
+              <Card className="sticky top-8">
+                <CardHeader>
+                  <CardTitle className="text-lg">Live Preview</CardTitle>
               </CardHeader>
               <CardContent>
                 {loadingOverlayData ? (
@@ -795,6 +842,7 @@ export default function AssetsEditionPage() {
                 )}
               </CardContent>
             </Card>
+            </div>
           </div>
         )}
       </div>
