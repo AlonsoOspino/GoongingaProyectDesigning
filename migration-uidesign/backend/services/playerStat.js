@@ -4,6 +4,44 @@ const prisma = require("../config/prisma");
 
 const MAP_TYPES = ["CONTROL", "HYBRID", "PAYLOAD", "PUSH", "FLASHPOINT"];
 const HERO_ROLES = ["TANK", "DPS", "SUPPORT"];
+const MAP_NAME_TYPES = Object.freeze([
+  ["ANTARCTIC PENINSULA", "CONTROL"],
+  ["ATLAS", "FLASHPOINT"],
+  ["ATLIS", "FLASHPOINT"],
+  ["BLIZZARD WORLD", "HYBRID"],
+  ["BUSAN", "CONTROL"],
+  ["CIRCUIT ROYALE", "PAYLOAD"],
+  ["CIRCUIT ROYAL", "PAYLOAD"],
+  ["COLOSSEO", "PUSH"],
+  ["DORADO", "PAYLOAD"],
+  ["EICHENWALDE", "HYBRID"],
+  ["ESPERANCA", "PUSH"],
+  ["ESPERANÇA", "PUSH"],
+  ["GIBRALTAR", "PAYLOAD"],
+  ["HAVANA", "PAYLOAD"],
+  ["HOLLYWOOD", "HYBRID"],
+  ["ILIOS", "CONTROL"],
+  ["JUNKERTOWN", "PAYLOAD"],
+  ["KING'S ROW", "HYBRID"],
+  ["KINGS ROW", "HYBRID"],
+  ["KINGSROW", "HYBRID"],
+  ["LIJIANG TOWER", "CONTROL"],
+  ["MIDTOWN", "HYBRID"],
+  ["NEPAL", "CONTROL"],
+  ["NEW JUNK CITY", "FLASHPOINT"],
+  ["NEW QUEEN STREET", "PUSH"],
+  ["NUMBANI", "HYBRID"],
+  ["OASIS", "CONTROL"],
+  ["PARAISO", "HYBRID"],
+  ["PARAÍSO", "HYBRID"],
+  ["RIALTO", "PAYLOAD"],
+  ["ROUTE 66", "PAYLOAD"],
+  ["RUNASAPI", "PUSH"],
+  ["SAMOA", "CONTROL"],
+  ["SHAMBALI", "PAYLOAD"],
+  ["SHAMBALI MONASTERY", "PAYLOAD"],
+  ["SURAVASA", "FLASHPOINT"],
+]);
 
 const parseIntStat = (value, fieldName) => {
   const parsed = Number(value);
@@ -1651,45 +1689,37 @@ const matchRowsToPlayers = (rows, players) => {
   return { matched, usedPlayers };
 };
 
-const buildFinalRowsList = (primaryMatches, allPlayers) => {
+const buildFinalRowsList = (ocrRows, primaryMatches) => {
   const rows = [];
-  const coveredPlayerIds = new Set();
+  const matchesByRowIndex = new Map();
+  const matchesByTuple = new Map();
 
-  for (const match of primaryMatches) {
-    coveredPlayerIds.add(match.player.id);
-    rows.push({
-      nickname: match.player.nickname,
-      userId: match.player.id,
-      role: "DPS",
-      kills: match.row.kills ?? 0,
-      assists: match.row.assists ?? 0,
-      deaths: match.row.deaths ?? 0,
-      damage: match.row.damage ?? 0,
-      healing: match.row.healing ?? 0,
-      mitigation: match.row.mitigation ?? 0,
-      userFound: true,
-      matchScore: match.matchScore,
-      rowSource: match.row.strategy || match.row.method || "unknown",
-    });
+  for (const match of primaryMatches || []) {
+    if (Number.isInteger(match.rowIndex)) {
+      matchesByRowIndex.set(match.rowIndex, match);
+    }
+    matchesByTuple.set(statTupleKey(match.row), match);
   }
 
-  for (const player of allPlayers.slice(0, 10)) {
+  for (const [index, ocrRow] of (ocrRows || []).slice(0, 10).entries()) {
     if (rows.length >= 10) break;
-    if (coveredPlayerIds.has(player.id)) continue;
+    const match = matchesByRowIndex.get(index) || matchesByTuple.get(statTupleKey(ocrRow));
 
     rows.push({
-      nickname: player.nickname,
-      userId: player.id,
+      nickname: ocrRow.nickname || match?.player?.nickname || "",
+      userId: match?.player?.id || null,
       role: "DPS",
-      kills: 0,
-      assists: 0,
-      deaths: 0,
-      damage: 0,
-      healing: 0,
-      mitigation: 0,
-      userFound: true,
-      matchScore: 0,
-      rowSource: "missing",
+      kills: ocrRow.kills ?? match?.row?.kills ?? 0,
+      assists: ocrRow.assists ?? match?.row?.assists ?? 0,
+      deaths: ocrRow.deaths ?? match?.row?.deaths ?? 0,
+      damage: ocrRow.damage ?? match?.row?.damage ?? 0,
+      healing: ocrRow.healing ?? match?.row?.healing ?? 0,
+      mitigation: ocrRow.mitigation ?? match?.row?.mitigation ?? 0,
+      userFound: Boolean(match?.player?.id),
+      matchScore: match?.matchScore || 0,
+      rowSource: match
+        ? match.row.strategy || match.row.method || "matched-ocr"
+        : ocrRow.strategy || ocrRow.method || "unmatched-ocr",
     });
   }
 
@@ -1710,7 +1740,7 @@ const buildFinalRowsList = (primaryMatches, allPlayers) => {
     });
   }
 
-  return rows.slice(0, 10);
+  return inferRolesFromStats(rows.slice(0, 10));
 };
 
 const statMagnitude = (row) =>
@@ -1718,6 +1748,36 @@ const statMagnitude = (row) =>
   Number(row?.healing || 0) +
   Number(row?.mitigation || 0) +
   (Number(row?.kills || 0) + Number(row?.assists || 0) + Number(row?.deaths || 0)) * 25;
+
+const inferRolesFromStats = (rows) => {
+  const nextRows = rows.map((row) => ({ ...row, role: "DPS" }));
+  const statRows = nextRows
+    .map((row, index) => ({ row, index }))
+    .filter(({ row }) => row.userId && statMagnitude(row) > 0);
+
+  const tankIndexes = new Set(
+    [...statRows]
+      .sort((a, b) => Number(b.row.mitigation || 0) - Number(a.row.mitigation || 0))
+      .slice(0, 2)
+      .map(({ index }) => index)
+  );
+
+  for (const index of tankIndexes) {
+    nextRows[index].role = "TANK";
+  }
+
+  const supportIndexes = [...statRows]
+    .filter(({ index }) => !tankIndexes.has(index))
+    .sort((a, b) => Number(b.row.healing || 0) - Number(a.row.healing || 0))
+    .slice(0, 4)
+    .map(({ index }) => index);
+
+  for (const index of supportIndexes) {
+    nextRows[index].role = "SUPPORT";
+  }
+
+  return nextRows;
+};
 
 const statTupleKey = (row) =>
   [
@@ -1774,94 +1834,6 @@ const getSpatialRowsFromPipeline = (pipelineResult) => {
   return spatial ? spatial.rows.slice(0, 10) : [];
 };
 
-const inferSideTeamIds = ({ spatialRows, matches, match }) => {
-  const counts = {
-    top: new Map(),
-    bottom: new Map(),
-  };
-
-  const sideForIndex = (index) => (index < Math.ceil(spatialRows.length / 2) ? "top" : "bottom");
-
-  for (const entry of matches || []) {
-    let rowIndex = Number.isInteger(entry.rowIndex) ? entry.rowIndex : -1;
-    if (rowIndex < 0) {
-      const key = statTupleKey(entry.row);
-      rowIndex = spatialRows.findIndex((row) => statTupleKey(row) === key);
-    }
-    if (rowIndex < 0) continue;
-    const side = sideForIndex(rowIndex);
-    const teamId = Number(entry.player?.teamId || 0);
-    if (!teamId) continue;
-    counts[side].set(teamId, (counts[side].get(teamId) || 0) + 1);
-  }
-
-  const pickBestTeam = (side) => {
-    let bestTeamId = null;
-    let bestCount = 0;
-    for (const [teamId, count] of counts[side].entries()) {
-      if (count > bestCount) {
-        bestTeamId = teamId;
-        bestCount = count;
-      }
-    }
-    return bestTeamId;
-  };
-
-  let topTeamId = pickBestTeam("top");
-  let bottomTeamId = pickBestTeam("bottom");
-  const matchTeamIds = [match?.teamAId, match?.teamBId].filter(Boolean);
-
-  if (topTeamId && !bottomTeamId) {
-    bottomTeamId = matchTeamIds.find((id) => id !== topTeamId) || null;
-  } else if (!topTeamId && bottomTeamId) {
-    topTeamId = matchTeamIds.find((id) => id !== bottomTeamId) || null;
-  }
-
-  return { topTeamId, bottomTeamId, sideForIndex };
-};
-
-const addTeamOrderFallbackMatches = ({ matches, spatialRows, players, match }) => {
-  if (!Array.isArray(spatialRows) || spatialRows.length < 8) return matches;
-
-  const usedPlayerIds = new Set(matches.map((entry) => entry.player?.id).filter(Boolean));
-  const usedTupleKeys = new Set(matches.map((entry) => statTupleKey(entry.row)));
-  const { topTeamId, bottomTeamId, sideForIndex } = inferSideTeamIds({ spatialRows, matches, match });
-
-  if (!topTeamId && !bottomTeamId) return matches;
-
-  const nextMatches = [...matches];
-
-  for (const side of ["top", "bottom"]) {
-    const teamId = side === "top" ? topTeamId : bottomTeamId;
-    if (!teamId) continue;
-
-    const sideRows = spatialRows
-      .map((row, rowIndex) => ({ row, rowIndex, side: sideForIndex(rowIndex) }))
-      .filter((entry) => entry.side === side && statMagnitude(entry.row) > 0 && !usedTupleKeys.has(statTupleKey(entry.row)));
-
-    const sidePlayers = players.filter((player) => player.teamId === teamId && !usedPlayerIds.has(player.id));
-
-    const assignmentCount = Math.min(sideRows.length, sidePlayers.length);
-    for (let i = 0; i < assignmentCount; i += 1) {
-      const rowEntry = sideRows[i];
-      const player = sidePlayers[i];
-      usedPlayerIds.add(player.id);
-      usedTupleKeys.add(statTupleKey(rowEntry.row));
-      nextMatches.push({
-        player,
-        row: {
-          ...rowEntry.row,
-          strategy: "spatial-team-order-fallback",
-        },
-        matchScore: 0.45,
-        rowIndex: rowEntry.rowIndex,
-      });
-    }
-  }
-
-  return nextMatches;
-};
-
 const previewMatchStatsFromOcrText = async ({
   text,
   ocrWords,
@@ -1874,11 +1846,9 @@ const previewMatchStatsFromOcrText = async ({
     throw new Error("matchId must be a positive integer.");
   }
 
-  const { match, players } = await getMatchPlayers(parsedMatchId);
+  const { players } = await getMatchPlayers(parsedMatchId);
 
-  const normalizedMapType = mapType
-    ? parseEnum(mapType, MAP_TYPES, "mapType")
-    : detectMapType(text);
+  const normalizedMapType = detectMapType(text, mapType);
 
   const pipelineResult = await executeParsingPipeline(text, ocrWords, players);
 
@@ -1910,21 +1880,13 @@ const previewMatchStatsFromOcrText = async ({
 
   const { matched: playerMatches } = matchRowsToPlayers(primaryRows, players);
   const textFallbackMatches = detectRowsFromTextByPlayers(text, players);
-  const mergedMatches =
+  const combinedMatches =
     playerMatches.length >= 8
       ? playerMatches
       : mergePlayerMatches(playerMatches, textFallbackMatches);
   const spatialRows = getSpatialRowsFromPipeline(pipelineResult);
-  const combinedMatches =
-    mergedMatches.length >= Math.min(10, players.length)
-      ? mergedMatches
-      : addTeamOrderFallbackMatches({
-          matches: mergedMatches,
-          spatialRows,
-          players,
-          match,
-        });
-  const finalRows = buildFinalRowsList(combinedMatches, players);
+  const previewSourceRows = spatialRows.length ? spatialRows : primaryRows;
+  const finalRows = buildFinalRowsList(previewSourceRows, combinedMatches);
 
   let gameDuration = 0;
   if (Number.isInteger(templateDuration) && templateDuration > 0) {
@@ -1952,8 +1914,8 @@ const previewMatchStatsFromOcrText = async ({
         rowCount: s.rowCount,
       })),
       textFallbackMatches: textFallbackMatches.length,
-      teamOrderFallbackMatches: combinedMatches.length - mergedMatches.length,
       combinedMatches: combinedMatches.length,
+      unmatchedOcrRows: finalRows.filter((row) => statMagnitude(row) > 0 && !row.userId).length,
     },
   };
 };
@@ -1975,14 +1937,18 @@ const createBatchFromPreview = async ({ matchId, mapType, gameNumber, gameDurati
   const normalizedMapType = parseEnum(mapType, MAP_TYPES, "mapType");
   const normalizedDuration = parseDurationToSeconds(gameDuration);
 
-  if (!Array.isArray(rows) || rows.length !== 10) {
-    throw new Error("rows must include exactly 10 players.");
+  if (!Array.isArray(rows) || rows.length > 10) {
+    throw new Error("rows must include up to 10 players.");
   }
 
   const sanitizedRows = rows.slice(0, 10);
 
   const created = [];
   for (const row of sanitizedRows) {
+    if (row.userId === undefined || row.userId === null || row.userId === "" || Number(row.userId) <= 0) {
+      continue;
+    }
+
     const userId = await validateUser(row.userId);
     if (!allowedUserIds.has(userId)) {
       throw new Error(`User ${userId} does not belong to this match teams.`);
@@ -2059,11 +2025,32 @@ const extractDurationOrFallback = (text, fallbackValue) => {
   }
 };
 
-const detectMapType = (text) => {
+const normalizeMapSearchText = (value) =>
+  String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Z0-9]+/gi, "")
+    .toUpperCase();
+
+const detectMapType = (text, fallbackType) => {
   const content = String(text || "").toUpperCase();
+  const compactContent = normalizeMapSearchText(content);
+
+  const sortedMapNames = [...MAP_NAME_TYPES].sort((a, b) => b[0].length - a[0].length);
+  for (const [mapName, type] of sortedMapNames) {
+    if (compactContent.includes(normalizeMapSearchText(mapName))) {
+      return type;
+    }
+  }
+
   for (const type of MAP_TYPES) {
     if (content.includes(type)) return type;
   }
+
+  if (fallbackType) {
+    return parseEnum(fallbackType, MAP_TYPES, "mapType");
+  }
+
   throw new Error("Could not detect mapType from OCR text.");
 };
 
@@ -2150,7 +2137,7 @@ const createFromOcrText = async ({
     assists: extractFirstNumberOrFallback(text, ["assists"], "assists", assists),
     deaths: extractFirstNumberOrFallback(text, ["deaths"], "deaths", deaths),
     gameDuration: extractDurationOrFallback(text, gameDuration),
-    mapType: mapType ? parseEnum(mapType, MAP_TYPES, "mapType") : detectMapType(text),
+    mapType: detectMapType(text, mapType),
     role: role ? parseEnum(role, HERO_ROLES, "role") : detectRole(text),
   };
 

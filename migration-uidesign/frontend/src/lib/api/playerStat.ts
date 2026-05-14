@@ -136,7 +136,7 @@ export async function confirmMatchStatsUpload(
     gameNumber: number;
     gameDuration: number | string;
     rows: Array<{
-      userId: number;
+      userId: number | null;
       role: "TANK" | "DPS" | "SUPPORT";
       kills: number;
       assists: number;

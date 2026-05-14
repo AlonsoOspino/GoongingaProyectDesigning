@@ -39,7 +39,7 @@ type MapType = "CONTROL" | "HYBRID" | "PAYLOAD" | "PUSH" | "FLASHPOINT";
 type HeroRole = "TANK" | "DPS" | "SUPPORT";
 
 type PendingUploadFormState = {
-  image: File | null;
+  images: File[];
   mapType: MapType;
   matchTitle: string;
 };
@@ -52,7 +52,7 @@ type PlayerCandidate = {
 const POLL_INTERVAL = 12000;
 
 const DEFAULT_PENDING_UPLOAD_FORM: PendingUploadFormState = {
-  image: null,
+  images: [],
   mapType: "FLASHPOINT",
   matchTitle: "",
 };
@@ -324,44 +324,46 @@ export default function ManagerDashboardPage() {
       }));
       return;
     }
-    if (!form.image) {
-      setUploadMessages((prev) => ({ ...prev, [match.id]: "Please select a screenshot image first." }));
+    const selectedImages = form.images || [];
+    if (!selectedImages.length) {
+      setUploadMessages((prev) => ({ ...prev, [match.id]: "Please select screenshot image(s) first." }));
       return;
     }
+    const remainingSlots = Math.max(0, expectedGames - existingPreviews.length);
+    const imagesToParse = selectedImages.slice(0, remainingSlots);
 
     setParsingMatchId(match.id);
-    setUploadMessages((prev) => ({ ...prev, [match.id]: "Reading screenshot and auto-filling 10 players..." }));
+    setUploadMessages((prev) => ({
+      ...prev,
+      [match.id]: `Reading ${imagesToParse.length} screenshot(s) and auto-filling players...`,
+    }));
 
     try {
-      const response = await uploadMatchStatsScreenshotPreview(token, {
-        image: form.image,
-        matchId: match.id,
-        mapType: form.mapType,
-      });
+      const parsedPreviews: MatchStatPreviewResponse[] = [];
+      for (const image of imagesToParse) {
+        const response = await uploadMatchStatsScreenshotPreview(token, {
+          image,
+          matchId: match.id,
+          mapType: form.mapType,
+        });
 
-      const candidatePlayers = (response.players?.length ? response.players : matchPlayers) as PlayerCandidate[];
-      const usedIds = new Set<number>();
-      const parsedRows = response.rows.map((row) => {
-        if (row.userId) {
-          usedIds.add(row.userId);
-          return row;
+        const paddedRows = [...response.rows];
+        while (paddedRows.length < 10) {
+          paddedRows.push({ nickname: "", userId: null, role: "DPS", kills: 0, assists: 0, deaths: 0, damage: 0, healing: 0, mitigation: 0, userFound: false });
         }
-        const auto = findBestPlayerMatch(row.nickname, candidatePlayers, usedIds, row.userId);
-        if (!auto) return row;
-        usedIds.add(auto.id);
-        return { ...row, userId: auto.id, userFound: true, nickname: row.nickname || auto.nickname };
-      });
-
-      const paddedRows = [...parsedRows];
-      while (paddedRows.length < 10) {
-        paddedRows.push({ nickname: "", userId: null, role: "DPS", kills: 0, assists: 0, deaths: 0, damage: 0, healing: 0, mitigation: 0, userFound: false });
+        parsedPreviews.push({ ...response, rows: paddedRows.slice(0, 10) });
       }
 
       setMatchPreviews((prev) => {
         const existing = prev[match.id] || [];
-        return { ...prev, [match.id]: [...existing, { ...response, rows: paddedRows.slice(0, 10) }] };
+        return { ...prev, [match.id]: [...existing, ...parsedPreviews].slice(0, expectedGames) };
       });
-      setUploadMessages((prev) => ({ ...prev, [match.id]: "Screenshot parsed. Verify players, then confirm." }));
+      updateUploadForm(match.id, { images: [] });
+      setUploadMessages((prev) => {
+        const skipped = selectedImages.length - imagesToParse.length;
+        const suffix = skipped > 0 ? ` ${skipped} extra file(s) ignored because this match only needs ${expectedGames} game(s).` : "";
+        return { ...prev, [match.id]: `Parsed ${parsedPreviews.length} screenshot(s). Verify players, then confirm.${suffix}` };
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to parse screenshot.";
       setUploadMessages((prev) => ({ ...prev, [match.id]: message }));
@@ -397,16 +399,6 @@ export default function ManagerDashboardPage() {
       return;
     }
 
-    for (let batchIndex = 0; batchIndex < previewsToSave.length; batchIndex += 1) {
-      const rows = previewsToSave[batchIndex].rows.slice(0, 10);
-      for (let i = 0; i < rows.length; i += 1) {
-        if (!rows[i].userId) {
-          setUploadMessages((prev) => ({ ...prev, [matchId]: `Game ${batchIndex + 1}, Row ${i + 1}: select a player user.` }));
-          return;
-        }
-      }
-    }
-
     setConfirmingMatchId(matchId);
     setUploadMessages((prev) => ({ ...prev, [matchId]: "Saving player stats..." }));
 
@@ -423,7 +415,7 @@ export default function ManagerDashboardPage() {
           gameNumber: batchIndex + 1,
           gameDuration: preview.gameDuration,
           rows: rows.map((row) => ({
-            userId: Number(row.userId),
+            userId: row.userId,
             role: row.role,
             kills: Number(row.kills),
             assists: Number(row.assists),
@@ -812,8 +804,8 @@ export default function ManagerDashboardPage() {
                           {isOpen && (
                             <div className="mt-4 border-t border-border pt-4 space-y-4">
                               <p className="text-sm text-muted">
-                                Upload one scoreboard screenshot per game. The system auto-fills 10 players using OCR.
-                                Verify the names, assign users and roles, then confirm.
+                                Upload scoreboard screenshots for this match. The system auto-fills players, roles, duration, and map type using OCR.
+                                Verify the rows, then confirm.
                               </p>
 
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -829,7 +821,7 @@ export default function ManagerDashboardPage() {
                                 </label>
 
                                 <label className="text-sm">
-                                  <span className="text-muted block mb-1">Map Type</span>
+                                  <span className="text-muted block mb-1">Map Type Fallback</span>
                                   <select
                                     className="w-full rounded-md border border-border bg-background px-3 py-2"
                                     value={form.mapType}
@@ -842,18 +834,18 @@ export default function ManagerDashboardPage() {
                                 </label>
 
                                 <label className="text-sm">
-                                  <span className="text-muted block mb-1">Screenshot</span>
+                                  <span className="text-muted block mb-1">Screenshots</span>
                                   <input
-                                    type="file" accept="image/*"
+                                    type="file" accept="image/*" multiple
                                     className="w-full rounded-md border border-border bg-background px-3 py-2"
-                                    onChange={(e) => updateUploadForm(match.id, { image: e.target.files?.[0] ?? null })}
+                                    onChange={(e) => updateUploadForm(match.id, { images: Array.from(e.target.files || []) })}
                                   />
                                 </label>
                               </div>
 
                               <div className="flex flex-wrap items-center gap-3">
                                 <Button onClick={() => void handleParseScreenshot(match)} disabled={parsingMatchId === match.id}>
-                                  {parsingMatchId === match.id ? "Parsing..." : "Parse Screenshot (OCR)"}
+                                  {parsingMatchId === match.id ? "Parsing..." : "Parse Screenshot(s) (OCR)"}
                                 </Button>
                                 <Button
                                   onClick={() => void handleConfirmBatch(match.id)}
