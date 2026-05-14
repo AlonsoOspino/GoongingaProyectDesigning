@@ -11,6 +11,7 @@ import {
   getLeaderboardOverlayAsset,
   getMatchById,
   getMatches,
+  getMatchesByTournament,
   getMatchesByWeek,
   getTeams,
   updateLeaderboardOverlayAsset,
@@ -302,10 +303,17 @@ export default function AssetsEditionPage() {
         nextBackgroundUrl = uploadedUrl;
       }
 
-      await updateLeaderboardOverlayAsset(token, selectedMatchId, {
-        backgroundImageUrl: nextBackgroundUrl,
-        settings,
-      });
+      // Apply the same overlay asset to all matches in the tournament (global per-tournament settings)
+      if (!selectedMatch) throw new Error("No selected match to determine tournament.");
+      const tournamentMatches = await getMatchesByTournament(selectedMatch.tournamentId);
+      await Promise.all(
+        tournamentMatches.map((m) =>
+          updateLeaderboardOverlayAsset(token, m.id, {
+            backgroundImageUrl: nextBackgroundUrl,
+            settings,
+          })
+        )
+      );
 
       const previousUrl = savedBackgroundImageUrl;
 
@@ -350,7 +358,7 @@ export default function AssetsEditionPage() {
           <div>
             <h1 className="text-3xl font-bold text-foreground">Edit Assets</h1>
             <p className="text-muted mt-1">
-              Configure the overlay rendered in <code>/overlay/leaderboard/:id</code>.
+              Configure the overlay used by all leaderboard overlays for the selected match's tournament.
             </p>
           </div>
 
