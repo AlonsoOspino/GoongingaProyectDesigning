@@ -161,6 +161,46 @@ const normalizeOcrResult = (result) => {
   return { text, words };
 };
 
+const wordCenterY = (word) => (Number(word?.bbox?.y0 || 0) + Number(word?.bbox?.y1 || 0)) / 2;
+const wordCenterX = (word) => (Number(word?.bbox?.x0 || 0) + Number(word?.bbox?.x1 || 0)) / 2;
+const wordHeight = (word) => Math.max(0, Number(word?.bbox?.y1 || 0) - Number(word?.bbox?.y0 || 0));
+
+const rebuildTextFromWordGeometry = (words) => {
+  if (!Array.isArray(words) || !words.length) return "";
+
+  const heights = words
+    .map(wordHeight)
+    .filter((height) => height >= 4 && height <= 120)
+    .sort((a, b) => a - b);
+  const medianHeight = heights.length ? heights[Math.floor(heights.length / 2)] : 18;
+  const tolerance = Math.max(10, Math.min(28, medianHeight * 0.75));
+  const rows = [];
+
+  for (const word of [...words].sort((a, b) => wordCenterY(a) - wordCenterY(b))) {
+    const y = wordCenterY(word);
+    let target = null;
+    for (const row of rows) {
+      if (Math.abs(row.y - y) <= tolerance) {
+        target = row;
+        break;
+      }
+    }
+
+    if (target) {
+      target.words.push(word);
+      target.y = (target.y * (target.words.length - 1) + y) / target.words.length;
+    } else {
+      rows.push({ y, words: [word] });
+    }
+  }
+
+  return rows
+    .map((row) => row.words.sort((a, b) => wordCenterX(a) - wordCenterX(b)).map((word) => word.text).join(" "))
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join("\n");
+};
+
 const extractFixedRegions = async (buffer) => {
   const metadata = await sharp(buffer, { failOn: "none" }).metadata();
   const imageWidth = Number(metadata?.width || 0);
@@ -250,7 +290,8 @@ const extractOcrFromBuffer = async (buffer) => {
     }
   }
 
-  const combinedText = [scoreboardOcr.text, timerOcrText]
+  const geometryText = rebuildTextFromWordGeometry(scoreboardOcr.words);
+  const combinedText = [geometryText || scoreboardOcr.text, timerOcrText]
     .map((v) => String(v || "").trim())
     .filter(Boolean)
     .join("\n");

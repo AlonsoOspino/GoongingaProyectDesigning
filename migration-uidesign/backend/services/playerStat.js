@@ -755,6 +755,100 @@ const deduplicateReconstructedRows = (rows) => {
   return deduped.sort((a, b) => a.y - b.y);
 };
 
+const getLocalStatTupleKey = (row) =>
+  [
+    row?.kills ?? 0,
+    row?.assists ?? 0,
+    row?.deaths ?? 0,
+    row?.damage ?? 0,
+    row?.healing ?? 0,
+    row?.mitigation ?? 0,
+  ].join("|");
+
+const medianGap = (values) => {
+  const sorted = [...values].sort((a, b) => a - b);
+  const gaps = [];
+  for (let i = 1; i < sorted.length; i += 1) {
+    const gap = sorted[i] - sorted[i - 1];
+    if (gap > 0) gaps.push(gap);
+  }
+  if (!gaps.length) return 70;
+  gaps.sort((a, b) => a - b);
+  return gaps[Math.floor(gaps.length / 2)];
+};
+
+const buildNicknameRowsFromClusters = (rows, minStatX) => {
+  const candidates = [];
+
+  for (const rowCluster of rows) {
+    const nickname = extractNicknameFromRowGeometry(rowCluster, minStatX);
+    if (!nickname) continue;
+
+    candidates.push({
+      nickname: nickname.text,
+      nicknameConfidence: nickname.confidence,
+      y: rowCluster.y,
+    });
+  }
+
+  const deduped = [];
+  for (const candidate of candidates.sort((a, b) => a.y - b.y)) {
+    const duplicate = deduped.find(
+      (existing) =>
+        Math.abs(existing.y - candidate.y) <= 35 &&
+        nicknameMatchScore(existing.nickname, candidate.nickname) >= 0.72
+    );
+    if (duplicate) {
+      if ((candidate.nicknameConfidence || 0) > (duplicate.nicknameConfidence || 0)) {
+        duplicate.nickname = candidate.nickname;
+        duplicate.nicknameConfidence = candidate.nicknameConfidence;
+        duplicate.y = candidate.y;
+      }
+      continue;
+    }
+    deduped.push(candidate);
+  }
+
+  return deduped;
+};
+
+const attachNearestNicknameRows = ({ statRows, nicknameRows, existingRows }) => {
+  if (!statRows.length || !nicknameRows.length) return [];
+
+  const usedNicknames = new Set();
+  const existingKeys = new Set((existingRows || []).map(getLocalStatTupleKey));
+  const maxYDistance = Math.max(45, Math.min(110, medianGap(statRows.map((row) => row.y)) * 0.7));
+  const attached = [];
+
+  for (const statRow of statRows.sort((a, b) => a.y - b.y)) {
+    if (existingKeys.has(getLocalStatTupleKey(statRow))) continue;
+
+    let bestIndex = -1;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < nicknameRows.length; i += 1) {
+      if (usedNicknames.has(i)) continue;
+      const distance = Math.abs(nicknameRows[i].y - statRow.y);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestIndex = i;
+      }
+    }
+
+    if (bestIndex < 0 || bestDistance > maxYDistance) continue;
+
+    usedNicknames.add(bestIndex);
+    const nickname = nicknameRows[bestIndex];
+    attached.push({
+      ...statRow,
+      nickname: nickname.nickname,
+      nicknameConfidence: Math.min(0.72, nickname.nicknameConfidence || 0.5),
+      method: `${statRow.method || "spatial-reconstruction"}-nearest-name`,
+    });
+  }
+
+  return attached;
+};
+
 
 const reconstructScoreboardRows = (ocrWords, columnCenters) => {
   if (!Array.isArray(ocrWords) || !ocrWords.length) {
@@ -772,11 +866,18 @@ const reconstructScoreboardRows = (ocrWords, columnCenters) => {
 
   const minStatX = estimateColumnMinX(columnCenters);
   const reconstructed = [];
+  const statRows = [];
   let validRowCount = 0;
 
   for (const rowCluster of rows) {
     const stats = reconstructRowFromCluster(rowCluster, columnCenters, minStatX);
     if (!stats) continue;
+
+    const statRow = {
+      ...stats,
+      y: rowCluster.y,
+    };
+    statRows.push(statRow);
 
     const nickname = extractNicknameFromRowGeometry(rowCluster, minStatX);
     if (!nickname) continue;
@@ -784,11 +885,21 @@ const reconstructScoreboardRows = (ocrWords, columnCenters) => {
     reconstructed.push({
       nickname: nickname.text,
       nicknameConfidence: nickname.confidence,
-      ...stats,
-      y: rowCluster.y,
+      ...statRow,
     });
 
     validRowCount += 1;
+  }
+
+  if (reconstructed.length < Math.min(10, statRows.length)) {
+    const nicknameRows = buildNicknameRowsFromClusters(rows, minStatX);
+    reconstructed.push(
+      ...attachNearestNicknameRows({
+        statRows,
+        nicknameRows,
+        existingRows: reconstructed,
+      })
+    );
   }
 
   const dedupedRows = deduplicateReconstructedRows(
