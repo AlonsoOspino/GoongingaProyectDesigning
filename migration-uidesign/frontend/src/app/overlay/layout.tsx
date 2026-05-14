@@ -4,7 +4,7 @@ import { Bebas_Neue, Oswald } from "next/font/google";
 import "./overlay.css";
 
 const bebasNeue = Bebas_Neue({
-  weight: ["400", "700"],
+  weight: "400",
   subsets: ["latin"],
   variable: "--font-overlay-display",
 });
