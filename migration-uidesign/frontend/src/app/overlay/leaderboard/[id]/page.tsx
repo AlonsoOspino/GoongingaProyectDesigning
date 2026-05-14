@@ -73,10 +73,16 @@ export default function LeaderboardOverlayPage() {
           getLeaderboardOverlayAsset(matchId),
         ]);
         const normalizedSettings = normalizeLeaderboardOverlaySettings(overlayAsset.settings);
-        const weekToLoad = Number.isInteger(Number(normalizedSettings.weekNumber))
-          ? Number(normalizedSettings.weekNumber)
-          : Number.isInteger(Number(loadedMatch.semanas))
+        const finalSettings = {
+          ...normalizedSettings,
+          weekNumber: Number.isInteger(Number(loadedMatch.semanas))
+            ? Number(loadedMatch.semanas)
+            : normalizedSettings.weekNumber,
+        };
+        const weekToLoad = Number.isInteger(Number(loadedMatch.semanas))
           ? Number(loadedMatch.semanas)
+          : Number.isInteger(Number(normalizedSettings.weekNumber))
+          ? Number(normalizedSettings.weekNumber)
           : 1;
         const weekMatchesData = await getMatchesByWeek(loadedMatch.tournamentId, weekToLoad);
 
@@ -87,7 +93,7 @@ export default function LeaderboardOverlayPage() {
         setLeaderboard(leaderboardData);
         setWeekMatches(weekMatchesData.sort((a, b) => a.id - b.id));
         setBackgroundImageUrl(overlayAsset.backgroundImageUrl);
-        setSettings(normalizedSettings);
+        setSettings(finalSettings);
         setError(null);
       } catch (fetchError) {
         if (cancelled) return;

@@ -229,10 +229,10 @@ export function LeaderboardOverlayFromData({
   backgroundImageUrl,
 }: LeaderboardOverlayDataProps) {
   const teamsById = new Map(allTeams.map((team) => [team.id, team]));
-  const safeWeek = Number.isInteger(Number(settings.weekNumber))
-    ? Number(settings.weekNumber)
-    : Number.isInteger(Number(match.semanas))
+  const safeWeek = Number.isInteger(Number(match.semanas))
     ? Number(match.semanas)
+    : Number.isInteger(Number(settings.weekNumber))
+    ? Number(settings.weekNumber)
     : 1;
 
   return (

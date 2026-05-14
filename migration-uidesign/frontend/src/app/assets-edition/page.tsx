@@ -162,9 +162,10 @@ export default function AssetsEditionPage() {
         setMatches(sortedMatches);
         setTeams(teamsData);
 
+        const soonestScheduledMatch = sortedMatches.find((match) => match.status === "SCHEDULED");
         const defaultMatchId = Number.isInteger(queryMatchId) && queryMatchId > 0
           ? queryMatchId
-          : sortedMatches[0]?.id ?? null;
+          : soonestScheduledMatch?.id ?? sortedMatches[0]?.id ?? null;
         setSelectedMatchId(defaultMatchId);
       } catch (error) {
         const text = error instanceof Error ? error.message : "Failed to load manager data.";
@@ -192,7 +193,11 @@ export default function AssetsEditionPage() {
     if (!selectedMatch) return;
 
     let cancelled = false;
-    const weekToLoad = Number.isInteger(Number(settings.weekNumber)) ? Number(settings.weekNumber) : 1;
+    const weekToLoad = Number.isInteger(Number(selectedMatch.semanas))
+      ? Number(selectedMatch.semanas)
+      : Number.isInteger(Number(settings.weekNumber))
+      ? Number(settings.weekNumber)
+      : 1;
 
     const loadWeekMatches = async () => {
       try {
@@ -227,10 +232,16 @@ export default function AssetsEditionPage() {
           getLeaderboardOverlayAsset(selectedMatchId),
         ]);
         const normalizedSettings = normalizeLeaderboardOverlaySettings(overlayAsset.settings);
-        const weekToLoad = Number.isInteger(Number(normalizedSettings.weekNumber))
-          ? Number(normalizedSettings.weekNumber)
-          : Number.isInteger(Number(loadedMatch.semanas))
+        const finalSettings = {
+          ...normalizedSettings,
+          weekNumber: Number.isInteger(Number(loadedMatch.semanas))
+            ? Number(loadedMatch.semanas)
+            : normalizedSettings.weekNumber,
+        };
+        const weekToLoad = Number.isInteger(Number(loadedMatch.semanas))
           ? Number(loadedMatch.semanas)
+          : Number.isInteger(Number(normalizedSettings.weekNumber))
+          ? Number(normalizedSettings.weekNumber)
           : 1;
         const weekMatchesData = await getMatchesByWeek(loadedMatch.tournamentId, weekToLoad);
 
@@ -240,7 +251,7 @@ export default function AssetsEditionPage() {
         setLeaderboard(leaderboardData);
         setWeekMatches(weekMatchesData.sort((a, b) => a.id - b.id));
           setSavedBackgroundImageUrl(overlayAsset.backgroundImageUrl ?? null);
-        setSettings(normalizedSettings);
+        setSettings(finalSettings);
 
         setBackgroundFile(null);
         setUseBlackBackground(false);
@@ -303,7 +314,7 @@ export default function AssetsEditionPage() {
         nextBackgroundUrl = uploadedUrl;
       }
 
-      // Save only for the selected match (personal per-match overlay)
+      // Save the shared overlay structure used by every match overlay.
       await updateLeaderboardOverlayAsset(token, selectedMatchId, {
         backgroundImageUrl: nextBackgroundUrl,
         settings,
@@ -352,7 +363,7 @@ export default function AssetsEditionPage() {
           <div>
             <h1 className="text-3xl font-bold text-foreground">Edit Assets</h1>
             <p className="text-muted mt-1">
-              Configure the overlay for the selected match. Saving updates only that match's overlay.
+              Configure the shared overlay structure. Saving updates every match overlay.
             </p>
           </div>
 
