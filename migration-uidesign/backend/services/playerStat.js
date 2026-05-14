@@ -128,7 +128,7 @@ const normalizeName = (value) =>
     .toUpperCase();
 
 const parseScoreNumber = (value) => {
-  const raw = String(value || "").trim();
+  const raw = String(value || "").trim().replace(/[oOоО]/g, "0");
   if (!raw) return 0;
 
   const compact = raw.replace(/\s+/g, "");
@@ -209,6 +209,33 @@ const isMostlyUppercase = (value) => {
   return upperLetters.length / letters.length >= 0.7;
 };
 
+const isUppercasePlayerNicknameToken = (value) => {
+  const raw = String(value || "").trim().replace(/^[^\w]+|[^\w]+$/g, "");
+  if (!raw) return false;
+  if (/[a-z]/.test(raw)) return false;
+
+  const normalized = normalizeName(raw);
+  if (normalized.length < 3 || normalized.length > 24) return false;
+  if (!/[A-Z]/.test(normalized)) return false;
+  if (isScoreboardNoiseLine(normalized)) return false;
+
+  const blockedTokens = new Set([
+    "ALL",
+    "GOAT",
+    "TIME",
+    "GUEST",
+    "MERCHANT",
+    "SUPPORT",
+    "CREATURE",
+    "HERMES",
+    "EVIL",
+    "CYBERDEMON",
+  ]);
+  if (blockedTokens.has(normalized)) return false;
+
+  return true;
+};
+
 const isScoreboardNoiseLine = (line) => {
   const normalized = normalizeName(line);
   if (!normalized) return true;
@@ -249,20 +276,13 @@ const extractNicknameToken = (line) => {
   if (!withoutLevel) return "";
   if (isScoreboardNoiseLine(withoutLevel)) return "";
   if (/^[\d,]/.test(withoutLevel)) return "";
-  if (hadLevelPrefix && !/[a-z]/.test(withoutLevel)) return "";
+  const tokenCandidates = withoutLevel
+    .split(/\s+/)
+    .map((token) => token.replace(/^[^\w]+|[^\w]+$/g, ""))
+    .filter(isUppercasePlayerNicknameToken);
 
-  const leadingToken = withoutLevel.match(/^([A-Z][A-Z0-9_]{2,23})(?=\s|$)/);
-  if (leadingToken) {
-    const remainder = withoutLevel.slice(leadingToken[1].length).trim();
-    if (remainder) {
-      if (!/[a-z]/.test(remainder)) {
-        return "";
-      }
-      if (isScoreboardNoiseLine(remainder)) {
-        return "";
-      }
-    }
-    return leadingToken[1];
+  if (tokenCandidates.length) {
+    return tokenCandidates.sort((a, b) => b.length - a.length)[0];
   }
 
   if (!isMostlyUppercase(withoutLevel)) return "";
@@ -316,11 +336,9 @@ const collectCandidateNicknameTokensFromLine = (line) => {
 
   const candidates = [];
   for (const token of tokens) {
+    if (!isUppercasePlayerNicknameToken(token)) continue;
     const normalized = normalizeName(token);
     if (!normalized) continue;
-    if (normalized.length < 3 || normalized.length > 24) continue;
-    if (!/[A-Z]/.test(normalized)) continue;
-    if (isScoreboardNoiseLine(normalized)) continue;
     candidates.push(normalized);
   }
 
@@ -558,11 +576,11 @@ const mergeNumericFragments = (numericWords, columnCenters, columnTolerance) => 
 const reconstructRowFromCluster = (rowCluster, columnCenters, minStatX) => {
   if (!rowCluster || !rowCluster.words.length) return null;
 
-  const numericWords = rowCluster.words
+  const numericWords = expandKadTokenWords(rowCluster.words
     .filter((w) => looksNumericToken(w.text) && wordCenterX(w) >= minStatX)
-    .sort((a, b) => wordCenterX(a) - wordCenterX(b));
+    .sort((a, b) => wordCenterX(a) - wordCenterX(b)), columnCenters);
 
-  if (numericWords.length < 6) return null;
+  if (numericWords.length < 4) return null;
 
   const { values: statValues, assignedWords } = mergeNumericFragments(
     numericWords,
@@ -653,7 +671,7 @@ const calculateRowReconstructionScore = (statValues, assignedWords, columnCenter
 
 const extractNicknameFromRowGeometry = (rowCluster, minStatX) => {
   const nicknameWords = rowCluster.words.filter(
-    (w) => wordCenterX(w) < minStatX - 20 && /[A-Za-z]/.test(w.text)
+    (w) => wordCenterX(w) < minStatX - 20 && isUppercasePlayerNicknameToken(w.text)
   );
 
   if (!nicknameWords.length) return null;
@@ -664,11 +682,8 @@ const extractNicknameFromRowGeometry = (rowCluster, minStatX) => {
     .filter((group) => {
       const text = group.text;
       if (text.length < 3 || text.length > 35) return false;
-      if (!/[A-Za-z]/.test(text)) return false;
+      if (!isUppercasePlayerNicknameToken(text)) return false;
       if (isRankTitle({ text })) return false;
-      const hasUppercase = /[A-Z]/.test(text);
-      const hasLowercase = /[a-z]/.test(text);
-      if (hasLowercase && !hasUppercase) return false;
       return true;
     })
     .map((group) => {
@@ -1320,7 +1335,48 @@ const estimateColumnMinX = (columnCenters) => {
 // STAT PARSING - Robust column-based and fallback heuristics
 // ============================================================================
 
-const looksNumericToken = (text) => /^\d[\d,.]*$/.test(String(text || "").trim());
+const normalizeOcrNumericText = (value) =>
+  String(value || "")
+    .trim()
+    .replace(/[oOоО]/g, "0");
+
+const looksNumericToken = (text) => /^\d[\d,.]*$/.test(normalizeOcrNumericText(text));
+
+const expandKadTokenWords = (numericWords, columnCenters) => {
+  if (!columnCenters?.E || !columnCenters?.A || !columnCenters?.D) return numericWords;
+
+  const tolerance = calculateDynamicColumnTolerance(columnCenters);
+  const kadMaxX = columnCenters.D + tolerance;
+  const expanded = [];
+
+  for (const word of numericWords) {
+    const text = normalizeOcrNumericText(word.text);
+    const x = wordCenterX(word);
+    const width = wordWidth(word);
+
+    if (/^\d{3}$/.test(text) && x <= kadMaxX && width >= tolerance * 1.1) {
+      const digits = text.split("");
+      expanded.push(
+        ...["E", "A", "D"].map((key, index) => ({
+          ...word,
+          text: digits[index],
+          bbox: {
+            x0: columnCenters[key] - 2,
+            x1: columnCenters[key] + 2,
+            y0: word.bbox.y0,
+            y1: word.bbox.y1,
+          },
+          synthetic: true,
+        }))
+      );
+      continue;
+    }
+
+    expanded.push({ ...word, text });
+  }
+
+  return expanded.sort((a, b) => wordCenterX(a) - wordCenterX(b));
+};
 
 const calculateDynamicColumnTolerance = (columnCenters) => {
   if (!columnCenters || Object.keys(columnCenters).length < 2) {
@@ -1405,7 +1461,7 @@ const mergeAdjacentNicknameWords = (words, maxDistance = 15) => {
 };
 
 const extractNicknamesFromRowWords = (rowWords, minStatX) => {
-  const candidates = rowWords.filter((w) => wordCenterX(w) < minStatX - 10);
+  const candidates = rowWords.filter((w) => wordCenterX(w) < minStatX - 10 && isUppercasePlayerNicknameToken(w.text));
   if (!candidates.length) return [];
 
   const merged = mergeAdjacentNicknameWords(candidates, 20);
@@ -1414,7 +1470,7 @@ const extractNicknamesFromRowWords = (rowWords, minStatX) => {
     .filter((group) => {
       const text = group.text;
       if (text.length < 3 || text.length > 30) return false;
-      if (!/[A-Z]/.test(text)) return false;
+      if (!isUppercasePlayerNicknameToken(text)) return false;
       if (isRankTitle({ text })) return false;
       return true;
     })
@@ -1442,9 +1498,9 @@ const parseStatsFromRowWords = (rowWords, columnCenters) => {
   if (!columnCenters) return { stats: null, confidence: 0 };
 
   const minStatX = estimateColumnMinX(columnCenters);
-  const numericWords = rowWords
+  const numericWords = expandKadTokenWords(rowWords
     .filter((w) => looksNumericToken(w.text) && wordCenterX(w) >= minStatX)
-    .sort((a, b) => wordCenterX(a) - wordCenterX(b));
+    .sort((a, b) => wordCenterX(a) - wordCenterX(b)), columnCenters);
 
   if (!numericWords.length) return { stats: null, confidence: 0 };
 

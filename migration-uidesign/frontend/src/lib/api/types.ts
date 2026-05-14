@@ -53,6 +53,39 @@ export interface Team {
   tournamentId: number;
 }
 
+export interface LeaderboardOverlaySettings {
+  title: {
+    color: string;
+    fontFamily: string;
+    fontSize: number;
+  };
+  leaderboard: {
+    color: string;
+    fontFamily: string;
+    fontSize: number;
+    columnGap: number;
+    rowGap: number;
+    scale: number;
+  };
+  matches: {
+    color: string;
+    fontFamily: string;
+    fontSize: number;
+    columnGap: number;
+    rowGap: number;
+    scale: number;
+  };
+}
+
+export interface LeaderboardOverlayAsset {
+  id: number | null;
+  matchId: number;
+  backgroundImageUrl: string | null;
+  settings: LeaderboardOverlaySettings | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
 export interface Match {
   id: number;
   type: MatchType;

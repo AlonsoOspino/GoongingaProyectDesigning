@@ -1,0 +1,126 @@
+.root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  color: #fff;
+}
+
+.backgroundImage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.content {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 36px;
+  padding: 56px 76px 48px;
+}
+
+.title {
+  margin: 0;
+  line-height: 0.95;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.leaderboardWrap {
+  width: fit-content;
+  transform-origin: top center;
+}
+
+.leaderboardList {
+  display: grid;
+  width: fit-content;
+}
+
+.leaderboardRow {
+  display: grid;
+  align-items: center;
+  grid-template-columns: 112px max-content max-content;
+  white-space: nowrap;
+}
+
+.logoCell {
+  width: 88px;
+  height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.logoFallback {
+  width: 88px;
+  height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.matchesWrap {
+  margin-top: auto;
+  width: fit-content;
+  transform-origin: bottom center;
+}
+
+.matchesList {
+  display: grid;
+}
+
+.matchRow {
+  display: grid;
+  align-items: center;
+  grid-template-columns: 96px max-content max-content max-content 96px;
+  white-space: nowrap;
+}
+
+.matchLogoCell {
+  width: 84px;
+  height: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.matchLogo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.centerText {
+  min-width: 130px;
+  text-align: center;
+  font-weight: 700;
+}
+
+.statusScreen {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  color: #fff;
+  font-family: var(--font-overlay-body), sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}

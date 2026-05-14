@@ -542,7 +542,13 @@ export default function ManagerDashboardPage() {
             <h1 className="text-3xl font-bold text-foreground">Manager Dashboard</h1>
             <p className="text-muted mt-1">Manage matches, create draft tables, and upload results</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <Link
+              href={nextMatch ? `/assets-edition?matchId=${nextMatch.id}` : "/assets-edition"}
+              className="inline-flex items-center justify-center rounded-md bg-surface-elevated text-foreground hover:bg-border active:bg-border/90 px-3 py-1.5 text-sm font-medium transition-colors"
+            >
+              Edit assets
+            </Link>
             <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
             <span className="text-xs text-muted">Live updates</span>
           </div>

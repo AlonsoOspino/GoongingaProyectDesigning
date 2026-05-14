@@ -5,5 +5,6 @@ export * from "@/lib/api/draft";
 export * from "@/lib/api/match";
 export * from "@/lib/api/news";
 export * from "@/lib/api/playerStat";
+export * from "@/lib/api/overlayAssets";
 export * from "@/lib/api/team";
 export * from "@/lib/api/types";

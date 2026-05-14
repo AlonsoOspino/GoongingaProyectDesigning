@@ -1,0 +1,106 @@
+import type { LeaderboardOverlaySettings } from "@/lib/api/types";
+
+export const OVERLAY_FONT_OPTIONS = [
+  { label: "Bebas Neue", value: "var(--font-overlay-display), sans-serif" },
+  { label: "Oswald", value: "var(--font-overlay-body), sans-serif" },
+  { label: "Big Noodle Titling", value: "BigNoodleTitling, sans-serif" },
+  { label: "Trebuchet", value: "Trebuchet MS, sans-serif" },
+  { label: "Tahoma", value: "Tahoma, sans-serif" },
+] as const;
+
+export const DEFAULT_LEADERBOARD_OVERLAY_SETTINGS: LeaderboardOverlaySettings = {
+  title: {
+    color: "#FFFFFF",
+    fontFamily: "var(--font-overlay-display), sans-serif",
+    fontSize: 74,
+  },
+  leaderboard: {
+    color: "#FFFFFF",
+    fontFamily: "var(--font-overlay-body), sans-serif",
+    fontSize: 42,
+    columnGap: 34,
+    rowGap: 14,
+    scale: 1,
+  },
+  matches: {
+    color: "#FFFFFF",
+    fontFamily: "var(--font-overlay-body), sans-serif",
+    fontSize: 42,
+    columnGap: 24,
+    rowGap: 20,
+    scale: 1,
+  },
+};
+
+const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+
+const safeNumber = (value: unknown, fallback: number, min: number, max: number) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return clamp(parsed, min, max);
+};
+
+const safeColor = (value: unknown, fallback: string) => {
+  if (typeof value !== "string") return fallback;
+  const trimmed = value.trim();
+  if (!trimmed) return fallback;
+  return trimmed;
+};
+
+const safeFont = (value: unknown, fallback: string) => {
+  if (typeof value !== "string") return fallback;
+  const trimmed = value.trim();
+  if (!trimmed) return fallback;
+  return trimmed;
+};
+
+export function normalizeLeaderboardOverlaySettings(value: unknown): LeaderboardOverlaySettings {
+  const source = typeof value === "object" && value !== null ? (value as Partial<LeaderboardOverlaySettings>) : {};
+
+  const title: Partial<LeaderboardOverlaySettings["title"]> = source.title ?? {};
+  const leaderboard: Partial<LeaderboardOverlaySettings["leaderboard"]> = source.leaderboard ?? {};
+  const matches: Partial<LeaderboardOverlaySettings["matches"]> = source.matches ?? {};
+
+  return {
+    title: {
+      color: safeColor(title.color, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.title.color),
+      fontFamily: safeFont(title.fontFamily, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.title.fontFamily),
+      fontSize: safeNumber(title.fontSize, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.title.fontSize, 20, 180),
+    },
+    leaderboard: {
+      color: safeColor(leaderboard.color, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.leaderboard.color),
+      fontFamily: safeFont(leaderboard.fontFamily, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.leaderboard.fontFamily),
+      fontSize: safeNumber(leaderboard.fontSize, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.leaderboard.fontSize, 16, 120),
+      columnGap: safeNumber(leaderboard.columnGap, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.leaderboard.columnGap, 0, 140),
+      rowGap: safeNumber(leaderboard.rowGap, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.leaderboard.rowGap, 0, 100),
+      scale: safeNumber(leaderboard.scale, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.leaderboard.scale, 0.3, 2),
+    },
+    matches: {
+      color: safeColor(matches.color, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.matches.color),
+      fontFamily: safeFont(matches.fontFamily, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.matches.fontFamily),
+      fontSize: safeNumber(matches.fontSize, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.matches.fontSize, 16, 120),
+      columnGap: safeNumber(matches.columnGap, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.matches.columnGap, 0, 140),
+      rowGap: safeNumber(matches.rowGap, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.matches.rowGap, 0, 120),
+      scale: safeNumber(matches.scale, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.matches.scale, 0.3, 2),
+    },
+  };
+}
+
+export function teamAbbreviation(name: string) {
+  const cleaned = String(name || "")
+    .replace(/[^a-zA-Z0-9\s]/g, " ")
+    .trim();
+
+  if (!cleaned) return "TEAM";
+
+  const tokens = cleaned.split(/\s+/).filter(Boolean);
+  if (tokens.length >= 2) {
+    return tokens
+      .slice(0, 3)
+      .map((token) => token[0])
+      .join("")
+      .toUpperCase();
+  }
+
+  return cleaned.slice(0, 4).toUpperCase();
+}
