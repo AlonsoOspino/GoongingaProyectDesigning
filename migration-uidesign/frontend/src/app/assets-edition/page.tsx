@@ -222,16 +222,11 @@ export default function AssetsEditionPage() {
         setMessage(null);
 
         const loadedMatch = await getMatchById(selectedMatchId);
-        const tournamentMatches = await getMatchesByTournament(loadedMatch.tournamentId);
-        const [leaderboardData, overlayAssets] = await Promise.all([
+        const [leaderboardData, overlayAsset] = await Promise.all([
           getLeaderboard(loadedMatch.tournamentId),
-          Promise.all(tournamentMatches.map((match) => getLeaderboardOverlayAsset(match.id))),
+          getLeaderboardOverlayAsset(selectedMatchId),
         ]);
-        const sharedOverlayAsset =
-          overlayAssets.find((asset) => asset.backgroundImageUrl !== null || asset.settings !== null) ??
-          overlayAssets[0] ??
-          null;
-        const normalizedSettings = normalizeLeaderboardOverlaySettings(sharedOverlayAsset?.settings ?? null);
+        const normalizedSettings = normalizeLeaderboardOverlaySettings(overlayAsset.settings);
         const weekToLoad = Number.isInteger(Number(normalizedSettings.weekNumber))
           ? Number(normalizedSettings.weekNumber)
           : Number.isInteger(Number(loadedMatch.semanas))
@@ -244,7 +239,7 @@ export default function AssetsEditionPage() {
         setSelectedMatch(loadedMatch);
         setLeaderboard(leaderboardData);
         setWeekMatches(weekMatchesData.sort((a, b) => a.id - b.id));
-  setSavedBackgroundImageUrl(sharedOverlayAsset?.backgroundImageUrl ?? null);
+          setSavedBackgroundImageUrl(overlayAsset.backgroundImageUrl ?? null);
         setSettings(normalizedSettings);
 
         setBackgroundFile(null);
