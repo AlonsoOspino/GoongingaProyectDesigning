@@ -222,11 +222,16 @@ export default function AssetsEditionPage() {
         setMessage(null);
 
         const loadedMatch = await getMatchById(selectedMatchId);
-        const [leaderboardData, overlayAsset] = await Promise.all([
+        const tournamentMatches = await getMatchesByTournament(loadedMatch.tournamentId);
+        const [leaderboardData, overlayAssets] = await Promise.all([
           getLeaderboard(loadedMatch.tournamentId),
-          getLeaderboardOverlayAsset(selectedMatchId),
+          Promise.all(tournamentMatches.map((match) => getLeaderboardOverlayAsset(match.id))),
         ]);
-        const normalizedSettings = normalizeLeaderboardOverlaySettings(overlayAsset.settings);
+        const sharedOverlayAsset =
+          overlayAssets.find((asset) => asset.backgroundImageUrl !== null || asset.settings !== null) ??
+          overlayAssets[0] ??
+          null;
+        const normalizedSettings = normalizeLeaderboardOverlaySettings(sharedOverlayAsset?.settings ?? null);
         const weekToLoad = Number.isInteger(Number(normalizedSettings.weekNumber))
           ? Number(normalizedSettings.weekNumber)
           : Number.isInteger(Number(loadedMatch.semanas))
@@ -239,7 +244,7 @@ export default function AssetsEditionPage() {
         setSelectedMatch(loadedMatch);
         setLeaderboard(leaderboardData);
         setWeekMatches(weekMatchesData.sort((a, b) => a.id - b.id));
-        setSavedBackgroundImageUrl(overlayAsset.backgroundImageUrl ?? null);
+  setSavedBackgroundImageUrl(sharedOverlayAsset?.backgroundImageUrl ?? null);
         setSettings(normalizedSettings);
 
         setBackgroundFile(null);
@@ -375,7 +380,7 @@ export default function AssetsEditionPage() {
 
         <Card variant="featured">
           <CardHeader>
-            <CardTitle>Target Match</CardTitle>
+            <CardTitle>Preview Match</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {loadingBase ? (
@@ -384,7 +389,10 @@ export default function AssetsEditionPage() {
               <p className="text-muted">No matches found.</p>
             ) : (
               <label className="block text-sm">
-                <span className="text-muted">Match</span>
+                <span className="text-muted">Preview match</span>
+                <p className="text-xs text-muted mt-1">
+                  This only changes the preview data. Saving applies the same overlay structure to every match in the tournament.
+                </p>
                 <select
                   className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
                   value={selectedMatchId ?? ""}
