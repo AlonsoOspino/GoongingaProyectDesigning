@@ -21,6 +21,13 @@ interface LeaderboardOverlayViewProps {
 
 const finalizedStatuses = new Set(["PENDINGREGISTERS", "FINISHED"]);
 
+const matchStatusPriority: Record<Match["status"], number> = {
+  PENDINGREGISTERS: 0,
+  FINISHED: 1,
+  ACTIVE: 2,
+  SCHEDULED: 3,
+};
+
 function getTextWidthCh(values: Array<string | number>, minWidth = 3) {
   const widest = values.reduce<number>((max, value) => Math.max(max, String(value).length), 0);
   return `${Math.max(minWidth, widest)}ch`;
@@ -33,7 +40,13 @@ function logoUrl(value?: string | null) {
 }
 
 function buildMatchCardEntries(weekMatches: Match[], teamsById: Map<number, Team>) {
-  return weekMatches.map((match) => {
+  const sortedWeekMatches = [...weekMatches].sort((a, b) => {
+    const priorityDiff = matchStatusPriority[a.status] - matchStatusPriority[b.status];
+    if (priorityDiff !== 0) return priorityDiff;
+    return a.id - b.id;
+  });
+
+  return sortedWeekMatches.map((match) => {
     const teamA = teamsById.get(match.teamAId) ?? null;
     const teamB = teamsById.get(match.teamBId) ?? null;
     const isFinalized = finalizedStatuses.has(match.status);
@@ -158,6 +171,10 @@ export function LeaderboardOverlayView({
         <h1 className={styles.title} style={titleStyle}>
           {weekLabel}
         </h1>
+
+        <div className={styles.leaderboardAfterBanner}>
+          Leaderboard after last match updated to PENDINGRESULTS
+        </div>
 
         <section className={styles.leaderboardWrap} style={leaderboardWrapStyle}>
           <div className={styles.leaderboardList} style={leaderboardListStyle}>
