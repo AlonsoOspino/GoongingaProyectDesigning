@@ -22,7 +22,7 @@ interface LeaderboardOverlayViewProps {
 const finalizedStatuses = new Set(["PENDINGREGISTERS", "FINISHED"]);
 
 function getTextWidthCh(values: Array<string | number>, minWidth = 3) {
-  const widest = values.reduce((max, value) => Math.max(max, String(value).length), 0);
+  const widest = values.reduce<number>((max, value) => Math.max(max, String(value).length), 0);
   return `${Math.max(minWidth, widest)}ch`;
 }
 
