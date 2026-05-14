@@ -154,6 +154,16 @@ export default function AssetsEditionPage() {
         if (cancelled) return;
 
         const sortedMatches = [...matchesData].sort((a, b) => {
+          // Push scheduled matches to the bottom
+          if (a.status === "SCHEDULED" && b.status !== "SCHEDULED") return 1;
+          if (b.status === "SCHEDULED" && a.status !== "SCHEDULED") return -1;
+
+          // Then sort by startDate (soonest first)
+          const aDate = a.startDate ? new Date(a.startDate).getTime() : 0;
+          const bDate = b.startDate ? new Date(b.startDate).getTime() : 0;
+          if (aDate !== bDate) return aDate - bDate;
+
+          // Fallback to week number then id
           const weekDiff = (a.semanas || 0) - (b.semanas || 0);
           if (weekDiff !== 0) return weekDiff;
           return a.id - b.id;

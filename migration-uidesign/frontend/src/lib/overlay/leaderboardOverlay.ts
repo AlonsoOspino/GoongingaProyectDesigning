@@ -2,6 +2,7 @@ import type { LeaderboardOverlaySettings } from "@/lib/api/types";
 
 export const OVERLAY_FONT_OPTIONS = [
   { label: "Bebas Neue", value: "var(--font-overlay-display), sans-serif" },
+  { label: "Bebas Neue Bold", value: "var(--font-overlay-display), sans-serif" },
   { label: "League Gothic", value: "var(--font-league-gothic), sans-serif" },
   { label: "Oswald", value: "var(--font-overlay-body), sans-serif" },
   { label: "Big Noodle Titling", value: "BigNoodleTitling, sans-serif" },
