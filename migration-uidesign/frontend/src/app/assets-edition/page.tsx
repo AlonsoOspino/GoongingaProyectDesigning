@@ -26,7 +26,11 @@ import {
 } from "@/lib/overlay/leaderboardOverlay";
 import { LeaderboardOverlayFromData } from "@/app/overlay/components/LeaderboardOverlay";
 
-const previewScale = 0.5;
+const OVERLAY_WIDTH = 1920;
+const OVERLAY_HEIGHT = 1080;
+const PREVIEW_WIDTH = 480;
+const PREVIEW_HEIGHT = 270;
+const previewScale = PREVIEW_WIDTH / OVERLAY_WIDTH;
 
 export default function AssetsEditionPage() {
   const router = useRouter();
@@ -106,6 +110,29 @@ export default function AssetsEditionPage() {
   }, [backgroundPreviewUrl]);
 
   useEffect(() => {
+    if (!selectedMatch) return;
+
+    let cancelled = false;
+    const weekToLoad = Number.isInteger(Number(settings.weekNumber)) ? Number(settings.weekNumber) : 1;
+
+    const loadWeekMatches = async () => {
+      try {
+        const data = await getMatchesByWeek(selectedMatch.tournamentId, weekToLoad);
+        if (cancelled) return;
+        setWeekMatches(data.sort((a, b) => a.id - b.id));
+      } catch {
+        if (cancelled) return;
+        setWeekMatches([]);
+      }
+    };
+
+    void loadWeekMatches();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedMatch, settings.weekNumber]);
+
+  useEffect(() => {
     if (!selectedMatchId || !isAuthenticated || user?.role !== "MANAGER") return;
 
     let cancelled = false;
@@ -116,13 +143,17 @@ export default function AssetsEditionPage() {
         setMessage(null);
 
         const loadedMatch = await getMatchById(selectedMatchId);
-        const [leaderboardData, overlayAsset, weekMatchesData] = await Promise.all([
+        const [leaderboardData, overlayAsset] = await Promise.all([
           getLeaderboard(loadedMatch.tournamentId),
           getLeaderboardOverlayAsset(selectedMatchId),
-          loadedMatch.semanas
-            ? getMatchesByWeek(loadedMatch.tournamentId, loadedMatch.semanas)
-            : Promise.resolve([] as Match[]),
         ]);
+        const normalizedSettings = normalizeLeaderboardOverlaySettings(overlayAsset.settings);
+        const weekToLoad = Number.isInteger(Number(normalizedSettings.weekNumber))
+          ? Number(normalizedSettings.weekNumber)
+          : Number.isInteger(Number(loadedMatch.semanas))
+          ? Number(loadedMatch.semanas)
+          : 1;
+        const weekMatchesData = await getMatchesByWeek(loadedMatch.tournamentId, weekToLoad);
 
         if (cancelled) return;
 
@@ -130,7 +161,7 @@ export default function AssetsEditionPage() {
         setLeaderboard(leaderboardData);
         setWeekMatches(weekMatchesData.sort((a, b) => a.id - b.id));
         setSavedBackgroundImageUrl(overlayAsset.backgroundImageUrl ?? null);
-        setSettings(normalizeLeaderboardOverlaySettings(overlayAsset.settings));
+        setSettings(normalizedSettings);
 
         setBackgroundFile(null);
         setUseBlackBackground(false);
@@ -326,7 +357,24 @@ export default function AssetsEditionPage() {
                 <CardHeader>
                   <CardTitle>Week Title Style</CardTitle>
                 </CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <CardContent className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                  <label className="text-sm">
+                    <span className="text-muted">Week number</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={99}
+                      className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
+                      value={settings.weekNumber}
+                      onChange={(event) =>
+                        updateSettings((prev) => ({
+                          ...prev,
+                          weekNumber: Number(event.target.value),
+                        }))
+                      }
+                    />
+                  </label>
+
                   <label className="text-sm">
                     <span className="text-muted">Font</span>
                     <select
@@ -378,6 +426,40 @@ export default function AssetsEditionPage() {
                       }
                     />
                   </label>
+
+                  <label className="text-sm">
+                    <span className="text-muted">Position X</span>
+                    <input
+                      type="number"
+                      min={-900}
+                      max={900}
+                      className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
+                      value={settings.title.offsetX}
+                      onChange={(event) =>
+                        updateSettings((prev) => ({
+                          ...prev,
+                          title: { ...prev.title, offsetX: Number(event.target.value) },
+                        }))
+                      }
+                    />
+                  </label>
+
+                  <label className="text-sm">
+                    <span className="text-muted">Position Y</span>
+                    <input
+                      type="number"
+                      min={-500}
+                      max={500}
+                      className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
+                      value={settings.title.offsetY}
+                      onChange={(event) =>
+                        updateSettings((prev) => ({
+                          ...prev,
+                          title: { ...prev.title, offsetY: Number(event.target.value) },
+                        }))
+                      }
+                    />
+                  </label>
                 </CardContent>
               </Card>
 
@@ -385,7 +467,7 @@ export default function AssetsEditionPage() {
                 <CardHeader>
                   <CardTitle>Leaderboard Style</CardTitle>
                 </CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <CardContent className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
                   <label className="text-sm">
                     <span className="text-muted">Font</span>
                     <select
@@ -489,6 +571,40 @@ export default function AssetsEditionPage() {
                       }
                     />
                   </label>
+
+                  <label className="text-sm">
+                    <span className="text-muted">Position X</span>
+                    <input
+                      type="number"
+                      min={-900}
+                      max={900}
+                      className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
+                      value={settings.leaderboard.offsetX}
+                      onChange={(event) =>
+                        updateSettings((prev) => ({
+                          ...prev,
+                          leaderboard: { ...prev.leaderboard, offsetX: Number(event.target.value) },
+                        }))
+                      }
+                    />
+                  </label>
+
+                  <label className="text-sm">
+                    <span className="text-muted">Position Y</span>
+                    <input
+                      type="number"
+                      min={-500}
+                      max={500}
+                      className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
+                      value={settings.leaderboard.offsetY}
+                      onChange={(event) =>
+                        updateSettings((prev) => ({
+                          ...prev,
+                          leaderboard: { ...prev.leaderboard, offsetY: Number(event.target.value) },
+                        }))
+                      }
+                    />
+                  </label>
                 </CardContent>
               </Card>
 
@@ -496,7 +612,7 @@ export default function AssetsEditionPage() {
                 <CardHeader>
                   <CardTitle>Match Cards Style</CardTitle>
                 </CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <CardContent className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
                   <label className="text-sm">
                     <span className="text-muted">Font</span>
                     <select
@@ -600,6 +716,40 @@ export default function AssetsEditionPage() {
                       }
                     />
                   </label>
+
+                  <label className="text-sm">
+                    <span className="text-muted">Position X</span>
+                    <input
+                      type="number"
+                      min={-900}
+                      max={900}
+                      className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
+                      value={settings.matches.offsetX}
+                      onChange={(event) =>
+                        updateSettings((prev) => ({
+                          ...prev,
+                          matches: { ...prev.matches, offsetX: Number(event.target.value) },
+                        }))
+                      }
+                    />
+                  </label>
+
+                  <label className="text-sm">
+                    <span className="text-muted">Position Y</span>
+                    <input
+                      type="number"
+                      min={-500}
+                      max={500}
+                      className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
+                      value={settings.matches.offsetY}
+                      onChange={(event) =>
+                        updateSettings((prev) => ({
+                          ...prev,
+                          matches: { ...prev.matches, offsetY: Number(event.target.value) },
+                        }))
+                      }
+                    />
+                  </label>
                 </CardContent>
               </Card>
 
@@ -619,17 +769,20 @@ export default function AssetsEditionPage() {
                 {loadingOverlayData ? (
                   <p className="text-muted">Loading preview...</p>
                 ) : (
-                  <div className="overflow-x-auto">
+                  <div className="flex justify-center">
                     <div
-                      className="border border-border rounded-md overflow-hidden bg-black"
-                      style={{ width: `${1920 * previewScale}px`, height: `${1080 * previewScale}px` }}
+                      className="border border-border rounded-md overflow-hidden bg-black relative"
+                      style={{ width: `${PREVIEW_WIDTH}px`, height: `${PREVIEW_HEIGHT}px` }}
                     >
                       <div
                         style={{
-                          width: "1920px",
-                          height: "1080px",
+                          width: `${OVERLAY_WIDTH}px`,
+                          height: `${OVERLAY_HEIGHT}px`,
                           transform: `scale(${previewScale})`,
                           transformOrigin: "top left",
+                          position: "absolute",
+                          left: "0px",
+                          top: "0px",
                         }}
                       >
                         <LeaderboardOverlayFromData

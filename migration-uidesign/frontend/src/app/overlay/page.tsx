@@ -49,6 +49,21 @@ export default function OverlayIndexPage() {
             /overlay/match-header-reversed/[matchId]
           </Link>
         </p>
+        <p style={{ fontSize: "1.15rem" }}>
+          <Link href={`/overlay/leaderboard/${SAMPLE_MATCH_ID}`} style={{ color: "#f4d8a8" }}>
+            /overlay/leaderboard/[id]
+          </Link>
+        </p>
+        <p style={{ fontSize: "1.15rem" }}>
+          <Link href={`/overlay/roster-a/${SAMPLE_MATCH_ID}`} style={{ color: "#f4d8a8" }}>
+            /overlay/roster-a/[id]
+          </Link>
+        </p>
+        <p style={{ fontSize: "1.15rem" }}>
+          <Link href={`/overlay/roster-b/${SAMPLE_MATCH_ID}`} style={{ color: "#f4d8a8" }}>
+            /overlay/roster-b/[id]
+          </Link>
+        </p>
       </div>
     </main>
   );

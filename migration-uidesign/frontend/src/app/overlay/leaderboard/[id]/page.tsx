@@ -67,15 +67,18 @@ export default function LeaderboardOverlayPage() {
     const load = async () => {
       try {
         const loadedMatch = await getMatchById(matchId);
-
-        const [teamsData, leaderboardData, overlayAsset, weekMatchesData] = await Promise.all([
+        const [teamsData, leaderboardData, overlayAsset] = await Promise.all([
           getTeams(),
           getLeaderboard(loadedMatch.tournamentId),
           getLeaderboardOverlayAsset(matchId),
-          loadedMatch.semanas
-            ? getMatchesByWeek(loadedMatch.tournamentId, loadedMatch.semanas)
-            : Promise.resolve([] as Match[]),
         ]);
+        const normalizedSettings = normalizeLeaderboardOverlaySettings(overlayAsset.settings);
+        const weekToLoad = Number.isInteger(Number(normalizedSettings.weekNumber))
+          ? Number(normalizedSettings.weekNumber)
+          : Number.isInteger(Number(loadedMatch.semanas))
+          ? Number(loadedMatch.semanas)
+          : 1;
+        const weekMatchesData = await getMatchesByWeek(loadedMatch.tournamentId, weekToLoad);
 
         if (cancelled) return;
 
@@ -84,7 +87,7 @@ export default function LeaderboardOverlayPage() {
         setLeaderboard(leaderboardData);
         setWeekMatches(weekMatchesData.sort((a, b) => a.id - b.id));
         setBackgroundImageUrl(overlayAsset.backgroundImageUrl);
-        setSettings(normalizeLeaderboardOverlaySettings(overlayAsset.settings));
+        setSettings(normalizedSettings);
         setError(null);
       } catch (fetchError) {
         if (cancelled) return;

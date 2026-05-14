@@ -9,10 +9,13 @@ export const OVERLAY_FONT_OPTIONS = [
 ] as const;
 
 export const DEFAULT_LEADERBOARD_OVERLAY_SETTINGS: LeaderboardOverlaySettings = {
+  weekNumber: 1,
   title: {
     color: "#FFFFFF",
     fontFamily: "var(--font-overlay-display), sans-serif",
     fontSize: 74,
+    offsetX: 0,
+    offsetY: 0,
   },
   leaderboard: {
     color: "#FFFFFF",
@@ -21,6 +24,8 @@ export const DEFAULT_LEADERBOARD_OVERLAY_SETTINGS: LeaderboardOverlaySettings = 
     columnGap: 34,
     rowGap: 14,
     scale: 1,
+    offsetX: 0,
+    offsetY: 0,
   },
   matches: {
     color: "#FFFFFF",
@@ -29,6 +34,8 @@ export const DEFAULT_LEADERBOARD_OVERLAY_SETTINGS: LeaderboardOverlaySettings = 
     columnGap: 24,
     rowGap: 20,
     scale: 1,
+    offsetX: 0,
+    offsetY: 0,
   },
 };
 
@@ -62,10 +69,13 @@ export function normalizeLeaderboardOverlaySettings(value: unknown): Leaderboard
   const matches: Partial<LeaderboardOverlaySettings["matches"]> = source.matches ?? {};
 
   return {
+    weekNumber: safeNumber(source.weekNumber, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.weekNumber, 1, 99),
     title: {
       color: safeColor(title.color, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.title.color),
       fontFamily: safeFont(title.fontFamily, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.title.fontFamily),
       fontSize: safeNumber(title.fontSize, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.title.fontSize, 20, 180),
+      offsetX: safeNumber(title.offsetX, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.title.offsetX, -900, 900),
+      offsetY: safeNumber(title.offsetY, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.title.offsetY, -500, 500),
     },
     leaderboard: {
       color: safeColor(leaderboard.color, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.leaderboard.color),
@@ -74,6 +84,8 @@ export function normalizeLeaderboardOverlaySettings(value: unknown): Leaderboard
       columnGap: safeNumber(leaderboard.columnGap, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.leaderboard.columnGap, 0, 140),
       rowGap: safeNumber(leaderboard.rowGap, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.leaderboard.rowGap, 0, 100),
       scale: safeNumber(leaderboard.scale, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.leaderboard.scale, 0.3, 2),
+      offsetX: safeNumber(leaderboard.offsetX, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.leaderboard.offsetX, -900, 900),
+      offsetY: safeNumber(leaderboard.offsetY, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.leaderboard.offsetY, -500, 500),
     },
     matches: {
       color: safeColor(matches.color, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.matches.color),
@@ -82,6 +94,8 @@ export function normalizeLeaderboardOverlaySettings(value: unknown): Leaderboard
       columnGap: safeNumber(matches.columnGap, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.matches.columnGap, 0, 140),
       rowGap: safeNumber(matches.rowGap, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.matches.rowGap, 0, 120),
       scale: safeNumber(matches.scale, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.matches.scale, 0.3, 2),
+      offsetX: safeNumber(matches.offsetX, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.matches.offsetX, -900, 900),
+      offsetY: safeNumber(matches.offsetY, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.matches.offsetY, -500, 500),
     },
   };
 }

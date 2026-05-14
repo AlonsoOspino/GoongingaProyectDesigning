@@ -54,10 +54,13 @@ export interface Team {
 }
 
 export interface LeaderboardOverlaySettings {
+  weekNumber: number;
   title: {
     color: string;
     fontFamily: string;
     fontSize: number;
+    offsetX: number;
+    offsetY: number;
   };
   leaderboard: {
     color: string;
@@ -66,6 +69,8 @@ export interface LeaderboardOverlaySettings {
     columnGap: number;
     rowGap: number;
     scale: number;
+    offsetX: number;
+    offsetY: number;
   };
   matches: {
     color: string;
@@ -74,6 +79,8 @@ export interface LeaderboardOverlaySettings {
     columnGap: number;
     rowGap: number;
     scale: number;
+    offsetX: number;
+    offsetY: number;
   };
 }
 

@@ -52,10 +52,11 @@ export function LeaderboardOverlayView({
     color: settings.title.color,
     fontFamily: settings.title.fontFamily,
     fontSize: `${settings.title.fontSize}px`,
+    transform: `translate(calc(-50% + ${settings.title.offsetX}px), ${settings.title.offsetY}px)`,
   };
 
   const leaderboardWrapStyle: CSSProperties = {
-    transform: `scale(${settings.leaderboard.scale})`,
+    transform: `translate(calc(-50% + ${settings.leaderboard.offsetX}px), ${settings.leaderboard.offsetY}px) scale(${settings.leaderboard.scale})`,
   };
 
   const leaderboardListStyle: CSSProperties = {
@@ -71,7 +72,7 @@ export function LeaderboardOverlayView({
   };
 
   const matchesWrapStyle: CSSProperties = {
-    transform: `scale(${settings.matches.scale})`,
+    transform: `translate(calc(-50% + ${settings.matches.offsetX}px), ${settings.matches.offsetY}px) scale(${settings.matches.scale})`,
   };
 
   const matchListStyle: CSSProperties = {
@@ -115,27 +116,31 @@ export function LeaderboardOverlayView({
 
         <section className={styles.matchesWrap} style={matchesWrapStyle}>
           <div className={styles.matchesList} style={matchListStyle}>
-            {matches.map((entry) => (
-              <div key={entry.id} className={styles.matchRow} style={matchRowStyle}>
-                <div className={styles.matchLogoCell}>
-                  {entry.teamA?.logo ? (
-                    <img src={logoUrl(entry.teamA.logo)} alt={entry.teamA.name} className={styles.matchLogo} />
-                  ) : (
-                    <div className={styles.logoFallback}>{teamAbbreviation(entry.teamA?.name || "")}</div>
-                  )}
+            {matches.length > 0 ? (
+              matches.map((entry) => (
+                <div key={entry.id} className={styles.matchRow} style={matchRowStyle}>
+                  <div className={styles.matchLogoCell}>
+                    {entry.teamA?.logo ? (
+                      <img src={logoUrl(entry.teamA.logo)} alt={entry.teamA.name} className={styles.matchLogo} />
+                    ) : (
+                      <div className={styles.logoFallback}>{teamAbbreviation(entry.teamA?.name || "")}</div>
+                    )}
+                  </div>
+                  <span>{teamAbbreviation(entry.teamA?.name || "")}</span>
+                  <span className={styles.centerText}>{entry.centerText}</span>
+                  <span>{teamAbbreviation(entry.teamB?.name || "")}</span>
+                  <div className={styles.matchLogoCell}>
+                    {entry.teamB?.logo ? (
+                      <img src={logoUrl(entry.teamB.logo)} alt={entry.teamB.name} className={styles.matchLogo} />
+                    ) : (
+                      <div className={styles.logoFallback}>{teamAbbreviation(entry.teamB?.name || "")}</div>
+                    )}
+                  </div>
                 </div>
-                <span>{teamAbbreviation(entry.teamA?.name || "")}</span>
-                <span className={styles.centerText}>{entry.centerText}</span>
-                <span>{teamAbbreviation(entry.teamB?.name || "")}</span>
-                <div className={styles.matchLogoCell}>
-                  {entry.teamB?.logo ? (
-                    <img src={logoUrl(entry.teamB.logo)} alt={entry.teamB.name} className={styles.matchLogo} />
-                  ) : (
-                    <div className={styles.logoFallback}>{teamAbbreviation(entry.teamB?.name || "")}</div>
-                  )}
-                </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p style={matchRowStyle}>No matches for this week.</p>
+            )}
           </div>
         </section>
       </div>
@@ -161,11 +166,15 @@ export function LeaderboardOverlayFromData({
   backgroundImageUrl,
 }: LeaderboardOverlayDataProps) {
   const teamsById = new Map(allTeams.map((team) => [team.id, team]));
-  const safeWeek = Number.isInteger(Number(match.semanas)) ? Number(match.semanas) : 0;
+  const safeWeek = Number.isInteger(Number(settings.weekNumber))
+    ? Number(settings.weekNumber)
+    : Number.isInteger(Number(match.semanas))
+    ? Number(match.semanas)
+    : 1;
 
   return (
     <LeaderboardOverlayView
-      weekLabel={`Week ${safeWeek > 0 ? safeWeek : "X"}`}
+      weekLabel={`Week ${safeWeek > 0 ? safeWeek : 1}`}
       leaderboard={leaderboard}
       matches={buildMatchCardEntries(weekMatches, teamsById)}
       settings={settings}
