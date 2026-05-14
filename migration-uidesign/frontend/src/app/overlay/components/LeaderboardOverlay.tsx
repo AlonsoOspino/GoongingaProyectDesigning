@@ -21,6 +21,11 @@ interface LeaderboardOverlayViewProps {
 
 const finalizedStatuses = new Set(["PENDINGREGISTERS", "FINISHED"]);
 
+function getTextWidthCh(values: Array<string | number>, minWidth = 3) {
+  const widest = values.reduce((max, value) => Math.max(max, String(value).length), 0);
+  return `${Math.max(minWidth, widest)}ch`;
+}
+
 function logoUrl(value?: string | null) {
   if (!value) return "";
   const resolved = resolveGenericBackendAsset(value);
@@ -49,6 +54,20 @@ export function LeaderboardOverlayView({
   settings,
   backgroundImageUrl,
 }: LeaderboardOverlayViewProps) {
+  const leaderboardPrimaryStatWidth = getTextWidthCh(
+    leaderboard.map((team) => `${team.victories}-${team.defeats}`),
+    3
+  );
+  const leaderboardSecondaryStatWidth = getTextWidthCh(
+    leaderboard.map((team) => `${team.mapWins}-${team.mapLoses}`),
+    3
+  );
+  const matchTeamWidth = getTextWidthCh(
+    matches.flatMap((entry) => [teamAbbreviation(entry.teamA?.name || ""), teamAbbreviation(entry.teamB?.name || "")]),
+    3
+  );
+  const matchCenterWidth = getTextWidthCh(matches.map((entry) => entry.centerText), 4);
+
   const titleStyle: CSSProperties = {
     color: settings.title.color,
     fontFamily: settings.title.fontFamily,
@@ -70,6 +89,7 @@ export function LeaderboardOverlayView({
     fontFamily: settings.leaderboard.fontFamily,
     fontSize: `${settings.leaderboard.fontSize}px`,
     fontWeight: 700,
+    gridTemplateColumns: `88px ${leaderboardPrimaryStatWidth} ${leaderboardSecondaryStatWidth}`,
   };
 
   const matchesWrapStyle: CSSProperties = {
@@ -86,6 +106,40 @@ export function LeaderboardOverlayView({
     fontFamily: settings.matches.fontFamily,
     fontSize: `${settings.matches.fontSize}px`,
     fontWeight: 700,
+    gridTemplateColumns: `84px ${matchTeamWidth} ${matchCenterWidth} ${matchTeamWidth} 84px`,
+  };
+
+  const teamTextStyle: CSSProperties = {
+    display: "inline-block",
+    width: matchTeamWidth,
+    textAlign: "center",
+    fontFamily: "var(--font-mono)",
+    fontVariantNumeric: "tabular-nums",
+  };
+
+  const centerTextStyle: CSSProperties = {
+    display: "inline-block",
+    width: matchCenterWidth,
+    textAlign: "center",
+    justifySelf: "center",
+    fontFamily: "var(--font-mono)",
+    fontVariantNumeric: "tabular-nums",
+  };
+
+  const leaderboardStatStyle: CSSProperties = {
+    display: "inline-block",
+    minWidth: leaderboardPrimaryStatWidth,
+    textAlign: "center",
+    fontFamily: "var(--font-mono)",
+    fontVariantNumeric: "tabular-nums",
+  };
+
+  const leaderboardSecondaryStatStyle: CSSProperties = {
+    display: "inline-block",
+    minWidth: leaderboardSecondaryStatWidth,
+    textAlign: "center",
+    fontFamily: "var(--font-mono)",
+    fontVariantNumeric: "tabular-nums",
   };
 
   return (
@@ -108,8 +162,8 @@ export function LeaderboardOverlayView({
                     <div className={styles.logoFallback}>{teamAbbreviation(team.name)}</div>
                   )}
                 </div>
-                <span>{team.victories}-{team.defeats}</span>
-                <span>{team.mapWins}-{team.mapLoses}</span>
+                <span style={leaderboardStatStyle}>{team.victories}-{team.defeats}</span>
+                <span style={leaderboardSecondaryStatStyle}>{team.mapWins}-{team.mapLoses}</span>
               </div>
             ))}
           </div>
@@ -127,9 +181,9 @@ export function LeaderboardOverlayView({
                       <div className={styles.logoFallback}>{teamAbbreviation(entry.teamA?.name || "")}</div>
                     )}
                   </div>
-                  <span>{teamAbbreviation(entry.teamA?.name || "")}</span>
-                  <span className={styles.centerText}>{entry.centerText}</span>
-                  <span>{teamAbbreviation(entry.teamB?.name || "")}</span>
+                    <span style={teamTextStyle}>{teamAbbreviation(entry.teamA?.name || "")}</span>
+                    <span className={styles.centerText} style={centerTextStyle}>{entry.centerText}</span>
+                    <span style={teamTextStyle}>{teamAbbreviation(entry.teamB?.name || "")}</span>
                   <div className={styles.matchLogoCell}>
                     {entry.teamB?.logo ? (
                       <img src={logoUrl(entry.teamB.logo)} alt={entry.teamB.name} className={styles.matchLogo} />
