@@ -303,17 +303,11 @@ export default function AssetsEditionPage() {
         nextBackgroundUrl = uploadedUrl;
       }
 
-      // Apply the same overlay asset to all matches in the tournament (global per-tournament settings)
-      if (!selectedMatch) throw new Error("No selected match to determine tournament.");
-      const tournamentMatches = await getMatchesByTournament(selectedMatch.tournamentId);
-      await Promise.all(
-        tournamentMatches.map((m) =>
-          updateLeaderboardOverlayAsset(token, m.id, {
-            backgroundImageUrl: nextBackgroundUrl,
-            settings,
-          })
-        )
-      );
+      // Save only for the selected match (personal per-match overlay)
+      await updateLeaderboardOverlayAsset(token, selectedMatchId, {
+        backgroundImageUrl: nextBackgroundUrl,
+        settings,
+      });
 
       const previousUrl = savedBackgroundImageUrl;
 
@@ -358,7 +352,7 @@ export default function AssetsEditionPage() {
           <div>
             <h1 className="text-3xl font-bold text-foreground">Edit Assets</h1>
             <p className="text-muted mt-1">
-              Configure the overlay used by all leaderboard overlays for the selected match's tournament.
+              Configure the overlay for the selected match. Saving updates only that match's overlay.
             </p>
           </div>
 
@@ -386,7 +380,7 @@ export default function AssetsEditionPage() {
               <label className="block text-sm">
                 <span className="text-muted">Preview match</span>
                 <p className="text-xs text-muted mt-1">
-                  This only changes the preview data. Saving applies the same overlay structure to every match in the tournament.
+                  Choose a match to preview how the overlay looks for that match. Saving will update only this match's overlay.
                 </p>
                 <select
                   className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
