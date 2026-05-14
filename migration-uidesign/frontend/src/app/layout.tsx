@@ -1,6 +1,6 @@
 import { Suspense, type ReactNode } from "react";
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono, League_Gothic } from "next/font/google";
 import { SessionProvider } from "@/features/session/SessionProvider";
 import { RouteAwareShell } from "@/components/layout/RouteAwareShell";
 import "./globals.css";
@@ -13,6 +13,11 @@ const inter = Inter({
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-jetbrains-mono",
+});
+
+const leagueGothic = League_Gothic({
+  subsets: ["latin"],
+  variable: "--font-league-gothic",
 });
 
 export const metadata: Metadata = {
@@ -31,7 +36,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} bg-background`}>
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} ${leagueGothic.variable} bg-background`}>
       <body className="min-h-screen flex flex-col font-sans antialiased">
         <SessionProvider>
           <Suspense fallback={null}>
