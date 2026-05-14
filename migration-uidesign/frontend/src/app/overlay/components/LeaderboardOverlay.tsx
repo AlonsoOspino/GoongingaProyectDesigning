@@ -103,7 +103,6 @@ export function LeaderboardOverlayView({
     color: settings.leaderboard.color,
     fontFamily: settings.leaderboard.fontFamily,
     fontSize: `${settings.leaderboard.fontSize}px`,
-    fontWeight: 700,
     gridTemplateColumns: `88px ${leaderboardPrimaryStatWidth} ${leaderboardSecondaryStatWidth}`,
   };
 
@@ -123,7 +122,6 @@ export function LeaderboardOverlayView({
     color: settings.matches.color,
     fontFamily: settings.matches.fontFamily,
     fontSize: `${settings.matches.fontSize}px`,
-    fontWeight: 700,
     gridTemplateColumns: `${matchLogoSize}px ${matchTeamWidth} ${matchCenterWidth} ${matchTeamWidth} ${matchLogoSize}px`,
   };
 
