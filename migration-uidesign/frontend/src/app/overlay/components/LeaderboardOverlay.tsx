@@ -17,6 +17,7 @@ interface LeaderboardOverlayViewProps {
   matches: MatchCardEntry[];
   settings: LeaderboardOverlaySettings;
   backgroundImageUrl?: string | null;
+  leaderboardAfterText?: string | null;
 }
 
 const finalizedStatuses = new Set(["PENDINGREGISTERS", "FINISHED"]);
@@ -66,6 +67,7 @@ export function LeaderboardOverlayView({
   matches,
   settings,
   backgroundImageUrl,
+  leaderboardAfterText,
 }: LeaderboardOverlayViewProps) {
   const leaderboardPrimaryStatWidth = getTextWidthCh(
     leaderboard.map((team) => `${team.victories}-${team.defeats}`),
@@ -172,9 +174,11 @@ export function LeaderboardOverlayView({
           {weekLabel}
         </h1>
 
-        <div className={styles.leaderboardAfterBanner}>
-          Leaderboard after last match updated to PENDINGRESULTS
-        </div>
+        {leaderboardAfterText && (
+          <div className={styles.leaderboardAfterBanner}>
+            {leaderboardAfterText}
+          </div>
+        )}
 
         <section className={styles.leaderboardWrap} style={leaderboardWrapStyle}>
           <div className={styles.leaderboardList} style={leaderboardListStyle}>
@@ -252,6 +256,14 @@ export function LeaderboardOverlayFromData({
     ? Number(settings.weekNumber)
     : 1;
 
+  const lastPendingMatch = [...weekMatches]
+    .filter((m) => m.status === "PENDINGREGISTERS")
+    .sort((a, b) => b.id - a.id)[0];
+
+  const leaderboardAfterText = lastPendingMatch
+    ? `LEADERBOARD AFTER ${teamsById.get(lastPendingMatch.teamAId)?.name || ""} VS ${teamsById.get(lastPendingMatch.teamBId)?.name || ""}`
+    : null;
+
   return (
     <LeaderboardOverlayView
       weekLabel={`Week ${safeWeek > 0 ? safeWeek : 1}`}
@@ -259,6 +271,7 @@ export function LeaderboardOverlayFromData({
       matches={buildMatchCardEntries(weekMatches, teamsById)}
       settings={settings}
       backgroundImageUrl={backgroundImageUrl}
+      leaderboardAfterText={leaderboardAfterText}
     />
   );
 }
