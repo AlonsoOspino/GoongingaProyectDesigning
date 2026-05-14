@@ -32,6 +32,40 @@ const PREVIEW_WIDTH = 480;
 const PREVIEW_HEIGHT = 270;
 const previewScale = PREVIEW_WIDTH / OVERLAY_WIDTH;
 
+interface SliderInputProps {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  onChange: (value: number) => void;
+}
+
+function SliderInput({ label, value, min, max, step = 1, onChange }: SliderInputProps) {
+  return (
+    <label className="text-sm">
+      <span className="text-muted">{label}</span>
+      <div className="mt-2 flex items-center gap-3">
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="flex-1 h-2 bg-border rounded-lg appearance-none cursor-pointer accent-primary"
+          style={{
+            background: `linear-gradient(to right, hsl(var(--primary)) 0%, hsl(var(--primary)) ${
+              ((value - min) / (max - min)) * 100
+            }%, hsl(var(--border)) ${((value - min) / (max - min)) * 100}%, hsl(var(--border)) 100%)`,
+          }}
+        />
+        <span className="text-sm font-mono w-12 text-right">{value}</span>
+      </div>
+    </label>
+  );
+}
+
 export default function AssetsEditionPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -358,22 +392,18 @@ export default function AssetsEditionPage() {
                   <CardTitle>Week Title Style</CardTitle>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                  <label className="text-sm">
-                    <span className="text-muted">Week number</span>
-                    <input
-                      type="number"
-                      min={1}
-                      max={99}
-                      className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
-                      value={settings.weekNumber}
-                      onChange={(event) =>
-                        updateSettings((prev) => ({
-                          ...prev,
-                          weekNumber: Number(event.target.value),
-                        }))
-                      }
-                    />
-                  </label>
+                  <SliderInput
+                    label="Week number"
+                    value={settings.weekNumber}
+                    min={1}
+                    max={99}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        weekNumber: value,
+                      }))
+                    }
+                  />
 
                   <label className="text-sm">
                     <span className="text-muted">Font</span>
@@ -410,56 +440,44 @@ export default function AssetsEditionPage() {
                     />
                   </label>
 
-                  <label className="text-sm">
-                    <span className="text-muted">Size</span>
-                    <input
-                      type="number"
-                      min={20}
-                      max={180}
-                      className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
-                      value={settings.title.fontSize}
-                      onChange={(event) =>
-                        updateSettings((prev) => ({
-                          ...prev,
-                          title: { ...prev.title, fontSize: Number(event.target.value) },
-                        }))
-                      }
-                    />
-                  </label>
+                  <SliderInput
+                    label="Letter size"
+                    value={settings.title.fontSize}
+                    min={20}
+                    max={180}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        title: { ...prev.title, fontSize: value },
+                      }))
+                    }
+                  />
 
-                  <label className="text-sm">
-                    <span className="text-muted">Position X</span>
-                    <input
-                      type="number"
-                      min={-900}
-                      max={900}
-                      className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
-                      value={settings.title.offsetX}
-                      onChange={(event) =>
-                        updateSettings((prev) => ({
-                          ...prev,
-                          title: { ...prev.title, offsetX: Number(event.target.value) },
-                        }))
-                      }
-                    />
-                  </label>
+                  <SliderInput
+                    label="Position X"
+                    value={settings.title.offsetX}
+                    min={-900}
+                    max={900}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        title: { ...prev.title, offsetX: value },
+                      }))
+                    }
+                  />
 
-                  <label className="text-sm">
-                    <span className="text-muted">Position Y</span>
-                    <input
-                      type="number"
-                      min={-500}
-                      max={500}
-                      className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
-                      value={settings.title.offsetY}
-                      onChange={(event) =>
-                        updateSettings((prev) => ({
-                          ...prev,
-                          title: { ...prev.title, offsetY: Number(event.target.value) },
-                        }))
-                      }
-                    />
-                  </label>
+                  <SliderInput
+                    label="Position Y"
+                    value={settings.title.offsetY}
+                    min={-500}
+                    max={500}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        title: { ...prev.title, offsetY: value },
+                      }))
+                    }
+                  />
                 </CardContent>
               </Card>
 
@@ -503,108 +521,84 @@ export default function AssetsEditionPage() {
                     />
                   </label>
 
-                  <label className="text-sm">
-                    <span className="text-muted">Font size</span>
-                    <input
-                      type="number"
-                      min={16}
-                      max={120}
-                      className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
-                      value={settings.leaderboard.fontSize}
-                      onChange={(event) =>
-                        updateSettings((prev) => ({
-                          ...prev,
-                          leaderboard: { ...prev.leaderboard, fontSize: Number(event.target.value) },
-                        }))
-                      }
-                    />
-                  </label>
+                  <SliderInput
+                    label="Letter size"
+                    value={settings.leaderboard.fontSize}
+                    min={16}
+                    max={120}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        leaderboard: { ...prev.leaderboard, fontSize: value },
+                      }))
+                    }
+                  />
 
-                  <label className="text-sm">
-                    <span className="text-muted">Column gap</span>
-                    <input
-                      type="number"
-                      min={0}
-                      max={140}
-                      className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
-                      value={settings.leaderboard.columnGap}
-                      onChange={(event) =>
-                        updateSettings((prev) => ({
-                          ...prev,
-                          leaderboard: { ...prev.leaderboard, columnGap: Number(event.target.value) },
-                        }))
-                      }
-                    />
-                  </label>
+                  <SliderInput
+                    label="Column gap"
+                    value={settings.leaderboard.columnGap}
+                    min={0}
+                    max={140}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        leaderboard: { ...prev.leaderboard, columnGap: value },
+                      }))
+                    }
+                  />
 
-                  <label className="text-sm">
-                    <span className="text-muted">Row gap</span>
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
-                      value={settings.leaderboard.rowGap}
-                      onChange={(event) =>
-                        updateSettings((prev) => ({
-                          ...prev,
-                          leaderboard: { ...prev.leaderboard, rowGap: Number(event.target.value) },
-                        }))
-                      }
-                    />
-                  </label>
+                  <SliderInput
+                    label="Row gap"
+                    value={settings.leaderboard.rowGap}
+                    min={0}
+                    max={100}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        leaderboard: { ...prev.leaderboard, rowGap: value },
+                      }))
+                    }
+                  />
 
-                  <label className="text-sm">
-                    <span className="text-muted">Scale</span>
-                    <input
-                      type="number"
-                      min={0.3}
-                      max={2}
-                      step={0.05}
-                      className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
-                      value={settings.leaderboard.scale}
-                      onChange={(event) =>
-                        updateSettings((prev) => ({
-                          ...prev,
-                          leaderboard: { ...prev.leaderboard, scale: Number(event.target.value) },
-                        }))
-                      }
-                    />
-                  </label>
+                  <SliderInput
+                    label="Scale"
+                    value={settings.leaderboard.scale}
+                    min={0.3}
+                    max={2}
+                    step={0.05}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        leaderboard: { ...prev.leaderboard, scale: value },
+                      }))
+                    }
+                  />
 
-                  <label className="text-sm">
-                    <span className="text-muted">Position X</span>
-                    <input
-                      type="number"
-                      min={-900}
-                      max={900}
-                      className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
-                      value={settings.leaderboard.offsetX}
-                      onChange={(event) =>
-                        updateSettings((prev) => ({
-                          ...prev,
-                          leaderboard: { ...prev.leaderboard, offsetX: Number(event.target.value) },
-                        }))
-                      }
-                    />
-                  </label>
+                  <SliderInput
+                    label="Position X"
+                    value={settings.leaderboard.offsetX}
+                    min={-900}
+                    max={900}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        leaderboard: { ...prev.leaderboard, offsetX: value },
+                      }))
+                    }
+                  />
 
-                  <label className="text-sm">
-                    <span className="text-muted">Position Y</span>
-                    <input
-                      type="number"
-                      min={-500}
-                      max={500}
-                      className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
-                      value={settings.leaderboard.offsetY}
-                      onChange={(event) =>
-                        updateSettings((prev) => ({
-                          ...prev,
-                          leaderboard: { ...prev.leaderboard, offsetY: Number(event.target.value) },
-                        }))
-                      }
-                    />
-                  </label>
+                  <SliderInput
+                    label="Position Y"
+                    value={settings.leaderboard.offsetY}
+                    min={-500}
+                    max={500}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        leaderboard: { ...prev.leaderboard, offsetY: value },
+                      }))
+                    }
+                  />
                 </CardContent>
               </Card>
 
@@ -648,108 +642,110 @@ export default function AssetsEditionPage() {
                     />
                   </label>
 
-                  <label className="text-sm">
-                    <span className="text-muted">Font size</span>
-                    <input
-                      type="number"
-                      min={16}
-                      max={120}
-                      className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
-                      value={settings.matches.fontSize}
-                      onChange={(event) =>
-                        updateSettings((prev) => ({
-                          ...prev,
-                          matches: { ...prev.matches, fontSize: Number(event.target.value) },
-                        }))
-                      }
-                    />
-                  </label>
+                  <SliderInput
+                    label="Letter size"
+                    value={settings.matches.fontSize}
+                    min={16}
+                    max={120}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        matches: { ...prev.matches, fontSize: value },
+                      }))
+                    }
+                  />
 
-                  <label className="text-sm">
-                    <span className="text-muted">Column gap</span>
-                    <input
-                      type="number"
-                      min={0}
-                      max={140}
-                      className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
-                      value={settings.matches.columnGap}
-                      onChange={(event) =>
-                        updateSettings((prev) => ({
-                          ...prev,
-                          matches: { ...prev.matches, columnGap: Number(event.target.value) },
-                        }))
-                      }
-                    />
-                  </label>
+                  <SliderInput
+                    label="Column gap"
+                    value={settings.matches.columnGap}
+                    min={0}
+                    max={140}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        matches: { ...prev.matches, columnGap: value },
+                      }))
+                    }
+                  />
 
-                  <label className="text-sm">
-                    <span className="text-muted">Row gap</span>
-                    <input
-                      type="number"
-                      min={0}
-                      max={120}
-                      className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
-                      value={settings.matches.rowGap}
-                      onChange={(event) =>
-                        updateSettings((prev) => ({
-                          ...prev,
-                          matches: { ...prev.matches, rowGap: Number(event.target.value) },
-                        }))
-                      }
-                    />
-                  </label>
+                  <SliderInput
+                    label="Row gap"
+                    value={settings.matches.rowGap}
+                    min={0}
+                    max={120}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        matches: { ...prev.matches, rowGap: value },
+                      }))
+                    }
+                  />
 
-                  <label className="text-sm">
-                    <span className="text-muted">Scale</span>
-                    <input
-                      type="number"
-                      min={0.3}
-                      max={2}
-                      step={0.05}
-                      className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
-                      value={settings.matches.scale}
-                      onChange={(event) =>
-                        updateSettings((prev) => ({
-                          ...prev,
-                          matches: { ...prev.matches, scale: Number(event.target.value) },
-                        }))
-                      }
-                    />
-                  </label>
+                  <SliderInput
+                    label="Logo size"
+                    value={settings.matches.logoSize}
+                    min={40}
+                    max={200}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        matches: { ...prev.matches, logoSize: value },
+                      }))
+                    }
+                  />
 
-                  <label className="text-sm">
-                    <span className="text-muted">Position X</span>
-                    <input
-                      type="number"
-                      min={-900}
-                      max={900}
-                      className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
-                      value={settings.matches.offsetX}
-                      onChange={(event) =>
-                        updateSettings((prev) => ({
-                          ...prev,
-                          matches: { ...prev.matches, offsetX: Number(event.target.value) },
-                        }))
-                      }
-                    />
-                  </label>
+                  <SliderInput
+                    label="Logo gap"
+                    value={settings.matches.logoGap}
+                    min={0}
+                    max={140}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        matches: { ...prev.matches, logoGap: value },
+                      }))
+                    }
+                  />
 
-                  <label className="text-sm">
-                    <span className="text-muted">Position Y</span>
-                    <input
-                      type="number"
-                      min={-500}
-                      max={500}
-                      className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
-                      value={settings.matches.offsetY}
-                      onChange={(event) =>
-                        updateSettings((prev) => ({
-                          ...prev,
-                          matches: { ...prev.matches, offsetY: Number(event.target.value) },
-                        }))
-                      }
-                    />
-                  </label>
+                  <SliderInput
+                    label="Scale"
+                    value={settings.matches.scale}
+                    min={0.3}
+                    max={2}
+                    step={0.05}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        matches: { ...prev.matches, scale: value },
+                      }))
+                    }
+                  />
+
+                  <SliderInput
+                    label="Position X"
+                    value={settings.matches.offsetX}
+                    min={-900}
+                    max={900}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        matches: { ...prev.matches, offsetX: value },
+                      }))
+                    }
+                  />
+
+                  <SliderInput
+                    label="Position Y"
+                    value={settings.matches.offsetY}
+                    min={-500}
+                    max={500}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        matches: { ...prev.matches, offsetY: value },
+                      }))
+                    }
+                  />
                 </CardContent>
               </Card>
 

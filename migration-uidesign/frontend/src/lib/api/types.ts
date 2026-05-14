@@ -78,6 +78,8 @@ export interface LeaderboardOverlaySettings {
     fontSize: number;
     columnGap: number;
     rowGap: number;
+    logoSize: number;
+    logoGap: number;
     scale: number;
     offsetX: number;
     offsetY: number;

@@ -100,13 +100,21 @@ export function LeaderboardOverlayView({
     rowGap: `${settings.matches.rowGap}px`,
   };
 
+  const matchLogoSize = settings.matches.logoSize || 84;
+  const matchLogoGap = settings.matches.logoGap ?? settings.matches.columnGap;
+
   const matchRowStyle: CSSProperties = {
-    columnGap: `${settings.matches.columnGap}px`,
+    columnGap: `${matchLogoGap}px`,
     color: settings.matches.color,
     fontFamily: settings.matches.fontFamily,
     fontSize: `${settings.matches.fontSize}px`,
     fontWeight: 700,
-    gridTemplateColumns: `84px ${matchTeamWidth} ${matchCenterWidth} ${matchTeamWidth} 84px`,
+    gridTemplateColumns: `${matchLogoSize}px ${matchTeamWidth} ${matchCenterWidth} ${matchTeamWidth} ${matchLogoSize}px`,
+  };
+
+  const matchLogoCellStyle: CSSProperties = {
+    width: `${matchLogoSize}px`,
+    height: `${matchLogoSize}px`,
   };
 
   const teamTextStyle: CSSProperties = {
@@ -174,7 +182,7 @@ export function LeaderboardOverlayView({
             {matches.length > 0 ? (
               matches.map((entry) => (
                 <div key={entry.id} className={styles.matchRow} style={matchRowStyle}>
-                  <div className={styles.matchLogoCell}>
+                  <div className={styles.matchLogoCell} style={matchLogoCellStyle}>
                     {entry.teamA?.logo ? (
                       <img src={logoUrl(entry.teamA.logo)} alt={entry.teamA.name} className={styles.matchLogo} />
                     ) : (
@@ -184,7 +192,7 @@ export function LeaderboardOverlayView({
                     <span style={teamTextStyle}>{teamAbbreviation(entry.teamA?.name || "")}</span>
                     <span className={styles.centerText} style={centerTextStyle}>{entry.centerText}</span>
                     <span style={teamTextStyle}>{teamAbbreviation(entry.teamB?.name || "")}</span>
-                  <div className={styles.matchLogoCell}>
+                  <div className={styles.matchLogoCell} style={matchLogoCellStyle}>
                     {entry.teamB?.logo ? (
                       <img src={logoUrl(entry.teamB.logo)} alt={entry.teamB.name} className={styles.matchLogo} />
                     ) : (
