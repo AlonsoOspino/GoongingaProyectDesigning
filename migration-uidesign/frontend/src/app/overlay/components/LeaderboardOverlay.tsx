@@ -23,7 +23,8 @@ const finalizedStatuses = new Set(["PENDINGREGISTERS", "FINISHED"]);
 
 function logoUrl(value?: string | null) {
   if (!value) return "";
-  return resolveGenericBackendAsset(value);
+  const resolved = resolveGenericBackendAsset(value);
+  return `/api/logo-square?src=${encodeURIComponent(resolved)}`;
 }
 
 function buildMatchCardEntries(weekMatches: Match[], teamsById: Map<number, Team>) {

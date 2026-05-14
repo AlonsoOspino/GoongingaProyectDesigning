@@ -1,5 +1,6 @@
 import { put, del } from '@vercel/blob'
 import { type NextRequest, NextResponse } from 'next/server'
+import sharp from 'sharp'
 
 const BLOB_HOST_SUFFIX = '.public.blob.vercel-storage.com'
 
@@ -17,6 +18,23 @@ function sanitizeSegment(value: string) {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 48) || 'image'
+}
+
+async function normalizeLogoFile(file: File) {
+  const inputBuffer = Buffer.from(await file.arrayBuffer())
+  const outputBuffer = await sharp(inputBuffer, { failOn: 'none' })
+    .resize({
+      width: 1024,
+      height: 1024,
+      fit: 'cover',
+      position: 'centre',
+      withoutEnlargement: false,
+    })
+    .webp({ quality: 92 })
+    .toBuffer()
+
+  const baseName = file.name.replace(/\.[^.]+$/, '') || 'logo'
+  return new File([outputBuffer], `${baseName}.webp`, { type: 'image/webp' })
 }
 
 export async function POST(request: NextRequest) {
@@ -55,13 +73,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const uploadFile = type === 'logo' ? await normalizeLogoFile(file) : file
+
     // Generate a unique filename with type prefix
     const timestamp = Date.now()
-    const extension = file.name.split('.').pop()
+    const extension = uploadFile.name.split('.').pop() || 'bin'
     const filename = `${sanitizeSegment(type)}-${timestamp}.${extension}`
 
     // Upload to Vercel Blob (public access for team logos and rosters)
-    const blob = await put(filename, file, {
+    const blob = await put(filename, uploadFile, {
       access: 'public',
     })
 

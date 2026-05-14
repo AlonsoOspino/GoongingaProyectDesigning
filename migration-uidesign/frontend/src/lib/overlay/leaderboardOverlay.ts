@@ -106,16 +106,8 @@ export function teamAbbreviation(name: string) {
     .replace(/[^a-zA-Z0-9\s]/g, " ")
     .trim();
 
-  if (!cleaned) return "TEAM";
+  const lettersOnly = cleaned.replace(/\s+/g, "");
+  if (!lettersOnly) return "XXX";
 
-  const tokens = cleaned.split(/\s+/).filter(Boolean);
-  if (tokens.length >= 2) {
-    return tokens
-      .slice(0, 3)
-      .map((token) => token[0])
-      .join("")
-      .toUpperCase();
-  }
-
-  return cleaned.slice(0, 4).toUpperCase();
+  return lettersOnly.slice(0, 3).padEnd(3, "X").toUpperCase();
 }
