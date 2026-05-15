@@ -549,7 +549,7 @@ const mergeNumericFragments = (numericWords, columnCenters, columnTolerance) => 
     const assignment = assignStatValueToColumn(x, columnCenters);
     if (!assignment) return;
 
-    const parsed = parseScoreNumber(word.text);
+    const parsed = normalizeKadStatValue(parseScoreNumber(word.text), assignment.key, word.text);
     if (!Number.isFinite(parsed) || parsed < 0) return;
 
     const range = validRanges[assignment.key];
@@ -1342,6 +1342,57 @@ const normalizeOcrNumericText = (value) =>
 
 const looksNumericToken = (text) => /^\d[\d,.]*$/.test(normalizeOcrNumericText(text));
 
+const KAD_COLUMN_KEYS = ["E", "A", "D"];
+
+const getDigitsOnly = (text) => normalizeOcrNumericText(text).replace(/[^\d]/g, "");
+
+const splitNumericTokenAcrossKadColumns = (word, columnCenters, digits) => {
+  if (!digits || digits.length < 2 || digits.length > KAD_COLUMN_KEYS.length) return null;
+
+  const x0 = Number(word?.bbox?.x0 || 0);
+  const x1 = Number(word?.bbox?.x1 || 0);
+  const tolerance = calculateDynamicColumnTolerance(columnCenters);
+  const edgePadding = Math.max(4, tolerance * 0.2);
+  const coveredKeys = KAD_COLUMN_KEYS.filter((key) => {
+    const center = columnCenters[key];
+    return center !== undefined && center >= x0 - edgePadding && center <= x1 + edgePadding;
+  });
+
+  if (coveredKeys.length !== digits.length) return null;
+
+  return coveredKeys.map((key, index) => ({
+    ...word,
+    text: digits[index],
+    bbox: {
+      x0: columnCenters[key] - 2,
+      x1: columnCenters[key] + 2,
+      y0: word.bbox.y0,
+      y1: word.bbox.y1,
+    },
+    synthetic: true,
+  }));
+};
+
+const normalizeKadStatValue = (value, key, originalText) => {
+  if (!KAD_COLUMN_KEYS.includes(key)) return value;
+  if (value <= 150) return value;
+
+  const digits = getDigitsOnly(originalText);
+  if (digits.length < 2) return value;
+
+  const trailingTwoDigits = Number(digits.slice(-2));
+  if (Number.isInteger(trailingTwoDigits) && trailingTwoDigits <= 120) {
+    return trailingTwoDigits;
+  }
+
+  const trailingDigit = Number(digits.slice(-1));
+  if (Number.isInteger(trailingDigit) && trailingDigit <= 120) {
+    return trailingDigit;
+  }
+
+  return value;
+};
+
 const expandKadTokenWords = (numericWords, columnCenters) => {
   if (!columnCenters?.E || !columnCenters?.A || !columnCenters?.D) return numericWords;
 
@@ -1351,13 +1402,20 @@ const expandKadTokenWords = (numericWords, columnCenters) => {
 
   for (const word of numericWords) {
     const text = normalizeOcrNumericText(word.text);
+    const digits = getDigitsOnly(text);
     const x = wordCenterX(word);
     const width = wordWidth(word);
+
+    const splitByColumnSpan = splitNumericTokenAcrossKadColumns(word, columnCenters, digits);
+    if (splitByColumnSpan) {
+      expanded.push(...splitByColumnSpan);
+      continue;
+    }
 
     if (/^\d{3}$/.test(text) && x <= kadMaxX && width >= tolerance * 1.1) {
       const digits = text.split("");
       expanded.push(
-        ...["E", "A", "D"].map((key, index) => ({
+        ...KAD_COLUMN_KEYS.map((key, index) => ({
           ...word,
           text: digits[index],
           bbox: {
@@ -1513,7 +1571,7 @@ const parseStatsFromRowWords = (rowWords, columnCenters) => {
     const assignment = assignStatValueToColumn(x, columnCenters);
     if (!assignment) continue;
 
-    const parsed = parseScoreNumber(word.text);
+    const parsed = normalizeKadStatValue(parseScoreNumber(word.text), assignment.key, word.text);
     if (!Number.isFinite(parsed)) continue;
 
     if (valuesByKey[assignment.key] === undefined) {
