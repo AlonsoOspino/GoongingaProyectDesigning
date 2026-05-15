@@ -81,6 +81,11 @@ export function RosterOverlay({ matchId, side }: RosterOverlayProps) {
 
   const roster = useMemo(() => parseRoster(team?.roster), [team]);
 
+  const rosterRaw = team?.roster || "";
+  const looksLikeList = /[\r\n,;|]/.test(rosterRaw);
+  const looksLikeUrl = /^(https?:\/\/|data:|blob:|\/)/.test(rosterRaw);
+  const showRosterImage = !looksLikeList && looksLikeUrl;
+
   if (loading) {
     return (
       <div className={styles.statusScreen}>
@@ -109,17 +114,23 @@ export function RosterOverlay({ matchId, side }: RosterOverlayProps) {
           <h1 className={styles.teamName}>{team.name}</h1>
         </div>
 
-        <ul className={styles.rosterList}>
-          {roster.length > 0 ? (
-            roster.map((player, index) => (
-              <li key={`${player}-${index}`} className={styles.rosterItem}>
-                {player}
-              </li>
-            ))
-          ) : (
-            <li className={styles.rosterItem}>No roster configured</li>
-          )}
-        </ul>
+        {showRosterImage ? (
+          <div className={styles.rosterImageWrap}>
+            <img src={teamLogo(team.roster)} alt={`${team.name} roster`} className={styles.rosterImage} />
+          </div>
+        ) : (
+          <ul className={styles.rosterList}>
+            {roster.length > 0 ? (
+              roster.map((player, index) => (
+                <li key={`${player}-${index}`} className={styles.rosterItem}>
+                  {player}
+                </li>
+              ))
+            ) : (
+              <li className={styles.rosterItem}>No roster configured</li>
+            )}
+          </ul>
+        )}
       </div>
     </div>
   );

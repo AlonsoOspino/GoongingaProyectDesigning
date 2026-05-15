@@ -179,14 +179,22 @@ export default function AssetsEditionPage() {
         if (cancelled) return;
 
         const sortedMatches = [...matchesData].sort((a, b) => {
-          // Push scheduled matches to the bottom
-          if (a.status === "SCHEDULED" && b.status !== "SCHEDULED") return 1;
-          if (b.status === "SCHEDULED" && a.status !== "SCHEDULED") return -1;
-
-          // Then sort by startDate (soonest first)
           const aDate = a.startDate ? new Date(a.startDate).getTime() : 0;
           const bDate = b.startDate ? new Date(b.startDate).getTime() : 0;
+
+          const aHasDate = Boolean(a.startDate);
+          const bHasDate = Boolean(b.startDate);
+
+          // Always show dated matches before undated/scheduled ones.
+          if (aHasDate && !bHasDate) return -1;
+          if (!aHasDate && bHasDate) return 1;
+
+          // Then sort by the date they were scheduled at (soonest first).
           if (aDate !== bDate) return aDate - bDate;
+
+          // If both are undated, keep scheduled matches after everything else.
+          if (a.status === "SCHEDULED" && b.status !== "SCHEDULED") return 1;
+          if (b.status === "SCHEDULED" && a.status !== "SCHEDULED") return -1;
 
           // Fallback to week number then id
           const weekDiff = (a.semanas || 0) - (b.semanas || 0);
