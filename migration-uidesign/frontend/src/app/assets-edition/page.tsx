@@ -35,15 +35,22 @@ const previewScale = PREVIEW_WIDTH / OVERLAY_WIDTH;
 
 function sortMatchesByScheduledDate(matches: Match[]) {
   return [...matches].sort((a, b) => {
-    const aHasDate = Boolean(a.startDate);
-    const bHasDate = Boolean(b.startDate);
+    const aDate = a.startDate ? new Date(a.startDate).getTime() : Number.POSITIVE_INFINITY;
+    const bDate = b.startDate ? new Date(b.startDate).getTime() : Number.POSITIVE_INFINITY;
+    const aHasValidDate = Number.isFinite(aDate);
+    const bHasValidDate = Number.isFinite(bDate);
 
-    if (aHasDate && !bHasDate) return -1;
-    if (!aHasDate && bHasDate) return 1;
+    if (aHasValidDate && !bHasValidDate) return -1;
+    if (!aHasValidDate && bHasValidDate) return 1;
 
-    if (aHasDate && bHasDate) {
-      const dateDiff = new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+    if (aHasValidDate && bHasValidDate) {
+      const dateDiff = aDate - bDate;
       if (dateDiff !== 0) return dateDiff;
+    }
+
+    if (!aHasValidDate && !bHasValidDate) {
+      if (a.status === "SCHEDULED" && b.status !== "SCHEDULED") return 1;
+      if (b.status === "SCHEDULED" && a.status !== "SCHEDULED") return -1;
     }
 
     return a.id - b.id;
@@ -178,37 +185,14 @@ export default function AssetsEditionPage() {
         const [matchesData, teamsData] = await Promise.all([getMatches(), getTeams()]);
         if (cancelled) return;
 
-        const sortedMatches = [...matchesData].sort((a, b) => {
-          const aDate = a.startDate ? new Date(a.startDate).getTime() : 0;
-          const bDate = b.startDate ? new Date(b.startDate).getTime() : 0;
-
-          const aHasDate = Boolean(a.startDate);
-          const bHasDate = Boolean(b.startDate);
-
-          // Always show dated matches before undated/scheduled ones.
-          if (aHasDate && !bHasDate) return -1;
-          if (!aHasDate && bHasDate) return 1;
-
-          // Then sort by the date they were scheduled at (soonest first).
-          if (aDate !== bDate) return aDate - bDate;
-
-          // If both are undated, keep scheduled matches after everything else.
-          if (a.status === "SCHEDULED" && b.status !== "SCHEDULED") return 1;
-          if (b.status === "SCHEDULED" && a.status !== "SCHEDULED") return -1;
-
-          // Fallback to week number then id
-          const weekDiff = (a.semanas || 0) - (b.semanas || 0);
-          if (weekDiff !== 0) return weekDiff;
-          return a.id - b.id;
-        });
+        const sortedMatches = sortMatchesByScheduledDate(matchesData);
 
         setMatches(sortedMatches);
         setTeams(teamsData);
 
-        const soonestScheduledMatch = sortedMatches.find((match) => match.status === "SCHEDULED");
         const defaultMatchId = Number.isInteger(queryMatchId) && queryMatchId > 0
           ? queryMatchId
-          : soonestScheduledMatch?.id ?? sortedMatches[0]?.id ?? null;
+          : sortedMatches[0]?.id ?? null;
         setSelectedMatchId(defaultMatchId);
       } catch (error) {
         const text = error instanceof Error ? error.message : "Failed to load manager data.";

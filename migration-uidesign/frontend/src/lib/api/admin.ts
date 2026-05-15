@@ -371,7 +371,7 @@ export async function adminWipeDatabase(token: string, payload: { confirmationTe
       const fallback = await adminRestoreBackupSql(token, {
         confirmationText: "RESTORE DATABASE",
         script:
-          'TRUNCATE TABLE "PlayerStat", "DraftAction", "DraftTable", "News", "Match", "Member", "Team", "Tournament", "_AllowedMaps" RESTART IDENTITY CASCADE;',
+          'TRUNCATE TABLE "PlayerStat", "DraftAction", "DraftTable", "LeaderboardOverlayAsset", "News", "Match", "Member", "Team", "Tournament", "_AllowedMaps" RESTART IDENTITY CASCADE;',
       });
 
       return {

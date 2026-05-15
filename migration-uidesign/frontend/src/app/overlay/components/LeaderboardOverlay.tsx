@@ -29,6 +29,30 @@ const matchStatusPriority: Record<Match["status"], number> = {
   SCHEDULED: 3,
 };
 
+function sortMatchesByScheduledDate(matches: Match[]) {
+  return [...matches].sort((a, b) => {
+    const aDate = a.startDate ? new Date(a.startDate).getTime() : Number.POSITIVE_INFINITY;
+    const bDate = b.startDate ? new Date(b.startDate).getTime() : Number.POSITIVE_INFINITY;
+    const aHasValidDate = Number.isFinite(aDate);
+    const bHasValidDate = Number.isFinite(bDate);
+
+    if (aHasValidDate && !bHasValidDate) return -1;
+    if (!aHasValidDate && bHasValidDate) return 1;
+
+    if (aHasValidDate && bHasValidDate) {
+      const dateDiff = aDate - bDate;
+      if (dateDiff !== 0) return dateDiff;
+    }
+
+    if (!aHasValidDate && !bHasValidDate) {
+      const priorityDiff = matchStatusPriority[a.status] - matchStatusPriority[b.status];
+      if (priorityDiff !== 0) return priorityDiff;
+    }
+
+    return a.id - b.id;
+  });
+}
+
 function getTextWidthCh(values: Array<string | number>, minWidth = 3) {
   const widest = values.reduce<number>((max, value) => Math.max(max, String(value).length), 0);
   return `${Math.max(minWidth, widest)}ch`;
@@ -41,11 +65,7 @@ function logoUrl(value?: string | null) {
 }
 
 function buildMatchCardEntries(weekMatches: Match[], teamsById: Map<number, Team>) {
-  const sortedWeekMatches = [...weekMatches].sort((a, b) => {
-    const priorityDiff = matchStatusPriority[a.status] - matchStatusPriority[b.status];
-    if (priorityDiff !== 0) return priorityDiff;
-    return a.id - b.id;
-  });
+  const sortedWeekMatches = sortMatchesByScheduledDate(weekMatches);
 
   return sortedWeekMatches.map((match) => {
     const teamA = teamsById.get(match.teamAId) ?? null;

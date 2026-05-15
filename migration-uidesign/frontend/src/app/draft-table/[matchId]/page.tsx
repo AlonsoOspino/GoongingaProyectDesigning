@@ -1141,16 +1141,26 @@ export default function DraftTablePage() {
         )}
 
         {/* Draft History - Only shown after PENDINGRESULT/FINISHED */}
-        {showDraftHistory && (
+        {showDraftHistory && !isObsKeyAccess && (
           <DraftHistory
             draftState={draftState}
             teams={teams}
             getHeroById={getHeroById}
-            isManager={isManager}
             isObsKeyAccess={isObsKeyAccess}
           />
         )}
       </div>
+
+      {showDraftHistory && isObsKeyAccess && (
+        <div className="absolute bottom-6 left-6 right-6 z-30 mx-auto max-w-[1840px]">
+          <DraftHistory
+            draftState={draftState}
+            teams={teams}
+            getHeroById={getHeroById}
+            isObsKeyAccess={isObsKeyAccess}
+          />
+        </div>
+      )}
 
       {isManager && (
         <div className={clsx(floatingPositionClass, "right-6 z-40", isObsKeyAccess ? "top-6" : "bottom-6")}>
@@ -2856,129 +2866,170 @@ function DraftHistory({
   draftState,
   teams,
   getHeroById,
-  isManager,
   isObsKeyAccess,
 }: {
   draftState: DraftState;
   teams: Team[];
   getHeroById: (heroId: number) => Hero | null;
-  isManager: boolean;
   isObsKeyAccess: boolean;
 }) {
   const actions = draftState.actions || [];
   const maps = draftState.allMaps || [];
-
-  if (actions.length === 0) return null;
+  const [activeGameIndex, setActiveGameIndex] = useState(0);
 
   const getTeamName = (teamId: number) =>
     teams.find((t) => t.id === teamId)?.name || `Team ${teamId}`;
 
-  const getActionDisplay = (action: DraftState["actions"][0]) => {
-    if (action.action === "BAN"   && action.value === null) {
-      return "Skipped";
-    }
-    if (action.action === "PICK" && action.value) {
-      const pickedMapId = Number(action.value);
-      const map = maps.find((m) => m.id === pickedMapId);
-      return map ? `Picked ${map.description}` : `Picked Map #${pickedMapId}`;
-    }
-    if (action.action === "BAN" && action.value) {
-      const hero = getHeroById(action.value);
-      return hero ? `Banned ${hero.name}` : `Banned Hero #${action.value}`;
-    }
-    return action.action;
-  };
+  const gameSlides = useMemo(
+    () => {
+      const groupedActions = actions.reduce((acc, action) => {
+        if (!acc[action.gameNumber]) acc[action.gameNumber] = [];
+        acc[action.gameNumber].push(action);
+        return acc;
+      }, {} as Record<number, typeof actions>);
 
-  const actionsByGame = actions.reduce((acc, action) => {
-    if (!acc[action.gameNumber]) acc[action.gameNumber] = [];
-    acc[action.gameNumber].push(action);
-    return acc;
-  }, {} as Record<number, typeof actions>);
+      return (
+        Object.entries(groupedActions)
+          .sort(([a], [b]) => Number(a) - Number(b))
+          .map(([gameNum, gameActions]) => {
+            const sortedActions = [...gameActions].sort((a, b) => a.order - b.order);
+            const pickAction = sortedActions.find((action) => action.action === "PICK") ?? null;
+            const pickedMapId = pickAction?.value ? Number(pickAction.value) : null;
+            const map = pickedMapId ? maps.find((candidate) => candidate.id === pickedMapId) ?? null : null;
+            const bans = sortedActions.filter((action) => action.action === "BAN").slice(0, 4);
+            while (bans.length < 4) {
+              bans.push({
+                id: -Number(gameNum) * 10 - bans.length,
+                draftId: draftState.id,
+                teamId: 0,
+                action: "BAN" as const,
+                value: null,
+                gameNumber: Number(gameNum),
+                order: 100 + bans.length,
+                createdAt: "",
+              });
+            }
 
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const loopTimerRef = useRef<number | null>(null);
+            return {
+              gameNumber: Number(gameNum),
+              map,
+              pickedMapId,
+              pickTeamId: pickAction?.teamId ?? null,
+              bans,
+            };
+          })
+      );
+    },
+    [actions, draftState.id, maps]
+  );
 
   useEffect(() => {
-    // Only enable for manager + key view
-    if (!isManager || !isObsKeyAccess) return;
-    const el = scrollRef.current;
-    if (!el) return;
+    setActiveGameIndex((current) => Math.min(current, Math.max(0, gameSlides.length - 1)));
+  }, [gameSlides.length]);
 
-    let stopped = false;
-
-    const scrollDownThenUp = () => {
-      if (!el || stopped) return;
-      const maxScroll = el.scrollHeight - el.clientHeight;
-      if (maxScroll <= 0) return;
-      // Scroll to bottom
-      el.scrollTo({ top: maxScroll, behavior: "smooth" });
-      // Wait for scroll + pause, then scroll back
-      loopTimerRef.current = window.setTimeout(() => {
-        if (!el || stopped) return;
-        el.scrollTo({ top: 0, behavior: "smooth" });
-        // After returning to top, schedule next cycle
-        loopTimerRef.current = window.setTimeout(() => {
-          if (!stopped) scrollDownThenUp();
-        }, 2000);
-      }, 3000);
-    };
-
-    // Give layout a moment to settle before starting
-    loopTimerRef.current = window.setTimeout(() => {
-      if (!stopped) scrollDownThenUp();
-    }, 500);
+  useEffect(() => {
+    if (gameSlides.length <= 1) return undefined;
+    const timer = window.setInterval(() => {
+      setActiveGameIndex((current) => (current + 1) % gameSlides.length);
+    }, 7000);
 
     return () => {
-      stopped = true;
-      if (loopTimerRef.current) window.clearTimeout(loopTimerRef.current);
+      window.clearInterval(timer);
     };
-  // Re-run when actions length changes so new content restarts the loop
-  }, [isManager, isObsKeyAccess, actions.length]);
+  }, [gameSlides.length]);
+
+  if (actions.length === 0 || gameSlides.length === 0) return null;
+
+  const activeSlide = gameSlides[Math.min(activeGameIndex, gameSlides.length - 1)];
+  const cardHeightClass = isObsKeyAccess ? "h-[300px]" : "min-h-[360px]";
+  const heroSlotClass = isObsKeyAccess ? "h-24" : "h-20 sm:h-24";
 
   return (
-    <Card variant="featured" className="mt-8">
-      <CardHeader>
+    <Card variant="featured" className={clsx(isObsKeyAccess ? "mt-0 overflow-hidden bg-card/90" : "mt-8")}>
+      <CardHeader className={clsx("flex flex-row items-center justify-between gap-3", isObsKeyAccess && "py-3")}>
         <CardTitle className="text-lg">Draft History</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div ref={scrollRef} className="space-y-6 max-h-80 overflow-y-auto">
-          {Object.entries(actionsByGame)
-            .sort(([a], [b]) => Number(a) - Number(b))
-            .map(([gameNum, gameActions]) => (
-              <div key={gameNum}>
-                <p className="text-xs text-muted uppercase tracking-wide mb-2">Game {gameNum}</p>
-                <div className="space-y-1">
-                  {gameActions
-                    .sort((a, b) => a.order - b.order)
-                    .map((action) => (
-                      <div
-                        key={action.id}
-                        className={clsx(
-                          "flex items-center justify-between p-2 rounded text-sm",
-                          action.action === "BAN" ? "bg-danger/10" :
-                          action.action === "PICK" ? "bg-primary/10" : "bg-surface-elevated"
-                        )}
-                      >
-                        <div className="flex items-center gap-2">
-                          <Badge
-                            variant={
-                              action.action === "BAN" ? "danger" :
-                              action.action === "PICK" ? "success" : "default"
-                            }
-                            className="text-[10px]"
-                          >
-                            {action.action}
-                          </Badge>
-                          <span className="font-medium text-foreground text-xs">
-                            {getTeamName(action.teamId)}
-                          </span>
-                        </div>
-                        <span className="text-xs text-muted">{getActionDisplay(action)}</span>
-                      </div>
-                    ))}
-                </div>
-              </div>
+        {gameSlides.length > 1 && (
+          <div className="flex items-center gap-1">
+            {gameSlides.map((slide, index) => (
+              <button
+                key={slide.gameNumber}
+                type="button"
+                onClick={() => setActiveGameIndex(index)}
+                className={clsx(
+                  "h-2.5 rounded-full transition-all",
+                  index === activeGameIndex ? "w-8 bg-primary" : "w-2.5 bg-muted/40 hover:bg-muted/70"
+                )}
+                aria-label={`Show game ${slide.gameNumber}`}
+              />
             ))}
+          </div>
+        )}
+      </CardHeader>
+      <CardContent className={isObsKeyAccess ? "pb-4" : undefined}>
+        <div className={clsx("relative overflow-hidden rounded-lg border border-border bg-background/70", cardHeightClass)}>
+          {activeSlide.map?.imgPath ? (
+            <img
+              src={resolveMapImageUrl(activeSlide.map.imgPath)}
+              alt={activeSlide.map.description}
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          ) : (
+            <div className="absolute inset-0 bg-surface-elevated" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-r from-background/92 via-background/70 to-background/35" />
+          <div className={clsx("relative z-10 flex h-full flex-col justify-between", isObsKeyAccess ? "p-4" : "p-4 sm:p-6")}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">Game {activeSlide.gameNumber}</p>
+                <h4 className={clsx("mt-1 font-bold text-foreground", isObsKeyAccess ? "text-3xl" : "text-2xl")}>
+                  {activeSlide.map?.description ?? (activeSlide.pickedMapId ? `Map #${activeSlide.pickedMapId}` : "Map pending")}
+                </h4>
+                {activeSlide.map?.type && (
+                  <p className="mt-1 text-sm font-medium uppercase tracking-wide text-primary">{activeSlide.map.type}</p>
+                )}
+              </div>
+              {activeSlide.pickTeamId && (
+                <Badge variant="success" className="shrink-0">
+                  Picked by {getTeamName(activeSlide.pickTeamId)}
+                </Badge>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {activeSlide.bans.map((ban, index) => {
+                const hero = ban.value ? getHeroById(ban.value) : null;
+                const teamName = ban.teamId ? getTeamName(ban.teamId) : "";
+
+                return (
+                  <div
+                    key={`${activeSlide.gameNumber}-ban-${ban.id}-${index}`}
+                    className="overflow-hidden rounded-lg border border-danger/30 bg-danger/10"
+                  >
+                    <div className={clsx("relative bg-surface-elevated", heroSlotClass)}>
+                      {hero?.imgPath ? (
+                        <img
+                          src={resolveHeroImageUrl(hero.imgPath)}
+                          alt={hero.name}
+                          className="h-full w-full object-cover grayscale"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center border border-dashed border-border/70 text-xs font-semibold uppercase tracking-wide text-muted">
+                          No Ban
+                        </div>
+                      )}
+                      <div className="absolute left-2 top-2 rounded bg-danger px-1.5 py-0.5 text-[10px] font-bold uppercase text-danger-foreground">
+                        Ban {index + 1}
+                      </div>
+                    </div>
+                    <div className="p-2">
+                      <p className="truncate text-sm font-semibold text-foreground">{hero?.name ?? "No Ban"}</p>
+                      {teamName && <p className="truncate text-[11px] text-muted">{teamName}</p>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>

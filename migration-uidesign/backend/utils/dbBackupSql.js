@@ -30,6 +30,7 @@ async function generateBackupSql() {
     teams,
     members,
     matches,
+    leaderboardOverlayAssets,
     draftTables,
     draftActions,
     news,
@@ -40,6 +41,7 @@ async function generateBackupSql() {
     prisma.team.findMany({ orderBy: { id: "asc" } }),
     prisma.member.findMany({ orderBy: { id: "asc" } }),
     prisma.match.findMany({ orderBy: { id: "asc" } }),
+    prisma.leaderboardOverlayAsset.findMany({ orderBy: { id: "asc" } }),
     prisma.draftTable.findMany({ orderBy: { id: "asc" } }),
     prisma.draftAction.findMany({ orderBy: { id: "asc" } }),
     prisma.news.findMany({ orderBy: { id: "asc" } }),
@@ -52,7 +54,7 @@ async function generateBackupSql() {
   lines.push(`-- Generated at ${new Date().toISOString()}`);
   lines.push("BEGIN;");
   lines.push(
-    'TRUNCATE TABLE "PlayerStat", "DraftAction", "DraftTable", "News", "Match", "Member", "Team", "Tournament", "_AllowedMaps" RESTART IDENTITY CASCADE;'
+    'TRUNCATE TABLE "PlayerStat", "DraftAction", "DraftTable", "LeaderboardOverlayAsset", "News", "Match", "Member", "Team", "Tournament", "_AllowedMaps" RESTART IDENTITY CASCADE;'
   );
 
   const orderedTables = [
@@ -61,6 +63,7 @@ async function generateBackupSql() {
     ["Member", members],
     ["Match", matches],
     ["_AllowedMaps", allowedMapsJoin],
+    ["LeaderboardOverlayAsset", leaderboardOverlayAssets],
     ["DraftTable", draftTables],
     ["DraftAction", draftActions],
     ["News", news],
@@ -185,6 +188,7 @@ const RESTORE_INSERT_ORDER = [
   "Team",
   "Member",
   "Match",
+  "LeaderboardOverlayAsset",
   "_AllowedMaps",
   "DraftTable",
   "DraftAction",
@@ -214,6 +218,7 @@ const SEQUENCE_BACKED_TABLES = [
   "DraftAction",
   "News",
   "PlayerStat",
+  "LeaderboardOverlayAsset",
   "Map",
   "Hero",
 ];

@@ -1491,7 +1491,7 @@ function DatabaseSection({ token }: { token: string }) {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      showNotif("success", `Backup downloaded as ${fileName}. Maps and heroes were not included (kept untouched on the server).`);
+      showNotif("success", `Backup downloaded as ${fileName}. Edit Assets configuration was included. Maps and heroes were not included.`);
     } catch (err: any) {
       showNotif("error", err.message || "Failed to export backup.");
     } finally {
@@ -1524,7 +1524,7 @@ function DatabaseSection({ token }: { token: string }) {
       });
       showNotif(
         "success",
-        `${result.message} (${result.executedStatements} statements). Auto-increment IDs were re-synced. Maps and heroes were preserved.`,
+        `${result.message} (${result.executedStatements} statements). Auto-increment IDs were re-synced. Edit Assets configuration was restored; maps and heroes were preserved.`,
       );
       setShowRestoreModal(false);
       setRestoreScript("");
@@ -1576,8 +1576,9 @@ function DatabaseSection({ token }: { token: string }) {
             <ul className="list-disc pl-5 space-y-1">
               <li>
                 <span className="text-foreground">Download Backup</span> exports every tournament/runtime
-                row (Tournament, Team, Member, Match, DraftTable, DraftAction, News, PlayerStat, and the
-                Match&harr;Map join table) into a single <code className="font-mono text-xs">.sql</code> file.
+                row (Tournament, Team, Member, Match, DraftTable, DraftAction, News, PlayerStat,
+                Edit Assets configuration, and the Match&harr;Map join table) into a single{" "}
+                <code className="font-mono text-xs">.sql</code> file.
               </li>
               <li>
                 <span className="text-foreground">Maps and Heroes are never exported, restored, or wiped</span>{" "}
@@ -1586,8 +1587,8 @@ function DatabaseSection({ token }: { token: string }) {
               </li>
               <li>
                 <span className="text-foreground">Restore Backup</span> wipes the runtime tables, re-inserts
-                everything from the file, and then re-syncs auto-increment ID sequences so new rows created
-                afterwards do not collide.
+                everything from the file, including Edit Assets configuration, and then re-syncs
+                auto-increment ID sequences so new rows created afterwards do not collide.
               </li>
               <li>
                 <span className="text-foreground">Wipe Tournament Data</span> empties the runtime tables and
@@ -1624,8 +1625,8 @@ function DatabaseSection({ token }: { token: string }) {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted mb-4">
-              Replaces all tournament data with a previously downloaded backup file. Maps and heroes are
-              preserved.
+              Replaces all tournament data and Edit Assets configuration with a previously downloaded
+              backup file. Maps and heroes are preserved.
             </p>
             <Button variant="danger" onClick={() => setShowRestoreModal(true)}>
               Restore Backup
