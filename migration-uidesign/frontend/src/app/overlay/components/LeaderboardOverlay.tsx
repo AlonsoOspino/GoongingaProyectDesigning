@@ -77,6 +77,8 @@ export function LeaderboardOverlayView({
     leaderboard.map((team) => `${team.mapWins}-${team.mapLoses}`),
     3
   );
+  const baseLeaderboardFontSize = 42;
+  const leaderboardFontScale = settings.leaderboard.fontSize / baseLeaderboardFontSize;
   const matchTeamWidth = getTextWidthCh(
     matches.flatMap((entry) => [teamAbbreviation(entry.teamA?.name || ""), teamAbbreviation(entry.teamB?.name || "")]),
     3
@@ -168,21 +170,29 @@ export function LeaderboardOverlayView({
   };
 
   const leaderboardStatStyle: CSSProperties = {
-    display: "inline-block",
-    minWidth: leaderboardPrimaryStatWidth,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: leaderboardPrimaryStatWidth,
+    height: `${baseLeaderboardFontSize}px`,
     textAlign: "center",
     fontFamily: settings.leaderboard.fontFamily,
     transform: `translate(${settings.leaderboard.statOffsetX ?? 0}px, ${settings.leaderboard.statOffsetY ?? 0}px)`,
     fontVariantNumeric: "tabular-nums",
+    overflow: "visible",
   };
 
   const leaderboardSecondaryStatStyle: CSSProperties = {
-    display: "inline-block",
-    minWidth: leaderboardSecondaryStatWidth,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: leaderboardSecondaryStatWidth,
+    height: `${baseLeaderboardFontSize}px`,
     textAlign: "center",
     fontFamily: settings.leaderboard.fontFamily,
     transform: `translate(${settings.leaderboard.statOffsetX ?? 0}px, ${settings.leaderboard.statOffsetY ?? 0}px)`,
     fontVariantNumeric: "tabular-nums",
+    overflow: "visible",
   };
 
   return (
@@ -211,8 +221,38 @@ export function LeaderboardOverlayView({
                     <div className={styles.logoFallback}>{teamAbbreviation(team.name)}</div>
                   )}
                 </div>
-                <span style={leaderboardStatStyle}>{team.victories}-{team.defeats}</span>
-                <span style={leaderboardSecondaryStatStyle}>{team.mapWins}-{team.mapLoses}</span>
+                <span style={leaderboardStatStyle}>
+                  <span
+                    style={{
+                      display: "inline-block",
+                      fontFamily: settings.leaderboard.fontFamily,
+                      fontSize: `${baseLeaderboardFontSize}px`,
+                      transform: `scale(${leaderboardFontScale})`,
+                      transformOrigin: "center",
+                      lineHeight: 1,
+                      whiteSpace: "nowrap",
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    {team.victories}-{team.defeats}
+                  </span>
+                </span>
+                <span style={leaderboardSecondaryStatStyle}>
+                  <span
+                    style={{
+                      display: "inline-block",
+                      fontFamily: settings.leaderboard.fontFamily,
+                      fontSize: `${baseLeaderboardFontSize}px`,
+                      transform: `scale(${leaderboardFontScale})`,
+                      transformOrigin: "center",
+                      lineHeight: 1,
+                      whiteSpace: "nowrap",
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    {team.mapWins}-{team.mapLoses}
+                  </span>
+                </span>
               </div>
             ))}
           </div>
