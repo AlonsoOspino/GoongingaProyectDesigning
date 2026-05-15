@@ -115,13 +115,10 @@ export function LeaderboardOverlayView({
   };
 
   const matchLogoSize = settings.matches.logoSize || 84;
-  const matchLogoGap = settings.matches.logoGap ?? settings.matches.columnGap;
-
   const matchRowStyle: CSSProperties = {
-    columnGap: `${matchLogoGap}px`,
+    columnGap: `${settings.matches.columnGap}px`,
     color: settings.matches.color,
-    fontFamily: settings.matches.fontFamily,
-    fontSize: `${settings.matches.fontSize}px`,
+    // row should not force font family/size so children can be styled individually
     gridTemplateColumns: `${matchLogoSize}px ${matchTeamWidth} ${matchCenterWidth} ${matchTeamWidth} ${matchLogoSize}px`,
   };
 
@@ -131,10 +128,13 @@ export function LeaderboardOverlayView({
   };
 
   const teamTextStyle: CSSProperties = {
-    display: "inline-block",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
     width: matchTeamWidth,
     textAlign: "center",
-    fontFamily: "var(--font-mono)",
+    fontFamily: settings.matches.fontFamily,
+    fontSize: `${settings.matches.fontSize}px`,
     fontVariantNumeric: "tabular-nums",
   };
 
@@ -143,15 +143,36 @@ export function LeaderboardOverlayView({
     width: matchCenterWidth,
     textAlign: "center",
     justifySelf: "center",
-    fontFamily: "var(--font-mono)",
+    fontFamily: settings.matches.centerFontFamily ?? settings.title.fontFamily,
+    fontSize: `${settings.matches.centerFontSize ?? Math.max(10, Math.round(settings.matches.fontSize * 1.6))}px`,
+    transform: `translate(${settings.matches.centerOffsetX ?? 0}px, ${settings.matches.centerOffsetY ?? 0}px)`,
     fontVariantNumeric: "tabular-nums",
+  };
+
+  const leftGridStyle: CSSProperties = {
+    display: "grid",
+    gridColumn: "1 / 3",
+    gridTemplateColumns: `${matchLogoSize}px ${matchTeamWidth}`,
+    columnGap: `${settings.matches.columnGap}px`,
+    alignItems: "center",
+    transform: `translate(${settings.matches.teamAOffsetX ?? 0}px, ${settings.matches.teamAOffsetY ?? 0}px)`,
+  };
+
+  const rightGridStyle: CSSProperties = {
+    display: "grid",
+    gridColumn: "4 / 6",
+    gridTemplateColumns: `${matchTeamWidth} ${matchLogoSize}px`,
+    columnGap: `${settings.matches.columnGap}px`,
+    alignItems: "center",
+    transform: `translate(${settings.matches.teamBOffsetX ?? 0}px, ${settings.matches.teamBOffsetY ?? 0}px)`,
   };
 
   const leaderboardStatStyle: CSSProperties = {
     display: "inline-block",
     minWidth: leaderboardPrimaryStatWidth,
     textAlign: "center",
-    fontFamily: "var(--font-mono)",
+    fontFamily: settings.leaderboard.fontFamily,
+    transform: `translate(${settings.leaderboard.statOffsetX ?? 0}px, ${settings.leaderboard.statOffsetY ?? 0}px)`,
     fontVariantNumeric: "tabular-nums",
   };
 
@@ -159,7 +180,8 @@ export function LeaderboardOverlayView({
     display: "inline-block",
     minWidth: leaderboardSecondaryStatWidth,
     textAlign: "center",
-    fontFamily: "var(--font-mono)",
+    fontFamily: settings.leaderboard.fontFamily,
+    transform: `translate(${settings.leaderboard.statOffsetX ?? 0}px, ${settings.leaderboard.statOffsetY ?? 0}px)`,
     fontVariantNumeric: "tabular-nums",
   };
 
@@ -201,22 +223,26 @@ export function LeaderboardOverlayView({
             {matches.length > 0 ? (
               matches.map((entry) => (
                 <div key={entry.id} className={styles.matchRow} style={matchRowStyle}>
-                  <div className={styles.matchLogoCell} style={matchLogoCellStyle}>
-                    {entry.teamA?.logo ? (
-                      <img src={logoUrl(entry.teamA.logo)} alt={entry.teamA.name} className={styles.matchLogo} />
-                    ) : (
-                      <div className={styles.logoFallback}>{teamAbbreviation(entry.teamA?.name || "")}</div>
-                    )}
+                  <div style={leftGridStyle}>
+                    <div className={styles.matchLogoCell} style={matchLogoCellStyle}>
+                      {entry.teamA?.logo ? (
+                        <img src={logoUrl(entry.teamA.logo)} alt={entry.teamA.name} className={styles.matchLogo} />
+                      ) : (
+                        <div className={styles.logoFallback}>{teamAbbreviation(entry.teamA?.name || "")}</div>
+                      )}
+                    </div>
+                    <div style={teamTextStyle}>{teamAbbreviation(entry.teamA?.name || "")}</div>
                   </div>
-                    <span style={teamTextStyle}>{teamAbbreviation(entry.teamA?.name || "")}</span>
-                    <span className={styles.centerText} style={centerTextStyle}>{entry.centerText}</span>
-                    <span style={teamTextStyle}>{teamAbbreviation(entry.teamB?.name || "")}</span>
-                  <div className={styles.matchLogoCell} style={matchLogoCellStyle}>
-                    {entry.teamB?.logo ? (
-                      <img src={logoUrl(entry.teamB.logo)} alt={entry.teamB.name} className={styles.matchLogo} />
-                    ) : (
-                      <div className={styles.logoFallback}>{teamAbbreviation(entry.teamB?.name || "")}</div>
-                    )}
+                  <span className={styles.centerText} style={centerTextStyle}>{entry.centerText}</span>
+                  <div style={rightGridStyle}>
+                    <div style={teamTextStyle}>{teamAbbreviation(entry.teamB?.name || "")}</div>
+                    <div className={styles.matchLogoCell} style={matchLogoCellStyle}>
+                      {entry.teamB?.logo ? (
+                        <img src={logoUrl(entry.teamB.logo)} alt={entry.teamB.name} className={styles.matchLogo} />
+                      ) : (
+                        <div className={styles.logoFallback}>{teamAbbreviation(entry.teamB?.name || "")}</div>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))

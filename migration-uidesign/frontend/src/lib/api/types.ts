@@ -69,13 +69,23 @@ export interface LeaderboardOverlaySettings {
     columnGap: number;
     rowGap: number;
     scale: number;
+    statOffsetX?: number;
+    statOffsetY?: number;
     offsetX: number;
     offsetY: number;
   };
   matches: {
     color: string;
     fontFamily: string;
+    centerFontFamily?: string;
+    centerOffsetX?: number;
+    centerOffsetY?: number;
+    teamAOffsetX?: number;
+    teamAOffsetY?: number;
+    teamBOffsetX?: number;
+    teamBOffsetY?: number;
     fontSize: number;
+    centerFontSize?: number;
     columnGap: number;
     rowGap: number;
     logoSize: number;

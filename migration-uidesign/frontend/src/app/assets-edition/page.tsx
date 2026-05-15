@@ -675,7 +675,7 @@ export default function AssetsEditionPage() {
 
               <Card className="border-border/60 bg-surface-elevated/80">
                 <CardHeader>
-                  <CardTitle className="text-lg">Match Cards</CardTitle>
+                  <CardTitle className="text-lg">Team Blocks</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <label className="text-sm rounded-lg bg-surface-elevated p-3 border border-border/50 block">
@@ -698,21 +698,6 @@ export default function AssetsEditionPage() {
                     </select>
                   </label>
 
-                  <label className="text-sm rounded-lg bg-surface-elevated p-3 border border-border/50 block">
-                    <span className="text-muted text-xs uppercase tracking-wide font-semibold">Color</span>
-                    <input
-                      type="color"
-                      className="mt-2 h-10 w-full rounded-md border border-border bg-background"
-                      value={settings.matches.color}
-                      onChange={(event) =>
-                        updateSettings((prev) => ({
-                          ...prev,
-                          matches: { ...prev.matches, color: event.target.value },
-                        }))
-                      }
-                    />
-                  </label>
-
                   <SliderInput
                     label="Letter size"
                     value={settings.matches.fontSize}
@@ -722,32 +707,6 @@ export default function AssetsEditionPage() {
                       updateSettings((prev) => ({
                         ...prev,
                         matches: { ...prev.matches, fontSize: value },
-                      }))
-                    }
-                  />
-
-                  <SliderInput
-                    label="Column gap"
-                    value={settings.matches.columnGap}
-                    min={0}
-                    max={140}
-                    onChange={(value) =>
-                      updateSettings((prev) => ({
-                        ...prev,
-                        matches: { ...prev.matches, columnGap: value },
-                      }))
-                    }
-                  />
-
-                  <SliderInput
-                    label="Row gap"
-                    value={settings.matches.rowGap}
-                    min={0}
-                    max={120}
-                    onChange={(value) =>
-                      updateSettings((prev) => ({
-                        ...prev,
-                        matches: { ...prev.matches, rowGap: value },
                       }))
                     }
                   />
@@ -774,6 +733,32 @@ export default function AssetsEditionPage() {
                       updateSettings((prev) => ({
                         ...prev,
                         matches: { ...prev.matches, logoGap: value },
+                      }))
+                    }
+                  />
+
+                  <SliderInput
+                    label="Column gap"
+                    value={settings.matches.columnGap}
+                    min={0}
+                    max={140}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        matches: { ...prev.matches, columnGap: value },
+                      }))
+                    }
+                  />
+
+                  <SliderInput
+                    label="Row gap"
+                    value={settings.matches.rowGap}
+                    min={0}
+                    max={120}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        matches: { ...prev.matches, rowGap: value },
                       }))
                     }
                   />
@@ -814,6 +799,156 @@ export default function AssetsEditionPage() {
                       updateSettings((prev) => ({
                         ...prev,
                         matches: { ...prev.matches, offsetY: value },
+                      }))
+                    }
+                  />
+                  <SliderInput
+                    label="Left team X"
+                    value={settings.matches.teamAOffsetX ?? 0}
+                    min={-900}
+                    max={900}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        matches: { ...prev.matches, teamAOffsetX: value },
+                      }))
+                    }
+                  />
+
+                  <SliderInput
+                    label="Left team Y"
+                    value={settings.matches.teamAOffsetY ?? 0}
+                    min={-500}
+                    max={500}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        matches: { ...prev.matches, teamAOffsetY: value },
+                      }))
+                    }
+                  />
+
+                  <SliderInput
+                    label="Right team X"
+                    value={settings.matches.teamBOffsetX ?? 0}
+                    min={-900}
+                    max={900}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        matches: { ...prev.matches, teamBOffsetX: value },
+                      }))
+                    }
+                  />
+
+                  <SliderInput
+                    label="Right team Y"
+                    value={settings.matches.teamBOffsetY ?? 0}
+                    min={-500}
+                    max={500}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        matches: { ...prev.matches, teamBOffsetY: value },
+                      }))
+                    }
+                  />
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/60 bg-surface-elevated/80">
+                <CardHeader>
+                  <CardTitle className="text-lg">VS Center</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <label className="text-sm rounded-lg bg-surface-elevated p-3 border border-border/50 block">
+                    <span className="text-muted text-xs uppercase tracking-wide font-semibold">Font</span>
+                    <select
+                      className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                      value={settings.matches.centerFontFamily}
+                      onChange={(event) =>
+                        updateSettings((prev) => ({
+                          ...prev,
+                          matches: { ...prev.matches, centerFontFamily: event.target.value },
+                        }))
+                      }
+                    >
+                      {OVERLAY_FONT_OPTIONS.map((font) => (
+                        <option key={font.value} value={font.value}>
+                          {font.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <SliderInput
+                    label="VS size"
+                    value={settings.matches.centerFontSize ?? Math.round(settings.matches.fontSize * 1.6)}
+                    min={8}
+                    max={300}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        matches: { ...prev.matches, centerFontSize: value },
+                      }))
+                    }
+                  />
+
+                  <SliderInput
+                    label="VS offset X"
+                    value={settings.matches.centerOffsetX ?? 0}
+                    min={-900}
+                    max={900}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        matches: { ...prev.matches, centerOffsetX: value },
+                      }))
+                    }
+                  />
+
+                  <SliderInput
+                    label="VS offset Y"
+                    value={settings.matches.centerOffsetY ?? 0}
+                    min={-500}
+                    max={500}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        matches: { ...prev.matches, centerOffsetY: value },
+                      }))
+                    }
+                  />
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/60 bg-surface-elevated/80">
+                <CardHeader>
+                  <CardTitle className="text-lg">Team Points</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <SliderInput
+                    label="Points offset X"
+                    value={settings.leaderboard.statOffsetX ?? 0}
+                    min={-900}
+                    max={900}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        leaderboard: { ...prev.leaderboard, statOffsetX: value },
+                      }))
+                    }
+                  />
+
+                  <SliderInput
+                    label="Points offset Y"
+                    value={settings.leaderboard.statOffsetY ?? 0}
+                    min={-500}
+                    max={500}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        leaderboard: { ...prev.leaderboard, statOffsetY: value },
                       }))
                     }
                   />
