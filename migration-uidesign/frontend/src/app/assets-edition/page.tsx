@@ -33,6 +33,23 @@ const PREVIEW_WIDTH = 680;
 const PREVIEW_HEIGHT = 382;
 const previewScale = PREVIEW_WIDTH / OVERLAY_WIDTH;
 
+function sortMatchesByScheduledDate(matches: Match[]) {
+  return [...matches].sort((a, b) => {
+    const aHasDate = Boolean(a.startDate);
+    const bHasDate = Boolean(b.startDate);
+
+    if (aHasDate && !bHasDate) return -1;
+    if (!aHasDate && bHasDate) return 1;
+
+    if (aHasDate && bHasDate) {
+      const dateDiff = new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+      if (dateDiff !== 0) return dateDiff;
+    }
+
+    return a.id - b.id;
+  });
+}
+
 interface SliderInputProps {
   label: string;
   value: number;
@@ -221,7 +238,7 @@ export default function AssetsEditionPage() {
       try {
         const data = await getMatchesByWeek(selectedMatch.tournamentId, weekToLoad);
         if (cancelled) return;
-        setWeekMatches(data.sort((a, b) => a.id - b.id));
+        setWeekMatches(sortMatchesByScheduledDate(data));
       } catch {
         if (cancelled) return;
         setWeekMatches([]);
@@ -267,7 +284,7 @@ export default function AssetsEditionPage() {
 
         setSelectedMatch(loadedMatch);
         setLeaderboard(leaderboardData);
-        setWeekMatches(weekMatchesData.sort((a, b) => a.id - b.id));
+        setWeekMatches(sortMatchesByScheduledDate(weekMatchesData));
           setSavedBackgroundImageUrl(overlayAsset.backgroundImageUrl ?? null);
         setSettings(finalSettings);
 
