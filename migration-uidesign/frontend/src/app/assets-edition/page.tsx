@@ -104,7 +104,15 @@ function SliderInput({ label, value, min, max, step = 1, onChange }: SliderInput
               boxShadow: "inset 0 1px 2px rgba(0,0,0,0.25)",
             }}
           />
-          <span className="text-sm font-mono w-12 text-right px-2 py-1 rounded bg-background">{value}</span>
+          <input
+            type="number"
+            min={min}
+            max={max}
+            step={step}
+            value={value}
+            onChange={(e) => onChange(Number(e.target.value))}
+            className="w-20 rounded bg-background px-2 py-1 text-right text-sm font-mono border border-border/60"
+          />
         </div>
       </label>
     </div>
