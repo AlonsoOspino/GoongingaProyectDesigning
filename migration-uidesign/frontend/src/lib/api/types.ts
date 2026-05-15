@@ -84,6 +84,8 @@ export interface LeaderboardOverlaySettings {
     teamAOffsetY?: number;
     teamBOffsetX?: number;
     teamBOffsetY?: number;
+    teamAColumnGap?: number;
+    teamBColumnGap?: number;
     fontSize: number;
     centerFontSize?: number;
     columnGap: number;

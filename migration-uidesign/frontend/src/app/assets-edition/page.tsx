@@ -749,6 +749,31 @@ export default function AssetsEditionPage() {
                       }))
                     }
                   />
+                  <SliderInput
+                    label="Left column gap"
+                    value={settings.matches.teamAColumnGap ?? settings.matches.columnGap}
+                    min={0}
+                    max={140}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        matches: { ...prev.matches, teamAColumnGap: value },
+                      }))
+                    }
+                  />
+
+                  <SliderInput
+                    label="Right column gap"
+                    value={settings.matches.teamBColumnGap ?? settings.matches.columnGap}
+                    min={0}
+                    max={140}
+                    onChange={(value) =>
+                      updateSettings((prev) => ({
+                        ...prev,
+                        matches: { ...prev.matches, teamBColumnGap: value },
+                      }))
+                    }
+                  />
 
                   <SliderInput
                     label="Row gap"

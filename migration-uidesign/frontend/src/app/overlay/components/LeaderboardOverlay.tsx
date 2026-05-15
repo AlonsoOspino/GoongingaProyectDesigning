@@ -153,7 +153,7 @@ export function LeaderboardOverlayView({
     display: "grid",
     gridColumn: "1 / 3",
     gridTemplateColumns: `${matchLogoSize}px ${matchTeamWidth}`,
-    columnGap: `${settings.matches.columnGap}px`,
+    columnGap: `${settings.matches.teamAColumnGap ?? settings.matches.columnGap}px`,
     alignItems: "center",
     transform: `translate(${settings.matches.teamAOffsetX ?? 0}px, ${settings.matches.teamAOffsetY ?? 0}px)`,
   };
@@ -162,7 +162,7 @@ export function LeaderboardOverlayView({
     display: "grid",
     gridColumn: "4 / 6",
     gridTemplateColumns: `${matchTeamWidth} ${matchLogoSize}px`,
-    columnGap: `${settings.matches.columnGap}px`,
+    columnGap: `${settings.matches.teamBColumnGap ?? settings.matches.columnGap}px`,
     alignItems: "center",
     transform: `translate(${settings.matches.teamBOffsetX ?? 0}px, ${settings.matches.teamBOffsetY ?? 0}px)`,
   };
