@@ -102,6 +102,14 @@ export function RosterOverlay({ matchId, side }: RosterOverlayProps) {
     );
   }
 
+  if (showRosterImage) {
+    return (
+      <div className={styles.root}>
+        <img src={teamLogo(team.roster)} alt={`${team.name} roster`} className={styles.fullscreenRoster} />
+      </div>
+    );
+  }
+
   return (
     <div className={styles.root}>
       <div className={styles.content}>
@@ -114,23 +122,17 @@ export function RosterOverlay({ matchId, side }: RosterOverlayProps) {
           <h1 className={styles.teamName}>{team.name}</h1>
         </div>
 
-        {showRosterImage ? (
-          <div className={styles.rosterImageWrap}>
-            <img src={teamLogo(team.roster)} alt={`${team.name} roster`} className={styles.rosterImage} />
-          </div>
-        ) : (
-          <ul className={styles.rosterList}>
-            {roster.length > 0 ? (
-              roster.map((player, index) => (
-                <li key={`${player}-${index}`} className={styles.rosterItem}>
-                  {player}
-                </li>
-              ))
-            ) : (
-              <li className={styles.rosterItem}>No roster configured</li>
-            )}
-          </ul>
-        )}
+        <ul className={styles.rosterList}>
+          {roster.length > 0 ? (
+            roster.map((player, index) => (
+              <li key={`${player}-${index}`} className={styles.rosterItem}>
+                {player}
+              </li>
+            ))
+          ) : (
+            <li className={styles.rosterItem}>No roster configured</li>
+          )}
+        </ul>
       </div>
     </div>
   );
