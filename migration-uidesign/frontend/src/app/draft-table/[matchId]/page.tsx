@@ -2866,7 +2866,7 @@ function DraftHistory({
 
   const activeSlide = gameSlides[Math.min(activeGameIndex, gameSlides.length - 1)];
   const cardHeightClass = isObsKeyAccess ? "h-[300px]" : "min-h-[360px]";
-  const heroSlotClass = isObsKeyAccess ? "h-24" : "h-20 sm:h-24";
+  const banIconClass = isObsKeyAccess ? "h-14 w-14" : "h-12 w-12 sm:h-14 sm:w-14";
 
   return (
     <Card variant="featured" className={clsx(isObsKeyAccess ? "mt-0 overflow-hidden bg-card/90" : "mt-8")}>
@@ -2901,7 +2901,7 @@ function DraftHistory({
             <div className="absolute inset-0 bg-surface-elevated" />
           )}
           <div className="absolute inset-0 bg-gradient-to-r from-background/92 via-background/70 to-background/35" />
-          <div className={clsx("relative z-10 flex h-full flex-col justify-between", isObsKeyAccess ? "p-4" : "p-4 sm:p-6")}>
+          <div className={clsx("relative z-10 h-full", isObsKeyAccess ? "p-4" : "p-4 sm:p-6")}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted">Game {activeSlide.gameNumber}</p>
@@ -2919,39 +2919,36 @@ function DraftHistory({
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-center px-4">
+              <div className="flex items-center justify-center gap-3 rounded-lg border border-border/50 bg-background/55 px-4 py-3 shadow-xl shadow-black/30 backdrop-blur-sm">
               {activeSlide.bans.map((ban, index) => {
                 const hero = ban.value ? getHeroById(ban.value) : null;
-                const teamName = ban.teamId ? getTeamName(ban.teamId) : "";
+                const teamName = ban.teamId ? getTeamName(ban.teamId) : "No Ban";
 
                 return (
                   <div
                     key={`${activeSlide.gameNumber}-ban-${ban.id}-${index}`}
-                    className="overflow-hidden rounded-lg border border-danger/30 bg-danger/10"
+                    className={clsx(
+                      "relative shrink-0 overflow-hidden rounded-lg border border-danger/40 bg-danger/10 shadow-md shadow-black/30",
+                      banIconClass
+                    )}
+                    title={`${teamName}: ${hero?.name ?? "No Ban"}`}
                   >
-                    <div className={clsx("relative bg-surface-elevated", heroSlotClass)}>
-                      {hero?.imgPath ? (
-                        <img
-                          src={resolveHeroImageUrl(hero.imgPath)}
-                          alt={hero.name}
-                          className="h-full w-full object-cover grayscale"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center border border-dashed border-border/70 text-xs font-semibold uppercase tracking-wide text-muted">
-                          No Ban
-                        </div>
-                      )}
-                      <div className="absolute left-2 top-2 rounded bg-danger px-1.5 py-0.5 text-[10px] font-bold uppercase text-danger-foreground">
-                        Ban {index + 1}
+                    {hero?.imgPath ? (
+                      <img
+                        src={resolveHeroImageUrl(hero.imgPath)}
+                        alt={hero.name}
+                        className="h-full w-full object-cover grayscale"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center border border-dashed border-border/70 text-[9px] font-semibold uppercase tracking-wide text-muted">
+                        No Ban
                       </div>
-                    </div>
-                    <div className="p-2">
-                      <p className="truncate text-sm font-semibold text-foreground">{hero?.name ?? "No Ban"}</p>
-                      {teamName && <p className="truncate text-[11px] text-muted">{teamName}</p>}
-                    </div>
+                    )}
                   </div>
                 );
               })}
+              </div>
             </div>
           </div>
         </div>
