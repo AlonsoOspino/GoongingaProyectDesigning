@@ -166,6 +166,14 @@ type MatchHistoryGroup = {
   games: MatchHistoryGame[];
 };
 
+type StatCalculationStep = {
+  stat: PlayerStat;
+  label: string;
+  mapLabel: string;
+};
+
+type RawStatKey = "kills" | "damage" | "mitigation" | "healing" | "assists" | "deaths";
+
 const ROLE_ORDER: Record<PlayerStat["role"], number> = {
   TANK: 0,
   DPS: 1,
@@ -192,6 +200,13 @@ function getStatNickname(stat: PlayerStat) {
 
 function formatWholeNumber(value: number) {
   return value.toLocaleString(undefined, { maximumFractionDigits: 0 });
+}
+
+function formatDuration(seconds: number) {
+  const safeSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainder = safeSeconds % 60;
+  return `${minutes}:${String(remainder).padStart(2, "0")}`;
 }
 
 function formatMatchDate(value?: string | null) {
@@ -278,6 +293,45 @@ function MatchStatsTable({
             })}
           </tbody>
         </table>
+      </div>
+    </div>
+  );
+}
+
+function FormulaPill({
+  label,
+  rawKey,
+  steps,
+  result,
+  color,
+}: {
+  label: string;
+  rawKey: RawStatKey;
+  steps: StatCalculationStep[];
+  result: number;
+  color: string;
+}) {
+  const visibleSteps = steps.slice(0, 3);
+  const suffix = steps.length > 3 ? ` + ${steps.length - 3} more games` : "";
+  const per10Values = steps.map((step) => Number(step.stat[`${rawKey}Per10` as keyof PlayerStat] || 0));
+
+  return (
+    <div className="rounded-xl border border-border/40 bg-surface/60 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted">{label}</span>
+        <span className={`font-mono text-lg font-bold ${color}`}>{formatMetric(result)}</span>
+      </div>
+      <div className="mt-2 space-y-1 text-xs text-muted">
+        {visibleSteps.map((step, index) => (
+          <p key={step.stat.id} className="truncate">
+            G{index + 1}: {formatWholeNumber(Number(step.stat[rawKey] || 0))} / {formatDuration(step.stat.gameDuration)} x 10m = {formatMetric(per10Values[index] || 0)}
+          </p>
+        ))}
+        <p className="truncate">
+          Avg: ({per10Values.slice(0, 4).map((value) => formatMetric(value)).join(" + ")}
+          {per10Values.length > 4 ? ` + ${per10Values.length - 4} more` : ""}) / {Math.max(1, per10Values.length)}
+          {suffix ? ` (${suffix})` : ""}
+        </p>
       </div>
     </div>
   );
@@ -414,6 +468,60 @@ export default function PlayerStatsDetailPage() {
     return new Map(matches.map((match) => [match.id, match]));
   }, [matches]);
 
+  const calculationSteps = useMemo((): StatCalculationStep[] => {
+    return [...userStats]
+      .sort((a, b) => {
+        const matchA = matchesById.get(a.matchId);
+        const matchB = matchesById.get(b.matchId);
+        const dateDiff = new Date(matchA?.startDate || 0).getTime() - new Date(matchB?.startDate || 0).getTime();
+        if (dateDiff !== 0) return dateDiff;
+        if (a.matchId !== b.matchId) return a.matchId - b.matchId;
+        return a.gameNumber - b.gameNumber;
+      })
+      .map((stat) => {
+        const match = matchesById.get(stat.matchId);
+        const teamAName = match ? teamsById.get(match.teamAId)?.name || `Team ${match.teamAId}` : "Unknown";
+        const teamBName = match ? teamsById.get(match.teamBId)?.name || `Team ${match.teamBId}` : "Match";
+        const mapResult = match?.mapResults?.find((result) => result.gameNumber === stat.gameNumber);
+        const map = mapResult?.mapId ? mapsById.get(mapResult.mapId) || null : null;
+
+        return {
+          stat,
+          label: match ? `${teamAName} vs ${teamBName}` : `Match ${stat.matchId}`,
+          mapLabel: map?.description || stat.mapType,
+        };
+      });
+  }, [mapsById, matchesById, teamsById, userStats]);
+
+  const rawTotals = useMemo(() => {
+    return calculationSteps.reduce(
+      (acc, step) => {
+        acc.damage += step.stat.damage;
+        acc.healing += step.stat.healing;
+        acc.mitigation += step.stat.mitigation;
+        acc.kills += step.stat.kills;
+        acc.assists += step.stat.assists;
+        acc.deaths += step.stat.deaths;
+        acc.duration += step.stat.gameDuration;
+        return acc;
+      },
+      { damage: 0, healing: 0, mitigation: 0, kills: 0, assists: 0, deaths: 0, duration: 0 }
+    );
+  }, [calculationSteps]);
+
+  const formulaMetrics = useMemo(() => {
+    if (!userAverage) return [];
+
+    return [
+      { key: "killsPer10" as const, rawKey: "kills" as const, label: "Elim/10", color: "text-danger", result: userAverage.killsPer10 },
+      { key: "damagePer10" as const, rawKey: "damage" as const, label: "Dmg/10", color: "text-primary", result: userAverage.damagePer10 },
+      { key: "mitigationPer10" as const, rawKey: "mitigation" as const, label: "Mit/10", color: "text-accent", result: userAverage.mitigationPer10 },
+      { key: "healingPer10" as const, rawKey: "healing" as const, label: "Heal/10", color: "text-success", result: userAverage.healingPer10 },
+      { key: "assistsPer10" as const, rawKey: "assists" as const, label: "Ast/10", color: "text-warning", result: userAverage.assistsPer10 },
+      { key: "deathsPer10" as const, rawKey: "deaths" as const, label: "Death/10", color: "text-muted", result: userAverage.deathsPer10 },
+    ];
+  }, [calculationSteps, userAverage]);
+
   const statsByGame = useMemo(() => {
     const grouped = new Map<string, PlayerStat[]>();
     for (const stat of allStats) {
@@ -526,7 +634,7 @@ export default function PlayerStatsDetailPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="mx-auto max-w-6xl px-4 py-8">
+        <div className="mx-auto max-w-[86.4rem] px-4 py-8">
           <Skeleton className="h-6 w-32 mb-6" variant="text" />
           <Skeleton className="h-48 rounded-2xl mb-6" />
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
@@ -543,7 +651,7 @@ export default function PlayerStatsDetailPage() {
   if (!userAverage) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="mx-auto max-w-6xl px-4 py-8">
+        <div className="mx-auto max-w-[86.4rem] px-4 py-8">
           <Link href="/stats" className="inline-flex items-center gap-2 text-sm text-muted hover:text-foreground transition-colors mb-6">
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -580,7 +688,7 @@ export default function PlayerStatsDetailPage() {
         <div className="absolute -right-32 top-1/3 h-[400px] w-[400px] rounded-full bg-accent/5 blur-[140px]" />
       </div>
 
-      <div className="relative mx-auto max-w-6xl px-4 py-6 lg:px-8 lg:py-10">
+      <div className="relative mx-auto max-w-[86.4rem] px-4 py-6 lg:px-8 lg:py-10">
         {/* Back Link */}
         <Link href="/stats" className="inline-flex items-center gap-2 text-sm text-muted hover:text-foreground transition-colors mb-6 group">
           <svg className="h-4 w-4 transition-transform group-hover:-translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -681,6 +789,104 @@ export default function PlayerStatsDetailPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* Stat Breakdown */}
+        <section className="mb-8">
+          <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted">Stat Breakdown</h2>
+              <p className="text-sm text-muted">
+                Each game is normalized as stat / game duration x 10 minutes, so longer maps do not get free extra value.
+              </p>
+            </div>
+            <span className="text-xs font-medium uppercase tracking-wider text-muted">
+              {calculationSteps.length} games counted
+            </span>
+          </div>
+
+          <div className="overflow-hidden rounded-2xl border border-border/50 bg-surface/60 backdrop-blur-sm">
+            <div className="grid gap-0 xl:grid-cols-[1.25fr_0.75fr]">
+              <div className="border-b border-border/40 xl:border-b-0 xl:border-r">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border/40 bg-surface-elevated/40 text-xs uppercase tracking-wider text-muted">
+                        <th className="px-4 py-3 text-left font-semibold">Step</th>
+                        <th className="px-3 py-3 text-left font-semibold">Map</th>
+                        <th className="px-3 py-3 text-right font-semibold">Time</th>
+                        <th className="px-3 py-3 text-right font-semibold">E/A/D</th>
+                        <th className="px-3 py-3 text-right font-semibold">DMG</th>
+                        <th className="px-3 py-3 text-right font-semibold">H</th>
+                        <th className="px-4 py-3 text-right font-semibold">MIT</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/25">
+                      {calculationSteps.map((step, index) => (
+                        <tr key={step.stat.id} className="transition-colors hover:bg-surface-elevated/30">
+                          <td className="px-4 py-3">
+                            <p className="font-medium text-foreground">Game {index + 1}</p>
+                            <p className="mt-0.5 max-w-[14rem] truncate text-xs text-muted">
+                              {step.label} - map {step.stat.gameNumber}
+                            </p>
+                          </td>
+                          <td className="px-3 py-3 text-muted">{step.mapLabel}</td>
+                          <td className="px-3 py-3 text-right font-mono text-muted">
+                            {formatDuration(step.stat.gameDuration)}
+                          </td>
+                          <td className="px-3 py-3 text-right font-mono text-foreground">
+                            {step.stat.kills}/{step.stat.assists}/{step.stat.deaths}
+                          </td>
+                          <td className="px-3 py-3 text-right font-mono text-muted">
+                            {formatWholeNumber(step.stat.damage)}
+                          </td>
+                          <td className="px-3 py-3 text-right font-mono text-muted">
+                            {formatWholeNumber(step.stat.healing)}
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono text-muted">
+                            {formatWholeNumber(step.stat.mitigation)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t border-border/50 bg-surface-elevated/35 text-sm">
+                        <td className="px-4 py-3 font-semibold text-foreground" colSpan={2}>Raw totals</td>
+                        <td className="px-3 py-3 text-right font-mono text-muted">{formatDuration(rawTotals.duration)}</td>
+                        <td className="px-3 py-3 text-right font-mono text-foreground">
+                          {rawTotals.kills}/{rawTotals.assists}/{rawTotals.deaths}
+                        </td>
+                        <td className="px-3 py-3 text-right font-mono text-muted">{formatWholeNumber(rawTotals.damage)}</td>
+                        <td className="px-3 py-3 text-right font-mono text-muted">{formatWholeNumber(rawTotals.healing)}</td>
+                        <td className="px-4 py-3 text-right font-mono text-muted">{formatWholeNumber(rawTotals.mitigation)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+
+              <div className="p-4">
+                <div className="mb-3">
+                  <p className="text-sm font-semibold text-foreground">Current per-10 values</p>
+                  <p className="mt-1 text-xs text-muted">
+                    The leaderboard averages these normalized game scores.
+                  </p>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+                  {formulaMetrics.map((metric) => (
+                    <FormulaPill
+                      key={metric.key}
+                      label={metric.label}
+                      rawKey={metric.rawKey}
+                      steps={calculationSteps}
+                      result={metric.result}
+                      color={metric.color}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
