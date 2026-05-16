@@ -2800,6 +2800,8 @@ function DraftHistory({
   const actions = draftState.actions || [];
   const maps = draftState.allMaps || [];
   const [activeGameIndex, setActiveGameIndex] = useState(0);
+  const teamA = teams.find((t) => t.id === draftState.match.teamAId);
+  const teamB = teams.find((t) => t.id === draftState.match.teamBId);
 
   const getTeamName = (teamId: number) =>
     teams.find((t) => t.id === teamId)?.name || `Team ${teamId}`;
@@ -2865,8 +2867,30 @@ function DraftHistory({
   if (actions.length === 0 || gameSlides.length === 0) return null;
 
   const activeSlide = gameSlides[Math.min(activeGameIndex, gameSlides.length - 1)];
-  const cardHeightClass = isObsKeyAccess ? "h-[300px]" : "min-h-[360px]";
-  const banIconClass = isObsKeyAccess ? "h-14 w-14" : "h-12 w-12 sm:h-14 sm:w-14";
+  const cardHeightClass = isObsKeyAccess ? "min-h-[460px]" : "min-h-[520px]";
+  const banIconClass = isObsKeyAccess ? "h-36 w-36 sm:h-40 sm:w-40" : "h-28 w-28 sm:h-32 sm:w-32";
+
+  const activeSlideBansByTeam = [
+    {
+      teamId: draftState.match.teamAId,
+      team: teamA,
+      title: teamA?.name || getTeamName(draftState.match.teamAId),
+      titleClass: "text-[color:var(--color-team-a)]",
+      borderClass: "border-[color:var(--color-team-a)]/40",
+      bgClass: "bg-[color:var(--color-team-a)]/10",
+    },
+    {
+      teamId: draftState.match.teamBId,
+      team: teamB,
+      title: teamB?.name || getTeamName(draftState.match.teamBId),
+      titleClass: "text-[color:var(--color-team-b)]",
+      borderClass: "border-[color:var(--color-team-b)]/40",
+      bgClass: "bg-[color:var(--color-team-b)]/10",
+    },
+  ].map((entry) => ({
+    ...entry,
+    bans: activeSlide.bans.filter((ban) => ban.teamId === entry.teamId),
+  }));
 
   return (
     <Card variant="featured" className={clsx(isObsKeyAccess ? "mt-0 overflow-hidden bg-card/90" : "mt-8")}>
@@ -2901,7 +2925,7 @@ function DraftHistory({
             <div className="absolute inset-0 bg-surface-elevated" />
           )}
           <div className="absolute inset-0 bg-gradient-to-r from-background/92 via-background/70 to-background/35" />
-          <div className={clsx("relative z-10 h-full", isObsKeyAccess ? "p-4" : "p-4 sm:p-6")}>
+          <div className={clsx("relative z-10 h-full flex flex-col", isObsKeyAccess ? "p-4" : "p-4 sm:p-6")}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted">Game {activeSlide.gameNumber}</p>
@@ -2919,35 +2943,68 @@ function DraftHistory({
               )}
             </div>
 
-            <div className="absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-center px-4">
-              <div className="flex items-center justify-center gap-3 rounded-lg border border-border/50 bg-background/55 px-4 py-3 shadow-xl shadow-black/30 backdrop-blur-sm">
-              {activeSlide.bans.map((ban, index) => {
-                const hero = ban.value ? getHeroById(ban.value) : null;
-                const teamName = ban.teamId ? getTeamName(ban.teamId) : "No Ban";
-
-                return (
+            <div className="mt-6 flex-1 overflow-hidden">
+              <div className={clsx("grid h-full gap-4", isObsKeyAccess ? "grid-cols-2" : "grid-cols-1 lg:grid-cols-2")}>
+                {activeSlideBansByTeam.map((teamSection) => (
                   <div
-                    key={`${activeSlide.gameNumber}-ban-${ban.id}-${index}`}
+                    key={teamSection.teamId}
                     className={clsx(
-                      "relative shrink-0 overflow-hidden rounded-lg border border-danger/40 bg-danger/10 shadow-md shadow-black/30",
-                      banIconClass
+                      "flex h-full flex-col rounded-2xl border bg-background/55 p-4 shadow-xl shadow-black/25 backdrop-blur-sm",
+                      teamSection.borderClass,
+                      teamSection.bgClass
                     )}
-                    title={`${teamName}: ${hero?.name ?? "No Ban"}`}
                   >
-                    {hero?.imgPath ? (
-                      <img
-                        src={resolveHeroImageUrl(hero.imgPath)}
-                        alt={hero.name}
-                        className="h-full w-full object-cover grayscale"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center border border-dashed border-border/70 text-[9px] font-semibold uppercase tracking-wide text-muted">
-                        No Ban
-                      </div>
-                    )}
+                    <div className="mb-4">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-muted">Banned by</p>
+                      <h5 className={clsx("mt-1 font-black uppercase tracking-wide", isObsKeyAccess ? "text-2xl" : "text-xl", teamSection.titleClass)}>
+                        {teamSection.title}
+                      </h5>
+                    </div>
+
+                    <div className="flex flex-wrap gap-4">
+                      {teamSection.bans.length > 0 ? (
+                        teamSection.bans.map((ban, index) => {
+                          const hero = ban.value ? getHeroById(ban.value) : null;
+                          const teamName = ban.teamId ? getTeamName(ban.teamId) : "No Ban";
+
+                          return (
+                            <div
+                              key={`${activeSlide.gameNumber}-ban-${ban.id}-${index}`}
+                              className={clsx(
+                                "relative shrink-0 overflow-hidden rounded-2xl border border-danger/40 bg-danger/10 shadow-md shadow-black/30",
+                                banIconClass
+                              )}
+                              title={`${teamName}: ${hero?.name ?? "No Ban"}`}
+                            >
+                              {hero?.imgPath ? (
+                                <>
+                                  <img
+                                    src={resolveHeroImageUrl(hero.imgPath)}
+                                    alt={hero.name}
+                                    className="h-[78%] w-full object-cover grayscale"
+                                  />
+                                  <div className="flex h-[22%] items-center justify-center bg-background/80 px-2 text-center">
+                                    <p className={clsx("font-semibold text-foreground truncate", isObsKeyAccess ? "text-sm" : "text-xs")}>
+                                      {hero.name}
+                                    </p>
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center border border-dashed border-border/70 text-sm font-semibold uppercase tracking-wide text-muted">
+                                  No Ban
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="flex h-full min-h-40 w-full items-center justify-center rounded-2xl border border-dashed border-border/70 bg-background/40 text-sm font-semibold uppercase tracking-wide text-muted">
+                          No bans recorded
+                        </div>
+                      )}
+                    </div>
                   </div>
-                );
-              })}
+                ))}
               </div>
             </div>
           </div>
