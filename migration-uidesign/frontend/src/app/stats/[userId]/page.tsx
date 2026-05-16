@@ -4,9 +4,13 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { getPublicPlayerStats, getPublicPlayerStatsByUserId } from "@/lib/api/playerStat";
+import { getMatches } from "@/lib/api/match";
+import { getMaps } from "@/lib/api/map";
+import { getTeams } from "@/lib/api/team";
 import { Badge } from "@/components/ui/Badge";
 import { Skeleton } from "@/components/ui/Skeleton";
-import type { PlayerStat } from "@/lib/api/types";
+import { resolveMapImageUrl } from "@/lib/assetUrls";
+import type { GameMap, Match, PlayerStat, Team } from "@/lib/api/types";
 import { buildPlayerAverages, sortByMetric, TOP_METRICS, type PlayerAverage, type TopMetricKey } from "@/lib/stats/playerAverages";
 
 const ROLE_CONFIG: Record<PlayerAverage["role"], { label: string; text: string; bg: string; gradient: string; icon: ReactNode }> = {
@@ -137,23 +141,174 @@ function getRoleBadgeVariant(role: PlayerAverage["role"]) {
   return "success" as const;
 }
 
+type HistoryRow = {
+  stat: PlayerStat | null;
+  isSub: boolean;
+};
+
+type MatchHistoryGame = {
+  key: string;
+  match: Match;
+  gameNumber: number;
+  map: GameMap | null;
+  mapImageUrl: string;
+  allyTeamName: string;
+  enemyTeamName: string;
+  resultLabel: string;
+  allyRows: HistoryRow[];
+  enemyRows: HistoryRow[];
+};
+
+type MatchHistoryGroup = {
+  match: Match;
+  matchLabel: string;
+  startedAt: string | null;
+  games: MatchHistoryGame[];
+};
+
+const ROLE_ORDER: Record<PlayerStat["role"], number> = {
+  TANK: 0,
+  DPS: 1,
+  SUPPORT: 2,
+};
+
+function compareStatRows(a: PlayerStat, b: PlayerStat) {
+  const roleDiff = ROLE_ORDER[a.role] - ROLE_ORDER[b.role];
+  if (roleDiff !== 0) return roleDiff;
+  return (b.damage + b.healing + b.mitigation) - (a.damage + a.healing + a.mitigation);
+}
+
+function buildFiveRows(rows: PlayerStat[]): HistoryRow[] {
+  const sortedRows = [...rows].sort(compareStatRows).slice(0, 5);
+  return Array.from({ length: 5 }, (_, index) => {
+    const stat = sortedRows[index] || null;
+    return { stat, isSub: !stat };
+  });
+}
+
+function getStatNickname(stat: PlayerStat) {
+  return stat.user?.nickname || `Player ${stat.userId}`;
+}
+
+function formatWholeNumber(value: number) {
+  return value.toLocaleString(undefined, { maximumFractionDigits: 0 });
+}
+
+function formatMatchDate(value?: string | null) {
+  if (!value) return "Date TBD";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Date TBD";
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+function MatchStatsTable({
+  title,
+  rows,
+  tone,
+  userId,
+}: {
+  title: string;
+  rows: HistoryRow[];
+  tone: "ally" | "enemy";
+  userId: number;
+}) {
+  const toneClasses =
+    tone === "ally"
+      ? {
+          panel: "border-primary/30 bg-primary/5",
+          header: "bg-primary/15 text-primary",
+          row: "hover:bg-primary/10",
+          active: "bg-primary/15 ring-1 ring-primary/30",
+        }
+      : {
+          panel: "border-danger/30 bg-danger/5",
+          header: "bg-danger/15 text-danger",
+          row: "hover:bg-danger/10",
+          active: "bg-danger/15 ring-1 ring-danger/30",
+        };
+
+  return (
+    <div className={`overflow-hidden rounded-xl border ${toneClasses.panel}`}>
+      <div className={`px-3 py-2 text-xs font-semibold uppercase tracking-wider ${toneClasses.header}`}>
+        {title}
+      </div>
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="border-b border-border/30 text-xs uppercase tracking-wider text-muted">
+              <th className="px-3 py-2 text-left font-semibold">Player</th>
+              <th className="px-2 py-2 text-right font-semibold">E</th>
+              <th className="px-2 py-2 text-right font-semibold">A</th>
+              <th className="px-2 py-2 text-right font-semibold">D</th>
+              <th className="px-2 py-2 text-right font-semibold">DMG</th>
+              <th className="px-2 py-2 text-right font-semibold">H</th>
+              <th className="px-3 py-2 text-right font-semibold">MIT</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/20">
+            {rows.map((row, index) => {
+              const stat = row.stat;
+              const isCurrentPlayer = Boolean(stat && stat.userId === userId);
+
+              return (
+                <tr
+                  key={stat ? stat.id : `sub-${index}`}
+                  className={`transition-colors ${toneClasses.row} ${isCurrentPlayer ? toneClasses.active : ""}`}
+                >
+                  <td className="px-3 py-2">
+                    {stat ? (
+                      <div className="flex min-w-[9rem] items-center gap-2">
+                        <span className="truncate font-medium text-foreground">{getStatNickname(stat)}</span>
+                        <Badge variant={getRoleBadgeVariant(stat.role)} className="px-1.5 py-0 text-[10px]">
+                          {stat.role}
+                        </Badge>
+                      </div>
+                    ) : (
+                      <span className="font-medium text-muted">Sub</span>
+                    )}
+                  </td>
+                  <td className="px-2 py-2 text-right font-mono text-muted">{stat ? stat.kills : "-"}</td>
+                  <td className="px-2 py-2 text-right font-mono text-muted">{stat ? stat.assists : "-"}</td>
+                  <td className="px-2 py-2 text-right font-mono text-muted">{stat ? stat.deaths : "-"}</td>
+                  <td className="px-2 py-2 text-right font-mono text-muted">{stat ? formatWholeNumber(stat.damage) : "-"}</td>
+                  <td className="px-2 py-2 text-right font-mono text-muted">{stat ? formatWholeNumber(stat.healing) : "-"}</td>
+                  <td className="px-3 py-2 text-right font-mono text-muted">{stat ? formatWholeNumber(stat.mitigation) : "-"}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function PlayerStatsDetailPage() {
   const params = useParams<{ userId: string }>();
   const userId = Number(params.userId);
 
   const [allStats, setAllStats] = useState<PlayerStat[]>([]);
   const [userStats, setUserStats] = useState<PlayerStat[]>([]);
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [maps, setMaps] = useState<GameMap[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       try {
-        const [globalRows, userRows] = await Promise.all([
+        const [globalRows, userRows, matchesData, teamsData, mapsData] = await Promise.all([
           getPublicPlayerStats(),
           getPublicPlayerStatsByUserId(userId),
+          getMatches().catch(() => [] as Match[]),
+          getTeams().catch(() => [] as Team[]),
+          getMaps().catch(() => [] as GameMap[]),
         ]);
         setAllStats(globalRows);
         setUserStats(userRows);
+        setMatches(matchesData);
+        setTeams(teamsData);
+        setMaps(mapsData);
       } catch (error) {
         console.error("Failed to load player detail stats:", error);
       } finally {
@@ -246,6 +401,127 @@ export default function PlayerStatsDetailPage() {
       return best;
     });
   }, [comparison]);
+
+  const teamsById = useMemo(() => {
+    return new Map(teams.map((team) => [team.id, team]));
+  }, [teams]);
+
+  const mapsById = useMemo(() => {
+    return new Map(maps.map((map) => [map.id, map]));
+  }, [maps]);
+
+  const matchesById = useMemo(() => {
+    return new Map(matches.map((match) => [match.id, match]));
+  }, [matches]);
+
+  const statsByGame = useMemo(() => {
+    const grouped = new Map<string, PlayerStat[]>();
+    for (const stat of allStats) {
+      const key = `${stat.matchId}:${stat.gameNumber}`;
+      const existing = grouped.get(key) || [];
+      existing.push(stat);
+      grouped.set(key, existing);
+    }
+    return grouped;
+  }, [allStats]);
+
+  const knownUserTeamId = useMemo(() => {
+    return (
+      userStats.find((stat) => stat.user?.teamId)?.user?.teamId ??
+      allStats.find((stat) => stat.userId === userId && stat.user?.teamId)?.user?.teamId ??
+      null
+    );
+  }, [allStats, userId, userStats]);
+
+  const matchHistory = useMemo((): MatchHistoryGroup[] => {
+    const seenGames = new Set<string>();
+    const games: MatchHistoryGame[] = [];
+
+    for (const userStat of userStats) {
+      const key = `${userStat.matchId}:${userStat.gameNumber}`;
+      if (seenGames.has(key)) continue;
+      seenGames.add(key);
+
+      const match = matchesById.get(userStat.matchId);
+      if (!match) continue;
+
+      const teamA = teamsById.get(match.teamAId);
+      const teamB = teamsById.get(match.teamBId);
+      const teamAName = teamA?.name || `Team ${match.teamAId}`;
+      const teamBName = teamB?.name || `Team ${match.teamBId}`;
+      const userTeamId = userStat.user?.teamId ?? knownUserTeamId;
+      const enemyTeamId =
+        userTeamId === match.teamAId ? match.teamBId :
+        userTeamId === match.teamBId ? match.teamAId :
+        null;
+
+      const allGameStats = statsByGame.get(key) || [];
+      const canGroupByTeam = Boolean(userTeamId && enemyTeamId);
+      const allyStats = canGroupByTeam
+        ? allGameStats.filter((stat) => stat.user?.teamId === userTeamId)
+        : allGameStats.filter((stat) => stat.userId === userId);
+      const enemyStats = canGroupByTeam
+        ? allGameStats.filter((stat) => stat.user?.teamId === enemyTeamId)
+        : allGameStats.filter((stat) => stat.userId !== userId);
+
+      const mapResult = match.mapResults?.find((result) => result.gameNumber === userStat.gameNumber);
+      const map = mapResult?.mapId ? mapsById.get(mapResult.mapId) || null : null;
+      const mapImageUrl = map?.imgPath ? resolveMapImageUrl(map.imgPath) : "";
+      const winnerName =
+        mapResult?.winnerTeamId === match.teamAId ? teamAName :
+        mapResult?.winnerTeamId === match.teamBId ? teamBName :
+        "";
+
+      games.push({
+        key,
+        match,
+        gameNumber: userStat.gameNumber,
+        map,
+        mapImageUrl,
+        allyTeamName:
+          userTeamId === match.teamBId ? teamBName :
+          userTeamId === match.teamAId ? teamAName :
+          "Your Team",
+        enemyTeamName:
+          enemyTeamId === match.teamBId ? teamBName :
+          enemyTeamId === match.teamAId ? teamAName :
+          "Enemy Team",
+        resultLabel: mapResult?.isDraw ? "Draw" : winnerName ? `${winnerName} won` : "Result pending",
+        allyRows: buildFiveRows(allyStats),
+        enemyRows: buildFiveRows(enemyStats),
+      });
+    }
+
+    games.sort((a, b) => {
+      const dateDiff = new Date(b.match.startDate || 0).getTime() - new Date(a.match.startDate || 0).getTime();
+      if (dateDiff !== 0) return dateDiff;
+      if (b.match.id !== a.match.id) return b.match.id - a.match.id;
+      return a.gameNumber - b.gameNumber;
+    });
+
+    const groupsByMatch = new Map<number, MatchHistoryGroup>();
+    for (const game of games) {
+      const teamAName = teamsById.get(game.match.teamAId)?.name || `Team ${game.match.teamAId}`;
+      const teamBName = teamsById.get(game.match.teamBId)?.name || `Team ${game.match.teamBId}`;
+      const existing = groupsByMatch.get(game.match.id);
+      if (existing) {
+        existing.games.push(game);
+        continue;
+      }
+
+      groupsByMatch.set(game.match.id, {
+        match: game.match,
+        matchLabel: game.match.title ? `${game.match.title}: ${teamAName} vs ${teamBName}` : `${teamAName} vs ${teamBName}`,
+        startedAt: game.match.startDate || null,
+        games: [game],
+      });
+    }
+
+    return Array.from(groupsByMatch.values()).map((group) => ({
+      ...group,
+      games: group.games.sort((a, b) => a.gameNumber - b.gameNumber),
+    }));
+  }, [knownUserTeamId, mapsById, matchesById, statsByGame, teamsById, userId, userStats]);
 
   if (loading) {
     return (
@@ -520,6 +796,102 @@ export default function PlayerStatsDetailPage() {
               <p className="text-sm text-muted mt-1">Most played position</p>
             </div>
           </div>
+        </section>
+
+        {/* Match History */}
+        <section className="mt-8">
+          <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="font-display text-2xl uppercase tracking-wide text-foreground">Match History</h2>
+              <p className="text-sm text-muted">Registered games for this player, grouped by match.</p>
+            </div>
+            <span className="text-xs font-medium uppercase tracking-wider text-muted">
+              {matchHistory.length} matches
+            </span>
+          </div>
+
+          {matchHistory.length === 0 ? (
+            <div className="rounded-2xl border border-border/50 bg-surface/60 p-8 text-center text-muted">
+              No match history could be assembled for this player yet.
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {matchHistory.map((group) => (
+                <article
+                  key={group.match.id}
+                  className="overflow-hidden rounded-2xl border border-border/50 bg-surface/60 backdrop-blur-sm"
+                >
+                  <header className="flex flex-col gap-3 border-b border-border/40 bg-surface-elevated/40 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-foreground">{group.matchLabel}</h3>
+                      <p className="mt-1 text-xs uppercase tracking-wider text-muted">
+                        {formatMatchDate(group.startedAt)} - Best of {group.match.bestOf}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="rounded-lg bg-primary/10 px-3 py-1 font-mono text-xl font-bold text-primary">
+                        {group.match.mapWinsTeamA}
+                      </span>
+                      <span className="text-muted">-</span>
+                      <span className="rounded-lg bg-danger/10 px-3 py-1 font-mono text-xl font-bold text-danger">
+                        {group.match.mapWinsTeamB}
+                      </span>
+                    </div>
+                  </header>
+
+                  <div className="space-y-4 p-4">
+                    {group.games.map((game) => (
+                      <div
+                        key={game.key}
+                        className="overflow-hidden rounded-2xl border border-border/40 bg-background/35"
+                      >
+                        <div className="grid gap-0 lg:grid-cols-[240px_1fr]">
+                          <div className="relative min-h-40 overflow-hidden bg-surface-elevated">
+                            {game.mapImageUrl ? (
+                              <img
+                                src={game.mapImageUrl}
+                                alt={game.map?.description || `Game ${game.gameNumber} map`}
+                                className="absolute inset-0 h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="absolute inset-0 flex items-center justify-center bg-surface-elevated text-center text-sm text-muted">
+                                Map not recorded
+                              </div>
+                            )}
+                            <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/25 to-transparent" />
+                            <div className="absolute bottom-0 left-0 right-0 p-4">
+                              <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+                                Game {game.gameNumber}
+                              </p>
+                              <p className="mt-1 text-xl font-bold text-foreground">
+                                {game.map?.description || game.match.type}
+                              </p>
+                              <p className="mt-1 text-xs text-muted">{game.resultLabel}</p>
+                            </div>
+                          </div>
+
+                          <div className="grid gap-3 p-3 xl:grid-cols-2">
+                            <MatchStatsTable
+                              title={game.allyTeamName}
+                              rows={game.allyRows}
+                              tone="ally"
+                              userId={userId}
+                            />
+                            <MatchStatsTable
+                              title={game.enemyTeamName}
+                              rows={game.enemyRows}
+                              tone="enemy"
+                              userId={userId}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </div>

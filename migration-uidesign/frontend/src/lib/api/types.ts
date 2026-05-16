@@ -216,6 +216,7 @@ export interface PlayerStat {
     id: number;
     nickname: string;
     role?: MemberRole;
+    teamId?: number | null;
   };
 }
 
