@@ -750,54 +750,6 @@ export default function DraftTablePage() {
   const waitingForBanBackground =
     currentPhase === "BAN" && !!backgroundMapUrl && !backgroundReady;
 
-  const headerTeamABans = teamA ? getBannedHeroesByTeam(teamA.id).slice(0, 2) : [];
-  const headerTeamBBans = teamB ? getBannedHeroesByTeam(teamB.id).slice(0, 2) : [];
-  const getHeaderBanSlots = (bans: (number | null)[]) => [bans[0] ?? null, bans[1] ?? null];
-  const headerBanSizeClass = isObsKeyAccess ? "w-8 h-8" : "w-10 h-10";
-  const headerBanStackClass = isObsKeyAccess ? "h-14 w-8" : "h-16 w-10";
-  const headerBanStackOffset = isObsKeyAccess ? 18 : 22;
-
-  const renderHeaderBanSlot = (heroId: number | null, tone: "A" | "B") => {
-    const hero = heroId ? getHeroById(heroId) : null;
-    const toneClasses =
-      tone === "A"
-        ? "border-red-400/80 bg-red-500/15 text-red-200"
-        : "border-blue-400/80 bg-blue-500/15 text-blue-200";
-
-    if (!heroId || !hero) {
-      return (
-        <div
-          className={clsx(
-            "rounded-lg border border-dashed border-border/70 bg-surface/40 flex items-center justify-center",
-            headerBanSizeClass
-          )}
-        >
-          <span className={clsx("text-[9px] font-semibold", tone === "A" ? "text-red-200" : "text-blue-200")}>-</span>
-        </div>
-      );
-    }
-
-    return (
-      <div
-        className={clsx("rounded-lg overflow-hidden border", headerBanSizeClass, toneClasses)}
-      >
-        {hero.imgPath ? (
-          <img
-            src={resolveHeroImageUrl(hero.imgPath)}
-            alt={hero.name}
-            className="w-full h-full object-cover grayscale"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <span className={clsx("text-[10px] font-bold", tone === "A" ? "text-red-200" : "text-blue-200")}>
-              {hero.name?.charAt(0) || "?"}
-            </span>
-          </div>
-        )}
-      </div>
-    );
-  };
-
   return wrapKeyView(
     <main
       className={clsx("relative bg-background", !isKeyAccess && "min-h-screen", isObsKeyAccess && "overflow-hidden")}
@@ -943,34 +895,6 @@ export default function DraftTablePage() {
                 isObsKeyAccess ? `${KEY_CONTENT_MAX_WIDTH} px-6` : "max-w-7xl px-4"
               )}
             >
-              <div className="absolute inset-0 pointer-events-none z-20">
-                <div className="absolute left-0 top-1/2 -translate-y-1/2">
-                  <div className={clsx("relative", headerBanStackClass)}>
-                    {getHeaderBanSlots(headerTeamBBans).map((heroId, idx) => (
-                      <div
-                        key={`header-ban-B-${idx}`}
-                        className="absolute left-0"
-                        style={{ top: `${idx * headerBanStackOffset}px` }}
-                      >
-                        {renderHeaderBanSlot(heroId, "B")}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="absolute right-0 top-1/2 -translate-y-1/2">
-                  <div className={clsx("relative", headerBanStackClass)}>
-                    {getHeaderBanSlots(headerTeamABans).map((heroId, idx) => (
-                      <div
-                        key={`header-ban-A-${idx}`}
-                        className="absolute right-0"
-                        style={{ top: `${idx * headerBanStackOffset}px` }}
-                      >
-                        {renderHeaderBanSlot(heroId, "A")}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-6">
                   <div className="flex items-center gap-3">
