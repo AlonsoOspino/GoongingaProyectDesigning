@@ -1,4 +1,4 @@
-ALTER TABLE "Member" ADD COLUMN "heroVideoFolderPath" TEXT;
-ALTER TABLE "Member" ADD COLUMN "leaderboardImagePath" TEXT;
-ALTER TABLE "Member" ADD COLUMN "matchCardsImagePath" TEXT;
-ALTER TABLE "Member" ADD COLUMN "obsWebsocketPassword" TEXT;
+ALTER TABLE "Member" ADD COLUMN IF NOT EXISTS "heroVideoFolderPath" TEXT;
+ALTER TABLE "Member" ADD COLUMN IF NOT EXISTS "leaderboardImagePath" TEXT;
+ALTER TABLE "Member" ADD COLUMN IF NOT EXISTS "matchCardsImagePath" TEXT;
+ALTER TABLE "Member" ADD COLUMN IF NOT EXISTS "obsWebsocketPassword" TEXT;
