@@ -312,7 +312,8 @@ async function restoreFromBackupSql(script) {
   const statements = reorderStatementsForRestore(adjustedStatements);
 
   try {
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(
+      async (tx) => {
       for (const statement of statements) {
         await tx.$executeRawUnsafe(statement);
       }
@@ -322,7 +323,13 @@ async function restoreFromBackupSql(script) {
       // RESTART IDENTITY left them), which guarantees a duplicate-key crash on
       // the very next normal insert. We bring them back in line with MAX(id).
       await resyncSequencesForTables(tx, SEQUENCE_BACKED_TABLES);
-    });
+      },
+      {
+        // Give Neon more time to allocate/keep the interactive transaction.
+        maxWait: 60000,
+        timeout: 600000,
+      }
+    );
   } catch (error) {
     const message = String(error?.message || "");
     const fkMatch = message.match(/constraint\s+"([^"]+)"/i);

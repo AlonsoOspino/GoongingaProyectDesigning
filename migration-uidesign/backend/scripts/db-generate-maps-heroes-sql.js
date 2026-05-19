@@ -1,8 +1,5 @@
 const fs = require("node:fs");
 const path = require("node:path");
-const { PrismaClient } = require("@prisma/client");
-
-const prisma = new PrismaClient();
 
 const TYPE_ALIASES = {
   CONTROL: "CONTROL",
@@ -50,12 +47,12 @@ const heroRoleByName = {
   REAPER: "DPS",
   REINHARDT: "TANK",
   ROADHOG: "TANK",
+  SIERRA: "DPS",
   SIGMA: "TANK",
   SOJOURN: "DPS",
   SOLDIER76: "DPS",
   SOMBRA: "DPS",
   SYMMETRA: "DPS",
-  SIERRA: "DPS",
   TORBJORN: "DPS",
   TRACER: "DPS",
   VENDETTA: "DPS",
@@ -78,6 +75,10 @@ const heroDisplayNameByKey = {
   TORBJORN: "Torbjorn",
   WRECKINGBALL: "Wrecking Ball",
 };
+
+function escapeSql(value) {
+  return String(value).replace(/'/g, "''");
+}
 
 function toTitleCaseWords(text) {
   return text
@@ -109,7 +110,7 @@ function normalizeMapName(rawName) {
   return toTitleCaseWords(withSpaces);
 }
 
-function parseMapFromFileName(fileName) {
+function parseMap(fileName, id) {
   const extension = path.extname(fileName);
   const baseName = path.basename(fileName, extension);
   const parts = baseName.split("_").filter(Boolean);
@@ -125,12 +126,10 @@ function parseMapFromFileName(fileName) {
     throw new Error(`Unknown map type "${rawType}" in file name: ${fileName}`);
   }
 
-  const rawName = parts.slice(0, -1).join("_");
-  const description = normalizeMapName(rawName);
-
   return {
+    id,
     type,
-    description,
+    description: normalizeMapName(parts.slice(0, -1).join("_")),
     imgPath: `/MapImages/${fileName}`,
   };
 }
@@ -151,13 +150,19 @@ function parseHeroName(fileName) {
     .replace(/_/g, " ");
 }
 
-function parseHeroFromFileName(fileName) {
+function parseHero(fileName, id) {
   const parsedName = parseHeroName(fileName);
   const key = normalizeHeroKey(parsedName);
+  const role = heroRoleByName[key];
+
+  if (!role) {
+    throw new Error(`Unknown hero role for ${fileName} (normalized key: ${key})`);
+  }
 
   return {
+    id,
     name: heroDisplayNameByKey[key] || parsedName,
-    role: heroRoleByName[key] || "DPS",
+    role,
     imgPath: `/HeroImages/${fileName}`,
   };
 }
@@ -173,48 +178,42 @@ function readImageFileNames(directory) {
     .sort((a, b) => a.localeCompare(b));
 }
 
+function insertMapSql(map) {
+  return `INSERT INTO "Map" ("id", "type", "description", "imgPath") VALUES (${map.id}, '${map.type}', '${escapeSql(map.description)}', '${escapeSql(map.imgPath)}');`;
+}
+
+function insertHeroSql(hero) {
+  return `INSERT INTO "Hero" ("id", "name", "role", "imgPath", "heroGift") VALUES (${hero.id}, '${escapeSql(hero.name)}', '${hero.role}', '${escapeSql(hero.imgPath)}', NULL);`;
+}
+
 async function main() {
+  const outputPath = process.argv[2] || path.resolve(process.cwd(), "backups/seed-maps-heroes-from-assets.sql");
   const mapsDir = path.resolve(__dirname, "../../frontend/MapImages");
   const heroesDir = path.resolve(__dirname, "../../frontend/HeroImages");
 
-  const mapFiles = readImageFileNames(mapsDir);
-  const heroFiles = readImageFileNames(heroesDir);
+  const maps = readImageFileNames(mapsDir).map((fileName, index) => parseMap(fileName, index + 1));
+  const heroes = readImageFileNames(heroesDir).map((fileName, index) => parseHero(fileName, index + 1));
 
-  if (mapFiles.length === 0) {
-    throw new Error(`No map images found in: ${mapsDir}`);
-  }
+  const lines = [
+    "-- Generated from frontend/MapImages and frontend/HeroImages.",
+    "-- Rebuilds only Map and Hero content.",
+    "BEGIN;",
+    'DELETE FROM "_AllowedMaps";',
+    'DELETE FROM "Map";',
+    'DELETE FROM "Hero";',
+    "-- Maps",
+    ...maps.map(insertMapSql),
+    "-- Heroes",
+    ...heroes.map(insertHeroSql),
+    `SELECT setval(pg_get_serial_sequence('"Map"', 'id'), ${maps.length}, true);`,
+    `SELECT setval(pg_get_serial_sequence('"Hero"', 'id'), ${heroes.length}, true);`,
+    "COMMIT;",
+    "",
+  ];
 
-  if (heroFiles.length === 0) {
-    throw new Error(`No hero images found in: ${heroesDir}`);
-  }
-
-  const maps = mapFiles.map(parseMapFromFileName);
-  const heroes = heroFiles.map(parseHeroFromFileName);
-
-  // Delete in sequence (no transaction, to avoid Neon 5s timeout)
-  await prisma.$executeRawUnsafe('DELETE FROM "_AllowedMaps";');
-  await prisma.map.deleteMany();
-  await prisma.hero.deleteMany();
-
-  // Insert in sequence
-  await prisma.map.createMany({ data: maps });
-  await prisma.hero.createMany({ data: heroes });
-
-  const [mapCount, heroCount] = await Promise.all([
-    prisma.map.count(),
-    prisma.hero.count(),
-  ]);
-
-  console.log(`Refreshed map and hero content successfully.`);
-  console.log(`Maps inserted: ${maps.length} (db count: ${mapCount})`);
-  console.log(`Heroes inserted: ${heroes.length} (db count: ${heroCount})`);
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.writeFileSync(outputPath, lines.join("\n"), "utf8");
+  console.log(`Wrote ${maps.length} maps and ${heroes.length} heroes to ${outputPath}`);
 }
 
-main()
-  .catch((error) => {
-    console.error("Map/hero refresh failed:", error?.message || error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+main();
