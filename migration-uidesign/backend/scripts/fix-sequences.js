@@ -1,29 +1,50 @@
 const { PrismaClient } = require("@prisma/client");
+
 const prisma = new PrismaClient();
 
-async function fixSequences() {
-  try {
-    console.log("Resetting auto-increment sequences...");
+const TABLES_WITH_IDS = [
+  "Tournament",
+  "Member",
+  "Team",
+  "Match",
+  "LeaderboardOverlayAsset",
+  "News",
+  "DraftTable",
+  "DraftAction",
+  "Map",
+  "Hero",
+  "PlayerStat",
+];
 
-    // Reset DraftAction sequence
-    await prisma.$executeRawUnsafe(
-      "SELECT setval(pg_get_serial_sequence('\"DraftAction\"', 'id'), (SELECT MAX(id) FROM \"DraftAction\") + 1);"
-    );
-    console.log("✓ DraftAction sequence reset");
-
-    // Reset DraftTable sequence
-    await prisma.$executeRawUnsafe(
-      "SELECT setval(pg_get_serial_sequence('\"DraftTable\"', 'id'), (SELECT MAX(id) FROM \"DraftTable\") + 1);"
-    );
-    console.log("✓ DraftTable sequence reset");
-
-    console.log("All sequences fixed!");
-  } catch (err) {
-    console.error("Error fixing sequences:", err);
-    process.exit(1);
-  } finally {
-    await prisma.$disconnect();
-  }
+function quoteIdent(value) {
+  return `"${String(value).replace(/"/g, '""')}"`;
 }
 
-fixSequences();
+async function resetSequence(tableName) {
+  const table = quoteIdent(tableName);
+  await prisma.$executeRawUnsafe(`
+    SELECT setval(
+      pg_get_serial_sequence('${table}', 'id'),
+      COALESCE((SELECT MAX("id") FROM ${table}), 1),
+      (SELECT COUNT(*) FROM ${table}) > 0
+    );
+  `);
+  console.log(`Sequence reset: ${tableName}`);
+}
+
+async function main() {
+  console.log("Resetting auto-increment sequences...");
+  for (const tableName of TABLES_WITH_IDS) {
+    await resetSequence(tableName);
+  }
+  console.log("All sequences fixed.");
+}
+
+main()
+  .catch((err) => {
+    console.error("Error fixing sequences:", err?.message || err);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
