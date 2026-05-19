@@ -78,7 +78,7 @@ Scope: migration-uidesign/backend
   - startBan -> BAN
   - banHero (up to 4 bans total per map)
   - endMap -> ENDMAP + match PENDINGREGISTERS
-- timeout rule: 75s turn timeout auto-resolves with random map pick or skip-ban action.
+- timeout rule: 95s turn timeout auto-resolves with random map pick or skip-ban action.
 - map type order by game number: CONTROL, HYBRID, PAYLOAD, PUSH, FLASHPOINT.
 - game 5 allows FLASHPOINT or CONTROL.
 - optional map pool by round from match.mapsAllowedByRound.

@@ -1,8 +1,8 @@
 const prisma = require("../config/prisma");
 
 const mapOrder = ["CONTROL", "HYBRID", "PAYLOAD", "PUSH", "FLASHPOINT"];
-// Timer is 75 seconds per turn
-const TURN_TIMEOUT_MS = 75 * 1000;
+// Timer is 95 seconds per turn
+const TURN_TIMEOUT_MS = 95 * 1000;
 const ALERT_HOLD_MS = 3 * 1000;
 const PHASE_START_HOLD_MS = 5 * 1000;
 

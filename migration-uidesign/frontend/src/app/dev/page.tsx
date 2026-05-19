@@ -200,7 +200,7 @@ export default function DevPage() {
                     </li>
                     <li className="flex items-start gap-2">
                       <div className="w-1.5 h-1.5 bg-red-400 rounded-full mt-2" />
-                      <span><strong>Turn Timer:</strong> 75 seconds per ban (auto-skips if timeout)</span>
+                      <span><strong>Turn Timer:</strong> 95 seconds per ban (auto-skips if timeout)</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <div className="w-1.5 h-1.5 bg-red-400 rounded-full mt-2" />
@@ -244,7 +244,7 @@ export default function DevPage() {
               <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-5 border border-amber-100">
                 <h3 className="font-semibold text-slate-900 mb-3">Timeout Handling</h3>
                 <p className="text-sm text-slate-600 mb-3">
-                  To prevent stalling, the system enforces a <strong>75-second turn timer</strong>. If a team exceeds the limit:
+                  To prevent stalling, the system enforces a <strong>95-second turn timer</strong>. If a team exceeds the limit:
                 </p>
                 <ul className="text-sm text-slate-600 space-y-1 ml-4">
                   <li className="flex items-start gap-2">

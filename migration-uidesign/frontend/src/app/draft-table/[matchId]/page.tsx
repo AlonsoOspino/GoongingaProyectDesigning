@@ -34,7 +34,7 @@ import { resolveHeroImageUrl, resolveMapImageUrl } from "@/lib/assetUrls";
 import { MapImage, MapBackground, useImageReady, preloadImages } from "@/components/draft/MapImage";
 
 const POLL_INTERVAL = 3000;
-const TURN_DURATION = 75;
+const TURN_DURATION = 95;
 const KEY_CANVAS_WIDTH = 1920;
 const KEY_CANVAS_HEIGHT = 1080;
 const KEY_CONTENT_MAX_WIDTH = "max-w-[1840px]";
