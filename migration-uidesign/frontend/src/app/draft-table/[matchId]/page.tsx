@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import {
+  ApiError,
   getDraftByMatchId,
   getDraftState,
   startMapPicking,
@@ -41,6 +42,20 @@ const KEY_CONTENT_MAX_WIDTH = "max-w-[1840px]";
 type Phase = "STARTING" | "MAPPICKING" | "BAN" | "PLAYING" | "ENDMAP" | "FINISHED";
 type OverlayKind = "BAN" | "MAP_PICK" | "MAP_PICKING_COUNTDOWN" | "BAN_START_COUNTDOWN";
 
+const SESSION_EXPIRED_MESSAGE =
+  "Tu sesion expiro o quedo invalida en este navegador. Vuelve a iniciar sesion para continuar.";
+
+function getRequestErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
+}
+
+function isSessionFailure(error: unknown) {
+  if (!(error instanceof ApiError)) return false;
+  if (error.status === 401) return true;
+  return error.status === 403 && /login token|invalid token|no token|token malformed/i.test(error.message);
+}
+
 type DraftOverlay = {
   id: string;
   kind: OverlayKind;
@@ -56,7 +71,7 @@ type DraftOverlay = {
 export default function DraftTablePage() {
   const params = useParams();
   const router = useRouter();
-  const { user, token, isAuthenticated, isHydrated } = useSession();
+  const { user, token, isAuthenticated, isHydrated, clearSession } = useSession();
   const searchParams = useSearchParams();
   const urlKey = searchParams?.get("key");
 
@@ -68,6 +83,7 @@ export default function DraftTablePage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [timeLeft, setTimeLeft] = useState(TURN_DURATION);
   const [selectedRole, setSelectedRole] = useState<"ALL" | "TANK" | "DPS" | "SUPPORT">("ALL");
@@ -85,6 +101,7 @@ export default function DraftTablePage() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const overlayTimerRef = useRef<NodeJS.Timeout | null>(null);
   const overlayCountdownRef = useRef<NodeJS.Timeout | null>(null);
+  const actionErrorTimerRef = useRef<NodeJS.Timeout | null>(null);
   const seenActionIdsRef = useRef<Set<number>>(new Set());
   const hasInitializedActionsRef = useRef(false);
   const hasInitializedPhaseRef = useRef(false);
@@ -108,6 +125,34 @@ export default function DraftTablePage() {
   const teamB = teams.find((t) => t.id === draftState?.match?.teamBId);
   const matchStatus = draftState?.match?.status;
   const currentGameNumber = (draftState?.match?.gameNumber || 0) + 1;
+
+  const showActionError = useCallback((message: string) => {
+    setActionError(message);
+    if (actionErrorTimerRef.current) clearTimeout(actionErrorTimerRef.current);
+    actionErrorTimerRef.current = setTimeout(() => {
+      setActionError(null);
+      actionErrorTimerRef.current = null;
+    }, 10000);
+  }, []);
+
+  const handleRequestFailure = useCallback(
+    (label: string, err: unknown, fallback: string) => {
+      console.error(label, err);
+      if (isSessionFailure(err)) {
+        clearSession();
+        showActionError(SESSION_EXPIRED_MESSAGE);
+        return;
+      }
+      showActionError(getRequestErrorMessage(err, fallback));
+    },
+    [clearSession, showActionError]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (actionErrorTimerRef.current) clearTimeout(actionErrorTimerRef.current);
+    };
+  }, []);
 
   // Show draft history only when match is PENDINGRESULT or FINISHED
   const showDraftHistory = matchStatus === "PENDINGREGISTERS" || matchStatus === "FINISHED" || currentPhase === "FINISHED";
@@ -134,13 +179,14 @@ export default function DraftTablePage() {
 
   useEffect(() => {
     if (!draftState || currentPhase === "FINISHED") return;
+    if (!isAuthenticated && !urlKey) return;
     pollRef.current = setInterval(() => {
       fetchDraftState();
     }, POLL_INTERVAL);
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [draftState, currentPhase]);
+  }, [draftState, currentPhase, isAuthenticated, urlKey]);
 
   const isMatchPaused = !!draftState?.match?.mapTimerPaused;
   const pauseRequestedBy = draftState?.match?.pauseRequestedBy ?? null;
@@ -227,9 +273,15 @@ export default function DraftTablePage() {
       ]);
       setDraftState(draft);
       setTeams(teamsData);
+      setError(null);
     } catch (err) {
       console.error("Failed to load draft:", err);
-      setError("Failed to load draft table. It may not exist or has not been created yet.");
+      if (isSessionFailure(err)) {
+        clearSession();
+        setError(SESSION_EXPIRED_MESSAGE);
+      } else {
+        setError(getRequestErrorMessage(err, "Failed to load draft table. It may not exist or has not been created yet."));
+      }
     } finally {
       setLoading(false);
     }
@@ -241,103 +293,183 @@ export default function DraftTablePage() {
       const draft = await getDraftState(draftId, { key: urlKey ?? undefined, token: token ?? undefined });
       setDraftState(draft);
     } catch (err) {
-      console.error("Failed to fetch draft state:", err);
+      if (isSessionFailure(err)) {
+        clearSession();
+        showActionError(SESSION_EXPIRED_MESSAGE);
+      } else {
+        console.error("Failed to fetch draft state:", err);
+      }
     }
   }
 
   async function handleStartMapPicking() {
-    if (!token || !draftId) return;
+    if (!token) {
+      showActionError(SESSION_EXPIRED_MESSAGE);
+      return;
+    }
+    if (!draftId) {
+      showActionError("Draft no disponible todavia. Recarga la pagina e intenta otra vez.");
+      return;
+    }
     setActionLoading(true);
     try {
       const updated = await startMapPicking(token, draftId);
       setDraftState(updated);
+      setActionError(null);
     } catch (err) {
-      console.error("Failed to start map picking:", err);
+      handleRequestFailure("Failed to start map picking:", err, "No se pudo iniciar el map picking.");
     } finally {
       setActionLoading(false);
     }
   }
 
   async function handleStartBan() {
-    if (!token || !draftId) return;
+    if (!token) {
+      showActionError(SESSION_EXPIRED_MESSAGE);
+      return;
+    }
+    if (!draftId) {
+      showActionError("Draft no disponible todavia. Recarga la pagina e intenta otra vez.");
+      return;
+    }
     setActionLoading(true);
     try {
       const updated = await startBan(token, draftId);
       setDraftState(updated);
+      setActionError(null);
     } catch (err) {
-      console.error("Failed to start ban phase:", err);
+      handleRequestFailure("Failed to start ban phase:", err, "No se pudo iniciar la fase de bans.");
     } finally {
       setActionLoading(false);
     }
   }
 
   async function handleEndGame() {
-    if (!token || !draftId) return;
+    if (!token) {
+      showActionError(SESSION_EXPIRED_MESSAGE);
+      return;
+    }
+    if (!draftId) {
+      showActionError("Draft no disponible todavia. Recarga la pagina e intenta otra vez.");
+      return;
+    }
     setActionLoading(true);
     try {
       const updated = await endGame(token, draftId);
       setDraftState(updated);
+      setActionError(null);
     } catch (err) {
-      console.error("Failed to end game:", err);
+      handleRequestFailure("Failed to end game:", err, "No se pudo terminar el game.");
     } finally {
       setActionLoading(false);
     }
   }
 
   async function handlePickMap(mapId: number) {
-    if (!token || !isMyTurn || !draftId) return;
+    if (!token) {
+      showActionError(SESSION_EXPIRED_MESSAGE);
+      return;
+    }
+    if (!draftId) {
+      showActionError("Draft no disponible todavia. Recarga la pagina e intenta otra vez.");
+      return;
+    }
+    if (!isMyTurn) {
+      showActionError("No es tu turno de escoger mapa.");
+      await fetchDraftState();
+      return;
+    }
     setActionLoading(true);
     try {
       const updated = await pickMap(token, draftId, { mapId, teamId: myTeamId ?? undefined });
       setDraftState(updated);
+      setActionError(null);
     } catch (err) {
-      console.error("Failed to pick map:", err);
+      handleRequestFailure("Failed to pick map:", err, "No se pudo escoger el mapa.");
+      await fetchDraftState();
     } finally {
       setActionLoading(false);
     }
   }
 
   async function handleBanHero(heroId: number | null) {
-    if (!token || !isMyTurn || !draftId) return;
+    if (!token) {
+      showActionError(SESSION_EXPIRED_MESSAGE);
+      return;
+    }
+    if (!draftId) {
+      showActionError("Draft no disponible todavia. Recarga la pagina e intenta otra vez.");
+      return;
+    }
+    if (!isMyTurn) {
+      showActionError("No es tu turno de banear.");
+      await fetchDraftState();
+      return;
+    }
     setActionLoading(true);
     try {
       const updated = await banHero(token, draftId, { heroId, teamId: myTeamId ?? undefined });
       setDraftState(updated);
+      setActionError(null);
     } catch (err) {
-      console.error("Failed to ban hero:", err);
+      handleRequestFailure("Failed to ban hero:", err, "No se pudo registrar el ban.");
+      await fetchDraftState();
     } finally {
       setActionLoading(false);
     }
   }
 
   async function handleSubmitResult(winnerTeamId: number | null) {
-    if (!token || !draftState) return;
+    if (!token) {
+      showActionError(SESSION_EXPIRED_MESSAGE);
+      return;
+    }
+    if (!draftState) {
+      showActionError("Draft no disponible todavia. Recarga la pagina e intenta otra vez.");
+      return;
+    }
     setActionLoading(true);
     try {
       await submitMatchResult(token, matchId, winnerTeamId);
       fetchDraftState();
+      setActionError(null);
     } catch (err) {
-      console.error("Failed to submit result:", err);
+      handleRequestFailure("Failed to submit result:", err, "No se pudo registrar el resultado.");
     } finally {
       setActionLoading(false);
     }
   }
 
   async function handleUndoResult() {
-    if (!token || !draftState) return;
+    if (!token) {
+      showActionError(SESSION_EXPIRED_MESSAGE);
+      return;
+    }
+    if (!draftState) {
+      showActionError("Draft no disponible todavia. Recarga la pagina e intenta otra vez.");
+      return;
+    }
     setActionLoading(true);
     try {
       await undoMatchResult(token, matchId);
       fetchDraftState();
+      setActionError(null);
     } catch (err) {
-      console.error("Failed to undo result:", err);
+      handleRequestFailure("Failed to undo result:", err, "No se pudo deshacer el resultado.");
     } finally {
       setActionLoading(false);
     }
   }
 
   async function handleSetReady() {
-    if (!token || !isCaptain || !myTeamId) return;
+    if (!token) {
+      showActionError(SESSION_EXPIRED_MESSAGE);
+      return;
+    }
+    if (!isCaptain || !myTeamId) {
+      showActionError("Solo el captain del match puede ponerse ready.");
+      return;
+    }
     setActionLoading(true);
     try {
       const payload = myTeamId === teamA?.id 
@@ -345,8 +477,9 @@ export default function DraftTablePage() {
         : { teamBready: 1 as const };
       await updateCaptainMatch(token, matchId, payload);
       fetchDraftState();
+      setActionError(null);
     } catch (err) {
-      console.error("Failed to set ready:", err);
+      handleRequestFailure("Failed to set ready:", err, "No se pudo marcar ready.");
     } finally {
       setActionLoading(false);
     }
@@ -969,6 +1102,24 @@ export default function DraftTablePage() {
             isObsKeyAccess ? `mx-auto ${KEY_CONTENT_MAX_WIDTH} px-6` : "px-3 md:px-6"
           )}
         >
+          {actionError && !isObsKeyAccess && (
+            <div className="mb-4 rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger shadow-lg shadow-black/10">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="font-medium">{actionError}</p>
+                <div className="flex shrink-0 items-center gap-2">
+                  {!isAuthenticated && (
+                    <Button size="sm" variant="danger" onClick={() => router.push("/login")}>
+                      Login
+                    </Button>
+                  )}
+                  <Button size="sm" variant="ghost" onClick={() => setActionError(null)} className="text-danger hover:text-danger">
+                    Dismiss
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Phase Content */}
         {currentPhase === "STARTING" && (
           <StartingPhase
@@ -1098,13 +1249,18 @@ export default function DraftTablePage() {
       {(currentPhase === "MAPPICKING" || currentPhase === "BAN") && isCaptain && !isMatchPaused && (
         <button
           onClick={async () => {
-            if (!token || pauseActionPending) return;
+            if (pauseActionPending) return;
+            if (!token) {
+              showActionError(SESSION_EXPIRED_MESSAGE);
+              return;
+            }
             setPauseActionPending(true);
             try {
               await captainRequestPause(token, matchId);
               await fetchDraftState();
+              setActionError(null);
             } catch (err) {
-              console.error("Failed to request pause:", err);
+              handleRequestFailure("Failed to request pause:", err, "No se pudo pedir pausa.");
             } finally {
               setPauseActionPending(false);
             }
@@ -1131,13 +1287,18 @@ export default function DraftTablePage() {
       {(currentPhase === "MAPPICKING" || currentPhase === "BAN") && isManager && (
         <button
           onClick={async () => {
-            if (!token || pauseActionPending) return;
+            if (pauseActionPending) return;
+            if (!token) {
+              showActionError(SESSION_EXPIRED_MESSAGE);
+              return;
+            }
             setPauseActionPending(true);
             try {
               await managerTogglePause(token, matchId, !isMatchPaused);
               await fetchDraftState();
+              setActionError(null);
             } catch (err) {
-              console.error("Failed to toggle pause:", err);
+              handleRequestFailure("Failed to toggle pause:", err, "No se pudo cambiar la pausa.");
             } finally {
               setPauseActionPending(false);
             }
@@ -1187,13 +1348,17 @@ export default function DraftTablePage() {
                 className="flex-1"
                 disabled={pauseActionPending}
                 onClick={async () => {
-                  if (!token) return;
+                  if (!token) {
+                    showActionError(SESSION_EXPIRED_MESSAGE);
+                    return;
+                  }
                   setPauseActionPending(true);
                   try {
                     await managerTogglePause(token, matchId, true);
                     await fetchDraftState();
+                    setActionError(null);
                   } catch (err) {
-                    console.error("Failed to approve pause:", err);
+                    handleRequestFailure("Failed to approve pause:", err, "No se pudo aprobar la pausa.");
                   } finally {
                     setPauseActionPending(false);
                   }
@@ -1207,13 +1372,17 @@ export default function DraftTablePage() {
                 className="flex-1"
                 disabled={pauseActionPending}
                 onClick={async () => {
-                  if (!token) return;
+                  if (!token) {
+                    showActionError(SESSION_EXPIRED_MESSAGE);
+                    return;
+                  }
                   setPauseActionPending(true);
                   try {
                     await managerClearPauseRequest(token, matchId);
                     await fetchDraftState();
+                    setActionError(null);
                   } catch (err) {
-                    console.error("Failed to deny pause:", err);
+                    handleRequestFailure("Failed to deny pause:", err, "No se pudo rechazar la pausa.");
                   } finally {
                     setPauseActionPending(false);
                   }
@@ -1244,13 +1413,18 @@ export default function DraftTablePage() {
             {isManager && (
               <Button
                 onClick={async () => {
-                  if (!token || pauseActionPending) return;
+                  if (pauseActionPending) return;
+                  if (!token) {
+                    showActionError(SESSION_EXPIRED_MESSAGE);
+                    return;
+                  }
                   setPauseActionPending(true);
                   try {
                     await managerTogglePause(token, matchId, false);
                     await fetchDraftState();
+                    setActionError(null);
                   } catch (err) {
-                    console.error("Failed to resume:", err);
+                    handleRequestFailure("Failed to resume:", err, "No se pudo resumir el match.");
                   } finally {
                     setPauseActionPending(false);
                   }

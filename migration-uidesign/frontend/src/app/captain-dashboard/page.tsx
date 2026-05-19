@@ -12,15 +12,37 @@ import { Input } from "@/components/ui/Input";
 import { ImageUploadField } from "@/components/ui/ImageUploadField";
 import { Modal, ModalHeader, ModalTitle, ModalContent, ModalFooter } from "@/components/ui/Modal";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
-import { getMatches, getTeams, updateCaptainMatch, updateCaptainTeam, getDraftByMatchId, captainRequestPause, type Match, type Team, type DraftState } from "@/lib/api";
+import { ApiError, getMatches, getTeams, updateCaptainMatch, updateCaptainTeam, getDraftByMatchId, captainRequestPause, getMemberProfileById, type Match, type Team, type DraftState } from "@/lib/api";
 import { convertToISODateTime, formatForDateTimeInput, formatRelativeEST, formatTimeEST, isWithinNextHoursEST } from "@/lib/dateUtils";
 import { MapTimer } from "@/components/match/MapTimer";
 import { clsx } from "clsx";
 import { deleteReplacedBlobImage } from "@/lib/blobUpload";
 
 type TabValue = "upcoming" | "active" | "history";
+type ConnectionStatus = "idle" | "running" | "success" | "error";
+type ConnectionStepStatus = "idle" | "running" | "success" | "error";
 
 const POLL_INTERVAL = 5000;
+const SESSION_EXPIRED_MESSAGE = "Session expired or invalid. Sending you back to login...";
+
+const CONNECTION_STEPS = [
+  "Session present",
+  "Captain token",
+  "Match schedule",
+  "Team data",
+  "Draft access",
+];
+
+function isAuthFailure(error: unknown) {
+  if (!(error instanceof ApiError)) return false;
+  if (error.status === 401) return true;
+  return error.status === 403 && /login token|invalid token|no token|token malformed|unauthorized|own profile/i.test(error.message);
+}
+
+function errorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
+}
 
 const splitDateTime = (value: string) => {
   if (!value) return { date: "", time: "" };
@@ -35,7 +57,7 @@ const mergeDateTime = (date: string, time: string) => {
 
 export default function CaptainDashboardPage() {
   const router = useRouter();
-  const { user, token, isAuthenticated, isHydrated } = useSession();
+  const { user, token, isAuthenticated, isHydrated, clearSession } = useSession();
   const [activeTab, setActiveTab] = useState<TabValue>("upcoming");
   const [matches, setMatches] = useState<Match[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -49,8 +71,14 @@ export default function CaptainDashboardPage() {
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
   const [teamFormData, setTeamFormData] = useState({ name: "", logo: "", roster: "" });
   const [teamNotification, setTeamNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("idle");
+  const [connectionMessage, setConnectionMessage] = useState("Ready to test Goonginga services.");
+  const [connectionSteps, setConnectionSteps] = useState<ConnectionStepStatus[]>(
+    () => CONNECTION_STEPS.map(() => "idle")
+  );
 
   const pollRef = useRef<NodeJS.Timeout | null>(null);
+  const loginRedirectRef = useRef<NodeJS.Timeout | null>(null);
   const prevMatchesRef = useRef<Match[]>([]);
   const prevDraftsRef = useRef<Record<number, DraftState | null>>({});
 
@@ -78,6 +106,12 @@ export default function CaptainDashboardPage() {
     pollRef.current = setInterval(() => loadData(true), POLL_INTERVAL);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [isAuthenticated, user]);
+
+  useEffect(() => {
+    return () => {
+      if (loginRedirectRef.current) clearTimeout(loginRedirectRef.current);
+    };
+  }, []);
 
   const sendNotification = useCallback((title: string, body: string) => {
     if (notificationPermission === "granted" && typeof window !== "undefined" && "Notification" in window) {
@@ -152,6 +186,108 @@ export default function CaptainDashboardPage() {
       console.error("Failed to load data:", err);
     } finally {
       if (!silent) setLoading(false);
+    }
+  }
+
+  const resetConnectionSteps = () => {
+    setConnectionSteps(CONNECTION_STEPS.map(() => "idle"));
+  };
+
+  const setConnectionStep = (index: number, status: ConnectionStepStatus) => {
+    setConnectionSteps((current) => current.map((value, stepIndex) => (stepIndex === index ? status : value)));
+  };
+
+  const failConnectionStep = (index: number, message: string) => {
+    setConnectionStep(index, "error");
+    setConnectionStatus("error");
+    setConnectionMessage(message);
+  };
+
+  const expireSessionAndRedirect = () => {
+    clearSession();
+    setConnectionStatus("error");
+    setConnectionMessage(SESSION_EXPIRED_MESSAGE);
+    if (loginRedirectRef.current) clearTimeout(loginRedirectRef.current);
+    loginRedirectRef.current = setTimeout(() => {
+      router.replace("/login");
+    }, 900);
+  };
+
+  async function handleTestConnection() {
+    if (connectionStatus === "running") return;
+
+    setConnectionStatus("running");
+    setConnectionMessage("Testing Goonginga connection...");
+    resetConnectionSteps();
+    let activeStep = 0;
+
+    try {
+      activeStep = 0;
+      setConnectionStep(0, "running");
+      if (!token || !user?.id || user.role !== "CAPTAIN") {
+        failConnectionStep(0, SESSION_EXPIRED_MESSAGE);
+        expireSessionAndRedirect();
+        return;
+      }
+      setConnectionStep(0, "success");
+
+      activeStep = 1;
+      setConnectionStep(1, "running");
+      const profile = await getMemberProfileById(user.id, token);
+      if (profile.role !== "CAPTAIN" || profile.teamId !== user.teamId) {
+        failConnectionStep(1, SESSION_EXPIRED_MESSAGE);
+        expireSessionAndRedirect();
+        return;
+      }
+      setConnectionStep(1, "success");
+
+      activeStep = 2;
+      setConnectionStep(2, "running");
+      const matchesData = await getMatches();
+      const myMatchesData = matchesData.filter((m) => m.teamAId === user.teamId || m.teamBId === user.teamId);
+      setConnectionStep(2, "success");
+
+      activeStep = 3;
+      setConnectionStep(3, "running");
+      const teamsData = await getTeams();
+      const myTeamData = teamsData.find((t) => t.id === user.teamId);
+      if (!myTeamData) {
+        throw new Error("Your captain account is not linked to a valid team.");
+      }
+      setConnectionStep(3, "success");
+
+      activeStep = 4;
+      setConnectionStep(4, "running");
+      const activeMyMatches = myMatchesData.filter((m) => m.status === "ACTIVE");
+      await Promise.all(
+        activeMyMatches.slice(0, 3).map(async (match) => {
+          try {
+            await getDraftByMatchId(match.id, { token });
+          } catch (err) {
+            if (err instanceof ApiError && err.status === 404) return;
+            throw err;
+          }
+        })
+      );
+      setConnectionStep(4, "success");
+
+      setConnectionStatus("success");
+      setConnectionMessage(
+        activeMyMatches.length
+          ? `All good. Session, schedule, team, and ${Math.min(activeMyMatches.length, 3)} active draft check(s) passed.`
+          : "All good. Session, schedule, and team checks passed. No active draft to test right now."
+      );
+      setMatches(matchesData);
+      setTeams(teamsData);
+    } catch (err) {
+      console.error("Goonginga connection test failed:", err);
+      if (isAuthFailure(err)) {
+        failConnectionStep(activeStep, SESSION_EXPIRED_MESSAGE);
+        expireSessionAndRedirect();
+        return;
+      }
+
+      failConnectionStep(activeStep, errorMessage(err, "Goonginga connection test failed."));
     }
   }
 
@@ -347,6 +483,95 @@ export default function CaptainDashboardPage() {
             </div>
           </div>
         )}
+
+        <Card variant="featured" className="mb-6">
+          <CardContent className="p-4">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-center gap-4">
+                <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-primary/30 bg-primary/10">
+                  {connectionStatus === "running" && (
+                    <span className="absolute inset-0 rounded-lg border border-primary/50 animate-ping" />
+                  )}
+                  <div
+                    className={clsx(
+                      "h-7 w-7 rounded-md border-2",
+                      connectionStatus === "success"
+                        ? "border-success bg-success/20"
+                        : connectionStatus === "error"
+                        ? "border-danger bg-danger/20"
+                        : "border-primary bg-primary/20",
+                      connectionStatus === "running" && "animate-spin border-t-transparent"
+                    )}
+                  />
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-base font-bold text-foreground">GOONGINGA Connection Check</h2>
+                    <Badge
+                      variant={
+                        connectionStatus === "success"
+                          ? "success"
+                          : connectionStatus === "error"
+                          ? "danger"
+                          : connectionStatus === "running"
+                          ? "primary"
+                          : "outline"
+                      }
+                    >
+                      {connectionStatus === "running"
+                        ? "Testing"
+                        : connectionStatus === "success"
+                        ? "Healthy"
+                        : connectionStatus === "error"
+                        ? "Needs login/check"
+                        : "Standby"}
+                    </Badge>
+                  </div>
+                  <p className="mt-1 text-sm text-muted">{connectionMessage}</p>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 lg:items-end">
+                <Button
+                  onClick={handleTestConnection}
+                  disabled={connectionStatus === "running"}
+                  isLoading={connectionStatus === "running"}
+                  className="w-full lg:w-auto"
+                >
+                  TEST CONNECTION WITH GOONGINGA
+                </Button>
+                <div className="flex flex-wrap justify-start gap-2 lg:justify-end">
+                  {CONNECTION_STEPS.map((label, index) => {
+                    const status = connectionSteps[index];
+                    return (
+                      <div
+                        key={label}
+                        className={clsx(
+                          "flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide",
+                          status === "success" && "border-success/30 bg-success/10 text-success",
+                          status === "error" && "border-danger/30 bg-danger/10 text-danger",
+                          status === "running" && "border-primary/40 bg-primary/10 text-primary",
+                          status === "idle" && "border-border bg-surface-elevated text-muted"
+                        )}
+                      >
+                        <span
+                          className={clsx(
+                            "h-2 w-2 rounded-full",
+                            status === "success" && "bg-success",
+                            status === "error" && "bg-danger",
+                            status === "running" && "bg-primary animate-pulse",
+                            status === "idle" && "bg-muted/60"
+                          )}
+                        />
+                        {label}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)}>
           <TabsList className="mb-6">

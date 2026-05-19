@@ -1,6 +1,9 @@
 import type { SessionState } from "@/features/session/types";
 
 const STORAGE_KEY = "goon.live.session";
+const EMPTY_SESSION: SessionState = { token: null, user: null, isAuthenticated: false };
+
+let memorySession: Pick<SessionState, "token" | "user"> | null = null;
 
 function isClient() {
   return typeof window !== "undefined";
@@ -8,13 +11,17 @@ function isClient() {
 
 export function readSessionFromStorage(): SessionState {
   if (!isClient()) {
-    return { token: null, user: null, isAuthenticated: false };
+    return EMPTY_SESSION;
   }
 
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) {
-      return { token: null, user: null, isAuthenticated: false };
+      if (!memorySession) return EMPTY_SESSION;
+      return {
+        ...memorySession,
+        isAuthenticated: Boolean(memorySession.token && memorySession.user),
+      };
     }
 
     const parsed = JSON.parse(raw) as { token?: string | null; user?: SessionState["user"] };
@@ -27,23 +34,42 @@ export function readSessionFromStorage(): SessionState {
       isAuthenticated: Boolean(token && user),
     };
   } catch {
-    return { token: null, user: null, isAuthenticated: false };
+    if (!memorySession) return EMPTY_SESSION;
+    return {
+      ...memorySession,
+      isAuthenticated: Boolean(memorySession.token && memorySession.user),
+    };
   }
 }
 
 export function writeSessionToStorage(state: Pick<SessionState, "token" | "user">) {
   if (!isClient()) return;
 
-  window.localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify({
-      token: state.token,
-      user: state.user,
-    })
-  );
+  memorySession = {
+    token: state.token,
+    user: state.user,
+  };
+
+  try {
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        token: state.token,
+        user: state.user,
+      })
+    );
+  } catch {
+    // Some privacy modes/extensions can block localStorage. Keep the session
+    // alive in memory for the current tab so authenticated actions still work.
+  }
 }
 
 export function clearSessionInStorage() {
   if (!isClient()) return;
-  window.localStorage.removeItem(STORAGE_KEY);
+  memorySession = null;
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Storage may be blocked; clearing the memory fallback is enough.
+  }
 }
