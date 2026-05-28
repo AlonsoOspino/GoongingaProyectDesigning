@@ -10,6 +10,9 @@ const toEpochMs = (value) => {
   return Number.isNaN(parsed) ? null : parsed;
 };
 
+const discordNotificationQueues = new Map();
+const lastNotifiedStartMsByMatch = new Map();
+
 const shouldNotifyScheduleChange = ({ requestBody, previousMatch, updatedMatch }) => {
   if (!hasOwn(requestBody, "startDate")) return false;
   if (!updatedMatch?.startDate) return false;
@@ -21,6 +24,22 @@ const shouldNotifyScheduleChange = ({ requestBody, previousMatch, updatedMatch }
   if (!updatedMatch.discordMessageId) return true;
 
   return previousMs !== updatedMs;
+};
+
+const enqueueDiscordScheduleChange = (job) => {
+  const previous = discordNotificationQueues.get(job.matchId) || Promise.resolve();
+  const current = previous
+    .catch(() => {})
+    .then(() => notifyDiscordScheduleChange(job));
+
+  discordNotificationQueues.set(job.matchId, current);
+  current.finally(() => {
+    if (discordNotificationQueues.get(job.matchId) === current) {
+      discordNotificationQueues.delete(job.matchId);
+    }
+  });
+
+  return current;
 };
 
 const notifyDiscordScheduleChange = async ({
@@ -49,24 +68,36 @@ const notifyDiscordScheduleChange = async ({
       return;
     }
 
+    const requestedStartMs = toEpochMs(updatedMatch.startDate);
+    const currentStartMs = toEpochMs(currentMatch.startDate);
+    if (requestedStartMs === null || currentStartMs === null || requestedStartMs !== currentStartMs) {
+      console.log(`[notifyDiscordScheduleChange] Skipping notification for match ${matchId} (${contextLabel}) - schedule changed again`);
+      return;
+    }
+
+    if (lastNotifiedStartMsByMatch.get(matchId) === currentStartMs) {
+      console.log(`[notifyDiscordScheduleChange] Skipping notification for match ${matchId} (${contextLabel}) - already notified for this startDate`);
+      return;
+    }
+
     const teams = await prisma.team.findMany({
-      where: { id: { in: [updatedMatch.teamAId, updatedMatch.teamBId] } },
+      where: { id: { in: [currentMatch.teamAId, currentMatch.teamBId] } },
       select: { id: true, name: true, logo: true, discordRoleId: true },
     });
 
-    const teamA = teams.find((t) => t.id === updatedMatch.teamAId);
-    const teamB = teams.find((t) => t.id === updatedMatch.teamBId);
+    const teamA = teams.find((t) => t.id === currentMatch.teamAId);
+    const teamB = teams.find((t) => t.id === currentMatch.teamBId);
 
     const payload = {
       teamAName: teamA?.name || "Team A",
       teamBName: teamB?.name || "Team B",
       teamALogo: teamA?.logo || null,
       teamBLogo: teamB?.logo || null,
-      teamAId: updatedMatch.teamAId,
-      teamBId: updatedMatch.teamBId,
+      teamAId: currentMatch.teamAId,
+      teamBId: currentMatch.teamBId,
       teamADiscordRoleId: teamA?.discordRoleId || undefined,
       teamBDiscordRoleId: teamB?.discordRoleId || undefined,
-      startDate: updatedMatch.startDate,
+      startDate: currentMatch.startDate,
     };
 
     // Use current match from DB to check for existing message
@@ -78,6 +109,7 @@ const notifyDiscordScheduleChange = async ({
           messageId: currentMatch.discordMessageId,
           ...payload,
         });
+        lastNotifiedStartMsByMatch.set(matchId, currentStartMs);
         console.log(`[notifyDiscordScheduleChange] Successfully edited Discord message for match ${matchId}`);
         return;
       } catch (editErr) {
@@ -99,6 +131,7 @@ const notifyDiscordScheduleChange = async ({
     if (messageId) {
       console.log(`[notifyDiscordScheduleChange] Received messageId ${messageId}, saving to database for match ${matchId}`);
       await matchService.update(Number(matchId), { discordMessageId: messageId });
+      lastNotifiedStartMsByMatch.set(matchId, currentStartMs);
       console.log(`[notifyDiscordScheduleChange] Successfully saved messageId for match ${matchId}`);
     } else {
       console.warn(`[notifyDiscordScheduleChange] sendDiscordMatchScheduled returned no messageId for match ${matchId}`);
@@ -159,7 +192,7 @@ const adminUpdate = async (req, res) => {
     const match = await matchService.update(matchId, req.body);
     
     // Discord notification is async and shouldn't block the response
-    notifyDiscordScheduleChange({
+    enqueueDiscordScheduleChange({
       matchId,
       previousMatch,
       updatedMatch: match,
@@ -221,7 +254,7 @@ const captainUpdate = async (req, res) => {
     console.log(`[captainUpdate] Match ${id} updated successfully. New startDate: ${updatedMatch.startDate}`);
     
     // Discord notification is async and shouldn't block the response
-    notifyDiscordScheduleChange({
+    enqueueDiscordScheduleChange({
       matchId: Number(id),
       previousMatch: match,
       updatedMatch,
@@ -260,7 +293,7 @@ const managerUpdate = async (req, res) => {
     const match = await matchService.update(matchId, updateData);
     
     // Discord notification is async and shouldn't block the response
-    notifyDiscordScheduleChange({
+    enqueueDiscordScheduleChange({
       matchId,
       previousMatch,
       updatedMatch: match,

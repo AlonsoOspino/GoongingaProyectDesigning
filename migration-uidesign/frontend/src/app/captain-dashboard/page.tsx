@@ -67,6 +67,7 @@ export default function CaptainDashboardPage() {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [newDate, setNewDate] = useState("");
   const [updatingReady, setUpdatingReady] = useState<number | null>(null);
+  const [reschedulingMatchId, setReschedulingMatchId] = useState<number | null>(null);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
   const [teamFormData, setTeamFormData] = useState({ name: "", logo: "", roster: "" });
@@ -315,8 +316,27 @@ export default function CaptainDashboardPage() {
     .filter((m) => m.startDate)
     .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())[0] || null;
 
+  function showTeamNotification(type: "success" | "error", message: string) {
+    setTeamNotification({ type, message });
+    setTimeout(() => setTeamNotification(null), 3000);
+  }
+
+  function handleCaptainActionError(error: unknown, fallback: string) {
+    if (isAuthFailure(error)) {
+      showTeamNotification("error", SESSION_EXPIRED_MESSAGE);
+      expireSessionAndRedirect();
+      return;
+    }
+
+    showTeamNotification("error", errorMessage(error, fallback));
+  }
+
   async function handleToggleReady(match: Match) {
-    if (!token) return;
+    if (!token) {
+      showTeamNotification("error", SESSION_EXPIRED_MESSAGE);
+      expireSessionAndRedirect();
+      return;
+    }
     setUpdatingReady(match.id);
     try {
       const currentReady = getMyReadyStatus(match);
@@ -326,13 +346,22 @@ export default function CaptainDashboardPage() {
       loadData();
     } catch (err) {
       console.error("Failed to update ready status:", err);
+      handleCaptainActionError(err, "Failed to update ready status.");
     } finally {
       setUpdatingReady(null);
     }
   }
 
   async function handleReschedule() {
-    if (!token || !selectedMatch || !newDate) return;
+    if (reschedulingMatchId !== null) return;
+    if (!token) {
+      showTeamNotification("error", SESSION_EXPIRED_MESSAGE);
+      expireSessionAndRedirect();
+      return;
+    }
+    if (!selectedMatch || !newDate) return;
+
+    setReschedulingMatchId(selectedMatch.id);
     try {
       await updateCaptainMatch(token, selectedMatch.id, { startDate: convertToISODateTime(newDate) });
       setShowRescheduleModal(false);
@@ -341,13 +370,11 @@ export default function CaptainDashboardPage() {
       loadData();
     } catch (err) {
       console.error("Failed to reschedule match:", err);
+      handleCaptainActionError(err, "Failed to update schedule.");
+    } finally {
+      setReschedulingMatchId(null);
     }
   }
-
-  const showTeamNotification = (type: "success" | "error", message: string) => {
-    setTeamNotification({ type, message });
-    setTimeout(() => setTeamNotification(null), 3000);
-  };
 
   async function handleUpdateTeam() {
     if (!token || !myTeam) return;
@@ -763,7 +790,9 @@ export default function CaptainDashboardPage() {
         </Tabs>
 
         {/* Reschedule Modal */}
-        <Modal isOpen={showRescheduleModal} onClose={() => setShowRescheduleModal(false)}>
+        <Modal isOpen={showRescheduleModal} onClose={() => {
+          if (reschedulingMatchId === null) setShowRescheduleModal(false);
+        }}>
           <ModalHeader><ModalTitle>Reschedule Match</ModalTitle></ModalHeader>
           <ModalContent>
             <div className="grid grid-cols-2 gap-4">
@@ -772,18 +801,20 @@ export default function CaptainDashboardPage() {
                 type="date"
                 value={newDateValue}
                 onChange={(e) => setNewDate(mergeDateTime(e.target.value, newTimeValue))}
+                disabled={reschedulingMatchId !== null}
               />
               <Input
                 label="New Time"
                 type="time"
                 value={newTimeValue}
                 onChange={(e) => setNewDate(mergeDateTime(newDateValue, e.target.value))}
+                disabled={reschedulingMatchId !== null}
               />
             </div>
           </ModalContent>
           <ModalFooter>
-            <Button variant="ghost" onClick={() => setShowRescheduleModal(false)}>Cancel</Button>
-            <Button onClick={handleReschedule}>Update Schedule</Button>
+            <Button variant="ghost" onClick={() => setShowRescheduleModal(false)} disabled={reschedulingMatchId !== null}>Cancel</Button>
+            <Button onClick={handleReschedule} disabled={!newDate} isLoading={reschedulingMatchId !== null}>Update Schedule</Button>
           </ModalFooter>
         </Modal>
 

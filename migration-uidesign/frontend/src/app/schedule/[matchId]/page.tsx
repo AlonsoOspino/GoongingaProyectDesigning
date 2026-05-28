@@ -80,7 +80,8 @@ export default async function MatchPage({ params }: MatchPageProps) {
 
   const { match, teamA, teamB } = data;
   const status = statusVariants[match.status];
-  const matchDate = new Date(match.startDate);
+  const matchDate = match.startDate ? new Date(match.startDate) : null;
+  const hasValidMatchDate = Boolean(matchDate && !Number.isNaN(matchDate.getTime()));
   const isLive = match.status === "ACTIVE";
   const isFinished = match.status === "FINISHED";
 
@@ -193,21 +194,25 @@ export default async function MatchPage({ params }: MatchPageProps) {
             <div className="text-center">
               <p className="text-muted">Date</p>
               <p className="font-medium text-foreground">
-                {matchDate.toLocaleDateString("en-US", {
-                  weekday: "long",
-                  month: "long",
-                  day: "numeric",
-                  year: "numeric",
-                })}
+                {hasValidMatchDate
+                  ? matchDate!.toLocaleDateString("en-US", {
+                      weekday: "long",
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })
+                  : "TBD"}
               </p>
             </div>
             <div className="text-center">
               <p className="text-muted">Time</p>
               <p className="font-medium text-foreground">
-                {matchDate.toLocaleTimeString("en-US", {
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}
+                {hasValidMatchDate
+                  ? matchDate!.toLocaleTimeString("en-US", {
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })
+                  : "TBD"}
               </p>
             </div>
             <div className="text-center">

@@ -6,6 +6,8 @@ let API_BASE =
   process.env.API_BASE_URL ||
   "http://localhost:3000";
 
+const DEFAULT_TIMEOUT_MS = 20000;
+
 export function setApiBase(url: string) {
   if (!url) return;
   API_BASE = url.replace(/\/$/, "");
@@ -29,6 +31,7 @@ export interface RequestOptions {
   body?: unknown;
   formData?: FormData;
   cache?: RequestCache;
+  timeoutMs?: number;
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -43,12 +46,26 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(`${API_BASE}${path}`, {
-    method: options.method ?? "GET",
-    headers,
-    body: options.formData ?? (options.body !== undefined ? JSON.stringify(options.body) : undefined),
-    cache: options.cache,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      method: options.method ?? "GET",
+      headers,
+      body: options.formData ?? (options.body !== undefined ? JSON.stringify(options.body) : undefined),
+      cache: options.cache,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new ApiError("Request timed out. Please try again.", 408, null);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   // Piggy-back on the standard HTTP `Date` response header to keep the
   // client↔server clock offset in sync. See src/lib/serverTime.ts.
