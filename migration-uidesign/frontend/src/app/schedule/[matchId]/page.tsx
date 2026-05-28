@@ -196,6 +196,7 @@ export default async function MatchPage({ params }: MatchPageProps) {
               <p className="font-medium text-foreground">
                 {hasValidMatchDate
                   ? matchDate!.toLocaleDateString("en-US", {
+                      timeZone: "America/New_York",
                       weekday: "long",
                       month: "long",
                       day: "numeric",
@@ -209,9 +210,10 @@ export default async function MatchPage({ params }: MatchPageProps) {
               <p className="font-medium text-foreground">
                 {hasValidMatchDate
                   ? matchDate!.toLocaleTimeString("en-US", {
+                      timeZone: "America/New_York",
                       hour: "numeric",
                       minute: "2-digit",
-                    })
+                    }) + " EST"
                   : "TBD"}
               </p>
             </div>
