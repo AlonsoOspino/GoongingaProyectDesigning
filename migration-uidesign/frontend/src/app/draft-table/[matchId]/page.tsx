@@ -10,6 +10,7 @@ import {
   ApiError,
   getDraftByMatchId,
   getDraftState,
+  getDraftShareInfo,
   startMapPicking,
   pickMap,
   startBan,
@@ -96,6 +97,10 @@ export default function DraftTablePage() {
   const [activeOverlay, setActiveOverlay] = useState<DraftOverlay | null>(null);
   const [overlayCountdown, setOverlayCountdown] = useState<number | null>(null);
   const [keyFitScale, setKeyFitScale] = useState(1);
+  const [shareOverlayOpen, setShareOverlayOpen] = useState(false);
+  const [shareInfo, setShareInfo] = useState<{ matchId: number; key: string; url: string } | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [shareCopied, setShareCopied] = useState<string | null>(null);
 
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -482,6 +487,41 @@ export default function DraftTablePage() {
       handleRequestFailure("Failed to set ready:", err, "No se pudo marcar ready.");
     } finally {
       setActionLoading(false);
+    }
+  }
+
+  async function handleOpenShareOverlay() {
+    if (!token) {
+      showActionError(SESSION_EXPIRED_MESSAGE);
+      return;
+    }
+
+    setShareOverlayOpen(true);
+    setShareCopied(null);
+    if (shareInfo) return;
+
+    setShareLoading(true);
+    try {
+      const info = await getDraftShareInfo(token, matchId);
+      const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+      setShareInfo({
+        ...info,
+        url: `${baseUrl}/draft-table/${info.matchId}?key=${encodeURIComponent(info.key)}`,
+      });
+    } catch (err) {
+      handleRequestFailure("Failed to load draft share info:", err, "No se pudo generar el acceso para compartir.");
+      setShareOverlayOpen(false);
+    } finally {
+      setShareLoading(false);
+    }
+  }
+
+  async function handleCopyShareText(value: string, label: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setShareCopied(label);
+    } catch (_err) {
+      setShareCopied("Could not copy");
     }
   }
 
@@ -1234,6 +1274,68 @@ export default function DraftTablePage() {
             getHeroById={getHeroById}
             isObsKeyAccess={isObsKeyAccess}
           />
+        </div>
+      )}
+
+      {isCaptain && !isObsKeyAccess && (
+        <div className={clsx(floatingPositionClass, "right-6 bottom-6 z-40")}>
+          <Button size="sm" variant="secondary" onClick={handleOpenShareOverlay} disabled={shareLoading}>
+            {shareLoading ? "Loading..." : "Share draft"}
+          </Button>
+        </div>
+      )}
+
+      {shareOverlayOpen && !isObsKeyAccess && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
+          <div className="w-[min(92vw,430px)] aspect-square rounded-lg border border-border bg-surface p-5 shadow-2xl shadow-black/50">
+            <div className="flex h-full flex-col">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.24em] text-muted">Read-only draft</p>
+                  <h2 className="mt-1 text-2xl font-black text-foreground">Share match #{matchId}</h2>
+                </div>
+                <Button size="sm" variant="ghost" onClick={() => setShareOverlayOpen(false)} aria-label="Close share draft">
+                  X
+                </Button>
+              </div>
+
+              <div className="mt-5 space-y-4">
+                <div className="rounded-md border border-border bg-background/70 p-3">
+                  <p className="text-[11px] uppercase tracking-widest text-muted">Manager key</p>
+                  <p className="mt-2 break-all font-mono text-sm text-foreground">
+                    {shareInfo?.key || "Loading..."}
+                  </p>
+                </div>
+                <div className="rounded-md border border-border bg-background/70 p-3">
+                  <p className="text-[11px] uppercase tracking-widest text-muted">Viewer link</p>
+                  <p className="mt-2 break-all font-mono text-xs text-foreground">
+                    {shareInfo?.url || "Loading..."}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-auto grid grid-cols-2 gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!shareInfo}
+                  onClick={() => shareInfo && handleCopyShareText(shareInfo.key, "Key copied")}
+                >
+                  Copy key
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={!shareInfo}
+                  onClick={() => shareInfo && handleCopyShareText(shareInfo.url, "Link copied")}
+                >
+                  Copy link
+                </Button>
+              </div>
+              {shareCopied && (
+                <p className="mt-3 text-center text-xs font-semibold text-success">{shareCopied}</p>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

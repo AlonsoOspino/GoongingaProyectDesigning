@@ -844,6 +844,41 @@ const getDraftByMatchId = async (matchId, req) => {
   return getDraftState(draft.id);
 };
 
+const getDraftShareInfo = async (matchId, user) => {
+  const parsedMatchId = assertPositiveInt(matchId, "matchId");
+  if (!user) {
+    throw new Error("Unauthorized.");
+  }
+
+  const draft = await prisma.draftTable.findUnique({
+    where: { matchId: parsedMatchId },
+    include: { match: true },
+  });
+
+  if (!draft) {
+    throw new Error("Draft not found for this match.");
+  }
+
+  const isManager = user.role === "MANAGER" || user.role === "ADMIN";
+  const isMatchCaptain =
+    user.role === "CAPTAIN" &&
+    (Number(user.teamId) === draft.match.teamAId || Number(user.teamId) === draft.match.teamBId);
+
+  if (!isManager && !isMatchCaptain) {
+    throw new Error("Forbidden: only match captains or managers can share this draft.");
+  }
+
+  const key = process.env.DRAFT_TABLE_MANAGER_KEY;
+  if (!key) {
+    throw new Error("DRAFT_TABLE_MANAGER_KEY is not configured.");
+  }
+
+  return {
+    matchId: parsedMatchId,
+    key,
+  };
+};
+
 module.exports = {
   mapOrder,
   createDraft,
@@ -856,6 +891,7 @@ module.exports = {
   getDraftState,
   getDraftStateReadOnly,
   getDraftByMatchId,
+  getDraftShareInfo,
 };
 
 // Background worker: periodically scan active drafts and apply timeouts server-side.

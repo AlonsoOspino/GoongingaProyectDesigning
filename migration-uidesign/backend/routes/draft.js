@@ -58,6 +58,11 @@ router.patch(
 	authMiddleware,
 	handle((req) => draftController.endGame(req.params.id, req.user))
 );
+router.get(
+	"/by-match/:matchId/share",
+	authMiddleware,
+	handle((req) => draftController.getDraftShareInfo(req.params.matchId, req.user))
+);
 		// Polling clients should use the read-only state to avoid accidental writes
 			router.get("/:id/state", optionalAuth, handle((req) => draftController.getDraftStateReadOnly(req.params.id, req)));
 	router.get(

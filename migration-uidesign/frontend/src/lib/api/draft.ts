@@ -1,5 +1,5 @@
 import { apiRequest } from "@/lib/api/client";
-import type { DraftState } from "@/lib/api/types";
+import type { DraftShareInfo, DraftState } from "@/lib/api/types";
 
 type DraftReadAccess =
   | string
@@ -83,4 +83,10 @@ export async function getDraftByMatchId(matchId: number, access?: DraftReadAcces
   const { key, token } = resolveDraftReadAccess(access);
   const suffix = key ? `?key=${encodeURIComponent(key)}` : "";
   return apiRequest<DraftState>(`/draft/by-match/${matchId}${suffix}`, { token });
+}
+
+export async function getDraftShareInfo(token: string, matchId: number) {
+  return apiRequest<DraftShareInfo>(`/draft/by-match/${matchId}/share`, {
+    token,
+  });
 }

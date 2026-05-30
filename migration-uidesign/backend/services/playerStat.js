@@ -1976,30 +1976,34 @@ const statMagnitude = (row) =>
 
 const inferRolesFromStats = (rows) => {
   const nextRows = rows.map((row) => ({ ...row, role: "DPS" }));
-  const statRows = nextRows
-    .map((row, index) => ({ row, index }))
-    .filter(({ row }) => row.userId && statMagnitude(row) > 0);
 
-  const tankIndexes = new Set(
-    [...statRows]
-      .sort((a, b) => Number(b.row.mitigation || 0) - Number(a.row.mitigation || 0))
+  const inferTeamRoles = (startIndex) => {
+    const teamRows = nextRows
+      .slice(startIndex, startIndex + 5)
+      .map((row, offset) => ({ row, index: startIndex + offset }));
+
+    if (!teamRows.length) return;
+
+    const tankIndex = [...teamRows]
+      .sort((a, b) => Number(b.row.mitigation || 0) - Number(a.row.mitigation || 0))[0]?.index;
+
+    if (Number.isInteger(tankIndex)) {
+      nextRows[tankIndex].role = "TANK";
+    }
+
+    const supportIndexes = [...teamRows]
+      .filter(({ index }) => index !== tankIndex)
+      .sort((a, b) => Number(b.row.healing || 0) - Number(a.row.healing || 0))
       .slice(0, 2)
-      .map(({ index }) => index)
-  );
+      .map(({ index }) => index);
 
-  for (const index of tankIndexes) {
-    nextRows[index].role = "TANK";
-  }
+    for (const index of supportIndexes) {
+      nextRows[index].role = "SUPPORT";
+    }
+  };
 
-  const supportIndexes = [...statRows]
-    .filter(({ index }) => !tankIndexes.has(index))
-    .sort((a, b) => Number(b.row.healing || 0) - Number(a.row.healing || 0))
-    .slice(0, 4)
-    .map(({ index }) => index);
-
-  for (const index of supportIndexes) {
-    nextRows[index].role = "SUPPORT";
-  }
+  inferTeamRoles(0);
+  inferTeamRoles(5);
 
   return nextRows;
 };

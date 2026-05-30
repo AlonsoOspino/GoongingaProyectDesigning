@@ -167,6 +167,11 @@ export interface DraftState {
   match: Match;
 }
 
+export interface DraftShareInfo {
+  matchId: number;
+  key: string;
+}
+
 export interface GameMap {
   id: number;
   type: MapType;
