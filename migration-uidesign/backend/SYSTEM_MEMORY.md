@@ -57,7 +57,7 @@ Scope: migration-uidesign/backend
 
 ### Team
 - create requires unique name and tournamentId.
-- leaderboard sort: victories desc, mapWins desc, mapLoses asc, id asc.
+- leaderboard sort: victories desc, map differential desc, id asc.
 - captain update only allows name/logo/roster.
 
 ### Match
