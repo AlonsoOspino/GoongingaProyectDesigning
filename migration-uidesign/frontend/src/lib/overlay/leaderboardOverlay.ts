@@ -11,6 +11,7 @@ export const OVERLAY_FONT_OPTIONS = [
 
 export const DEFAULT_LEADERBOARD_OVERLAY_SETTINGS: LeaderboardOverlaySettings = {
   weekNumber: 1,
+  teamAbbreviations: {},
   title: {
     color: "#FFFFFF",
     fontFamily: "var(--font-overlay-display), sans-serif",
@@ -76,6 +77,27 @@ const safeFont = (value: unknown, fallback: string) => {
   return trimmed;
 };
 
+const safeAbbreviation = (value: unknown) => {
+  if (typeof value !== "string") return "";
+  return value
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .slice(0, 8)
+    .toUpperCase();
+};
+
+const safeTeamAbbreviations = (value: unknown) => {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return {};
+
+  return Object.entries(value as Record<string, unknown>).reduce<Record<string, string>>((acc, [teamId, abbreviation]) => {
+    const numericTeamId = Number(teamId);
+    const safeValue = safeAbbreviation(abbreviation);
+    if (Number.isInteger(numericTeamId) && numericTeamId > 0 && safeValue) {
+      acc[String(numericTeamId)] = safeValue;
+    }
+    return acc;
+  }, {});
+};
+
 export function normalizeLeaderboardOverlaySettings(value: unknown): LeaderboardOverlaySettings {
   const source = typeof value === "object" && value !== null ? (value as Partial<LeaderboardOverlaySettings>) : {};
 
@@ -85,6 +107,7 @@ export function normalizeLeaderboardOverlaySettings(value: unknown): Leaderboard
 
   return {
     weekNumber: safeNumber(source.weekNumber, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.weekNumber, 1, 99),
+    teamAbbreviations: safeTeamAbbreviations(source.teamAbbreviations),
     title: {
       color: safeColor(title.color, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.title.color),
       fontFamily: safeFont(title.fontFamily, DEFAULT_LEADERBOARD_OVERLAY_SETTINGS.title.fontFamily),
@@ -138,4 +161,12 @@ export function teamAbbreviation(name: string) {
   if (!lettersOnly) return "XXX";
 
   return lettersOnly.slice(0, 3).padEnd(3, "X").toUpperCase();
+}
+
+export function resolveTeamAbbreviation(
+  team: { id: number; name: string } | null | undefined,
+  overrides?: Record<string, string>
+) {
+  if (!team) return "XXX";
+  return overrides?.[String(team.id)] || teamAbbreviation(team.name);
 }

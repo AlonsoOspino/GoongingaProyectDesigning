@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import type { LeaderboardOverlaySettings, Match, Team } from "@/lib/api/types";
 import { resolveGenericBackendAsset } from "@/lib/assetUrls";
-import { teamAbbreviation } from "@/lib/overlay/leaderboardOverlay";
+import { resolveTeamAbbreviation } from "@/lib/overlay/leaderboardOverlay";
 import styles from "./leaderboard-overlay.module.css";
 
 type MatchCardEntry = {
@@ -99,8 +99,9 @@ export function LeaderboardOverlayView({
   );
   const baseLeaderboardFontSize = 42;
   const leaderboardFontScale = settings.leaderboard.fontSize / baseLeaderboardFontSize;
+  const teamCode = (team: Team | null | undefined) => resolveTeamAbbreviation(team, settings.teamAbbreviations);
   const matchTeamWidth = getTextWidthCh(
-    matches.flatMap((entry) => [teamAbbreviation(entry.teamA?.name || ""), teamAbbreviation(entry.teamB?.name || "")]),
+    matches.flatMap((entry) => [teamCode(entry.teamA), teamCode(entry.teamB)]),
     3
   );
   const matchCenterWidth = getTextWidthCh(matches.map((entry) => entry.centerText), 4);
@@ -238,7 +239,7 @@ export function LeaderboardOverlayView({
                   {team.logo ? (
                     <img src={logoUrl(team.logo)} alt={team.name} className={styles.logo} />
                   ) : (
-                    <div className={styles.logoFallback}>{teamAbbreviation(team.name)}</div>
+                    <div className={styles.logoFallback}>{teamCode(team)}</div>
                   )}
                 </div>
                 <span style={leaderboardStatStyle}>
@@ -288,19 +289,19 @@ export function LeaderboardOverlayView({
                       {entry.teamA?.logo ? (
                         <img src={logoUrl(entry.teamA.logo)} alt={entry.teamA.name} className={styles.matchLogo} />
                       ) : (
-                        <div className={styles.logoFallback}>{teamAbbreviation(entry.teamA?.name || "")}</div>
+                        <div className={styles.logoFallback}>{teamCode(entry.teamA)}</div>
                       )}
                     </div>
-                    <div style={teamTextStyle}>{teamAbbreviation(entry.teamA?.name || "")}</div>
+                    <div style={teamTextStyle}>{teamCode(entry.teamA)}</div>
                   </div>
                   <span className={styles.centerText} style={centerTextStyle}>{entry.centerText}</span>
                   <div style={rightGridStyle}>
-                    <div style={teamTextStyle}>{teamAbbreviation(entry.teamB?.name || "")}</div>
+                    <div style={teamTextStyle}>{teamCode(entry.teamB)}</div>
                     <div className={styles.matchLogoCell} style={matchLogoCellStyle}>
                       {entry.teamB?.logo ? (
                         <img src={logoUrl(entry.teamB.logo)} alt={entry.teamB.name} className={styles.matchLogo} />
                       ) : (
-                        <div className={styles.logoFallback}>{teamAbbreviation(entry.teamB?.name || "")}</div>
+                        <div className={styles.logoFallback}>{teamCode(entry.teamB)}</div>
                       )}
                     </div>
                   </div>

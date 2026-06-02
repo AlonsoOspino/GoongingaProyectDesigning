@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { Team } from "@/lib/api/types";
 
-type SortField = "rank" | "victories" | "mapWins" | "mapLoses" | "diff" | "winRate";
+type SortField = "rank" | "record" | "mapWins" | "mapLoses" | "diff" | "winRate";
 type SortDirection = "asc" | "desc";
 
 export default function StandingsPage() {
@@ -47,14 +47,15 @@ export default function StandingsPage() {
       let aVal: number;
       let bVal: number;
 
+      if (sortField === "record") {
+        const recordDiff = b.victories - a.victories || a.defeats - b.defeats;
+        return sortDirection === "desc" ? recordDiff : -recordDiff;
+      }
+
       switch (sortField) {
         case "rank":
           aVal = teams.indexOf(a);
           bVal = teams.indexOf(b);
-          break;
-        case "victories":
-          aVal = a.victories;
-          bVal = b.victories;
           break;
         case "mapWins":
           aVal = a.mapWins;
@@ -99,7 +100,7 @@ export default function StandingsPage() {
             </div>
             <div>
               <h1 className="text-3xl font-bold text-foreground">Standings</h1>
-              <p className="text-muted">Current league standings sorted by victories and map differential</p>
+              <p className="text-muted">Current league standings sorted by match record and map differential</p>
             </div>
           </div>
           <div className="h-px bg-gradient-to-r from-primary/50 via-accent/30 to-transparent" />
@@ -115,7 +116,7 @@ export default function StandingsPage() {
               </div>
               <Avatar size="xl" src={teams[1]?.logo || undefined} fallback={teams[1]?.name || "2"} />
               <p className="font-semibold text-foreground mt-2 text-center truncate w-full">{teams[1]?.name}</p>
-              <p className="text-xs text-muted">{teams[1]?.victories}W - {teams[1]?.mapWins}MW</p>
+              <p className="text-xs text-muted">{teams[1]?.victories}-{teams[1]?.defeats} - {teams[1]?.mapWins}MW</p>
             </div>
             
             {/* 1st Place */}
@@ -127,7 +128,7 @@ export default function StandingsPage() {
               </div>
               <Avatar size="xl" src={teams[0]?.logo || undefined} fallback={teams[0]?.name || "1"} />
               <p className="font-bold text-amber-500 mt-2 text-center truncate w-full">{teams[0]?.name}</p>
-              <p className="text-xs text-amber-500/70">{teams[0]?.victories}W - {teams[0]?.mapWins}MW</p>
+              <p className="text-xs text-amber-500/70">{teams[0]?.victories}-{teams[0]?.defeats} - {teams[0]?.mapWins}MW</p>
             </div>
             
             {/* 3rd Place */}
@@ -137,7 +138,7 @@ export default function StandingsPage() {
               </div>
               <Avatar size="xl" src={teams[2]?.logo || undefined} fallback={teams[2]?.name || "3"} />
               <p className="font-semibold text-foreground mt-2 text-center truncate w-full">{teams[2]?.name}</p>
-              <p className="text-xs text-muted">{teams[2]?.victories}W - {teams[2]?.mapWins}MW</p>
+              <p className="text-xs text-muted">{teams[2]?.victories}-{teams[2]?.defeats} - {teams[2]?.mapWins}MW</p>
             </div>
           </div>
         )}
@@ -182,11 +183,11 @@ export default function StandingsPage() {
                   <TableHead>Team</TableHead>
                   <TableHead
                     sortable
-                    sorted={sortField === "victories" ? sortDirection : false}
-                    onClick={() => handleSort("victories")}
+                    sorted={sortField === "record" ? sortDirection : false}
+                    onClick={() => handleSort("record")}
                     className="text-center"
                   >
-                    W
+                    W-L
                   </TableHead>
                   <TableHead
                     sortable
@@ -279,7 +280,9 @@ export default function StandingsPage() {
                         </Link>
                       </TableCell>
                       <TableCell className="text-center">
-                        <span className="font-bold text-success font-mono px-2 py-0.5 rounded bg-success/10">{team.victories}</span>
+                        <span className="font-bold text-success font-mono px-2 py-0.5 rounded bg-success/10">
+                          {team.victories}-{team.defeats}
+                        </span>
                       </TableCell>
                       <TableCell className="text-center">
                         <span className="font-mono text-primary">{team.mapWins}</span>
@@ -330,8 +333,8 @@ export default function StandingsPage() {
           </div>
           <div className="flex flex-wrap gap-4 text-sm text-muted">
             <div className="flex items-center gap-2">
-              <span className="font-medium text-success bg-success/10 px-1.5 py-0.5 rounded">W</span>
-              <span>= Match Victories</span>
+              <span className="font-medium text-success bg-success/10 px-1.5 py-0.5 rounded">W-L</span>
+              <span>= Match Record</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="font-medium text-primary">MW</span>

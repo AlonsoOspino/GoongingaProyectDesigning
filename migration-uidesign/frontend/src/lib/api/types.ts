@@ -55,6 +55,7 @@ export interface Team {
 
 export interface LeaderboardOverlaySettings {
   weekNumber: number;
+  teamAbbreviations?: Record<string, string>;
   title: {
     color: string;
     fontFamily: string;

@@ -24,6 +24,7 @@ import {
   DEFAULT_LEADERBOARD_OVERLAY_SETTINGS,
   normalizeLeaderboardOverlaySettings,
   OVERLAY_FONT_OPTIONS,
+  teamAbbreviation,
 } from "@/lib/overlay/leaderboardOverlay";
 import { LeaderboardOverlayFromData } from "@/app/overlay/components/LeaderboardOverlay";
 
@@ -309,8 +310,26 @@ export default function AssetsEditionPage() {
     return backgroundPreviewUrl || savedBackgroundImageUrl;
   }, [useBlackBackground, backgroundPreviewUrl, savedBackgroundImageUrl]);
 
+  const abbreviationTeams = useMemo(() => {
+    const byId = new Map<number, Team>();
+    for (const team of [...leaderboard, ...teams]) {
+      byId.set(team.id, team);
+    }
+    return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [leaderboard, teams]);
+
   const updateSettings = (updater: (prev: LeaderboardOverlaySettings) => LeaderboardOverlaySettings) => {
     setSettings((prev) => normalizeLeaderboardOverlaySettings(updater(prev)));
+  };
+
+  const updateTeamAbbreviation = (teamId: number, value: string) => {
+    updateSettings((prev) => ({
+      ...prev,
+      teamAbbreviations: {
+        ...(prev.teamAbbreviations ?? {}),
+        [String(teamId)]: value,
+      },
+    }));
   };
 
   const handleBackgroundSelection = (file: File | null) => {
@@ -687,6 +706,31 @@ export default function AssetsEditionPage() {
                       }))
                     }
                   />
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/60 bg-surface-elevated/80">
+                <CardHeader>
+                  <CardTitle className="text-lg">Team Abbreviations</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {abbreviationTeams.map((team) => (
+                    <label
+                      key={team.id}
+                      className="grid grid-cols-[1fr_96px] items-center gap-3 rounded-lg bg-surface-elevated p-3 border border-border/50 text-sm"
+                    >
+                      <span className="min-w-0 truncate text-foreground">{team.name}</span>
+                      <input
+                        type="text"
+                        inputMode="text"
+                        maxLength={8}
+                        placeholder={teamAbbreviation(team.name)}
+                        value={settings.teamAbbreviations?.[String(team.id)] ?? ""}
+                        onChange={(event) => updateTeamAbbreviation(team.id, event.target.value)}
+                        className="w-24 rounded-md border border-border bg-background px-2 py-1 text-center text-sm font-mono uppercase"
+                      />
+                    </label>
+                  ))}
                 </CardContent>
               </Card>
 

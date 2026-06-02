@@ -13,6 +13,9 @@ const sortLeaderboard = (teams) =>
     const winsDiff = Number(b.victories || 0) - Number(a.victories || 0);
     if (winsDiff !== 0) return winsDiff;
 
+    const lossesDiff = Number(a.defeats || 0) - Number(b.defeats || 0);
+    if (lossesDiff !== 0) return lossesDiff;
+
     const differentialDiff = mapDiff(b) - mapDiff(a);
     if (differentialDiff !== 0) return differentialDiff;
 

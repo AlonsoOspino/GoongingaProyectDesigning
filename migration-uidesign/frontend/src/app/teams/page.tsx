@@ -53,10 +53,18 @@ export default function TeamsPage() {
 
   const isLoading = teamsLoading || membersLoading;
 
-  // Sort teams by victories
+  // Sort teams by match record, then map differential.
   const sortedTeams = useMemo(() => {
     if (!teams) return [];
-    return [...teams].sort((a, b) => b.victories - a.victories);
+    return [...teams].sort((a, b) => {
+      const winsDiff = b.victories - a.victories;
+      if (winsDiff !== 0) return winsDiff;
+
+      const lossesDiff = a.defeats - b.defeats;
+      if (lossesDiff !== 0) return lossesDiff;
+
+      return (b.mapWins - b.mapLoses) - (a.mapWins - a.mapLoses);
+    });
   }, [teams]);
   const topTeam = sortedTeams[0] ?? null;
 
@@ -286,8 +294,8 @@ export default function TeamsPage() {
                         {/* Quick Stats */}
                         <div className="hidden sm:flex items-center gap-4 text-center">
                           <div>
-                            <div className="text-lg font-bold text-success">{team.victories}</div>
-                            <div className="text-xs text-muted-foreground">Wins</div>
+                            <div className="text-lg font-bold text-success">{team.victories}-{team.defeats}</div>
+                            <div className="text-xs text-muted-foreground">Record</div>
                           </div>
                           <div>
                             <div className="text-lg font-bold text-foreground">{team.mapWins}-{team.mapLoses}</div>
@@ -589,8 +597,8 @@ export default function TeamsPage() {
                     {/* Stats Row */}
                     <div className="grid grid-cols-3 gap-2 mb-4 py-3 border-t border-b border-border/50">
                       <div className="text-center">
-                        <div className="text-lg font-bold text-success">{team.victories}</div>
-                        <div className="text-xs text-muted-foreground">Wins</div>
+                        <div className="text-lg font-bold text-success">{team.victories}-{team.defeats}</div>
+                        <div className="text-xs text-muted-foreground">Record</div>
                       </div>
                       <div className="text-center">
                         <div className="text-lg font-bold text-foreground">{team.mapWins}-{team.mapLoses}</div>
