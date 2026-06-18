@@ -808,11 +808,17 @@ const isAuthorizedByUserOrKey = (req) => {
   return Boolean(key && expected && String(key) === String(expected));
 };
 
-// Read-only draft state for polling: does NOT apply timeouts or mutate DB.
+// Draft state for polling. When the background worker is disabled, this applies
+// elapsed timeouts on demand so Neon can still scale to zero while idle.
 const getDraftStateReadOnly = async (draftId, req) => {
   if (!isAuthorizedByUserOrKey(req)) {
     throw new Error("Forbidden: provide login token or valid key.");
   }
+
+  if (process.env.ENABLE_DRAFT_TIMEOUT_WORKER !== "true") {
+    return getDraftState(draftId);
+  }
+
   const draft = await getDraftByIdOrThrow(draftId);
   return buildDraftState(draft);
 };

@@ -1,0 +1,1342 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GOON Project Schema</title>
+  <style>
+    :root {
+      --ink: #17202a;
+      --muted: #657486;
+      --line: #d9e0e8;
+      --paper: #f7f5ef;
+      --panel: #ffffff;
+      --panel-2: #eef6f3;
+      --navy: #15324a;
+      --teal: #16877d;
+      --gold: #e2aa2f;
+      --coral: #d95f4f;
+      --violet: #6d5bd0;
+      --green: #2d8f62;
+      --shadow: 0 18px 50px rgba(21, 50, 74, 0.14);
+      --soft-shadow: 0 10px 25px rgba(21, 50, 74, 0.1);
+      --radius: 8px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      background:
+        linear-gradient(90deg, rgba(21, 50, 74, 0.04) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(21, 50, 74, 0.04) 1px, transparent 1px),
+        var(--paper);
+      background-size: 34px 34px;
+      line-height: 1.5;
+    }
+
+    a { color: inherit; }
+
+    .shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 26px 22px;
+      color: #f8fbfb;
+      background:
+        linear-gradient(160deg, rgba(22, 135, 125, 0.96), rgba(21, 50, 74, 0.98) 58%, rgba(109, 91, 208, 0.9));
+      border-right: 1px solid rgba(255,255,255,0.18);
+      overflow-y: auto;
+    }
+
+    .brand {
+      display: grid;
+      gap: 8px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid rgba(255,255,255,0.22);
+    }
+
+    .brand-mark {
+      width: 52px;
+      height: 52px;
+      border: 2px solid rgba(255,255,255,0.72);
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+      letter-spacing: 0;
+      background: rgba(255,255,255,0.12);
+      box-shadow: inset 0 0 0 8px rgba(255,255,255,0.06);
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .brand p {
+      margin: 0;
+      font-size: 13px;
+      color: rgba(255,255,255,0.78);
+    }
+
+    .nav {
+      display: grid;
+      gap: 6px;
+      margin-top: 20px;
+    }
+
+    .nav a {
+      text-decoration: none;
+      padding: 9px 10px;
+      border-radius: 8px;
+      color: rgba(255,255,255,0.86);
+      font-weight: 650;
+      font-size: 14px;
+    }
+
+    .nav a:hover {
+      background: rgba(255,255,255,0.12);
+      color: #fff;
+    }
+
+    .legend {
+      margin-top: 22px;
+      padding: 14px;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.09);
+      font-size: 12px;
+      color: rgba(255,255,255,0.82);
+    }
+
+    .main {
+      min-width: 0;
+      padding: 34px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+      background:
+        linear-gradient(135deg, rgba(21, 50, 74, 0.97), rgba(22, 135, 125, 0.88) 52%, rgba(217, 95, 79, 0.82)),
+        linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px);
+      background-size: auto, 28px 28px;
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      padding: 42px;
+      min-height: 280px;
+      display: grid;
+      align-content: end;
+    }
+
+    .hero:after {
+      content: "";
+      position: absolute;
+      inset: auto -10% -38% 34%;
+      height: 190px;
+      background:
+        repeating-linear-gradient(110deg, rgba(255,255,255,0.14) 0 10px, transparent 10px 20px);
+      transform: rotate(-5deg);
+    }
+
+    .hero > * { position: relative; z-index: 1; }
+
+    .kicker {
+      display: inline-flex;
+      width: max-content;
+      gap: 8px;
+      align-items: center;
+      padding: 6px 10px;
+      border: 1px solid rgba(255,255,255,0.35);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.12);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .hero h2 {
+      margin: 18px 0 8px;
+      font-size: clamp(36px, 7vw, 86px);
+      line-height: 0.92;
+      letter-spacing: 0;
+      max-width: 940px;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 760px;
+      color: rgba(255,255,255,0.84);
+      font-size: 18px;
+    }
+
+    .toolbar {
+      position: sticky;
+      top: 14px;
+      z-index: 4;
+      margin: 18px 0 26px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .search {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 13px 14px;
+      background: rgba(255,255,255,0.92);
+      color: var(--ink);
+      font: inherit;
+      box-shadow: var(--soft-shadow);
+    }
+
+    .stamp {
+      white-space: nowrap;
+      border-radius: 8px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      padding: 12px 14px;
+      color: var(--muted);
+      font-size: 13px;
+      box-shadow: var(--soft-shadow);
+    }
+
+    section {
+      margin: 28px 0;
+      padding: 28px;
+      background: rgba(255,255,255,0.82);
+      border: 1px solid rgba(217, 224, 232, 0.9);
+      border-radius: 8px;
+      box-shadow: var(--soft-shadow);
+      backdrop-filter: blur(4px);
+    }
+
+    .section-head {
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 16px;
+    }
+
+    h3 {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    .section-head p {
+      margin: 7px 0 0;
+      color: var(--muted);
+      max-width: 820px;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .tag, .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--navy);
+      white-space: nowrap;
+    }
+
+    .pill.teal { background: rgba(22,135,125,0.1); border-color: rgba(22,135,125,0.3); color: #0e5e57; }
+    .pill.gold { background: rgba(226,170,47,0.14); border-color: rgba(226,170,47,0.36); color: #7b5810; }
+    .pill.coral { background: rgba(217,95,79,0.12); border-color: rgba(217,95,79,0.32); color: #8a3429; }
+    .pill.violet { background: rgba(109,91,208,0.12); border-color: rgba(109,91,208,0.32); color: #4939a3; }
+    .pill.green { background: rgba(45,143,98,0.12); border-color: rgba(45,143,98,0.32); color: #1f6846; }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      padding: 16px;
+      box-shadow: 0 4px 14px rgba(21,50,74,0.06);
+    }
+
+    .card h4 {
+      margin: 0 0 8px;
+      font-size: 17px;
+      letter-spacing: 0;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .metric {
+      display: grid;
+      gap: 4px;
+      min-height: 108px;
+      align-content: center;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.92), rgba(238,246,243,0.88));
+    }
+
+    .metric strong {
+      font-size: 34px;
+      line-height: 1;
+      color: var(--navy);
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(120px, 1fr));
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .flow .node {
+      position: relative;
+      min-height: 82px;
+      display: grid;
+      align-content: center;
+      border-radius: 8px;
+      padding: 12px;
+      background: #fff;
+      border: 1px solid var(--line);
+      box-shadow: 0 4px 12px rgba(21,50,74,0.06);
+    }
+
+    .flow .node:not(:last-child):after {
+      content: ">";
+      position: absolute;
+      right: -10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 18px;
+      height: 18px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--gold);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 900;
+      z-index: 2;
+    }
+
+    .node b { font-size: 14px; }
+    .node small { color: var(--muted); margin-top: 4px; }
+
+    .layer-map {
+      display: grid;
+      gap: 12px;
+    }
+
+    .layer-row {
+      display: grid;
+      grid-template-columns: 170px minmax(0, 1fr);
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .layer-title {
+      border-radius: 8px;
+      background: var(--navy);
+      color: #fff;
+      padding: 14px;
+      font-weight: 900;
+      display: grid;
+      place-items: center start;
+    }
+
+    .layer-items {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 8px;
+      background: #fff;
+      border: 1px solid var(--line);
+      font-size: 13px;
+    }
+
+    th, td {
+      text-align: left;
+      vertical-align: top;
+      padding: 10px 11px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    th {
+      background: #edf2f6;
+      color: var(--navy);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    tr:last-child td { border-bottom: 0; }
+    tbody tr:hover td { background: #fbfcfd; }
+
+    code {
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: 0.92em;
+      background: #eef2f6;
+      color: #1b415f;
+      border-radius: 5px;
+      padding: 1px 5px;
+    }
+
+    .method {
+      display: inline-flex;
+      justify-content: center;
+      min-width: 54px;
+      border-radius: 6px;
+      padding: 2px 7px;
+      color: #fff;
+      font-weight: 900;
+      font-size: 11px;
+    }
+
+    .GET { background: var(--teal); }
+    .POST { background: var(--violet); }
+    .PUT { background: var(--gold); color: #392b00; }
+    .PATCH { background: var(--coral); }
+    .DELETE { background: #242d36; }
+
+    details {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    summary {
+      cursor: pointer;
+      padding: 14px 16px;
+      font-weight: 900;
+      color: var(--navy);
+      background: linear-gradient(90deg, rgba(238,246,243,0.94), rgba(255,255,255,0.96));
+    }
+
+    details[open] summary { border-bottom: 1px solid var(--line); }
+    .details-body { padding: 14px 16px 16px; }
+
+    .schema-card {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .schema-card .schema-head {
+      padding: 14px 16px;
+      background: var(--navy);
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .schema-head h4 { color: #fff; margin: 0; }
+    .schema-head .pill { border-color: rgba(255,255,255,0.22); color: #fff; background: rgba(255,255,255,0.12); }
+
+    .field-list {
+      list-style: none;
+      padding: 10px 16px 14px;
+      margin: 0;
+      display: grid;
+      gap: 6px;
+    }
+
+    .field-list li {
+      display: grid;
+      grid-template-columns: minmax(120px, 0.8fr) minmax(90px, 0.55fr) minmax(0, 1.3fr);
+      gap: 8px;
+      border-bottom: 1px dashed #dde5ed;
+      padding-bottom: 6px;
+      font-size: 13px;
+    }
+
+    .field-list li:last-child { border-bottom: 0; }
+    .field-name { font-weight: 800; color: var(--navy); }
+    .field-type { color: #0e5e57; font-family: "Cascadia Code", Consolas, monospace; }
+    .field-note { color: var(--muted); }
+
+    .relation-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .relation {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 10px;
+      align-items: center;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .relation .arrow {
+      width: 38px;
+      height: 2px;
+      background: var(--gold);
+      position: relative;
+    }
+
+    .relation .arrow:after {
+      content: "";
+      position: absolute;
+      right: -1px;
+      top: -4px;
+      border-left: 8px solid var(--gold);
+      border-top: 5px solid transparent;
+      border-bottom: 5px solid transparent;
+    }
+
+    .workflow {
+      counter-reset: step;
+      display: grid;
+      gap: 10px;
+    }
+
+    .step {
+      counter-increment: step;
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr);
+      gap: 12px;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .step:before {
+      content: counter(step);
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: var(--navy);
+      color: #fff;
+      font-weight: 900;
+    }
+
+    .step b { color: var(--navy); }
+    .step p { margin: 3px 0 0; color: var(--muted); }
+
+    .note {
+      padding: 14px 16px;
+      border-left: 5px solid var(--gold);
+      background: rgba(226,170,47,0.12);
+      border-radius: 8px;
+      color: #684b0e;
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 16px;
+    }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 1180px) {
+      .shell { grid-template-columns: 1fr; }
+      .sidebar { position: relative; height: auto; }
+      .nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .flow .node:after { display: none !important; }
+      .grid.cols-4, .grid.cols-3, .grid.cols-2, .split { grid-template-columns: 1fr; }
+      .relation-list { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 720px) {
+      .main { padding: 18px; }
+      .hero, section { padding: 20px; }
+      .toolbar { grid-template-columns: 1fr; position: relative; top: 0; }
+      .nav { grid-template-columns: 1fr; }
+      .layer-row { grid-template-columns: 1fr; }
+      .field-list li { grid-template-columns: 1fr; }
+      table { display: block; overflow-x: auto; }
+    }
+
+    @media print {
+      body { background: #fff; }
+      .shell { display: block; }
+      .sidebar, .toolbar { display: none; }
+      .main { padding: 0; }
+      section, .hero { box-shadow: none; break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">GL</div>
+        <h1>GOON</h1>
+        <p>Mapa tecnico visual del proyecto Goonginga League Live Platform.</p>
+      </div>
+
+      <nav class="nav" aria-label="Secciones">
+        <a href="#resumen">Resumen</a>
+        <a href="#arquitectura">Arquitectura</a>
+        <a href="#datos">SQL / Prisma</a>
+        <a href="#relaciones">Relaciones</a>
+        <a href="#backend">Backend</a>
+        <a href="#api">API HTTP</a>
+        <a href="#frontend">Frontend</a>
+        <a href="#flujos">Flujos</a>
+        <a href="#seguridad">Roles</a>
+        <a href="#archivos">Archivos clave</a>
+      </nav>
+
+      <div class="legend">
+        <b>Lectura rapida</b><br />
+        Este documento cruza el schema Prisma, rutas Express, controladores,
+        servicios, repositorios, wrappers del frontend y paginas Next.
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="hero" id="top">
+        <span class="kicker">Documento autocontenido</span>
+        <h2>Esquema integral del proyecto GOON</h2>
+        <p>
+          Arquitectura, tablas SQL organizadas, funciones que las conectan,
+          endpoints, roles, pantallas y flujos principales del sistema.
+        </p>
+      </header>
+
+      <div class="toolbar">
+        <input id="search" class="search" type="search" placeholder="Buscar tabla, endpoint, funcion, pagina o flujo..." />
+        <div class="stamp">Generado desde el codigo local: 2026-06-12</div>
+      </div>
+
+      <section id="resumen" data-search-block>
+        <div class="section-head">
+          <div>
+            <h3>Resumen Ejecutivo</h3>
+            <p>
+              GOON es una plataforma full-stack para operaciones de liga tipo Overwatch:
+              web publica, dashboards autenticados, draft en vivo, overlays para OBS,
+              noticias, OCR de estadisticas y utilidades de base de datos.
+            </p>
+          </div>
+          <div class="tag-row">
+            <span class="pill teal">Next.js</span>
+            <span class="pill violet">Express</span>
+            <span class="pill gold">Prisma</span>
+            <span class="pill coral">PostgreSQL</span>
+          </div>
+        </div>
+
+        <div class="grid cols-4">
+          <div class="card metric"><strong>10</strong><span>modelos Prisma principales</span></div>
+          <div class="card metric"><strong>13</strong><span>areas API montadas en Express</span></div>
+          <div class="card metric"><strong>31</strong><span>paginas Next App Router</span></div>
+          <div class="card metric"><strong>7</strong><span>overlays para OBS</span></div>
+        </div>
+
+        <div class="grid cols-3" style="margin-top:16px">
+          <div class="card">
+            <h4>Dominio competitivo</h4>
+            <p>Torneos, equipos, miembros, partidos, mapas, heroes, draft y resultados.</p>
+          </div>
+          <div class="card">
+            <h4>Operacion en vivo</h4>
+            <p>Listos de capitanes, pausas, timer de mapas, picks/bans, resultados y registros.</p>
+          </div>
+          <div class="card">
+            <h4>Produccion broadcast</h4>
+            <p>Overlays de leaderboard, rosters, headers, map pool y wincards, editables por assets.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="arquitectura" data-search-block>
+        <div class="section-head">
+          <div>
+            <h3>Arquitectura General</h3>
+            <p>El proyecto sigue una separacion por capas bastante clara: pantalla o wrapper del frontend, ruta Express, controlador, servicio, repositorio y Prisma.</p>
+          </div>
+        </div>
+
+        <div class="flow" aria-label="Flujo de arquitectura">
+          <div class="node"><b>Usuarios</b><small>Publico, capitan, manager, admin, editor, OBS.</small></div>
+          <div class="node"><b>Next.js</b><small><code>frontend/src/app</code> y componentes.</small></div>
+          <div class="node"><b>API wrappers</b><small><code>frontend/src/lib/api</code>.</small></div>
+          <div class="node"><b>Express routes</b><small><code>backend/routes</code>.</small></div>
+          <div class="node"><b>Controllers</b><small>Orquestan request, auth y flujos.</small></div>
+          <div class="node"><b>Services / Repos</b><small>Reglas de negocio y consultas Prisma.</small></div>
+          <div class="node"><b>PostgreSQL</b><small>Schema Prisma y migraciones.</small></div>
+        </div>
+
+        <div class="layer-map" style="margin-top:18px">
+          <div class="layer-row">
+            <div class="layer-title">Frontend</div>
+            <div class="layer-items">
+              <span class="tag">App Router pages</span><span class="tag">UI components</span><span class="tag">session feature</span><span class="tag">liveHub feature</span><span class="tag">draft hooks</span><span class="tag">overlay components</span>
+            </div>
+          </div>
+          <div class="layer-row">
+            <div class="layer-title">API Boundary</div>
+            <div class="layer-items">
+              <span class="tag">apiRequest</span><span class="tag">auth.ts</span><span class="tag">admin.ts</span><span class="tag">match.ts</span><span class="tag">draft.ts</span><span class="tag">playerStat.ts</span><span class="tag">overlayAssets.ts</span>
+            </div>
+          </div>
+          <div class="layer-row">
+            <div class="layer-title">Backend</div>
+            <div class="layer-items">
+              <span class="tag">routes</span><span class="tag">controllers</span><span class="tag">services</span><span class="tag">repositories</span><span class="tag">middlewares</span><span class="tag">utils</span><span class="tag">scripts</span>
+            </div>
+          </div>
+          <div class="layer-row">
+            <div class="layer-title">Data</div>
+            <div class="layer-items">
+              <span class="tag">schema.prisma</span><span class="tag">migrations</span><span class="tag">seed.js</span><span class="tag">seed-maps.sql</span><span class="tag">PostgreSQL</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="datos" data-search-block>
+        <div class="section-head">
+          <div>
+            <h3>Tablas SQL / Modelos Prisma</h3>
+            <p>Diccionario organizado de las entidades persistidas. Prisma usa PostgreSQL con <code>DATABASE_URL</code> y <code>DIRECT_URL</code>.</p>
+          </div>
+          <div class="tag-row">
+            <span class="pill gold">backend/prisma/schema.prisma</span>
+          </div>
+        </div>
+
+        <div class="grid cols-2">
+          <article class="card schema-card" data-search-block>
+            <div class="schema-head"><h4>Tournament</h4><span class="pill">Raiz competitiva</span></div>
+            <ul class="field-list">
+              <li><span class="field-name">id</span><span class="field-type">Int</span><span class="field-note">PK autoincrement</span></li>
+              <li><span class="field-name">name</span><span class="field-type">String</span><span class="field-note">Nombre del torneo</span></li>
+              <li><span class="field-name">startDate</span><span class="field-type">DateTime</span><span class="field-note">Fecha inicial</span></li>
+              <li><span class="field-name">state</span><span class="field-type">TournamentState</span><span class="field-note">SCHEDULED, ROUNDROBIN, PLAYOFFS, SEMIFINALS, FINALS, FINISHED</span></li>
+              <li><span class="field-name">matches</span><span class="field-type">Match[]</span><span class="field-note">Partidos del torneo</span></li>
+              <li><span class="field-name">teams</span><span class="field-type">Team[]</span><span class="field-note">Equipos inscritos</span></li>
+            </ul>
+          </article>
+
+          <article class="card schema-card" data-search-block>
+            <div class="schema-head"><h4>Team</h4><span class="pill">Roster y standings</span></div>
+            <ul class="field-list">
+              <li><span class="field-name">id</span><span class="field-type">Int</span><span class="field-note">PK autoincrement</span></li>
+              <li><span class="field-name">name</span><span class="field-type">String</span><span class="field-note">Nombre del equipo</span></li>
+              <li><span class="field-name">logo / roster</span><span class="field-type">String?</span><span class="field-note">Assets visuales</span></li>
+              <li><span class="field-name">state</span><span class="field-type">TeamState</span><span class="field-note">ACTIVE o ELIMINATED</span></li>
+              <li><span class="field-name">victories / defeats</span><span class="field-type">Int</span><span class="field-note">Record de serie</span></li>
+              <li><span class="field-name">mapWins / mapLoses</span><span class="field-type">Int</span><span class="field-note">Diferencial de mapas</span></li>
+              <li><span class="field-name">tournamentId</span><span class="field-type">Int</span><span class="field-note">FK a Tournament</span></li>
+              <li><span class="field-name">discordRoleId</span><span class="field-type">String?</span><span class="field-note">Integracion Discord</span></li>
+              <li><span class="field-name">bannerLeft / bannerRight</span><span class="field-type">String?</span><span class="field-note">Banners para overlays</span></li>
+              <li><span class="field-name">members</span><span class="field-type">Member[]</span><span class="field-note">Jugadores o usuarios del equipo</span></li>
+            </ul>
+          </article>
+
+          <article class="card schema-card" data-search-block>
+            <div class="schema-head"><h4>Member</h4><span class="pill">Usuarios y roles</span></div>
+            <ul class="field-list">
+              <li><span class="field-name">id</span><span class="field-type">Int</span><span class="field-note">PK autoincrement</span></li>
+              <li><span class="field-name">nickname</span><span class="field-type">String</span><span class="field-note">Nombre visible</span></li>
+              <li><span class="field-name">user</span><span class="field-type">String @unique</span><span class="field-note">Login unico</span></li>
+              <li><span class="field-name">passwordHash</span><span class="field-type">String</span><span class="field-note">Hash bcrypt</span></li>
+              <li><span class="field-name">role</span><span class="field-type">MemberRole</span><span class="field-note">ADMIN, MANAGER, CAPTAIN, EDITOR, DEFAULT</span></li>
+              <li><span class="field-name">profilePic</span><span class="field-type">String?</span><span class="field-note">Avatar</span></li>
+              <li><span class="field-name">rank</span><span class="field-type">Int</span><span class="field-note">Ranking interno</span></li>
+              <li><span class="field-name">teamId</span><span class="field-type">Int?</span><span class="field-note">FK opcional a Team</span></li>
+              <li><span class="field-name">obsWebsocketUrl / password</span><span class="field-type">String?</span><span class="field-note">Ajustes OBS por usuario</span></li>
+              <li><span class="field-name">playerStats</span><span class="field-type">PlayerStat[]</span><span class="field-note">Estadisticas registradas</span></li>
+            </ul>
+          </article>
+
+          <article class="card schema-card" data-search-block>
+            <div class="schema-head"><h4>Match</h4><span class="pill">Partido en vivo</span></div>
+            <ul class="field-list">
+              <li><span class="field-name">id</span><span class="field-type">Int</span><span class="field-note">PK autoincrement</span></li>
+              <li><span class="field-name">type / status</span><span class="field-type">MatchType / MatchStatus</span><span class="field-note">Fase y estado operativo</span></li>
+              <li><span class="field-name">bestOf</span><span class="field-type">Int</span><span class="field-note">Formato de serie</span></li>
+              <li><span class="field-name">startDate</span><span class="field-type">DateTime?</span><span class="field-note">Programacion</span></li>
+              <li><span class="field-name">tournamentId</span><span class="field-type">Int</span><span class="field-note">FK a Tournament</span></li>
+              <li><span class="field-name">teamAId / teamBId</span><span class="field-type">Int</span><span class="field-note">FK a Team con relaciones TeamA y TeamB</span></li>
+              <li><span class="field-name">teamAready / teamBready</span><span class="field-type">Int</span><span class="field-note">Check-in de capitanes</span></li>
+              <li><span class="field-name">pointsTeamA / pointsTeamB</span><span class="field-type">Int</span><span class="field-note">Puntos generales</span></li>
+              <li><span class="field-name">mapWinsTeamA / mapWinsTeamB</span><span class="field-type">Int</span><span class="field-note">Marcador de mapas</span></li>
+              <li><span class="field-name">gameNumber</span><span class="field-type">Int</span><span class="field-note">Ultimo juego completado</span></li>
+              <li><span class="field-name">semanas / title</span><span class="field-type">Int? / String?</span><span class="field-note">Semana y titulo</span></li>
+              <li><span class="field-name">mapsAllowedByRound</span><span class="field-type">Json?</span><span class="field-note">Pool por ronda/juego</span></li>
+              <li><span class="field-name">mapResults</span><span class="field-type">Json?</span><span class="field-note">Historial de mapa, ganador o empate</span></li>
+              <li><span class="field-name">map timer / pause</span><span class="field-type">DateTime? / Boolean</span><span class="field-note">Timer y pausa operativa</span></li>
+              <li><span class="field-name">draft</span><span class="field-type">DraftTable?</span><span class="field-note">Draft unico por match</span></li>
+              <li><span class="field-name">allowedMaps</span><span class="field-type">Map[]</span><span class="field-note">Relacion many-to-many</span></li>
+            </ul>
+          </article>
+
+          <article class="card schema-card" data-search-block>
+            <div class="schema-head"><h4>DraftTable</h4><span class="pill">Estado draft</span></div>
+            <ul class="field-list">
+              <li><span class="field-name">id</span><span class="field-type">Int</span><span class="field-note">PK autoincrement</span></li>
+              <li><span class="field-name">matchId</span><span class="field-type">Int @unique</span><span class="field-note">Un draft por partido</span></li>
+              <li><span class="field-name">currentTurnTeamId</span><span class="field-type">Int?</span><span class="field-note">Equipo al turno</span></li>
+              <li><span class="field-name">phase</span><span class="field-type">String</span><span class="field-note">STARTING, MAPPICKING, BAN, PLAYING, ENDMAP, FINISHED</span></li>
+              <li><span class="field-name">phaseStartedAt</span><span class="field-type">DateTime</span><span class="field-note">Base del timer</span></li>
+              <li><span class="field-name">bannedHeroes</span><span class="field-type">Json</span><span class="field-note">Heroes bloqueados</span></li>
+              <li><span class="field-name">pickedMaps</span><span class="field-type">Json</span><span class="field-note">Mapas elegidos</span></li>
+              <li><span class="field-name">currentMapId</span><span class="field-type">Int?</span><span class="field-note">Mapa actual</span></li>
+              <li><span class="field-name">actions</span><span class="field-type">DraftAction[]</span><span class="field-note">Log ordenado de picks/bans/skips</span></li>
+            </ul>
+          </article>
+
+          <article class="card schema-card" data-search-block>
+            <div class="schema-head"><h4>DraftAction</h4><span class="pill">Historial draft</span></div>
+            <ul class="field-list">
+              <li><span class="field-name">id</span><span class="field-type">Int</span><span class="field-note">PK autoincrement</span></li>
+              <li><span class="field-name">draftId</span><span class="field-type">Int</span><span class="field-note">FK a DraftTable</span></li>
+              <li><span class="field-name">teamId</span><span class="field-type">Int</span><span class="field-note">FK a Team</span></li>
+              <li><span class="field-name">action</span><span class="field-type">DraftActionType</span><span class="field-note">BAN, PICK o SKIP</span></li>
+              <li><span class="field-name">value</span><span class="field-type">Int?</span><span class="field-note">ID de mapa o heroe, si aplica</span></li>
+              <li><span class="field-name">gameNumber</span><span class="field-type">Int</span><span class="field-note">Juego al que pertenece</span></li>
+              <li><span class="field-name">order</span><span class="field-type">Int</span><span class="field-note">Orden cronologico</span></li>
+              <li><span class="field-name">createdAt</span><span class="field-type">DateTime</span><span class="field-note">Fecha de accion</span></li>
+            </ul>
+          </article>
+
+          <article class="card schema-card" data-search-block>
+            <div class="schema-head"><h4>Map</h4><span class="pill">Contenido OW</span></div>
+            <ul class="field-list">
+              <li><span class="field-name">id</span><span class="field-type">Int</span><span class="field-note">PK autoincrement</span></li>
+              <li><span class="field-name">type</span><span class="field-type">MapType</span><span class="field-note">CONTROL, HYBRID, PAYLOAD, PUSH, FLASHPOINT</span></li>
+              <li><span class="field-name">description</span><span class="field-type">String</span><span class="field-note">Nombre o descripcion del mapa</span></li>
+              <li><span class="field-name">imgPath</span><span class="field-type">String</span><span class="field-note">Imagen servida por backend o blob</span></li>
+              <li><span class="field-name">matches</span><span class="field-type">Match[]</span><span class="field-note">Pool permitido many-to-many</span></li>
+            </ul>
+          </article>
+
+          <article class="card schema-card" data-search-block>
+            <div class="schema-head"><h4>Hero</h4><span class="pill">Contenido OW</span></div>
+            <ul class="field-list">
+              <li><span class="field-name">id</span><span class="field-type">Int</span><span class="field-note">PK autoincrement</span></li>
+              <li><span class="field-name">name</span><span class="field-type">String?</span><span class="field-note">Nombre del heroe</span></li>
+              <li><span class="field-name">role</span><span class="field-type">HeroRole</span><span class="field-note">TANK, DPS, SUPPORT</span></li>
+              <li><span class="field-name">imgPath</span><span class="field-type">String</span><span class="field-note">Icono del heroe</span></li>
+              <li><span class="field-name">heroGift</span><span class="field-type">String?</span><span class="field-note">Video/GIF opcional</span></li>
+            </ul>
+          </article>
+
+          <article class="card schema-card" data-search-block>
+            <div class="schema-head"><h4>PlayerStat</h4><span class="pill">Stats por mapa</span></div>
+            <ul class="field-list">
+              <li><span class="field-name">id</span><span class="field-type">Int</span><span class="field-note">PK autoincrement</span></li>
+              <li><span class="field-name">damage / healing / mitigation</span><span class="field-type">Int</span><span class="field-note">Totales del scoreboard</span></li>
+              <li><span class="field-name">kills / assists / deaths</span><span class="field-type">Int</span><span class="field-note">KDA base</span></li>
+              <li><span class="field-name">gameDuration</span><span class="field-type">Int</span><span class="field-note">Duracion en segundos</span></li>
+              <li><span class="field-name">Per10 metrics</span><span class="field-type">Float</span><span class="field-note">damagePer10, healingPer10, etc.</span></li>
+              <li><span class="field-name">mapType / role</span><span class="field-type">MapType / HeroRole</span><span class="field-note">Contexto competitivo</span></li>
+              <li><span class="field-name">userId</span><span class="field-type">Int</span><span class="field-note">FK a Member</span></li>
+              <li><span class="field-name">matchId</span><span class="field-type">Int</span><span class="field-note">FK a Match</span></li>
+              <li><span class="field-name">gameNumber</span><span class="field-type">Int</span><span class="field-note">Mapa/juego dentro del match</span></li>
+            </ul>
+          </article>
+
+          <article class="card schema-card" data-search-block>
+            <div class="schema-head"><h4>News</h4><span class="pill">Contenido editorial</span></div>
+            <ul class="field-list">
+              <li><span class="field-name">id</span><span class="field-type">Int</span><span class="field-note">PK autoincrement</span></li>
+              <li><span class="field-name">title</span><span class="field-type">String</span><span class="field-note">Titulo</span></li>
+              <li><span class="field-name">content</span><span class="field-type">String</span><span class="field-note">Markdown/contenido</span></li>
+              <li><span class="field-name">imageUrl</span><span class="field-type">String?</span><span class="field-note">Imagen principal</span></li>
+              <li><span class="field-name">createdAt / updatedAt</span><span class="field-type">DateTime</span><span class="field-note">Auditoria simple</span></li>
+            </ul>
+          </article>
+
+          <article class="card schema-card" data-search-block>
+            <div class="schema-head"><h4>LeaderboardOverlayAsset</h4><span class="pill">Overlay settings</span></div>
+            <ul class="field-list">
+              <li><span class="field-name">id</span><span class="field-type">Int</span><span class="field-note">PK autoincrement</span></li>
+              <li><span class="field-name">matchId</span><span class="field-type">Int @unique</span><span class="field-note">FK unica a Match</span></li>
+              <li><span class="field-name">backgroundImageUrl</span><span class="field-type">String?</span><span class="field-note">Fondo del overlay</span></li>
+              <li><span class="field-name">settings</span><span class="field-type">Json?</span><span class="field-note">Configuracion visual persistida</span></li>
+              <li><span class="field-name">createdAt / updatedAt</span><span class="field-type">DateTime</span><span class="field-note">Auditoria</span></li>
+              <li><span class="field-name">onDelete</span><span class="field-type">Cascade</span><span class="field-note">Se borra con el match</span></li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section id="relaciones" data-search-block>
+        <div class="section-head">
+          <div>
+            <h3>Relaciones de Datos</h3>
+            <p>Lectura directa del schema Prisma. Las flechas indican dependencia funcional o FK principal.</p>
+          </div>
+        </div>
+
+        <div class="relation-list">
+          <div class="relation"><b>Tournament</b><span class="arrow"></span><span><b>Team[]</b><br /><small>Un torneo contiene equipos.</small></span></div>
+          <div class="relation"><b>Tournament</b><span class="arrow"></span><span><b>Match[]</b><br /><small>Un torneo agenda partidos.</small></span></div>
+          <div class="relation"><b>Team</b><span class="arrow"></span><span><b>Member[]</b><br /><small>Un equipo tiene miembros.</small></span></div>
+          <div class="relation"><b>Team</b><span class="arrow"></span><span><b>Match TeamA / TeamB</b><br /><small>Un equipo puede estar en ambos lados del match.</small></span></div>
+          <div class="relation"><b>Match</b><span class="arrow"></span><span><b>DraftTable?</b><br /><small>Un draft unico por partido.</small></span></div>
+          <div class="relation"><b>DraftTable</b><span class="arrow"></span><span><b>DraftAction[]</b><br /><small>Acciones ordenadas del draft.</small></span></div>
+          <div class="relation"><b>Team</b><span class="arrow"></span><span><b>DraftAction[]</b><br /><small>Equipo que ejecuta pick, ban o skip.</small></span></div>
+          <div class="relation"><b>Match</b><span class="arrow"></span><span><b>PlayerStat[]</b><br /><small>Stats registradas por match y gameNumber.</small></span></div>
+          <div class="relation"><b>Member</b><span class="arrow"></span><span><b>PlayerStat[]</b><br /><small>Jugador propietario de estadisticas.</small></span></div>
+          <div class="relation"><b>Match</b><span class="arrow"></span><span><b>Map[] allowedMaps</b><br /><small>Relacion many-to-many de pool de mapas.</small></span></div>
+          <div class="relation"><b>Match</b><span class="arrow"></span><span><b>LeaderboardOverlayAsset?</b><br /><small>Configuracion visual por match.</small></span></div>
+          <div class="relation"><b>Hero</b><span class="arrow"></span><span><b>DraftAction.value</b><br /><small>El ban guarda el id de heroe en value.</small></span></div>
+        </div>
+
+        <div class="note" style="margin-top:16px">
+          Nota: <code>DraftAction.value</code> es polimorfico por convencion: cuando <code>action=PICK</code> apunta a un <code>Map.id</code>; cuando <code>action=BAN</code> apunta a un <code>Hero.id</code>; cuando <code>SKIP</code> puede ir vacio.
+        </div>
+      </section>
+
+      <section id="backend" data-search-block>
+        <div class="section-head">
+          <div>
+            <h3>Funciones que Conectan Backend y SQL</h3>
+            <p>Mapa por capas: cada area de negocio tiene ruta, controlador, servicio/repositorio y modelos Prisma afectados.</p>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Area</th>
+              <th>Rutas</th>
+              <th>Controller exports</th>
+              <th>Servicios / repositorios</th>
+              <th>Tablas principales</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><b>Auth / Member</b></td>
+              <td><code>/member</code></td>
+              <td><code>register</code>, <code>login</code>, <code>getAll</code>, <code>getById</code>, <code>update</code>, <code>adminUpdate</code>, <code>bulkImport</code></td>
+              <td><code>services/authUser</code>, <code>repositories/member</code>, <code>repositories/team</code></td>
+              <td>Member, Team</td>
+            </tr>
+            <tr>
+              <td><b>Tournament</b></td>
+              <td><code>/tournament</code></td>
+              <td><code>create</code>, <code>update</code>, <code>remove</code>, <code>getAll</code>, <code>getCurrent</code></td>
+              <td><code>services/tournament</code>, <code>repositories/tournament</code></td>
+              <td>Tournament</td>
+            </tr>
+            <tr>
+              <td><b>Team / Leaderboard</b></td>
+              <td><code>/team</code></td>
+              <td><code>create</code>, <code>createMany</code>, <code>update</code>, <code>captainUpdate</code>, <code>getLeaderboard</code>, <code>getById</code></td>
+              <td><code>services/team</code>, <code>repositories/team</code></td>
+              <td>Team, Member, Tournament</td>
+            </tr>
+            <tr>
+              <td><b>Match Ops</b></td>
+              <td><code>/match</code></td>
+              <td><code>adminCreate</code>, <code>adminGenerateRoundRobin</code>, <code>captainUpdate</code>, <code>managerUpdate</code>, <code>submitResult</code>, <code>undoLastResult</code>, <code>finishPendingRegisters</code>, <code>togglePause</code></td>
+              <td><code>services/match</code>, <code>repositories/match</code>, <code>utils/discordWebhook</code>, <code>utils/vsImageGenerator</code></td>
+              <td>Match, Team, DraftTable, DraftAction, PlayerStat, Map</td>
+            </tr>
+            <tr>
+              <td><b>Live Draft</b></td>
+              <td><code>/draft</code>, <code>/draftTable</code>, <code>/draftAction</code></td>
+              <td><code>createDraft</code>, <code>startMapPicking</code>, <code>pickMap</code>, <code>startBan</code>, <code>banHero</code>, <code>endMap</code>, <code>endGame</code>, <code>getDraftStateReadOnly</code></td>
+              <td><code>controllers/draft</code> usa Prisma directo; legacy usa <code>services/draftTable</code> y <code>services/draftAction</code></td>
+              <td>DraftTable, DraftAction, Match, Team, Map, Hero</td>
+            </tr>
+            <tr>
+              <td><b>Stats / OCR</b></td>
+              <td><code>/playerStat</code></td>
+              <td><code>create</code>, <code>createFromImage</code>, <code>previewMatchFromImage</code>, <code>confirmBatchFromPreview</code>, <code>getPublic</code>, <code>getMine</code></td>
+              <td><code>services/playerStat</code>, <code>services/googleVision</code>, <code>repositories/playerStat</code>, <code>repositories/member</code></td>
+              <td>PlayerStat, Member, Match</td>
+            </tr>
+            <tr>
+              <td><b>Content</b></td>
+              <td><code>/map</code>, <code>/hero</code>, <code>/news</code></td>
+              <td><code>getAll</code>, <code>create</code>, <code>update</code>, <code>remove</code></td>
+              <td><code>services/map</code>, <code>services/hero</code>, <code>services/news</code>, <code>utils/contentImageUpload</code></td>
+              <td>Map, Hero, News</td>
+            </tr>
+            <tr>
+              <td><b>Overlay Assets</b></td>
+              <td><code>/overlay-assets</code></td>
+              <td><code>getLeaderboardOverlayAsset</code>, <code>upsertLeaderboardOverlayAsset</code></td>
+              <td><code>services/leaderboardOverlayAsset</code>, <code>repositories/leaderboardOverlayAsset</code>, <code>repositories/match</code></td>
+              <td>LeaderboardOverlayAsset, Match</td>
+            </tr>
+            <tr>
+              <td><b>System DB</b></td>
+              <td><code>/system-db</code></td>
+              <td>Handlers inline en route</td>
+              <td><code>utils/dbBackupSql</code></td>
+              <td>Todas, por backup/restore/wipe</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="grid cols-2" style="margin-top:16px">
+          <div class="card">
+            <h4>Entrada del servidor</h4>
+            <p><code>backend/app.js</code> carga variables, configura CORS/body parser, sirve assets estaticos, monta rutas, verifica <code>/health</code>, conecta Prisma y arranca el worker de draft cada 3 segundos.</p>
+          </div>
+          <div class="card">
+            <h4>Base de datos</h4>
+            <p><code>backend/config/prisma.js</code> centraliza Prisma Client. Las migraciones viven en <code>backend/prisma/migrations</code> y los seeds en <code>backend/prisma</code> y <code>backend/scripts</code>.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="api" data-search-block>
+        <div class="section-head">
+          <div>
+            <h3>API HTTP Montada</h3>
+            <p>Endpoints reales encontrados en <code>backend/routes/*.js</code>. La columna de acceso resume el middleware visible en rutas.</p>
+          </div>
+        </div>
+
+        <details open data-search-block>
+          <summary>/draft - Draft en vivo</summary>
+          <div class="details-body">
+            <table>
+              <thead><tr><th>Metodo</th><th>Ruta</th><th>Acceso</th><th>Funcion</th></tr></thead>
+              <tbody>
+                <tr><td><span class="method POST">POST</span></td><td><code>/draft/:matchId</code></td><td>JWT</td><td><code>createDraft(matchId, user)</code></td></tr>
+                <tr><td><span class="method PATCH">PATCH</span></td><td><code>/draft/:id/start-map-picking</code></td><td>JWT manager/admin</td><td><code>startMapPicking(id, user)</code></td></tr>
+                <tr><td><span class="method POST">POST</span></td><td><code>/draft/:id/pick-map</code></td><td>JWT captain/manager/admin</td><td><code>pickMap(id, body, user)</code></td></tr>
+                <tr><td><span class="method PATCH">PATCH</span></td><td><code>/draft/:id/start-ban</code></td><td>JWT manager/admin</td><td><code>startBan(id, user)</code></td></tr>
+                <tr><td><span class="method POST">POST</span></td><td><code>/draft/:id/ban-hero</code></td><td>JWT captain/manager/admin</td><td><code>banHero(id, body, user)</code></td></tr>
+                <tr><td><span class="method PATCH">PATCH</span></td><td><code>/draft/:id/end-map</code></td><td>JWT manager/admin</td><td><code>endMap(id, user)</code></td></tr>
+                <tr><td><span class="method PATCH">PATCH</span></td><td><code>/draft/:id/end-game</code></td><td>JWT manager/admin</td><td><code>endGame(id, user)</code></td></tr>
+                <tr><td><span class="method GET">GET</span></td><td><code>/draft/by-match/:matchId/share</code></td><td>JWT</td><td><code>getDraftShareInfo(matchId, user)</code></td></tr>
+                <tr><td><span class="method GET">GET</span></td><td><code>/draft/:id/state</code></td><td>Optional JWT / key</td><td><code>getDraftStateReadOnly(id, req)</code></td></tr>
+                <tr><td><span class="method GET">GET</span></td><td><code>/draft/by-match/:matchId</code></td><td>Optional JWT / key</td><td><code>getDraftByMatchId(matchId, req)</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+
+        <details data-search-block>
+          <summary>/match - Programacion, resultados y operaciones</summary>
+          <div class="details-body">
+            <table>
+              <thead><tr><th>Metodo</th><th>Ruta</th><th>Acceso</th><th>Uso</th></tr></thead>
+              <tbody>
+                <tr><td><span class="method GET">GET</span></td><td><code>/match</code></td><td>Publico</td><td>Lista de matches, filtra por query en repositorio.</td></tr>
+                <tr><td><span class="method POST">POST</span></td><td><code>/match/admin/create</code></td><td>ADMIN</td><td>Crear match.</td></tr>
+                <tr><td><span class="method POST">POST</span></td><td><code>/match/admin/generate-round-robin</code></td><td>ADMIN</td><td>Genera calendario round robin con metodo circular.</td></tr>
+                <tr><td><span class="method PUT">PUT</span></td><td><code>/match/admin/update/:id</code></td><td>ADMIN</td><td>Actualizar match.</td></tr>
+                <tr><td><span class="method DELETE">DELETE</span></td><td><code>/match/admin/delete/:id</code></td><td>ADMIN</td><td>Borrar match y datos dependientes controlados.</td></tr>
+                <tr><td><span class="method PUT">PUT</span></td><td><code>/match/admin/week-maps</code></td><td>ADMIN</td><td>Configurar pools por semana.</td></tr>
+                <tr><td><span class="method GET">GET</span></td><td><code>/match/admin/week-maps/:tournamentId/:semanas</code></td><td>ADMIN</td><td>Leer configuracion semanal.</td></tr>
+                <tr><td><span class="method PUT">PUT</span></td><td><code>/match/captain/update/:id</code></td><td>CAPTAIN del match</td><td>Ready/startDate y acciones de capitan.</td></tr>
+                <tr><td><span class="method POST">POST</span></td><td><code>/match/captain/:id/request-pause</code></td><td>CAPTAIN del match</td><td>Pedir pausa.</td></tr>
+                <tr><td><span class="method PUT">PUT</span></td><td><code>/match/manager/update/:id</code></td><td>MANAGER</td><td>Operacion del match.</td></tr>
+                <tr><td><span class="method POST">POST</span></td><td><code>/match/manager/:id/toggle-pause</code></td><td>MANAGER</td><td>Pausar/reanudar timer.</td></tr>
+                <tr><td><span class="method POST">POST</span></td><td><code>/match/manager/:id/clear-pause-request</code></td><td>MANAGER</td><td>Limpiar solicitud de pausa.</td></tr>
+                <tr><td><span class="method GET">GET</span></td><td><code>/match/:teamAId/:teamBId/vs-image</code></td><td>Publico</td><td>Imagen VS generada.</td></tr>
+                <tr><td><span class="method GET">GET</span></td><td><code>/match/soonest</code></td><td>Publico</td><td>Proximo match.</td></tr>
+                <tr><td><span class="method GET">GET</span></td><td><code>/match/active</code></td><td>Publico</td><td>Matches activos.</td></tr>
+                <tr><td><span class="method POST">POST</span></td><td><code>/match/:id/result</code></td><td>MANAGER</td><td>Registrar ganador de mapa o empate.</td></tr>
+                <tr><td><span class="method POST">POST</span></td><td><code>/match/:id/undo-result</code></td><td>MANAGER</td><td>Deshacer ultimo resultado.</td></tr>
+                <tr><td><span class="method POST">POST</span></td><td><code>/match/:id/finish-registers</code></td><td>MANAGER</td><td>Cerrar etapa de registros.</td></tr>
+                <tr><td><span class="method GET">GET</span></td><td><code>/match/:id</code></td><td>Publico</td><td>Detalle del match.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+
+        <details data-search-block>
+          <summary>Otras areas API</summary>
+          <div class="details-body">
+            <table>
+              <thead><tr><th>Area</th><th>Endpoints</th><th>Acceso</th><th>Modelos</th></tr></thead>
+              <tbody>
+                <tr><td><b>/member</b></td><td><code>POST /register</code>, <code>POST /login</code>, <code>GET /all</code>, <code>GET /:id</code>, <code>PUT /:id</code>, <code>PUT /admin/:id</code>, <code>POST /bulk-import</code></td><td>Login publico; admin para registro/bulk/admin update; JWT para perfil</td><td>Member, Team</td></tr>
+                <tr><td><b>/team</b></td><td><code>GET /</code>, <code>GET /leaderboard</code>, <code>GET /:id</code>, <code>POST /create</code>, <code>POST /create-many</code>, <code>PUT /update/:id</code>, <code>PUT /admin/update/:id</code>, <code>DELETE /delete/:id</code></td><td>Lectura publica; admin/captain para escritura</td><td>Team, Member, Tournament</td></tr>
+                <tr><td><b>/tournament</b></td><td><code>GET /</code>, <code>GET /current</code>, <code>POST /create</code>, <code>PUT /update/:id</code>, <code>DELETE /delete/:id</code></td><td>Lectura publica; admin modifica</td><td>Tournament</td></tr>
+                <tr><td><b>/playerStat</b></td><td><code>GET /public</code>, <code>GET /public/user/:userId</code>, <code>GET /</code>, <code>GET /mine</code>, <code>POST /</code>, <code>POST /upload</code>, <code>POST /upload-match-preview</code>, <code>POST /upload-match-confirm</code></td><td>Publico para stats publicas; manager para OCR batch; JWT para propias/crear</td><td>PlayerStat, Member, Match</td></tr>
+                <tr><td><b>/news</b></td><td><code>GET /</code>, <code>GET /:id</code>, <code>POST /create</code>, <code>PUT /update/:id</code>, <code>DELETE /delete/:id</code></td><td>Lectura publica; editor/admin modifica</td><td>News</td></tr>
+                <tr><td><b>/map</b></td><td><code>GET /</code>, <code>POST /create</code>, <code>DELETE /delete/:id</code></td><td>Lectura publica; admin modifica</td><td>Map</td></tr>
+                <tr><td><b>/hero</b></td><td><code>GET /</code>, <code>POST /create</code>, <code>DELETE /delete/:id</code></td><td>Lectura publica; admin modifica</td><td>Hero</td></tr>
+                <tr><td><b>/overlay-assets</b></td><td><code>GET /leaderboard/:matchId</code>, <code>PUT /leaderboard/:matchId</code></td><td>GET publico; manager modifica</td><td>LeaderboardOverlayAsset</td></tr>
+                <tr><td><b>/draftTable</b></td><td><code>POST /admin/create</code>, <code>PUT /admin/update/:id</code>, <code>DELETE /admin/delete/:id</code>, <code>POST /manager/create</code>, <code>PUT /manager/update/:id</code>, <code>GET /</code>, <code>GET /by-match/:matchId</code></td><td>Legacy/admin/manager y optional auth</td><td>DraftTable</td></tr>
+                <tr><td><b>/draftAction</b></td><td><code>GET /</code>, <code>POST /captain/create</code>, <code>POST /admin/create</code>, <code>PUT /admin/update/:id</code>, <code>DELETE /admin/delete/:id</code></td><td>Legacy captain/admin</td><td>DraftAction</td></tr>
+                <tr><td><b>/system-db</b></td><td><code>GET /backup</code>, <code>POST /restore</code>, <code>POST /wipe</code></td><td>ADMIN</td><td>Base completa</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </section>
+
+      <section id="frontend" data-search-block>
+        <div class="section-head">
+          <div>
+            <h3>Frontend y Paginas</h3>
+            <p>Next.js App Router consume el backend mediante wrappers tipados en <code>src/lib/api</code>. La sesion JWT se conserva en <code>goon.live.session</code>.</p>
+          </div>
+        </div>
+
+        <div class="split">
+          <div>
+            <h4>Wrappers API principales</h4>
+            <table>
+              <thead><tr><th>Archivo</th><th>Funciones</th><th>Endpoints</th></tr></thead>
+              <tbody>
+                <tr><td><code>client.ts</code></td><td><code>apiRequest</code>, <code>setApiBase</code>, <code>ApiError</code></td><td>Base URL + fetch + token</td></tr>
+                <tr><td><code>auth.ts</code></td><td><code>login</code>, <code>registerMember</code>, <code>getMemberProfileById</code>, <code>updateMemberProfile</code></td><td><code>/member</code></td></tr>
+                <tr><td><code>admin.ts</code></td><td>Tournaments, matches, teams, members, maps, heroes, DB backup/restore/wipe</td><td><code>/tournament</code>, <code>/match/admin</code>, <code>/team</code>, <code>/system-db</code></td></tr>
+                <tr><td><code>match.ts</code></td><td><code>getMatches</code>, <code>getSoonestMatch</code>, <code>updateCaptainMatch</code>, <code>submitMatchResult</code>, <code>undoMatchResult</code>, pause helpers</td><td><code>/match</code></td></tr>
+                <tr><td><code>draft.ts</code></td><td><code>createDraft</code>, <code>startMapPicking</code>, <code>pickMap</code>, <code>startBan</code>, <code>banHero</code>, <code>endMap</code>, <code>endGame</code>, read-only state</td><td><code>/draft</code></td></tr>
+                <tr><td><code>playerStat.ts</code></td><td>Public stats, own stats, create, OCR upload, preview, confirm</td><td><code>/playerStat</code></td></tr>
+                <tr><td><code>team.ts</code></td><td><code>getTeams</code>, <code>getLeaderboard</code>, <code>updateCaptainTeam</code></td><td><code>/team</code></td></tr>
+                <tr><td><code>news.ts</code></td><td><code>getNews</code>, <code>createNews</code>, <code>deleteNews</code></td><td><code>/news</code></td></tr>
+                <tr><td><code>overlayAssets.ts</code></td><td><code>getLeaderboardOverlayAsset</code>, <code>updateLeaderboardOverlayAsset</code></td><td><code>/overlay-assets</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="grid">
+            <div class="card">
+              <h4>Session</h4>
+              <p><code>features/session</code> contiene <code>SessionProvider</code>, <code>useSession</code>, login persistente, logout y storage local.</p>
+            </div>
+            <div class="card">
+              <h4>Live Hub</h4>
+              <p><code>features/liveHub</code> agrega leaderboard, match activo/proximo, stats del usuario y estados de draft seleccionados.</p>
+            </div>
+            <div class="card">
+              <h4>Hooks</h4>
+              <p><code>useDraftPolling</code>, <code>useServerNow</code> y <code>useMapTimer</code> mantienen sincronizada la UI de draft y timers.</p>
+            </div>
+          </div>
+        </div>
+
+        <details style="margin-top:16px" data-search-block>
+          <summary>Paginas App Router</summary>
+          <div class="details-body">
+            <div class="grid cols-3">
+              <div class="card"><h4>Publicas</h4><p><code>/</code>, <code>/standings</code>, <code>/teams</code>, <code>/teams/[teamId]</code>, <code>/schedule</code>, <code>/schedule/[matchId]</code>, <code>/stats</code>, <code>/stats/[userId]</code>, <code>/news</code>, <code>/news/[articleId]</code></p></div>
+              <div class="card"><h4>Autenticadas</h4><p><code>/login</code>, <code>/profile</code>, <code>/my-team</code>, <code>/captain-dashboard</code>, <code>/manager-dashboard</code>, <code>/admin-dashboard</code>, <code>/editor-dashboard</code>, <code>/assets-edition</code>, <code>/draft</code>, <code>/draft-table/[matchId]</code></p></div>
+              <div class="card"><h4>Overlays OBS</h4><p><code>/overlay/leaderboard/[id]</code>, <code>/overlay/map-pool/[matchid]</code>, <code>/overlay/map-pool-clean/[matchId]</code>, <code>/overlay/match-header/[matchId]</code>, <code>/overlay/match-header-reversed/[matchId]</code>, <code>/overlay/roster-a/[id]</code>, <code>/overlay/roster-b/[id]</code>, <code>/overlay/wincards/[matchId]</code></p></div>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <section id="flujos" data-search-block>
+        <div class="section-head">
+          <div>
+            <h3>Flujos Principales</h3>
+            <p>Procesos del sistema desde la accion del usuario hasta la persistencia.</p>
+          </div>
+        </div>
+
+        <div class="grid cols-2">
+          <details open data-search-block>
+            <summary>Login y roles</summary>
+            <div class="details-body workflow">
+              <div class="step"><div><b>Usuario envia credenciales</b><p>Frontend llama <code>login(user, password)</code> hacia <code>POST /member/login</code>.</p></div></div>
+              <div class="step"><div><b>Backend valida</b><p><code>memberController.login</code> busca <code>Member.user</code>, verifica hash y genera JWT.</p></div></div>
+              <div class="step"><div><b>Sesion local</b><p><code>loginAndPersist</code> guarda token y usuario en <code>goon.live.session</code>.</p></div></div>
+              <div class="step"><div><b>Middleware protege</b><p><code>authMiddleware</code> carga <code>req.user</code>; <code>admin</code>, <code>manager</code>, <code>captain</code> y <code>editor</code> restringen acciones.</p></div></div>
+            </div>
+          </details>
+
+          <details open data-search-block>
+            <summary>Draft map pick y hero ban</summary>
+            <div class="details-body workflow">
+              <div class="step"><div><b>Crear draft</b><p>Manager/admin llama <code>POST /draft/:matchId</code>; se crea <code>DraftTable</code> unico.</p></div></div>
+              <div class="step"><div><b>Map picking</b><p><code>startMapPicking</code> coloca fase <code>MAPPICKING</code>, turno y timer.</p></div></div>
+              <div class="step"><div><b>Pick de mapa</b><p><code>pickMap</code> valida equipo, pool permitido por <code>mapsAllowedByRound</code> o tipo de mapa, y graba <code>DraftAction(PICK)</code>.</p></div></div>
+              <div class="step"><div><b>Ban phase</b><p><code>startBan</code> abre fase <code>BAN</code>; cada <code>banHero</code> guarda <code>DraftAction(BAN)</code>.</p></div></div>
+              <div class="step"><div><b>Worker de timeout</b><p><code>startDraftTimeoutWorker(3000)</code> auto-aplica skip/pick random cuando vence el turno.</p></div></div>
+            </div>
+          </details>
+
+          <details data-search-block>
+            <summary>Resultado, standings y schedule</summary>
+            <div class="details-body workflow">
+              <div class="step"><div><b>Manager registra mapa</b><p><code>submitMatchResult</code> recibe <code>winnerTeamId</code> o empate.</p></div></div>
+              <div class="step"><div><b>Transaccion Prisma</b><p>Actualiza <code>Match.mapWinsTeamA/B</code>, <code>gameNumber</code>, <code>mapResults</code> y readiness.</p></div></div>
+              <div class="step"><div><b>Record de equipos</b><p>Incrementa <code>Team.mapWins/mapLoses</code> y, al cerrar serie, <code>victories/defeats</code>.</p></div></div>
+              <div class="step"><div><b>Leaderboard</b><p><code>/team/leaderboard</code> ordena por victorias, diferencial de mapas y id.</p></div></div>
+              <div class="step"><div><b>Frontend y overlays</b><p>Standings, home, schedule y leaderboard overlay consumen esos endpoints.</p></div></div>
+            </div>
+          </details>
+
+          <details data-search-block>
+            <summary>OCR de estadisticas</summary>
+            <div class="details-body workflow">
+              <div class="step"><div><b>Subida de imagen</b><p>Manager usa <code>/playerStat/upload-match-preview</code> con <code>multer.memoryStorage()</code>.</p></div></div>
+              <div class="step"><div><b>OCR</b><p><code>services/googleVision</code> extrae texto y palabras; <code>services/playerStat</code> parsea filas.</p></div></div>
+              <div class="step"><div><b>Normalizacion</b><p>Detecta duracion, mapas, nicknames, roles y metricas per-10.</p></div></div>
+              <div class="step"><div><b>Preview y correccion</b><p>La UI puede revisar filas antes de confirmar.</p></div></div>
+              <div class="step"><div><b>Persistencia</b><p><code>confirmBatchFromPreview</code> crea multiples <code>PlayerStat</code> para <code>matchId</code> y <code>gameNumber</code>.</p></div></div>
+            </div>
+          </details>
+
+          <details data-search-block>
+            <summary>Overlays de broadcast</summary>
+            <div class="details-body workflow">
+              <div class="step"><div><b>Editor de assets</b><p><code>/assets-edition</code> actualiza settings del overlay con <code>/overlay-assets/leaderboard/:matchId</code>.</p></div></div>
+              <div class="step"><div><b>Datos en vivo</b><p>Overlays leen match, teams, draft, map pool, rosters y assets.</p></div></div>
+              <div class="step"><div><b>Render OBS</b><p>Las rutas <code>/overlay/*</code> son paginas Next pensadas para browser source.</p></div></div>
+              <div class="step"><div><b>Launcher</b><p><code>migration-uidesign/launcher</code> integra flujo local Electron/OBS websocket.</p></div></div>
+            </div>
+          </details>
+
+          <details data-search-block>
+            <summary>Contenido editorial y OW</summary>
+            <div class="details-body workflow">
+              <div class="step"><div><b>Mapas y heroes</b><p><code>/admin-dashboard/overwatch-content</code> consume <code>/map</code> y <code>/hero</code>.</p></div></div>
+              <div class="step"><div><b>Uploads</b><p><code>utils/contentImageUpload</code> gestiona imagenes de contenido.</p></div></div>
+              <div class="step"><div><b>Noticias</b><p>Editor/admin usa <code>/news/create</code>, <code>/news/update/:id</code> y <code>/news/delete/:id</code>.</p></div></div>
+              <div class="step"><div><b>Consumo publico</b><p>Home, news feed y detalle de articulo muestran contenido publicado.</p></div></div>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <section id="seguridad" data-search-block>
+        <div class="section-head">
+          <div>
+            <h3>Roles y Permisos</h3>
+            <p>Roles definidos por <code>MemberRole</code> y aplicados por middlewares del backend.</p>
+          </div>
+        </div>
+
+        <table>
+          <thead><tr><th>Rol</th><th>Middleware</th><th>Puede hacer</th><th>Areas tipicas</th></tr></thead>
+          <tbody>
+            <tr><td><b>ADMIN</b></td><td><code>admin.js</code></td><td>Control global, torneos, equipos, usuarios, maps/heroes, DB y configuraciones.</td><td>Admin dashboard, system-db, content admin.</td></tr>
+            <tr><td><b>MANAGER</b></td><td><code>manager.js</code></td><td>Operar matches, draft, resultados, pausas, OCR batch y overlays.</td><td>Manager dashboard, draft table, assets edition.</td></tr>
+            <tr><td><b>CAPTAIN</b></td><td><code>captain.js</code>, <code>captainMatch.js</code>, <code>captainDraftAction.js</code></td><td>Acciones de su equipo: ready, updates permitidos, picks/bans si corresponde.</td><td>Captain dashboard, my team, draft table.</td></tr>
+            <tr><td><b>EDITOR</b></td><td><code>editor.js</code></td><td>Crear, editar y eliminar noticias/contenido editorial.</td><td>Editor dashboard, news editor.</td></tr>
+            <tr><td><b>DEFAULT</b></td><td><code>authMiddleware</code></td><td>Perfil y datos propios permitidos.</td><td>Profile, stats mine.</td></tr>
+            <tr><td><b>Anonimo / OBS</b></td><td><code>optionalAuth.js</code> o publico</td><td>Leer paginas publicas, overlays y draft read-only con key si aplica.</td><td>Home, standings, overlays, draft state read-only.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="archivos" data-search-block>
+        <div class="section-head">
+          <div>
+            <h3>Archivos Clave</h3>
+            <p>Rutas que conviene abrir primero cuando se modifica una parte del sistema.</p>
+          </div>
+        </div>
+
+        <div class="grid cols-3">
+          <div class="card">
+            <h4>Backend entry</h4>
+            <p><code>migration-uidesign/backend/app.js</code><br /><code>migration-uidesign/backend/config/prisma.js</code><br /><code>migration-uidesign/backend/prisma/schema.prisma</code></p>
+          </div>
+          <div class="card">
+            <h4>Backend capas</h4>
+            <p><code>backend/routes</code><br /><code>backend/controllers</code><br /><code>backend/services</code><br /><code>backend/repositories</code><br /><code>backend/middlewares</code></p>
+          </div>
+          <div class="card">
+            <h4>Frontend core</h4>
+            <p><code>frontend/src/app</code><br /><code>frontend/src/lib/api</code><br /><code>frontend/src/features/session</code><br /><code>frontend/src/features/liveHub</code></p>
+          </div>
+          <div class="card">
+            <h4>Draft</h4>
+            <p><code>backend/controllers/draft.js</code><br /><code>frontend/src/app/draft-table/[matchId]/page.tsx</code><br /><code>frontend/src/hooks/useDraftPolling.ts</code></p>
+          </div>
+          <div class="card">
+            <h4>Matches y stats</h4>
+            <p><code>backend/repositories/match.js</code><br /><code>backend/services/playerStat.js</code><br /><code>frontend/src/lib/api/match.ts</code><br /><code>frontend/src/lib/api/playerStat.ts</code></p>
+          </div>
+          <div class="card">
+            <h4>Broadcast</h4>
+            <p><code>frontend/src/app/overlay</code><br /><code>frontend/src/app/assets-edition/page.tsx</code><br /><code>backend/controllers/leaderboardOverlayAsset.js</code><br /><code>migration-uidesign/launcher</code></p>
+          </div>
+        </div>
+
+        <div class="note" style="margin-top:16px">
+          Este archivo es una fotografia estructural del codigo actual. Si agregas nuevas rutas, modelos o pantallas, vuelve a generar o editar esta guia para mantenerla como mapa vivo del proyecto.
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const search = document.getElementById("search");
+    const blocks = Array.from(document.querySelectorAll("[data-search-block]"));
+    search.addEventListener("input", () => {
+      const q = search.value.trim().toLowerCase();
+      blocks.forEach((block) => {
+        if (!q) {
+          block.classList.remove("hidden");
+          return;
+        }
+        block.classList.toggle("hidden", !block.textContent.toLowerCase().includes(q));
+      });
+    });
+  </script>
+</body>
+</html>

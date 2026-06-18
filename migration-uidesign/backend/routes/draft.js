@@ -63,8 +63,9 @@ router.get(
 	authMiddleware,
 	handle((req) => draftController.getDraftShareInfo(req.params.matchId, req.user))
 );
-		// Polling clients should use the read-only state to avoid accidental writes
-			router.get("/:id/state", optionalAuth, handle((req) => draftController.getDraftStateReadOnly(req.params.id, req)));
+		// Polling clients use this endpoint. With the background worker disabled,
+		// it also applies elapsed draft timeouts on demand.
+		router.get("/:id/state", optionalAuth, handle((req) => draftController.getDraftStateReadOnly(req.params.id, req)));
 	router.get(
 		"/by-match/:matchId",
 		optionalAuth,

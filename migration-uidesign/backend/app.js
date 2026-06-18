@@ -24,7 +24,11 @@ app.use(cors());
 app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 
-app.get("/health", async (_req, res) => {
+app.get("/health", (_req, res) => {
+  return res.status(200).json({ ok: true });
+});
+
+app.get("/health/db", async (_req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
     return res.status(200).json({ ok: true, database: "connected" });
@@ -69,15 +73,20 @@ const startServer = async () => {
     console.error("[ensureAdminUser] Failed to bootstrap admin:", err?.message || err);
   }
 
-  // Start draft timeout worker so server auto-applies skips/random-picks.
-  try {
-    const draftController = require("./controllers/draft");
-    if (draftController && typeof draftController.startDraftTimeoutWorker === "function") {
-      draftController.startDraftTimeoutWorker(3000);
-      console.log("Draft timeout worker started (3s interval)");
+  // Optional: a background worker keeps draft timers advancing even with no
+  // connected clients, but it also keeps serverless Postgres computes awake.
+  if (process.env.ENABLE_DRAFT_TIMEOUT_WORKER === "true") {
+    try {
+      const draftController = require("./controllers/draft");
+      if (draftController && typeof draftController.startDraftTimeoutWorker === "function") {
+        draftController.startDraftTimeoutWorker(3000);
+        console.log("Draft timeout worker started (3s interval)");
+      }
+    } catch (err) {
+      console.error("Failed to start draft timeout worker:", err?.message || err);
     }
-  } catch (err) {
-    console.error("Failed to start draft timeout worker:", err?.message || err);
+  } else {
+    console.log("Draft timeout worker disabled; draft polling applies timeouts on demand");
   }
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
