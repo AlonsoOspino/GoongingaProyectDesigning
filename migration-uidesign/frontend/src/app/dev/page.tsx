@@ -99,14 +99,6 @@ const connections = [
   ["PlayerStat", "Stats Page", "builds rankings"],
 ];
 
-function Arrow() {
-  return (
-    <svg className="h-6 w-6 shrink-0 text-zinc-500 lg:rotate-0 rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 12h16m-6-6 6 6-6 6" />
-    </svg>
-  );
-}
-
 function SectionTitle({
   kicker,
   title,
@@ -178,16 +170,20 @@ export default function DevPage() {
             copy="This is the presentation version of the stream route. Each block is one step, and each step either produces data, transforms it, or broadcasts it."
           />
 
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch">
+          <div className="grid auto-rows-fr gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {pipeline.map((step, index) => (
-              <div key={`${step.name}-${index}`} className="flex flex-1 flex-col gap-3 lg:flex-row lg:items-center">
-                <article className={`grid min-h-48 flex-1 grid-rows-[auto_auto_1fr] border bg-white/[0.035] p-4 ${step.tone}`}>
+              <article key={`${step.name}-${index}`} className={`grid min-h-48 grid-rows-[auto_auto_1fr_auto] border bg-white/[0.035] p-4 ${step.tone}`}>
+                <div className="flex items-start justify-between gap-3">
                   <p className="text-[11px] font-black uppercase tracking-widest opacity-80">{step.type}</p>
-                  <h3 className="mt-2 text-2xl font-black text-white">{step.name}</h3>
-                  <p className="mt-4 text-sm leading-6 text-zinc-400">{step.detail}</p>
-                </article>
-                {index < pipeline.length - 1 && <Arrow />}
-              </div>
+                  <span className="font-mono text-xs text-zinc-500">{String(index + 1).padStart(2, "0")}</span>
+                </div>
+                <h3 className="mt-2 text-2xl font-black text-white">{step.name}</h3>
+                <p className="mt-4 text-sm leading-6 text-zinc-400">{step.detail}</p>
+                <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-3 text-[11px] font-black uppercase tracking-widest text-zinc-500">
+                  <span>{index === 0 ? "Start" : "Receives"}</span>
+                  <span>{index === pipeline.length - 1 ? "Live" : "Next ->"}</span>
+                </div>
+              </article>
             ))}
           </div>
         </section>
