@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import { getTeams } from "@/lib/api/team";
@@ -59,19 +59,6 @@ function AssetImage({
 }) {
   const [hasError, setHasError] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
-  const hasLoadedRef = useRef(false);
-
-  useEffect(() => {
-    hasLoadedRef.current = false;
-    setHasError(false);
-    setIsLoaded(false);
-
-    const timeout = window.setTimeout(() => {
-      if (!hasLoadedRef.current) setHasError(true);
-    }, 3500);
-
-    return () => window.clearTimeout(timeout);
-  }, [src]);
 
   return (
     <>
@@ -87,9 +74,8 @@ function AssetImage({
           alt={alt}
           className={className}
           loading="lazy"
-          style={{ display: isLoaded ? undefined : "none" }}
+          style={{ opacity: isLoaded ? 1 : 0 }}
           onLoad={() => {
-            hasLoadedRef.current = true;
             setIsLoaded(true);
           }}
           onError={() => setHasError(true)}
