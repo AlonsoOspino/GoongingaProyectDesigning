@@ -152,8 +152,6 @@ export default function SchedulePage() {
       <div className="fixed inset-0 bg-gradient-radial pointer-events-none" />
       <div className="fixed inset-0 bg-gradient-radial-bottom pointer-events-none" />
       <div className="fixed inset-0 bg-grid-pattern-subtle pointer-events-none opacity-50" />
-      <div className="decoration-blob bg-primary/20 w-64 h-64 -top-16 -right-20" />
-      <div className="decoration-blob bg-accent/20 w-72 h-72 top-24 -left-24" />
       
       <div className="container mx-auto px-4 py-8 relative">
         {/* Header */}

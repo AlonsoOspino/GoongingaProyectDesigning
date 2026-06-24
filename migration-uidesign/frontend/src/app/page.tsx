@@ -102,8 +102,6 @@ export default async function HomePage() {
     <div className="min-h-screen relative">
       {/* Global decorative elements */}
       <div className="fixed inset-0 bg-grid-pattern-subtle pointer-events-none" />
-      <div className="fixed top-0 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-[140px] pointer-events-none" />
-      <div className="fixed bottom-1/4 right-1/4 w-80 h-80 bg-accent/10 rounded-full blur-[120px] pointer-events-none" />
       
       {/* Hero Section */}
       <section className="relative py-24 overflow-hidden">
@@ -345,8 +343,6 @@ export default async function HomePage() {
         {/* Decorative background */}
         <div className="absolute inset-0 bg-gradient-to-b from-surface/50 to-transparent pointer-events-none" />
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
-        <div className="absolute -top-32 left-1/4 w-64 h-64 bg-primary/10 rounded-full blur-[100px] pointer-events-none" />
-        <div className="absolute -bottom-32 right-1/4 w-56 h-56 bg-accent/10 rounded-full blur-[80px] pointer-events-none" />
         
         <div className="container mx-auto px-4 relative">
           {/* Section Header */}
@@ -369,7 +365,7 @@ export default async function HomePage() {
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             {/* Left Column - Text Content */}
             <div className="space-y-6">
-              <div className="p-6 rounded-xl bg-card border border-border relative overflow-hidden group hover:border-primary/30 transition-colors">
+              <div className="content-panel p-6 rounded-lg relative overflow-hidden group hover:border-primary/30 transition-colors">
                 <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-primary to-accent" />
                 <div className="pl-4">
                   <h3 className="text-xl font-semibold text-foreground mb-3 flex items-center gap-2">
@@ -384,7 +380,7 @@ export default async function HomePage() {
                 </div>
               </div>
 
-              <div className="p-6 rounded-xl bg-card border border-border relative overflow-hidden group hover:border-primary/30 transition-colors">
+              <div className="content-panel p-6 rounded-lg relative overflow-hidden group hover:border-primary/30 transition-colors">
                 <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-accent to-success" />
                 <div className="pl-4">
                   <h3 className="text-xl font-semibold text-foreground mb-3 flex items-center gap-2">
@@ -413,7 +409,7 @@ export default async function HomePage() {
                 </div>
               </div>
 
-              <div className="p-6 rounded-xl bg-card border border-border relative overflow-hidden group hover:border-primary/30 transition-colors">
+              <div className="content-panel p-6 rounded-lg relative overflow-hidden group hover:border-primary/30 transition-colors">
                 <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-success to-primary" />
                 <div className="pl-4">
                   <h3 className="text-xl font-semibold text-foreground mb-3 flex items-center gap-2">
@@ -432,12 +428,11 @@ export default async function HomePage() {
             {/* Right Column - Images */}
             <div className="space-y-6">
               <div className="relative group">
-                <div className="absolute -inset-1 bg-gradient-to-r from-primary/50 to-accent/50 rounded-2xl blur opacity-25 group-hover:opacity-50 transition-opacity" />
-                <div className="relative aspect-video rounded-xl bg-surface-elevated border border-border overflow-hidden">
+                <div className="relative aspect-video rounded-lg media-frame overflow-hidden">
                   <img 
                     src="/emotionalsupport.png" 
                     alt="Goonginga League Match" 
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                   />
                   <div className="hidden absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-primary/20 to-accent/20">
                     <svg className="w-12 h-12 text-muted mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -446,18 +441,17 @@ export default async function HomePage() {
                     <span className="text-sm text-muted">Match Highlight Image</span>
                   </div>
                 </div>
-                <div className="absolute bottom-3 left-3 px-3 py-1 rounded-md bg-background/80 backdrop-blur text-xs text-foreground font-medium">
+                <div className="absolute bottom-3 left-3 px-3 py-1 rounded-md bg-background/85 backdrop-blur text-xs text-foreground font-medium">
                   Match Night
                 </div>
               </div>
 
               <div className="relative group">
-                <div className="absolute -inset-1 bg-gradient-to-r from-accent/50 to-success/50 rounded-2xl blur opacity-25 group-hover:opacity-50 transition-opacity" />
-                <div className="relative aspect-video rounded-xl bg-surface-elevated border border-border overflow-hidden">
+                <div className="relative aspect-video rounded-lg media-frame overflow-hidden">
                   <img 
                     src="/community.png" 
                     alt="Goonginga League Community" 
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                   />
                   <div className="hidden absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-accent/20 to-success/20">
                     <svg className="w-12 h-12 text-muted mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -466,22 +460,22 @@ export default async function HomePage() {
                     <span className="text-sm text-muted">Community Image</span>
                   </div>
                 </div>
-                <div className="absolute bottom-3 left-3 px-3 py-1 rounded-md bg-background/80 backdrop-blur text-xs text-foreground font-medium">
+                <div className="absolute bottom-3 left-3 px-3 py-1 rounded-md bg-background/85 backdrop-blur text-xs text-foreground font-medium">
                   Community
                 </div>
               </div>
 
               {/* Stats Row */}
               <div className="grid grid-cols-3 gap-4">
-                <div className="p-4 rounded-xl bg-card border border-border text-center group hover:border-primary/30 transition-colors">
+                <div className="content-panel p-4 rounded-lg text-center group hover:border-primary/30 transition-colors">
                   <div className="text-2xl font-bold text-primary mb-1">2022</div>
                   <div className="text-xs text-muted">Founded</div>
                 </div>
-                <div className="p-4 rounded-xl bg-card border border-border text-center group hover:border-accent/30 transition-colors">
+                <div className="content-panel p-4 rounded-lg text-center group hover:border-accent/30 transition-colors">
                   <div className="text-2xl font-bold text-accent mb-1">8+</div>
                   <div className="text-xs text-muted">Teams</div>
                 </div>
-                <div className="p-4 rounded-xl bg-card border border-border text-center group hover:border-success/30 transition-colors">
+                <div className="content-panel p-4 rounded-lg text-center group hover:border-success/30 transition-colors">
                   <div className="text-2xl font-bold text-success mb-1">50+</div>
                   <div className="text-xs text-muted">Players</div>
                 </div>
@@ -496,7 +490,6 @@ export default async function HomePage() {
         <section className="py-12 bg-surface relative overflow-hidden">
           {/* Decorative elements */}
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
-          <div className="absolute -top-20 -right-20 w-40 h-40 bg-accent/10 rounded-full blur-[80px]" />
           
           <div className="container mx-auto px-4 relative">
             <div className="flex items-center justify-between mb-8">

@@ -54,16 +54,16 @@ export function RosterCarousel({ items, shouldStretchSingleRoster = false }: Ros
         href={`/teams/${activeItem.id}`}
         className={`group block w-full animate-cascade-in ${rosterIsStretched ? "flex-1" : ""}`}
       >
-        <div className={`relative w-full overflow-hidden rounded-xl border border-border/60 bg-surface/40 transition-transform group-hover:-translate-y-1 ${rosterIsStretched ? "h-full" : ""}`}>
+        <div className={`relative w-full overflow-hidden rounded-lg border border-border/60 bg-background/50 transition-transform group-hover:-translate-y-1 ${rosterIsStretched ? "h-full" : ""}`}>
           <div className={`relative w-full ${rosterIsStretched ? "h-full min-h-[28rem]" : "h-80 md:h-96 lg:h-[28rem]"}`}>
             <Image
               src={activeItem.rosterSrc}
               alt={`${activeItem.name} roster`}
               fill
-              className="object-cover object-center transition-transform duration-500 group-hover:scale-[1.02]"
+              className="object-contain object-center p-2 transition-transform duration-500 group-hover:scale-[1.01]"
               unoptimized
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-background/85 via-background/25 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-background/88 via-background/10 to-transparent" />
           </div>
           <div className="absolute inset-0 p-4 flex items-end">
             <div>

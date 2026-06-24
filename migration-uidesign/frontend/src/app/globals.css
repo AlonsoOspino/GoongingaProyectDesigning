@@ -74,8 +74,8 @@
 /* Base styles */
 html {
   background:
-    radial-gradient(circle at 18% 0%, rgba(20, 184, 166, 0.12), transparent 34rem),
-    radial-gradient(circle at 90% 18%, rgba(56, 189, 248, 0.09), transparent 32rem),
+    radial-gradient(circle at 18% 0%, rgba(20, 184, 166, 0.08), transparent 32rem),
+    radial-gradient(circle at 90% 18%, rgba(56, 189, 248, 0.06), transparent 30rem),
     linear-gradient(180deg, #0d1417 0%, var(--color-background) 42%, #070b0d 100%);
   color: var(--color-foreground);
 }
@@ -86,8 +86,12 @@ body {
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 18rem),
-    radial-gradient(circle at 50% 100%, rgba(34, 197, 94, 0.045), transparent 34rem);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 18rem);
+  color: var(--color-foreground);
+}
+
+::selection {
+  background: rgba(20, 184, 166, 0.35);
   color: var(--color-foreground);
 }
 
@@ -141,15 +145,15 @@ body {
 
 /* Glow effects */
 .glow-teal {
-  box-shadow: 0 0 18px rgba(20, 184, 166, 0.18), 0 0 34px rgba(20, 184, 166, 0.08);
+  box-shadow: 0 10px 28px rgba(20, 184, 166, 0.14);
 }
 
 .glow-cyan {
-  box-shadow: 0 0 18px rgba(56, 189, 248, 0.18), 0 0 34px rgba(56, 189, 248, 0.08);
+  box-shadow: 0 10px 28px rgba(56, 189, 248, 0.14);
 }
 
 .text-glow {
-  text-shadow: 0 0 18px rgba(20, 184, 166, 0.26);
+  text-shadow: 0 0 14px rgba(20, 184, 166, 0.16);
 }
 
 /* Border gradients */
@@ -161,11 +165,7 @@ body {
 
 /* Decorative shapes */
 .decoration-blob {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(60px);
-  opacity: 0.4;
-  pointer-events: none;
+  display: none;
 }
 
 /* Noise texture overlay */
@@ -392,4 +392,17 @@ body {
 
 .developer-page .shadow-sm {
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22) !important;
+}
+
+.content-panel {
+  border: 1px solid rgba(48, 64, 71, 0.75);
+  background: rgba(17, 26, 31, 0.78);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
+}
+
+.media-frame {
+  border: 1px solid rgba(48, 64, 71, 0.75);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent),
+    rgba(10, 16, 18, 0.82);
 }

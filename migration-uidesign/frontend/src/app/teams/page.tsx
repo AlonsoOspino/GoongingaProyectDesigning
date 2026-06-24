@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import { getTeams } from "@/lib/api/team";
@@ -43,6 +43,61 @@ const resolveTeamAsset = (value?: string | null) => {
   if (!cleaned) return "";
   return resolveGenericBackendAsset(cleaned);
 };
+
+function AssetImage({
+  src,
+  alt,
+  fallback,
+  className,
+  fallbackClassName,
+}: {
+  src: string;
+  alt: string;
+  fallback: string;
+  className: string;
+  fallbackClassName?: string;
+}) {
+  const [hasError, setHasError] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const hasLoadedRef = useRef(false);
+
+  useEffect(() => {
+    hasLoadedRef.current = false;
+    setHasError(false);
+    setIsLoaded(false);
+
+    const timeout = window.setTimeout(() => {
+      if (!hasLoadedRef.current) setHasError(true);
+    }, 3500);
+
+    return () => window.clearTimeout(timeout);
+  }, [src]);
+
+  return (
+    <>
+      <span
+        aria-hidden="true"
+        className={`absolute inset-0 flex items-center justify-center bg-primary/10 font-bold text-primary ${fallbackClassName || ""}`}
+      >
+        {fallback}
+      </span>
+      {src && !hasError && (
+        <img
+          src={src}
+          alt={alt}
+          className={className}
+          loading="lazy"
+          style={{ display: isLoaded ? undefined : "none" }}
+          onLoad={() => {
+            hasLoadedRef.current = true;
+            setIsLoaded(true);
+          }}
+          onError={() => setHasError(true)}
+        />
+      )}
+    </>
+  );
+}
 
 export default function TeamsPage() {
   const [viewMode, setViewMode] = useState<"grid" | "cascade">("cascade");
@@ -95,8 +150,6 @@ export default function TeamsPage() {
       {/* Ambient Background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute inset-0 bg-grid-pattern-subtle opacity-40" />
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-success/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-primary/5 rounded-full blur-3xl" />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -171,7 +224,7 @@ export default function TeamsPage() {
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                Cascade
+                List
               </button>
               <button
                 onClick={() => setViewMode("grid")}
@@ -200,7 +253,7 @@ export default function TeamsPage() {
         {isLoading && (
           <div className="space-y-6">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-card/50 border border-border/50 rounded-2xl p-6">
+              <div key={i} className="bg-card/50 border border-border/50 rounded-lg p-6">
                 <div className="flex items-center gap-4 mb-4">
                   <Skeleton className="w-16 h-16 rounded-xl" />
                   <div>
@@ -229,18 +282,15 @@ export default function TeamsPage() {
               return (
                 <div
                   key={team.id}
-                  className="group relative bg-card/50 border border-border/50 rounded-2xl overflow-hidden transition-all duration-300 hover:border-primary/30"
-                  style={{ 
-                    transform: `translateX(${index % 2 === 0 ? 0 : 20}px)`,
-                  }}
+                  className="group relative bg-card/50 border border-border/50 rounded-lg overflow-hidden transition-all duration-300 hover:border-primary/30"
                 >
                   {/* Team Header */}
                   <div 
                     className="p-6 cursor-pointer"
                     onClick={() => setSelectedTeam(isExpanded ? null : team.id)}
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-4">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                      <div className="flex min-w-0 items-center gap-4">
                         {/* Rank Badge */}
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${
                           index === 0 ? "bg-yellow-500/20 text-yellow-400" :
@@ -254,11 +304,11 @@ export default function TeamsPage() {
                         {/* Team Logo */}
                         <div className="relative w-14 h-14 rounded-xl bg-card border border-border/50 overflow-hidden flex items-center justify-center">
                           {resolveTeamAsset(team.logo) ? (
-                            <img
+                            <AssetImage
                               src={resolveTeamAsset(team.logo)}
                               alt={team.name}
+                              fallback={team.name.charAt(0)}
                               className="h-full w-full object-cover"
-                              loading="lazy"
                             />
                           ) : (
                             <span className="text-xl font-bold text-primary">
@@ -267,11 +317,11 @@ export default function TeamsPage() {
                           )}
                         </div>
 
-                        <div>
-                          <h2 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors">
+                        <div className="min-w-0">
+                          <h2 className="truncate text-xl font-bold text-foreground group-hover:text-primary transition-colors">
                             {team.name}
                           </h2>
-                          <div className="flex items-center gap-3 mt-1">
+                          <div className="mt-1 flex flex-wrap items-center gap-3">
                             <span className="text-sm text-muted-foreground">
                               {teamStats.memberCount} players
                             </span>
@@ -290,7 +340,7 @@ export default function TeamsPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-4">
+                      <div className="flex flex-wrap items-center gap-4 md:justify-end">
                         {/* Quick Stats */}
                         <div className="hidden sm:flex items-center gap-4 text-center">
                           <div>
@@ -331,14 +381,15 @@ export default function TeamsPage() {
 
                   {/* Roster Image Background */}
                   {resolveTeamAsset(team.roster) && (
-                    <div className="relative h-52 overflow-hidden">
-                      <img
+                    <div className="relative h-56 overflow-hidden bg-background/40">
+                      <AssetImage
                         src={resolveTeamAsset(team.roster)}
                         alt={`${team.name} roster`}
-                        className="absolute inset-0 h-full w-full object-cover opacity-70 transition-opacity duration-300 group-hover:opacity-90"
-                        loading="lazy"
+                        fallback={team.name}
+                        className="absolute inset-0 h-full w-full object-contain opacity-85 transition-opacity duration-300 group-hover:opacity-100"
+                        fallbackClassName="text-3xl text-primary/50"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-card via-card/35 to-transparent" />
                       
                       {/* Player Avatars Overlay */}
                       <div className="absolute bottom-4 left-6 right-6">
@@ -352,13 +403,13 @@ export default function TeamsPage() {
                                   className="relative group/avatar"
                                   style={{ zIndex: 5 - i }}
                                 >
-                                  <div className="w-12 h-12 rounded-full border-2 border-card bg-card overflow-hidden hover:scale-110 hover:z-10 transition-transform">
+                                  <div className="relative w-12 h-12 rounded-full border-2 border-card bg-card overflow-hidden hover:scale-110 hover:z-10 transition-transform">
                                     {resolveTeamAsset(member.profilePic) ? (
-                                      <img
+                                      <AssetImage
                                         src={resolveTeamAsset(member.profilePic)}
                                         alt={member.nickname}
+                                        fallback={member.nickname.charAt(0)}
                                         className="h-full w-full object-cover"
-                                        loading="lazy"
                                       />
                                     ) : (
                                       <div className="w-full h-full bg-primary/20 flex items-center justify-center">
@@ -419,13 +470,13 @@ export default function TeamsPage() {
                               className="relative group/avatar"
                               style={{ zIndex: 5 - i }}
                             >
-                              <div className="w-10 h-10 rounded-full border-2 border-card bg-card overflow-hidden hover:scale-110 hover:z-10 transition-transform">
+                              <div className="relative w-10 h-10 rounded-full border-2 border-card bg-card overflow-hidden hover:scale-110 hover:z-10 transition-transform">
                                 {resolveTeamAsset(member.profilePic) ? (
-                                  <img
+                                  <AssetImage
                                     src={resolveTeamAsset(member.profilePic)}
                                     alt={member.nickname}
+                                    fallback={member.nickname.charAt(0)}
                                     className="h-full w-full object-cover"
-                                    loading="lazy"
                                   />
                                 ) : (
                                   <div className="w-full h-full bg-primary/20 flex items-center justify-center">
@@ -462,11 +513,11 @@ export default function TeamsPage() {
                           >
                             <div className="relative w-12 h-12 rounded-full overflow-hidden bg-card border border-border/50 shrink-0">
                               {resolveTeamAsset(member.profilePic) ? (
-                                <img
+                                <AssetImage
                                   src={resolveTeamAsset(member.profilePic)}
                                   alt={member.nickname}
+                                  fallback={member.nickname.charAt(0)}
                                   className="h-full w-full object-cover"
-                                  loading="lazy"
                                 />
                               ) : (
                                 <div className="w-full h-full bg-primary/20 flex items-center justify-center">
@@ -520,19 +571,20 @@ export default function TeamsPage() {
               return (
                 <div
                   key={team.id}
-                  className="group bg-card/50 border border-border/50 rounded-2xl overflow-hidden hover:border-primary/30 transition-all"
+                  className="group bg-card/50 border border-border/50 rounded-lg overflow-hidden hover:border-primary/30 transition-all"
                 >
                   {/* Roster Image */}
-                  <div className="relative h-44 overflow-hidden">
+                  <div className="relative h-44 overflow-hidden bg-background/40">
                     {resolveTeamAsset(team.roster) ? (
                       <>
-                        <img
+                        <AssetImage
                           src={resolveTeamAsset(team.roster)}
                           alt={`${team.name} roster`}
-                          className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                          loading="lazy"
+                          fallback={team.name}
+                          className="absolute inset-0 h-full w-full object-contain p-2 transition-transform duration-300 group-hover:scale-[1.02]"
+                          fallbackClassName="text-2xl text-primary/50"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-card via-card/35 to-transparent" />
                       </>
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-primary/10 to-accent/10" />
@@ -550,11 +602,11 @@ export default function TeamsPage() {
                       </div>
                       <div className="w-10 h-10 rounded-lg bg-card/90 backdrop-blur border border-border/50 overflow-hidden flex items-center justify-center">
                         {resolveTeamAsset(team.logo) ? (
-                          <img
+                          <AssetImage
                             src={resolveTeamAsset(team.logo)}
                             alt={team.name}
+                            fallback={team.name.charAt(0)}
                             className="h-full w-full object-cover"
-                            loading="lazy"
                           />
                         ) : (
                           <span className="text-sm font-bold text-primary">
@@ -620,13 +672,13 @@ export default function TeamsPage() {
                             className="relative group/avatar"
                             style={{ zIndex: 5 - i }}
                           >
-                            <div className="w-8 h-8 rounded-full border-2 border-card bg-card overflow-hidden hover:scale-110 hover:z-10 transition-transform">
+                            <div className="relative w-8 h-8 rounded-full border-2 border-card bg-card overflow-hidden hover:scale-110 hover:z-10 transition-transform">
                               {resolveTeamAsset(member.profilePic) ? (
-                                <img
+                                <AssetImage
                                   src={resolveTeamAsset(member.profilePic)}
                                   alt={member.nickname}
+                                  fallback={member.nickname.charAt(0)}
                                   className="h-full w-full object-cover"
-                                  loading="lazy"
                                 />
                               ) : (
                                 <div className="w-full h-full bg-primary/20 flex items-center justify-center">
