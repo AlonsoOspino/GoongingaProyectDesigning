@@ -12,11 +12,12 @@ export function RouteAwareShell({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams();
   const { user } = useSession();
   const isOverlayRoute = pathname.startsWith("/overlay");
+  const isExamenRoute = pathname.startsWith("/examen");
   const isDraftTableRoute = pathname.startsWith("/draft-table");
   const hasDraftAccessKey = isDraftTableRoute && Boolean(searchParams?.get("key"));
   const isKeyViewerMode = hasDraftAccessKey && user?.role !== "MANAGER";
 
-  if (isOverlayRoute || hasDraftAccessKey || isKeyViewerMode) {
+  if (isOverlayRoute || isExamenRoute || hasDraftAccessKey || isKeyViewerMode) {
     return <>{children}</>;
   }
 
