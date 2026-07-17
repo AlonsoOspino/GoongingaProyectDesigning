@@ -2,9 +2,11 @@ import { NextResponse } from "next/server";
 import { inflateRawSync } from "zlib";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const DEFAULT_MODEL = "gemini-3.5-flash";
 const DEFAULT_MAX_FILE_MB = 20;
+const DEFAULT_GEMINI_TIMEOUT_MS = 55000;
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const PDF_MIME = "application/pdf";
 
@@ -44,6 +46,20 @@ function stripCodeFence(text: string) {
 
 function normalizeModelName(model: string) {
   return model.trim().replace(/^models\//, "");
+}
+
+async function fetchGemini(url: string, init: RequestInit, timeoutMs: number) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function isPdf(file: File) {
@@ -181,6 +197,7 @@ export async function POST(request: Request) {
   const prompt = process.env.EXAMEN_GEMINI_PROMPT;
   const model = normalizeModelName(process.env.EXAMEN_GEMINI_MODEL || DEFAULT_MODEL);
   const maxFileMb = Number(process.env.EXAMEN_MAX_FILE_MB || DEFAULT_MAX_FILE_MB);
+  const geminiTimeoutMs = Number(process.env.EXAMEN_GEMINI_TIMEOUT_MS || DEFAULT_GEMINI_TIMEOUT_MS);
 
   if (!apiKey) {
     return NextResponse.json({ error: "Falta GEMINI_API_KEY en el entorno de Vercel." }, { status: 500 });
@@ -243,21 +260,37 @@ export async function POST(request: Request) {
     ];
   }
 
-  const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodedModel}:generateContent`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-goog-api-key": apiKey,
-    },
-    body: JSON.stringify({
-      contents: [
-        {
-          role: "user",
-          parts,
+  let geminiResponse: Response;
+
+  try {
+    geminiResponse = await fetchGemini(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodedModel}:generateContent`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey,
         },
-      ],
-    }),
-  });
+        body: JSON.stringify({
+          contents: [
+            {
+              role: "user",
+              parts,
+            },
+          ],
+        }),
+      },
+      geminiTimeoutMs
+    );
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      return NextResponse.json({ error: "Gemini tardo demasiado en responder. Prueba con un archivo mas pequeno o divide el examen." }, { status: 504 });
+    }
+
+    const message = error instanceof Error ? error.message : "No se pudo conectar con Gemini.";
+
+    return NextResponse.json({ error: message }, { status: 502 });
+  }
 
   const payload = (await geminiResponse.json().catch(() => null)) as GeminiResponsePayload | null;
 
