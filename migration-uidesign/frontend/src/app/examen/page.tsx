@@ -1,12 +1,20 @@
 "use client";
 
-import { useMemo, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
 
 const TOTAL_SLIDES = 35;
 const SLIDES = Array.from({ length: TOTAL_SLIDES }, (_, index) => `/examen/slides/slide-${String(index + 1).padStart(2, "0")}.png`);
 const MIDPOINT_SLIDE_INDEX = Math.floor(TOTAL_SLIDES / 2);
 
 type RequestStatus = "idle" | "loading" | "done" | "error";
+type SharedDocument = {
+  fileName: string;
+  url: string;
+  downloadUrl: string;
+  pathname: string;
+  size: number;
+  uploadedAt: string;
+};
 
 const pageStyle: CSSProperties = {
   minHeight: "100vh",
@@ -78,6 +86,12 @@ const smallUploadButtonStyle: CSSProperties = {
   fontWeight: 800,
   lineHeight: 1,
   cursor: "pointer",
+};
+
+const smallDangerButtonStyle: CSSProperties = {
+  ...smallUploadButtonStyle,
+  background: "rgba(255, 235, 235, 0.92)",
+  color: "#9b0000",
 };
 
 const controlsStyle: CSSProperties = {
@@ -165,10 +179,38 @@ export default function ExamenPage() {
   const [fileName, setFileName] = useState("");
   const [status, setStatus] = useState<RequestStatus>("idle");
   const [error, setError] = useState("");
+  const [sharedDocument, setSharedDocument] = useState<SharedDocument | null>(null);
+  const [documentBusy, setDocumentBusy] = useState(false);
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const wordInputRef = useRef<HTMLInputElement>(null);
   const iframeHtml = useMemo(() => (renderedHtml ? wrapHtmlForIframe(renderedHtml) : ""), [renderedHtml]);
-  const hasResultPanel = Boolean(fileName || renderedHtml || error || status === "loading");
+  const hasResultPanel = Boolean(fileName || sharedDocument || renderedHtml || error || status === "loading" || documentBusy);
+  const uploadDisabled = status === "loading" || documentBusy || Boolean(sharedDocument);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadSharedDocument() {
+      try {
+        const response = await fetch("/api/examen/document", { cache: "no-store" });
+        const payload = (await response.json().catch(() => null)) as { document?: SharedDocument | null } | null;
+
+        if (!ignore && response.ok) {
+          setSharedDocument(payload?.document || null);
+        }
+      } catch {
+        if (!ignore) {
+          setSharedDocument(null);
+        }
+      }
+    }
+
+    void loadSharedDocument();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   const reset = () => {
     setRenderedHtml("");
@@ -185,6 +227,57 @@ export default function ExamenPage() {
     }
   };
 
+  const saveSharedDocument = async (file: File) => {
+    const formData = new FormData();
+    formData.append("document", file);
+
+    const response = await fetch("/api/examen/document", {
+      method: "POST",
+      body: formData,
+    });
+    const payload = (await response.json().catch(() => null)) as { document?: SharedDocument; error?: string } | null;
+
+    if (!response.ok || !payload?.document) {
+      throw new Error(payload?.error || "No se pudo guardar el documento compartido.");
+    }
+
+    setSharedDocument(payload.document);
+
+    return payload.document;
+  };
+
+  const downloadSharedDocument = () => {
+    if (!sharedDocument) {
+      return;
+    }
+
+    window.open(sharedDocument.downloadUrl || sharedDocument.url, "_blank", "noopener,noreferrer");
+  };
+
+  const deleteSharedDocument = async () => {
+    setDocumentBusy(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/examen/document", { method: "DELETE" });
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+
+      if (!response.ok) {
+        throw new Error(payload?.error || "No se pudo borrar el documento.");
+      }
+
+      setSharedDocument(null);
+      setRenderedHtml("");
+      setFileName("");
+      setStatus("idle");
+    } catch (deleteError) {
+      setStatus("error");
+      setError(deleteError instanceof Error ? deleteError.message : "No se pudo borrar el documento.");
+    } finally {
+      setDocumentBusy(false);
+    }
+  };
+
   const runPromptWithFile = async (file: File) => {
     const lowerName = file.name.toLowerCase();
     const isPdf = file.type === "application/pdf" || lowerName.endsWith(".pdf");
@@ -198,6 +291,14 @@ export default function ExamenPage() {
       return;
     }
 
+    if (sharedDocument) {
+      setRenderedHtml("");
+      setFileName(sharedDocument.fileName);
+      setStatus("error");
+      setError("Ya hay un documento subido. Borralo con X antes de subir otro.");
+      return;
+    }
+
     const formData = new FormData();
     formData.append("document", file);
 
@@ -205,8 +306,11 @@ export default function ExamenPage() {
     setFileName(file.name);
     setStatus("loading");
     setError("");
+    setDocumentBusy(true);
 
     try {
+      await saveSharedDocument(file);
+
       const response = await fetch("/api/examen/generate", {
         method: "POST",
         body: formData,
@@ -223,6 +327,8 @@ export default function ExamenPage() {
       setStatus("error");
       setError(requestError instanceof Error ? requestError.message : "No se pudo generar HTML con el documento.");
     } finally {
+      setDocumentBusy(false);
+
       if (pdfInputRef.current) {
         pdfInputRef.current.value = "";
       }
@@ -265,11 +371,17 @@ export default function ExamenPage() {
                       <input ref={wordInputRef} type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style={{ display: "none" }} onChange={handleDocumentChange} />
                       <input ref={pdfInputRef} type="file" accept=".pdf,application/pdf" style={{ display: "none" }} onChange={handleDocumentChange} />
                       <div style={uploadOverlayStyle}>
-                        <button type="button" title="Cargar Word" aria-label="Cargar Word" style={{ ...smallUploadButtonStyle, ...(status === "loading" ? disabledButtonStyle : {}) }} onClick={() => wordInputRef.current?.click()} disabled={status === "loading"}>
+                        <button type="button" title={sharedDocument ? "Borra el documento actual antes de subir Word" : "Cargar Word"} aria-label="Cargar Word" style={{ ...smallUploadButtonStyle, ...(uploadDisabled ? disabledButtonStyle : {}) }} onClick={() => wordInputRef.current?.click()} disabled={uploadDisabled}>
                           W
                         </button>
-                        <button type="button" title="Cargar PDF" aria-label="Cargar PDF" style={{ ...smallUploadButtonStyle, ...(status === "loading" ? disabledButtonStyle : {}) }} onClick={() => pdfInputRef.current?.click()} disabled={status === "loading"}>
+                        <button type="button" title={sharedDocument ? "Borra el documento actual antes de subir PDF" : "Cargar PDF"} aria-label="Cargar PDF" style={{ ...smallUploadButtonStyle, ...(uploadDisabled ? disabledButtonStyle : {}) }} onClick={() => pdfInputRef.current?.click()} disabled={uploadDisabled}>
                           P
+                        </button>
+                        <button type="button" title="Descargar documento" aria-label="Descargar documento" style={{ ...smallUploadButtonStyle, ...(!sharedDocument || documentBusy ? disabledButtonStyle : {}) }} onClick={downloadSharedDocument} disabled={!sharedDocument || documentBusy}>
+                          D
+                        </button>
+                        <button type="button" title="Borrar documento" aria-label="Borrar documento" style={{ ...smallDangerButtonStyle, ...(!sharedDocument || documentBusy ? disabledButtonStyle : {}) }} onClick={() => void deleteSharedDocument()} disabled={!sharedDocument || documentBusy}>
+                          X
                         </button>
                       </div>
                     </>
@@ -284,7 +396,8 @@ export default function ExamenPage() {
                       </button>
                     </div>
 
-                    {fileName ? <p style={statusStyle}>Documento: {fileName}</p> : null}
+                    {sharedDocument || fileName ? <p style={statusStyle}>Documento: {sharedDocument?.fileName || fileName}</p> : null}
+                    {documentBusy && status !== "loading" ? <p style={statusStyle}>Actualizando documento...</p> : null}
                     {status === "loading" ? <p style={statusStyle}>Procesando documento...</p> : null}
                     {status === "done" ? <p style={statusStyle}>HTML recibido y renderizado.</p> : null}
                     {error ? <p style={errorStyle}>{error}</p> : null}
