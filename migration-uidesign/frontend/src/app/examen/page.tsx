@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
+import { upload as uploadBlob } from "@vercel/blob/client";
 
 const TOTAL_SLIDES = 35;
 const SLIDES = Array.from({ length: TOTAL_SLIDES }, (_, index) => `/examen/slides/slide-${String(index + 1).padStart(2, "0")}.png`);
 const MIDPOINT_SLIDE_INDEX = Math.floor(TOTAL_SLIDES / 2);
+const DOCUMENT_PREFIX = "examen/current/";
 
 type RequestStatus = "idle" | "loading" | "done" | "error";
 type ProcessingStage = "idle" | "saving" | "generating" | "deleting";
@@ -175,6 +177,16 @@ ${normalized}
 </html>`;
 }
 
+function safeFileName(fileName: string) {
+  const cleaned = fileName
+    .replace(/[\\/:*?"<>|]+/g, "_")
+    .replace(/\s+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 120);
+
+  return cleaned || "documento";
+}
+
 async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, timeoutMs: number, timeoutMessage: string) {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
@@ -257,27 +269,35 @@ export default function ExamenPage() {
   };
 
   const saveSharedDocument = async (file: File) => {
-    const formData = new FormData();
-    formData.append("document", file);
+    try {
+      const pathname = `${DOCUMENT_PREFIX}${Date.now()}-${safeFileName(file.name)}`;
+      const blob = await uploadBlob(pathname, file, {
+        access: "public",
+        handleUploadUrl: "/api/examen/document/upload",
+        contentType: file.type || "application/octet-stream",
+        multipart: file.size > 4 * 1024 * 1024,
+      });
+      const document = {
+        fileName: file.name,
+        url: blob.url,
+        downloadUrl: blob.downloadUrl,
+        pathname: blob.pathname,
+        size: file.size,
+        uploadedAt: new Date().toISOString(),
+      };
 
-    const response = await fetchWithTimeout(
-      "/api/examen/document",
-      {
-        method: "POST",
-        body: formData,
-      },
-      30000,
-      "Guardar el documento esta tardando demasiado. Revisa BLOB_READ_WRITE_TOKEN o intenta con un archivo mas pequeno."
-    );
-    const payload = (await response.json().catch(() => null)) as { document?: SharedDocument; error?: string } | null;
+      setSharedDocument(document);
 
-    if (!response.ok || !payload?.document) {
-      throw new Error(payload?.error || "No se pudo guardar el documento compartido.");
+      return document;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudo subir el documento compartido.";
+
+      if (message.toLowerCase().includes("failed to fetch")) {
+        throw new Error("No se pudo contactar la ruta de subida. Si estas en local, verifica que el servidor este corriendo; si estas en Vercel, revisa BLOB_READ_WRITE_TOKEN.");
+      }
+
+      throw new Error(message);
     }
-
-    setSharedDocument(payload.document);
-
-    return payload.document;
   };
 
   const downloadSharedDocument = () => {
