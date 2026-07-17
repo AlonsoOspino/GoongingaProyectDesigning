@@ -4,9 +4,7 @@ import { useMemo, useRef, useState, type ChangeEvent, type CSSProperties } from 
 
 const TOTAL_SLIDES = 35;
 const SLIDES = Array.from({ length: TOTAL_SLIDES }, (_, index) => `/examen/slides/slide-${String(index + 1).padStart(2, "0")}.png`);
-const MIDPOINT_SLIDE_COUNT = Math.ceil(TOTAL_SLIDES / 2);
-const FIRST_SLIDES = SLIDES.slice(0, MIDPOINT_SLIDE_COUNT);
-const REMAINING_SLIDES = SLIDES.slice(MIDPOINT_SLIDE_COUNT);
+const MIDPOINT_SLIDE_INDEX = Math.floor(TOTAL_SLIDES / 2);
 
 type RequestStatus = "idle" | "loading" | "done" | "error";
 
@@ -50,10 +48,36 @@ const slideFrameStyle: CSSProperties = {
   boxShadow: "0 8px 24px rgba(0, 0, 0, 0.12)",
 };
 
+const middleSlideFrameStyle: CSSProperties = {
+  ...slideFrameStyle,
+  position: "relative",
+};
+
 const slideStyle: CSSProperties = {
   display: "block",
   width: "100%",
   height: "auto",
+};
+
+const uploadOverlayStyle: CSSProperties = {
+  position: "absolute",
+  top: "12px",
+  right: "12px",
+  display: "flex",
+  gap: "6px",
+  zIndex: 2,
+};
+
+const smallUploadButtonStyle: CSSProperties = {
+  width: "34px",
+  height: "34px",
+  border: "1px solid rgba(0, 0, 0, 0.55)",
+  background: "rgba(255, 255, 255, 0.9)",
+  color: "#111",
+  fontSize: "15px",
+  fontWeight: 800,
+  lineHeight: 1,
+  cursor: "pointer",
 };
 
 const controlsStyle: CSSProperties = {
@@ -85,7 +109,7 @@ const disabledButtonStyle: CSSProperties = {
   cursor: "not-allowed",
 };
 
-const uploaderStyle: CSSProperties = {
+const resultPanelStyle: CSSProperties = {
   padding: "18px",
   background: "#fff",
   border: "1px solid #d0d0d0",
@@ -141,8 +165,10 @@ export default function ExamenPage() {
   const [fileName, setFileName] = useState("");
   const [status, setStatus] = useState<RequestStatus>("idle");
   const [error, setError] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+  const wordInputRef = useRef<HTMLInputElement>(null);
   const iframeHtml = useMemo(() => (renderedHtml ? wrapHtmlForIframe(renderedHtml) : ""), [renderedHtml]);
+  const hasResultPanel = Boolean(fileName || renderedHtml || error || status === "loading");
 
   const reset = () => {
     setRenderedHtml("");
@@ -150,12 +176,28 @@ export default function ExamenPage() {
     setStatus("idle");
     setError("");
 
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+    if (pdfInputRef.current) {
+      pdfInputRef.current.value = "";
+    }
+
+    if (wordInputRef.current) {
+      wordInputRef.current.value = "";
     }
   };
 
   const runPromptWithFile = async (file: File) => {
+    const lowerName = file.name.toLowerCase();
+    const isPdf = file.type === "application/pdf" || lowerName.endsWith(".pdf");
+    const isDocx = file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || lowerName.endsWith(".docx");
+
+    if (!isPdf && !isDocx) {
+      setRenderedHtml("");
+      setFileName(file.name);
+      setStatus("error");
+      setError("Formato no soportado. Usa PDF o Word .docx.");
+      return;
+    }
+
     const formData = new FormData();
     formData.append("document", file);
 
@@ -181,8 +223,12 @@ export default function ExamenPage() {
       setStatus("error");
       setError(requestError instanceof Error ? requestError.message : "No se pudo generar HTML con el documento.");
     } finally {
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
+      if (pdfInputRef.current) {
+        pdfInputRef.current.value = "";
+      }
+
+      if (wordInputRef.current) {
+        wordInputRef.current.value = "";
       }
     }
   };
@@ -206,46 +252,50 @@ export default function ExamenPage() {
         </div>
 
         <div style={slideListStyle}>
-          {FIRST_SLIDES.map((slideSrc, index) => (
-            <div key={slideSrc} style={slideFrameStyle}>
-              <img src={slideSrc} alt={`Diapositiva ${index + 1}`} loading={index === 0 ? "eager" : "lazy"} style={slideStyle} />
-            </div>
-          ))}
-
-          <section style={uploaderStyle}>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.doc,.docx,.txt,.md,.html,.csv,.json,.xlsx,.xls"
-              style={{ display: "none" }}
-              onChange={handleDocumentChange}
-            />
-            <div style={controlsStyle}>
-              <button type="button" style={{ ...buttonStyle, ...(status === "loading" ? disabledButtonStyle : {}) }} onClick={() => fileInputRef.current?.click()} disabled={status === "loading"}>
-                {status === "loading" ? "PROCESANDO..." : "CARGAR DOCUMENTO Y EJECUTAR PROMPT"}
-              </button>
-              <button type="button" style={secondaryButtonStyle} onClick={reset}>
-                RESETEAR
-              </button>
-            </div>
-
-            {fileName ? <p style={statusStyle}>Documento: {fileName}</p> : null}
-            {status === "done" ? <p style={statusStyle}>HTML recibido y renderizado.</p> : null}
-            {error ? <p style={errorStyle}>{error}</p> : null}
-
-            {renderedHtml ? (
-              <div style={renderStyle}>
-                <iframe title="HTML renderizado" srcDoc={iframeHtml} sandbox="" referrerPolicy="no-referrer" style={iframeStyle} />
-              </div>
-            ) : null}
-          </section>
-
-          {REMAINING_SLIDES.map((slideSrc, index) => {
-            const slideNumber = MIDPOINT_SLIDE_COUNT + index + 1;
+          {SLIDES.map((slideSrc, index) => {
+            const isMiddleSlide = index === MIDPOINT_SLIDE_INDEX;
 
             return (
-              <div key={slideSrc} style={slideFrameStyle}>
-                <img src={slideSrc} alt={`Diapositiva ${slideNumber}`} loading="lazy" style={slideStyle} />
+              <div key={slideSrc}>
+                <div style={isMiddleSlide ? middleSlideFrameStyle : slideFrameStyle}>
+                  <img src={slideSrc} alt={`Diapositiva ${index + 1}`} loading={index === 0 ? "eager" : "lazy"} style={slideStyle} />
+
+                  {isMiddleSlide ? (
+                    <>
+                      <input ref={wordInputRef} type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style={{ display: "none" }} onChange={handleDocumentChange} />
+                      <input ref={pdfInputRef} type="file" accept=".pdf,application/pdf" style={{ display: "none" }} onChange={handleDocumentChange} />
+                      <div style={uploadOverlayStyle}>
+                        <button type="button" title="Cargar Word" aria-label="Cargar Word" style={{ ...smallUploadButtonStyle, ...(status === "loading" ? disabledButtonStyle : {}) }} onClick={() => wordInputRef.current?.click()} disabled={status === "loading"}>
+                          W
+                        </button>
+                        <button type="button" title="Cargar PDF" aria-label="Cargar PDF" style={{ ...smallUploadButtonStyle, ...(status === "loading" ? disabledButtonStyle : {}) }} onClick={() => pdfInputRef.current?.click()} disabled={status === "loading"}>
+                          P
+                        </button>
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+
+                {isMiddleSlide && hasResultPanel ? (
+                  <section style={resultPanelStyle}>
+                    <div style={controlsStyle}>
+                      <button type="button" style={secondaryButtonStyle} onClick={reset}>
+                        RESETEAR
+                      </button>
+                    </div>
+
+                    {fileName ? <p style={statusStyle}>Documento: {fileName}</p> : null}
+                    {status === "loading" ? <p style={statusStyle}>Procesando documento...</p> : null}
+                    {status === "done" ? <p style={statusStyle}>HTML recibido y renderizado.</p> : null}
+                    {error ? <p style={errorStyle}>{error}</p> : null}
+
+                    {renderedHtml ? (
+                      <div style={renderStyle}>
+                        <iframe title="HTML renderizado" srcDoc={iframeHtml} sandbox="" referrerPolicy="no-referrer" style={iframeStyle} />
+                      </div>
+                    ) : null}
+                  </section>
+                ) : null}
               </div>
             );
           })}
