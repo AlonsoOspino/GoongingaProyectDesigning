@@ -4,6 +4,9 @@ import { useMemo, useRef, useState, type ChangeEvent, type CSSProperties } from 
 
 const TOTAL_SLIDES = 35;
 const SLIDES = Array.from({ length: TOTAL_SLIDES }, (_, index) => `/examen/slides/slide-${String(index + 1).padStart(2, "0")}.png`);
+const MIDPOINT_SLIDE_COUNT = Math.ceil(TOTAL_SLIDES / 2);
+const FIRST_SLIDES = SLIDES.slice(0, MIDPOINT_SLIDE_COUNT);
+const REMAINING_SLIDES = SLIDES.slice(MIDPOINT_SLIDE_COUNT);
 
 type RequestStatus = "idle" | "loading" | "done" | "error";
 
@@ -83,7 +86,6 @@ const disabledButtonStyle: CSSProperties = {
 };
 
 const uploaderStyle: CSSProperties = {
-  marginTop: "28px",
   padding: "18px",
   background: "#fff",
   border: "1px solid #d0d0d0",
@@ -107,10 +109,12 @@ const renderStyle: CSSProperties = {
 };
 
 const iframeStyle: CSSProperties = {
+  display: "block",
   width: "100%",
-  minHeight: "760px",
+  height: "33vh",
   background: "#fff",
   border: "1px solid #222",
+  overflow: "auto",
 };
 
 function wrapHtmlForIframe(html: string) {
@@ -202,40 +206,50 @@ export default function ExamenPage() {
         </div>
 
         <div style={slideListStyle}>
-          {SLIDES.map((slideSrc, index) => (
+          {FIRST_SLIDES.map((slideSrc, index) => (
             <div key={slideSrc} style={slideFrameStyle}>
               <img src={slideSrc} alt={`Diapositiva ${index + 1}`} loading={index === 0 ? "eager" : "lazy"} style={slideStyle} />
             </div>
           ))}
-        </div>
 
-        <section style={uploaderStyle}>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.doc,.docx,.txt,.md,.html,.csv,.json,.xlsx,.xls"
-            style={{ display: "none" }}
-            onChange={handleDocumentChange}
-          />
-          <div style={controlsStyle}>
-            <button type="button" style={{ ...buttonStyle, ...(status === "loading" ? disabledButtonStyle : {}) }} onClick={() => fileInputRef.current?.click()} disabled={status === "loading"}>
-              {status === "loading" ? "PROCESANDO..." : "CARGAR DOCUMENTO Y EJECUTAR PROMPT"}
-            </button>
-            <button type="button" style={secondaryButtonStyle} onClick={reset}>
-              RESETEAR
-            </button>
-          </div>
-
-          {fileName ? <p style={statusStyle}>Documento: {fileName}</p> : null}
-          {status === "done" ? <p style={statusStyle}>HTML recibido y renderizado.</p> : null}
-          {error ? <p style={errorStyle}>{error}</p> : null}
-
-          {renderedHtml ? (
-            <div style={renderStyle}>
-              <iframe title="HTML renderizado" srcDoc={iframeHtml} sandbox="" referrerPolicy="no-referrer" style={iframeStyle} />
+          <section style={uploaderStyle}>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.doc,.docx,.txt,.md,.html,.csv,.json,.xlsx,.xls"
+              style={{ display: "none" }}
+              onChange={handleDocumentChange}
+            />
+            <div style={controlsStyle}>
+              <button type="button" style={{ ...buttonStyle, ...(status === "loading" ? disabledButtonStyle : {}) }} onClick={() => fileInputRef.current?.click()} disabled={status === "loading"}>
+                {status === "loading" ? "PROCESANDO..." : "CARGAR DOCUMENTO Y EJECUTAR PROMPT"}
+              </button>
+              <button type="button" style={secondaryButtonStyle} onClick={reset}>
+                RESETEAR
+              </button>
             </div>
-          ) : null}
-        </section>
+
+            {fileName ? <p style={statusStyle}>Documento: {fileName}</p> : null}
+            {status === "done" ? <p style={statusStyle}>HTML recibido y renderizado.</p> : null}
+            {error ? <p style={errorStyle}>{error}</p> : null}
+
+            {renderedHtml ? (
+              <div style={renderStyle}>
+                <iframe title="HTML renderizado" srcDoc={iframeHtml} sandbox="" referrerPolicy="no-referrer" style={iframeStyle} />
+              </div>
+            ) : null}
+          </section>
+
+          {REMAINING_SLIDES.map((slideSrc, index) => {
+            const slideNumber = MIDPOINT_SLIDE_COUNT + index + 1;
+
+            return (
+              <div key={slideSrc} style={slideFrameStyle}>
+                <img src={slideSrc} alt={`Diapositiva ${slideNumber}`} loading="lazy" style={slideStyle} />
+              </div>
+            );
+          })}
+        </div>
       </div>
     </main>
   );
