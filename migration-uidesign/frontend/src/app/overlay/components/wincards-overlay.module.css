@@ -158,23 +158,6 @@
   text-shadow: 0 0 12px rgba(246, 208, 143, 0.55);
 }
 
-.playoffColumn:nth-child(1) .columnHeader,
-.playoffColumn:nth-child(5) .columnHeader {
-  background: linear-gradient(165deg, #17645f, #103d3b);
-}
-
-.playoffColumn:nth-child(2) .columnHeader {
-  background: linear-gradient(165deg, #285b7a, #17394d);
-}
-
-.playoffColumn:nth-child(3) .columnHeader {
-  background: linear-gradient(165deg, #866329, #4f3a1a);
-}
-
-.playoffColumn:nth-child(4) .columnHeader {
-  background: linear-gradient(165deg, #7a3f44, #46252a);
-}
-
 .columnHeader {
   height: 14%;
   min-height: 58px;
