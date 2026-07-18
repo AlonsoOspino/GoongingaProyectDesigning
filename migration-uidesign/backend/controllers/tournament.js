@@ -50,10 +50,20 @@ const getCurrent = async (req, res) => {
   }
 };
 
+const startPlayoffs = async (req, res) => {
+  try {
+    const tournament = await tournamentService.startPlayoffs(Number(req.params.id), req.body);
+    res.status(201).json(tournament);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
 module.exports = {
   create,
   update,
   remove,
   getAll,
   getCurrent,
+  startPlayoffs,
 };

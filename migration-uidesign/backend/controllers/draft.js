@@ -109,6 +109,12 @@ const getOtherTeamId = (match, actingTeamId) => {
 const getAvailableMaps = async ({ match, pickedMapIds, actions = [] }) => {
   // Current game is gameNumber+1 (gameNumber is last completed game, 0 at start)
   const currentGame = (match.gameNumber || 0) + 1;
+  if (match.type === "PLAYOFFS") {
+    return prisma.map.findMany({
+      where: { id: { notIn: pickedMapIds } },
+      orderBy: { id: "asc" },
+    });
+  }
   const poolIds = parseAllowedMapPool(match.mapsAllowedByRound, currentGame);
 
   if (currentGame === 5) {
@@ -365,11 +371,13 @@ const createDraft = async (matchId, user) => {
     throw new Error("Draft already exists for this match.");
   }
 
+  const firstPickerTeamId = await determineFirstPicker(match);
+
   return prisma.draftTable.create({
     data: {
       matchId: parsedMatchId,
       phase: "STARTING",
-      currentTurnTeamId: match.teamAId,
+      currentTurnTeamId: firstPickerTeamId,
       phaseStartedAt: new Date(),
       bannedHeroes: [],
       pickedMaps: [],
@@ -392,6 +400,10 @@ const determineFirstPicker = async (match) => {
     ]);
 
     if (!teamA || !teamB) return match.teamAId;
+
+    if (Number.isInteger(teamA.playoffSeed) && Number.isInteger(teamB.playoffSeed)) {
+      return teamA.playoffSeed < teamB.playoffSeed ? match.teamAId : match.teamBId;
+    }
 
     if (teamA.victories !== teamB.victories) {
       return teamA.victories > teamB.victories ? match.teamAId : match.teamBId;
@@ -432,7 +444,10 @@ const startMapPicking = async (draftId, user) => {
   let turnStarter;
 
   if (draft.phase === "STARTING" && draft.match.gameNumber === 0) {
-    turnStarter = await determineFirstPicker(draft.match);
+    const validTeams = [draft.match.teamAId, draft.match.teamBId];
+    turnStarter = validTeams.includes(draft.currentTurnTeamId)
+      ? draft.currentTurnTeamId
+      : await determineFirstPicker(draft.match);
   } else {
     const validTeams = [draft.match.teamAId, draft.match.teamBId];
     turnStarter = validTeams.includes(draft.currentTurnTeamId)
@@ -486,17 +501,18 @@ const pickMap = async (draftId, payload, user) => {
   const currentGame = (draft.match.gameNumber || 0) + 1;
   const allowedTypes = getAllowedMapTypes(currentGame);
   const poolIds = parseAllowedMapPool(draft.match.mapsAllowedByRound, currentGame);
+  const isPlayoffMatch = draft.match.type === "PLAYOFFS";
 
   const map = await prisma.map.findUnique({ where: { id: mapId } });
   if (!map) {
     throw new Error("Map not found.");
   }
 
-  if (currentGame !== 5 && poolIds && !poolIds.includes(mapId)) {
+  if (!isPlayoffMatch && currentGame !== 5 && poolIds && !poolIds.includes(mapId)) {
     throw new Error(`Map ${mapId} is not allowed for round ${getRoundKey(currentGame)}.`);
   }
 
-  if (currentGame !== 5 && !poolIds && !allowedTypes.includes(map.type)) {
+  if (!isPlayoffMatch && currentGame !== 5 && !poolIds && !allowedTypes.includes(map.type)) {
     throw new Error(`Invalid map type. Allowed for game ${currentGame}: ${allowedTypes.join(", ")}.`);
   }
 
@@ -752,6 +768,44 @@ const endMap = async (draftId, user) => {
   });
 };
 
+const yieldFirstPick = async (draftId, user) => {
+  if (!user || user.role !== "CAPTAIN") {
+    throw new Error("Only the higher-seeded captain can hand over first pick.");
+  }
+
+  const draft = await getDraftByIdOrThrow(draftId);
+  if (draft.match.type !== "PLAYOFFS" || draft.match.gameNumber !== 0 || draft.phase !== "STARTING") {
+    throw new Error("First pick can only be handed over before game one of a playoff match.");
+  }
+
+  const teams = await prisma.team.findMany({
+    where: { id: { in: [draft.match.teamAId, draft.match.teamBId] } },
+    select: { id: true, playoffSeed: true },
+  });
+  if (teams.length !== 2 || teams.some((team) => !Number.isInteger(team.playoffSeed))) {
+    throw new Error("Playoff seeds are missing for this match.");
+  }
+
+  const higherSeed = [...teams].sort((a, b) => a.playoffSeed - b.playoffSeed)[0];
+  const captainTeamId = Number(user.teamId);
+  if (captainTeamId !== higherSeed.id || draft.currentTurnTeamId !== higherSeed.id) {
+    throw new Error("Only the higher-seeded captain can hand over first pick.");
+  }
+
+  const updated = await prisma.draftTable.update({
+    where: { id: draft.id },
+    data: {
+      currentTurnTeamId: getOtherTeamId(draft.match, higherSeed.id),
+      phaseStartedAt: new Date(),
+    },
+    include: {
+      match: true,
+      actions: { orderBy: { order: "asc" } },
+    },
+  });
+  return buildDraftState(updated);
+};
+
 const buildDraftState = async (draft) => {
   // Current game is gameNumber+1 (gameNumber = last completed, 0 at start)
   const gameNumber = (draft.match.gameNumber || 0) + 1;
@@ -761,7 +815,7 @@ const buildDraftState = async (draft) => {
   const availableMaps = await getAvailableMaps({ match: draft.match, pickedMapIds, actions: draft.actions });
 
   const poolIds = parseAllowedMapPool(draft.match.mapsAllowedByRound, gameNumber);
-  const allowedTypesFromPool = poolIds
+  const allowedTypesFromPool = draft.match.type === "PLAYOFFS" || poolIds
     ? [...new Set(availableMaps.map((m) => m.type))]
     : allowedMapTypes;
 
@@ -898,6 +952,7 @@ module.exports = {
   getDraftStateReadOnly,
   getDraftByMatchId,
   getDraftShareInfo,
+  yieldFirstPick,
 };
 
 // Background worker: periodically scan active drafts and apply timeouts server-side.

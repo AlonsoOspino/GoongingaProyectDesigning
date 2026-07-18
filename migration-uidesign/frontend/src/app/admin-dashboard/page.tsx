@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Badge } from "@/components/ui/Badge";
+import { Avatar } from "@/components/ui/Avatar";
 import { ImageUploadField } from "@/components/ui/ImageUploadField";
 import { Modal, ModalHeader, ModalTitle, ModalContent, ModalFooter } from "@/components/ui/Modal";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/Table";
@@ -16,7 +17,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
 import { resolveMapImageUrl } from "@/lib/assetUrls";
 import { deleteReplacedBlobImage } from "@/lib/blobUpload";
 import {
-  createTournament, updateTournament, deleteTournament, getCurrentTournament,
+  createTournament, updateTournament, deleteTournament, getCurrentTournament, startTournamentPlayoffs,
   adminCreateMatch, adminUpdateMatch, adminDeleteMatch, adminGenerateRoundRobin,
   adminCreateTeam, adminCreateTeams, adminUpdateTeam, adminDeleteTeam,
   adminRegisterMember, adminUpdateMember, adminBulkImportUsers, getMembers, getMaps,
@@ -25,7 +26,7 @@ import {
   type CreateMatchPayload, type CreateTeamPayload, type Member, type AdminGameMap,
 } from "@/lib/api/admin";
 import { convertToISODateTime, formatDateEST, formatForDateInput, formatForDateTimeInput } from "@/lib/dateUtils";
-import { getMatches, getTeams, type Match, type Team } from "@/lib/api";
+import { getLeaderboard, getMatches, getTeams, type Match, type Team } from "@/lib/api";
 import type { Tournament } from "@/lib/api/types";
 
 type ActiveTab = "tournament" | "matches" | "weekMaps" | "teams" | "users" | "database";
@@ -129,6 +130,10 @@ function TournamentSection({ token }: { token: string }) {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showPlayoffModal, setShowPlayoffModal] = useState(false);
+  const [playoffTeams, setPlayoffTeams] = useState<Team[]>([]);
+  const [selectedPlayoffTeamIds, setSelectedPlayoffTeamIds] = useState<number[]>([]);
+  const [startingPlayoffs, setStartingPlayoffs] = useState(false);
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [formData, setFormData] = useState({ name: "", startDate: "", state: "SCHEDULED" });
   const { date: tournamentDate, time: tournamentTime } = splitDateTime(formData.startDate);
@@ -144,6 +149,26 @@ function TournamentSection({ token }: { token: string }) {
     try { setTournament(await getCurrentTournament()); }
     catch { setTournament(null); }
     finally { setLoading(false); }
+  }
+
+  async function openPlayoffSelection() {
+    if (!tournament) return;
+    try {
+      const leaderboard = await getLeaderboard(tournament.id);
+      setPlayoffTeams(leaderboard);
+      setSelectedPlayoffTeamIds([]);
+      setShowPlayoffModal(true);
+    } catch (err: any) {
+      showNotif("error", err.message || "Failed to load the leaderboard");
+    }
+  }
+
+  function togglePlayoffTeam(teamId: number) {
+    setSelectedPlayoffTeamIds((current) => {
+      if (current.includes(teamId)) return current.filter((id) => id !== teamId);
+      if (current.length >= 8) return current;
+      return [...current, teamId];
+    });
   }
 
   if (loading) return <Card variant="bordered"><CardContent className="p-8 text-center text-muted">Loading...</CardContent></Card>;
@@ -220,7 +245,14 @@ function TournamentSection({ token }: { token: string }) {
         <ModalContent>
           <div className="space-y-4">
             <Input label="Tournament Name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
-            <Select label="State" value={formData.state} onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+            <Select label="State" value={formData.state} onChange={(e) => {
+              const nextState = e.target.value;
+              setFormData({ ...formData, state: nextState });
+              if (nextState === "PLAYOFFS" && tournament?.state !== "PLAYOFFS") {
+                setShowEditModal(false);
+                void openPlayoffSelection();
+              }
+            }}
               options={[
                 { value: "SCHEDULED", label: "Scheduled" }, { value: "ROUNDROBIN", label: "Round Robin" },
                 { value: "PLAYOFFS", label: "Playoffs" }, { value: "SEMIFINALS", label: "Semifinals" },
@@ -231,15 +263,108 @@ function TournamentSection({ token }: { token: string }) {
         </ModalContent>
         <ModalFooter>
           <Button variant="ghost" onClick={() => setShowEditModal(false)}>Cancel</Button>
-          <Button onClick={async () => {
-            if (!tournament) return;
-            try {
+           <Button onClick={async () => {
+             if (!tournament) return;
+             if (formData.state === "PLAYOFFS" && tournament.state !== "PLAYOFFS") {
+               setShowEditModal(false);
+               await openPlayoffSelection();
+               return;
+             }
+             try {
               await updateTournament(token, tournament.id, { name: formData.name, state: formData.state as Tournament["state"] });
               setShowEditModal(false);
               showNotif("success", "Tournament updated");
               loadTournament();
             } catch (err: any) { showNotif("error", err.message); }
           }}>Save Changes</Button>
+        </ModalFooter>
+      </Modal>
+
+      <Modal
+        isOpen={showPlayoffModal}
+        onClose={() => {
+          if (startingPlayoffs) return;
+          setShowPlayoffModal(false);
+          if (tournament) setFormData((current) => ({ ...current, state: tournament.state }));
+        }}
+        className="max-w-2xl"
+      >
+        <ModalHeader>
+          <div>
+            <ModalTitle>Select playoff teams</ModalTitle>
+            <p className="mt-1 text-sm text-muted">Seeds follow the current leaderboard, including head-to-head ties.</p>
+          </div>
+          <Badge variant={selectedPlayoffTeamIds.length === 8 ? "success" : "default"}>
+            {selectedPlayoffTeamIds.length} / 8
+          </Badge>
+        </ModalHeader>
+        <ModalContent className="max-h-[60vh] overflow-y-auto">
+          <div className="mb-3 flex justify-end">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedPlayoffTeamIds(playoffTeams.slice(0, 8).map((team) => team.id))}
+              disabled={playoffTeams.length < 8 || startingPlayoffs}
+            >
+              Select top 8
+            </Button>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {playoffTeams.map((team, index) => {
+              const selected = selectedPlayoffTeamIds.includes(team.id);
+              const disabled = !selected && selectedPlayoffTeamIds.length >= 8;
+              return (
+                <label
+                  key={team.id}
+                  className={`flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors ${
+                    selected ? "border-primary bg-primary/10" : "border-border bg-surface/50 hover:border-primary/40"
+                  } ${disabled ? "cursor-not-allowed opacity-45" : ""}`}
+                >
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-[var(--color-primary)]"
+                    checked={selected}
+                    disabled={disabled || startingPlayoffs}
+                    onChange={() => togglePlayoffTeam(team.id)}
+                  />
+                  <span className="w-7 text-center font-mono text-sm font-bold text-muted">#{index + 1}</span>
+                  <Avatar size="sm" src={team.logo || undefined} fallback={team.name} />
+                  <span className="min-w-0 flex-1 truncate font-medium text-foreground">{team.name}</span>
+                  <span className="text-xs text-muted">{team.victories}-{team.defeats}</span>
+                </label>
+              );
+            })}
+          </div>
+        </ModalContent>
+        <ModalFooter>
+          <Button
+            variant="ghost"
+            onClick={() => setShowPlayoffModal(false)}
+            disabled={startingPlayoffs}
+          >
+            Cancel
+          </Button>
+          <Button
+            isLoading={startingPlayoffs}
+            disabled={selectedPlayoffTeamIds.length !== 8}
+            onClick={async () => {
+              if (!tournament) return;
+              setStartingPlayoffs(true);
+              try {
+                await startTournamentPlayoffs(token, tournament.id, selectedPlayoffTeamIds);
+                setShowPlayoffModal(false);
+                showNotif("success", "Playoff bracket created");
+                await loadTournament();
+              } catch (err: any) {
+                showNotif("error", err.message || "Failed to start playoffs");
+              } finally {
+                setStartingPlayoffs(false);
+              }
+            }}
+          >
+            Create playoff bracket
+          </Button>
         </ModalFooter>
       </Modal>
     </div>

@@ -47,11 +47,14 @@ model Team {
   defeats       Int           @default(0)
   bannerLeft    String?
   bannerRight   String?
+  playoffSeed   Int?
   draftActions  DraftAction[]
   matchesA      Match[]       @relation("TeamA")
   matchesB      Match[]       @relation("TeamB")
   members       Member[]
   tournament    Tournament    @relation(fields: [tournamentId], references: [id])
+
+  @@unique([tournamentId, playoffSeed])
 }
 
 model Match {
@@ -72,6 +75,8 @@ model Match {
   gameNumber         Int          @default(0)
   semanas            Int?
   title              String?
+  playoffRound       Int?
+  playoffSlot        Int?
   mapsAllowedByRound Json?
   mapResults         Json?
   mapStartedAt       DateTime?
@@ -87,6 +92,8 @@ model Match {
   playerStats        PlayerStat[]
   allowedMaps        Map[]        @relation("AllowedMaps")
   leaderboardOverlay LeaderboardOverlayAsset?
+
+  @@unique([tournamentId, playoffRound, playoffSlot])
 }
 
 model LeaderboardOverlayAsset {

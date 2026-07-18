@@ -236,7 +236,7 @@ const submitResult = async (id, winnerTeamId) => {
         ? match.teamBId
         : null;
 
-    if (isFinished && matchWinnerTeamId) {
+    if (isFinished && matchWinnerTeamId && match.type !== "PLAYOFFS") {
       const losingTeamId =
         matchWinnerTeamId === match.teamAId ? match.teamBId : match.teamAId;
       await tx.team.update({
@@ -334,7 +334,7 @@ const undoLastResult = async (id) => {
         ? match.teamBId
         : null;
 
-    if (match.status === "PENDINGREGISTERS" && matchWinnerTeamId) {
+    if (match.status === "PENDINGREGISTERS" && matchWinnerTeamId && match.type !== "PLAYOFFS") {
       const losingTeamId =
         matchWinnerTeamId === match.teamAId ? match.teamBId : match.teamAId;
       await tx.team.update({
@@ -415,18 +415,151 @@ const findSoonest = () => {
   });
 };
 
-const finishPendingRegisters = async (id) => {
-  const match = await prisma.match.findUnique({ where: { id } });
-  if (!match) {
-    throw new Error("Match not found.");
-  }
-  if (match.status !== "PENDINGREGISTERS") {
-    throw new Error("Only matches in PENDINGREGISTERS can be marked as FINISHED.");
+const getMatchWinnerTeamId = (match) => {
+  if (match.mapWinsTeamA > match.mapWinsTeamB) return match.teamAId;
+  if (match.mapWinsTeamB > match.mapWinsTeamA) return match.teamBId;
+  return null;
+};
+
+const playoffPairKey = (teamAId, teamBId) =>
+  teamAId < teamBId ? `${teamAId}-${teamBId}` : `${teamBId}-${teamAId}`;
+
+const enumerateOutcomes = (winnerOptions, index = 0, current = [], outcomes = []) => {
+  if (index === winnerOptions.length) {
+    outcomes.push([...current]);
+    return outcomes;
   }
 
-  return prisma.match.update({
-    where: { id },
-    data: { status: "FINISHED" },
+  for (const teamId of winnerOptions[index]) {
+    current.push(teamId);
+    enumerateOutcomes(winnerOptions, index + 1, current, outcomes);
+    current.pop();
+  }
+  return outcomes;
+};
+
+const createGuaranteedNextRoundMatches = async (tx, tournamentId, currentRound) => {
+  const expectedMatchCount = currentRound === 1 ? 4 : currentRound === 2 ? 2 : 0;
+  if (!expectedMatchCount) return;
+
+  const sourceMatches = await tx.match.findMany({
+    where: { tournamentId, playoffRound: currentRound },
+    orderBy: { playoffSlot: "asc" },
+  });
+  if (sourceMatches.length !== expectedMatchCount) return;
+
+  const winnerOptions = sourceMatches.map((match) => {
+    if (match.status === "FINISHED") {
+      const winnerTeamId = getMatchWinnerTeamId(match);
+      if (!winnerTeamId) throw new Error("A finished playoff match must have a winner.");
+      return [winnerTeamId];
+    }
+    return [match.teamAId, match.teamBId];
+  });
+
+  const participantIds = [...new Set(winnerOptions.flat())];
+  const teams = await tx.team.findMany({
+    where: { id: { in: participantIds } },
+    select: { id: true, playoffSeed: true },
+  });
+  const seeds = new Map(teams.map((team) => [team.id, team.playoffSeed]));
+  if (teams.some((team) => !Number.isInteger(team.playoffSeed))) {
+    throw new Error("Every playoff team must have a seed.");
+  }
+
+  const outcomePairSets = enumerateOutcomes(winnerOptions).map((outcome) => {
+    const sorted = [...outcome].sort((a, b) => seeds.get(a) - seeds.get(b));
+    const pairs = new Set();
+    for (let index = 0; index < sorted.length / 2; index += 1) {
+      pairs.add(playoffPairKey(sorted[index], sorted[sorted.length - 1 - index]));
+    }
+    return pairs;
+  });
+
+  const guaranteedPairKeys = [...outcomePairSets[0]].filter((key) =>
+    outcomePairSets.every((pairSet) => pairSet.has(key))
+  );
+  if (!guaranteedPairKeys.length) return;
+
+  const nextRound = currentRound + 1;
+  const existingMatches = await tx.match.findMany({
+    where: { tournamentId, playoffRound: nextRound },
+    select: { teamAId: true, teamBId: true },
+  });
+  const existingPairKeys = new Set(
+    existingMatches.map((match) => playoffPairKey(match.teamAId, match.teamBId))
+  );
+
+  const rows = guaranteedPairKeys
+    .filter((key) => !existingPairKeys.has(key))
+    .map((key) => {
+      const [firstId, secondId] = key.split("-").map(Number);
+      const [teamAId, teamBId] = [firstId, secondId].sort(
+        (a, b) => seeds.get(a) - seeds.get(b)
+      );
+      return {
+        type: "PLAYOFFS",
+        title: nextRound === 2 ? "Semifinal" : "Grand Final",
+        playoffRound: nextRound,
+        playoffSlot: seeds.get(teamAId),
+        bestOf: 5,
+        status: "SCHEDULED",
+        tournamentId,
+        teamAId,
+        teamBId,
+      };
+    });
+
+  if (rows.length) {
+    await tx.match.createMany({ data: rows, skipDuplicates: true });
+  }
+};
+
+const finishPendingRegisters = async (id) => {
+  return prisma.$transaction(async (tx) => {
+    const match = await tx.match.findUnique({ where: { id } });
+    if (!match) {
+      throw new Error("Match not found.");
+    }
+    if (match.status !== "PENDINGREGISTERS") {
+      throw new Error("Only matches in PENDINGREGISTERS can be marked as FINISHED.");
+    }
+
+    const claim = await tx.match.updateMany({
+      where: { id, status: "PENDINGREGISTERS" },
+      data: { status: "FINISHED" },
+    });
+    if (claim.count !== 1) {
+      throw new Error("This match was already finalized.");
+    }
+
+    const updatedMatch = await tx.match.findUnique({ where: { id } });
+    if (match.type !== "PLAYOFFS" || !match.playoffRound) {
+      return updatedMatch;
+    }
+
+    const winnerTeamId = getMatchWinnerTeamId(match);
+    if (!winnerTeamId) {
+      throw new Error("A playoff match cannot finish without a winner.");
+    }
+    const loserTeamId = winnerTeamId === match.teamAId ? match.teamBId : match.teamAId;
+    await tx.team.update({ where: { id: loserTeamId }, data: { state: "ELIMINATED" } });
+
+    if (match.playoffRound === 3) {
+      await tx.team.update({ where: { id: winnerTeamId }, data: { state: "ACTIVE" } });
+      await tx.tournament.update({
+        where: { id: match.tournamentId },
+        data: { state: "FINISHED" },
+      });
+    } else {
+      await createGuaranteedNextRoundMatches(
+        tx,
+        match.tournamentId,
+        match.playoffRound
+      );
+    }
+
+    return updatedMatch;
   });
 };
 

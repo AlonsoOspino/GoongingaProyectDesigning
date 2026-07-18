@@ -51,6 +51,8 @@ export interface Team {
   mapWins: number;
   mapLoses: number;
   tournamentId: number;
+  state?: "ACTIVE" | "ELIMINATED";
+  playoffSeed?: number | null;
 }
 
 export interface LeaderboardOverlaySettings {
@@ -124,6 +126,8 @@ export interface Match {
   gameNumber: number;
   semanas: number | null;
   title?: string | null;
+  playoffRound?: number | null;
+  playoffSlot?: number | null;
   mapsAllowedByRound?: Record<string, number[]> | null;
   mapResults?: Array<{
     gameNumber: number;

@@ -85,6 +85,13 @@ export async function getDraftByMatchId(matchId: number, access?: DraftReadAcces
   return apiRequest<DraftState>(`/draft/by-match/${matchId}${suffix}`, { token });
 }
 
+export async function yieldPlayoffFirstPick(token: string, draftId: number) {
+  return apiRequest<DraftState>(`/draft/${draftId}/yield-first-pick`, {
+    method: "POST",
+    token,
+  });
+}
+
 export async function getDraftShareInfo(token: string, matchId: number) {
   return apiRequest<DraftShareInfo>(`/draft/by-match/${matchId}/share`, {
     token,

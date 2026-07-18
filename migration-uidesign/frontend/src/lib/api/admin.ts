@@ -36,6 +36,18 @@ export async function updateTournament(
   });
 }
 
+export async function startTournamentPlayoffs(
+  token: string,
+  id: number,
+  teamIds: number[]
+) {
+  return apiRequest<Tournament>(`/tournament/${id}/start-playoffs`, {
+    method: "POST",
+    token,
+    body: { teamIds },
+  });
+}
+
 export async function deleteTournament(token: string, id: number) {
   return apiRequest<void>(`/tournament/delete/${id}`, {
     method: "DELETE",

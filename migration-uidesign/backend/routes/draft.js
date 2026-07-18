@@ -34,6 +34,11 @@ router.patch(
 	handle((req) => draftController.startMapPicking(req.params.id, req.user))
 );
 router.post(
+	"/:id/yield-first-pick",
+	authMiddleware,
+	handle((req) => draftController.yieldFirstPick(req.params.id, req.user))
+);
+router.post(
 	"/:id/pick-map",
 	authMiddleware,
 	handle((req) => draftController.pickMap(req.params.id, req.body, req.user))

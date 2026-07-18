@@ -9,7 +9,8 @@ import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
 import { MatchCard } from "@/components/matches/MatchCard";
-import type { Match, Team, MatchType, MatchStatus } from "@/lib/api/types";
+import { PlayoffBracket } from "@/components/playoffs/PlayoffBracket";
+import type { Match, Team, MatchType, MatchStatus, Tournament } from "@/lib/api/types";
 import { getCurrentTournament } from "@/lib/api/admin";
 
 const ALL_MATCH_TYPES: MatchType[] = [
@@ -33,7 +34,7 @@ const ALLOWED_MATCH_TYPES_BY_STATE: Record<string, MatchType[]> = {
 export default function SchedulePage() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
-  const [tournamentState, setTournamentState] = useState<string | null>(null);
+  const [tournament, setTournament] = useState<Tournament | null>(null);
   const [loading, setLoading] = useState(true);
   const [weekFilter, setWeekFilter] = useState<string>("all");
   const [teamFilter, setTeamFilter] = useState<string>("all");
@@ -42,14 +43,14 @@ export default function SchedulePage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const [matchesData, teamsData] = await Promise.all([
+        const [matchesData, teamsData, tournamentData] = await Promise.all([
           getMatches(),
           getTeams(),
+          getCurrentTournament().catch(() => null),
         ]);
         setMatches(matchesData);
         setTeams(teamsData);
-        const tournamentData = await getCurrentTournament().catch(() => null);
-        setTournamentState(tournamentData?.state ?? null);
+        setTournament(tournamentData);
       } catch (error) {
         console.error("Failed to fetch schedule:", error);
       } finally {
@@ -61,9 +62,9 @@ export default function SchedulePage() {
 
   const teamsById = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
   const visibleMatchTypes = useMemo(() => {
-    if (!tournamentState) return ALL_MATCH_TYPES;
-    return ALLOWED_MATCH_TYPES_BY_STATE[tournamentState] || ALL_MATCH_TYPES;
-  }, [tournamentState]);
+    if (!tournament?.state) return ALL_MATCH_TYPES;
+    return ALLOWED_MATCH_TYPES_BY_STATE[tournament.state] || ALL_MATCH_TYPES;
+  }, [tournament?.state]);
 
   const visibleMatches = useMemo(
     () => matches.filter((match) => visibleMatchTypes.includes(match.type)),
@@ -113,7 +114,11 @@ export default function SchedulePage() {
   const upcomingWeeklyMatches = upcomingMatches.filter((m) => m.semanas !== null);
   const upcomingStageMatches = upcomingMatches.filter((m) => m.semanas === null);
   const spotlightMatch = liveMatches[0] ?? upcomingMatches[0] ?? null;
-  const tournamentLabel = tournamentState ? tournamentState.replace(/_/g, " ") : null;
+  const tournamentLabel = tournament?.state ? tournament.state.replace(/_/g, " ") : null;
+  const playoffMatches = matches.filter((match) => Boolean(match.playoffRound));
+  const isPlayoffView =
+    playoffMatches.length > 0 &&
+    Boolean(tournament && ["PLAYOFFS", "SEMIFINALS", "FINALS", "FINISHED"].includes(tournament.state));
 
   const weekOptions = [
     { value: "all", label: "All Weeks" },
@@ -141,6 +146,21 @@ export default function SchedulePage() {
           {Array.from({ length: 5 }).map((_, i) => (
             <Skeleton key={i} className="h-32" />
           ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (isPlayoffView) {
+    return (
+      <div className="min-h-screen relative">
+        <div className="fixed inset-0 bg-grid-pattern-subtle pointer-events-none opacity-40" />
+        <div className="container mx-auto px-4 py-8 relative">
+          <PlayoffBracket
+            matches={playoffMatches}
+            teams={teams.filter((team) => team.playoffSeed)}
+            tournamentName={tournament?.name}
+          />
         </div>
       </div>
     );

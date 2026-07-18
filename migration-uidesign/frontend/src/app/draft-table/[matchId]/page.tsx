@@ -12,6 +12,7 @@ import {
   getDraftState,
   getDraftShareInfo,
   startMapPicking,
+  yieldPlayoffFirstPick,
   pickMap,
   startBan,
   banHero,
@@ -128,6 +129,7 @@ export default function DraftTablePage() {
 
   const teamA = teams.find((t) => t.id === draftState?.match?.teamAId);
   const teamB = teams.find((t) => t.id === draftState?.match?.teamBId);
+  const firstPickerTeam = teams.find((t) => t.id === draftState?.currentTurnTeamId);
   const matchStatus = draftState?.match?.status;
   const currentGameNumber = (draftState?.match?.gameNumber || 0) + 1;
 
@@ -323,6 +325,27 @@ export default function DraftTablePage() {
       setActionError(null);
     } catch (err) {
       handleRequestFailure("Failed to start map picking:", err, "No se pudo iniciar el map picking.");
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleYieldFirstPick() {
+    if (!token) {
+      showActionError(SESSION_EXPIRED_MESSAGE);
+      return;
+    }
+    if (!draftId) {
+      showActionError("Draft no disponible todavia. Recarga la pagina e intenta otra vez.");
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const updated = await yieldPlayoffFirstPick(token, draftId);
+      setDraftState(updated);
+      setActionError(null);
+    } catch (err) {
+      handleRequestFailure("Failed to hand over first pick:", err, "No se pudo ceder la primera eleccion.");
     } finally {
       setActionLoading(false);
     }
@@ -1173,6 +1196,14 @@ export default function DraftTablePage() {
             onStart={handleStartMapPicking}
             onSetReady={handleSetReady}
             onUndoResult={handleUndoResult}
+            firstPickerTeam={firstPickerTeam}
+            canYieldFirstPick={
+              isCaptain &&
+              draftState.match.type === "PLAYOFFS" &&
+              draftState.match.gameNumber === 0 &&
+              draftState.currentTurnTeamId === myTeamId
+            }
+            onYieldFirstPick={handleYieldFirstPick}
             actionLoading={actionLoading}
           />
         )}
@@ -1559,6 +1590,9 @@ function StartingPhase({
   onStart,
   onSetReady,
   onUndoResult,
+  firstPickerTeam,
+  canYieldFirstPick,
+  onYieldFirstPick,
   actionLoading,
 }: {
   isManager: boolean;
@@ -1571,6 +1605,9 @@ function StartingPhase({
   onStart: () => void;
   onSetReady: () => void;
   onUndoResult: () => void;
+  firstPickerTeam?: Team;
+  canYieldFirstPick: boolean;
+  onYieldFirstPick: () => void;
   actionLoading: boolean;
 }) {
   const bothReady = match.teamAready === 1 && match.teamBready === 1;
@@ -1631,6 +1668,26 @@ function StartingPhase({
                 </Badge>
               </div>
             </div>
+
+            {match.type === "PLAYOFFS" && match.gameNumber === 0 && (
+              <div className="mb-6 rounded-md border border-primary/30 bg-primary/10 px-4 py-3 text-center">
+                <p className="text-sm font-semibold text-foreground">
+                  {firstPickerTeam?.name || "Higher seed"} has first map pick and first ban.
+                </p>
+                {canYieldFirstPick && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    onClick={onYieldFirstPick}
+                    disabled={actionLoading}
+                  >
+                    Allow enemy team to choose first
+                  </Button>
+                )}
+              </div>
+            )}
 
             {/* Captain Ready Button */}
             {isCaptain && !amIReady && (
