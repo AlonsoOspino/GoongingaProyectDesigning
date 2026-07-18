@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { clsx } from "clsx";
 import { getMaps, getMatchById, type AdminGameMap } from "@/lib/api/admin";
-import { getDraftByMatchId } from "@/lib/api/draft";
 import { getTeams } from "@/lib/api/team";
 import type { DraftState, Match, Team } from "@/lib/api/types";
 import { resolveGenericBackendAsset, resolveMapImageUrl } from "@/lib/assetUrls";
@@ -22,6 +21,9 @@ interface ColumnDefinition {
   includeIncognito?: boolean;
 }
 
+type DraftPickState = Pick<DraftState, "actions">;
+type MatchWithDraft = Match & { draft?: DraftPickState | null };
+
 const POLL_INTERVAL_MS = 10000;
 
 const COLUMNS: ColumnDefinition[] = [
@@ -37,7 +39,7 @@ const COLUMNS: ColumnDefinition[] = [
   },
   {
     key: "3",
-    title: "ESCORT",
+    title: "PAYLOAD",
     accepts: (type) => type === "PAYLOAD",
   },
   {
@@ -74,12 +76,20 @@ function parseRoundMapIds(match: Match | null, roundKey: ColumnKey): number[] {
   return ids;
 }
 
-function getGameOnePick(draft: DraftState | null): number | null {
+function getGameOnePick(draft: DraftPickState | null): number | null {
   const gameOnePick = draft?.actions?.find(
     (action) => action.action === "PICK" && action.gameNumber === 1
   );
   if (!gameOnePick) return null;
   const mapId = Number(gameOnePick.value);
+  return Number.isInteger(mapId) && mapId > 0 ? mapId : null;
+}
+
+function getGamePick(draft: DraftPickState | null, gameNumber: number): number | null {
+  const pick = draft?.actions?.find(
+    (action) => action.action === "PICK" && action.gameNumber === gameNumber
+  );
+  const mapId = Number(pick?.value);
   return Number.isInteger(mapId) && mapId > 0 ? mapId : null;
 }
 
@@ -100,6 +110,21 @@ function buildWinnerMap(match: Match | null): Map<number, number> {
   return winners;
 }
 
+function buildWinnerByGame(match: Match | null): Map<number, number> {
+  const winners = new Map<number, number>();
+  if (!Array.isArray(match?.mapResults)) return winners;
+
+  for (const result of match.mapResults) {
+    const gameNumber = Number(result.gameNumber);
+    const winnerTeamId = Number(result.winnerTeamId);
+    if (!Number.isInteger(gameNumber) || gameNumber < 1 || gameNumber > 5) continue;
+    if (!Number.isInteger(winnerTeamId) || winnerTeamId <= 0) continue;
+    winners.set(gameNumber, winnerTeamId);
+  }
+
+  return winners;
+}
+
 function teamAssetUrl(pathValue?: string | null) {
   if (!pathValue) return "";
   return resolveGenericBackendAsset(pathValue);
@@ -109,7 +134,7 @@ export function WincardsOverlay({ matchId }: WincardsOverlayProps) {
   const [match, setMatch] = useState<Match | null>(null);
   const [maps, setMaps] = useState<AdminGameMap[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
-  const [draft, setDraft] = useState<DraftState | null>(null);
+  const [draft, setDraft] = useState<DraftPickState | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -124,18 +149,17 @@ export function WincardsOverlay({ matchId }: WincardsOverlayProps) {
 
     const load = async () => {
       try {
-        const [loadedMatch, loadedMaps, loadedTeams, loadedDraft] = await Promise.all([
+        const [loadedMatch, loadedMaps, loadedTeams] = await Promise.all([
           getMatchById(matchId),
           getMaps(),
           getTeams(),
-          getDraftByMatchId(matchId).catch(() => null),
         ]);
 
         if (cancelled) return;
         setMatch(loadedMatch);
         setMaps(loadedMaps);
         setTeams(loadedTeams);
-        setDraft(loadedDraft);
+        setDraft((loadedMatch as MatchWithDraft).draft ?? null);
         setError(null);
       } catch (fetchError) {
         if (cancelled) return;
@@ -186,6 +210,25 @@ export function WincardsOverlay({ matchId }: WincardsOverlayProps) {
   );
 
   const winnerByMapId = useMemo(() => buildWinnerMap(match), [match]);
+  const winnerByGame = useMemo(() => buildWinnerByGame(match), [match]);
+  const isPlayoffs = match?.type === "PLAYOFFS";
+
+  const playoffMaps = useMemo(() => {
+    const result: Record<ColumnKey, AdminGameMap | null> = {
+      "1": null,
+      "2": null,
+      "3": null,
+      "4": null,
+      "5": null,
+    };
+    if (!isPlayoffs) return result;
+
+    for (const column of COLUMNS) {
+      const mapId = getGamePick(draft, Number(column.key));
+      result[column.key] = mapId ? mapsById.get(mapId) ?? null : null;
+    }
+    return result;
+  }, [draft, isPlayoffs, mapsById]);
 
   const roundMaps = useMemo(() => {
     const result: Record<ColumnKey, AdminGameMap[]> = {
@@ -289,8 +332,57 @@ export function WincardsOverlay({ matchId }: WincardsOverlayProps) {
         </div>
       </header>
 
-      <section className={styles.grid}>
+      <section className={clsx(styles.grid, isPlayoffs && styles.playoffGrid)}>
         {COLUMNS.map((column) => {
+          if (isPlayoffs) {
+            const gameNumber = Number(column.key);
+            const pickedMap = playoffMaps[column.key];
+            const winnerTeamId = winnerByGame.get(gameNumber);
+            const winnerTeam = winnerTeamId ? teamsById.get(winnerTeamId) : undefined;
+
+            return (
+              <article key={column.key} className={clsx(styles.column, styles.playoffColumn)}>
+                <h2 className={styles.columnHeader}>{column.title}</h2>
+                <div className={styles.mapStack}>
+                  <div
+                    className={clsx(
+                      styles.mapTile,
+                      styles.playoffMapTile,
+                      !pickedMap && styles.playoffPendingTile
+                    )}
+                  >
+                    {pickedMap ? (
+                      <>
+                        <img
+                          className={styles.mapImage}
+                          src={resolveMapImageUrl(pickedMap.imgPath)}
+                          alt={pickedMap.description}
+                        />
+                        <span className={styles.mapLabel}>{pickedMap.description}</span>
+                      </>
+                    ) : (
+                      <div className={styles.playoffPendingInner}>
+                        <span className={styles.playoffGameLabel}>GAME {gameNumber}</span>
+                        <span className={styles.questionMark}>?</span>
+                        <span className={styles.incognitoText}>Map pick pending</span>
+                      </div>
+                    )}
+
+                    {winnerTeam?.logo ? (
+                      <div className={styles.winnerLogoWrap}>
+                        <img
+                          className={styles.winnerLogo}
+                          src={teamAssetUrl(winnerTeam.logo)}
+                          alt={`${winnerTeam.name} won game ${gameNumber}`}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </article>
+            );
+          }
+
           const columnMaps = roundMaps[column.key];
           return (
             <article key={column.key} className={styles.column}>
