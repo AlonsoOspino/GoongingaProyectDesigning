@@ -1,6 +1,13 @@
 const prisma = require("../config/prisma");
 
 const mapOrder = ["CONTROL", "HYBRID", "PAYLOAD", "PUSH", "FLASHPOINT"];
+const playoffMapTypesByGame = [
+  ["CONTROL"],
+  ["HYBRID"],
+  ["PAYLOAD"],
+  ["PUSH", "FLASHPOINT"],
+  ["CONTROL"],
+];
 // Timer is 95 seconds per turn
 const TURN_TIMEOUT_MS = 95 * 1000;
 const ALERT_HOLD_MS = 3 * 1000;
@@ -22,8 +29,12 @@ const assertPositiveInt = (value, fieldName) => {
   return parsed;
 };
 
-const getAllowedMapTypes = (gameNumber) => {
+const getAllowedMapTypes = (gameNumber, matchType) => {
   const safeGameNumber = normalizeGameNumber(gameNumber);
+  if (matchType === "PLAYOFFS") {
+    return playoffMapTypesByGame[(safeGameNumber - 1) % playoffMapTypesByGame.length];
+  }
+
   if (safeGameNumber <= 5) {
     return [mapOrder[safeGameNumber - 1] || "CONTROL"];
   }
@@ -110,8 +121,12 @@ const getAvailableMaps = async ({ match, pickedMapIds, actions = [] }) => {
   // Current game is gameNumber+1 (gameNumber is last completed game, 0 at start)
   const currentGame = (match.gameNumber || 0) + 1;
   if (match.type === "PLAYOFFS") {
+    const allowedTypes = getAllowedMapTypes(currentGame, match.type);
     return prisma.map.findMany({
-      where: { id: { notIn: pickedMapIds } },
+      where: {
+        type: { in: allowedTypes },
+        id: { notIn: pickedMapIds },
+      },
       orderBy: { id: "asc" },
     });
   }
@@ -499,7 +514,7 @@ const pickMap = async (draftId, payload, user) => {
   }
 
   const currentGame = (draft.match.gameNumber || 0) + 1;
-  const allowedTypes = getAllowedMapTypes(currentGame);
+  const allowedTypes = getAllowedMapTypes(currentGame, draft.match.type);
   const poolIds = parseAllowedMapPool(draft.match.mapsAllowedByRound, currentGame);
   const isPlayoffMatch = draft.match.type === "PLAYOFFS";
 
@@ -514,6 +529,10 @@ const pickMap = async (draftId, payload, user) => {
 
   if (!isPlayoffMatch && currentGame !== 5 && !poolIds && !allowedTypes.includes(map.type)) {
     throw new Error(`Invalid map type. Allowed for game ${currentGame}: ${allowedTypes.join(", ")}.`);
+  }
+
+  if (isPlayoffMatch && !allowedTypes.includes(map.type)) {
+    throw new Error(`Invalid playoff map type. Allowed for game ${currentGame}: ${allowedTypes.join(", ")}.`);
   }
 
   const pickedMapIds = Array.isArray(draft.pickedMaps) ? draft.pickedMaps : [];
@@ -809,7 +828,7 @@ const yieldFirstPick = async (draftId, user) => {
 const buildDraftState = async (draft) => {
   // Current game is gameNumber+1 (gameNumber = last completed, 0 at start)
   const gameNumber = (draft.match.gameNumber || 0) + 1;
-  const allowedMapTypes = getAllowedMapTypes(gameNumber);
+  const allowedMapTypes = getAllowedMapTypes(gameNumber, draft.match.type);
   const pickedMapIds = Array.isArray(draft.pickedMaps) ? draft.pickedMaps : [];
 
   const availableMaps = await getAvailableMaps({ match: draft.match, pickedMapIds, actions: draft.actions });
