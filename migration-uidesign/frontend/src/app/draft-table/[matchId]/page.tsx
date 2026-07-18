@@ -1259,6 +1259,8 @@ export default function DraftTablePage() {
             teams={teams}
             isManager={isManager}
             isObsKeyAccess={isObsKeyAccess}
+            getHeroById={getHeroById}
+            getBannedHeroesByTeam={getBannedHeroesByTeam}
             onEndGame={handleEndGame}
             actionLoading={actionLoading}
           />
@@ -2725,6 +2727,8 @@ function PlayingPhase({
   teams,
   isManager,
   isObsKeyAccess,
+  getHeroById,
+  getBannedHeroesByTeam,
   onEndGame,
   actionLoading,
 }: {
@@ -2732,12 +2736,105 @@ function PlayingPhase({
   teams: Team[];
   isManager: boolean;
   isObsKeyAccess: boolean;
+  getHeroById: (heroId: number) => Hero | null;
+  getBannedHeroesByTeam: (teamId: number) => (number | null)[];
   onEndGame: () => void;
   actionLoading: boolean;
 }) {
   const teamA = teams.find((t) => t.id === draftState.match.teamAId);
   const teamB = teams.find((t) => t.id === draftState.match.teamBId);
   const currentMap = draftState.allMaps?.find((m) => m.id === draftState.currentMapId);
+  const teamABans = teamA ? getBannedHeroesByTeam(teamA.id) : [];
+  const teamBBans = teamB ? getBannedHeroesByTeam(teamB.id) : [];
+
+  const renderBanSlot = (heroId: number | null | undefined, index: number, side: "A" | "B") => {
+    const borderClass = side === "A" ? "border-[color:var(--color-team-a)]/55" : "border-[color:var(--color-team-b)]/55";
+    const accentClass = side === "A" ? "text-[color:var(--color-team-a)]" : "text-[color:var(--color-team-b)]";
+
+    if (heroId === null) {
+      return (
+        <div
+          key={`no-ban-${side}-${index}`}
+          className={clsx("min-w-0 overflow-hidden rounded-lg border bg-surface-elevated/70", borderClass)}
+        >
+          <div className={clsx("flex aspect-[4/3] items-center justify-center text-xs font-black uppercase", accentClass)}>
+            No Ban
+          </div>
+          <p className="truncate border-t border-border px-2 py-1.5 text-center text-[10px] font-semibold uppercase text-muted">
+            Slot {index + 1}
+          </p>
+        </div>
+      );
+    }
+
+    if (heroId === undefined) {
+      return (
+        <div
+          key={`empty-ban-${side}-${index}`}
+          className="min-w-0 overflow-hidden rounded-lg border border-border bg-surface-elevated/40"
+        >
+          <div className="flex aspect-[4/3] items-center justify-center text-2xl font-black text-muted/50">?</div>
+          <p className="truncate border-t border-border px-2 py-1.5 text-center text-[10px] font-semibold uppercase text-muted">
+            Ban {index + 1}
+          </p>
+        </div>
+      );
+    }
+
+    const hero = getHeroById(heroId);
+    return (
+      <div
+        key={`ban-${side}-${heroId}-${index}`}
+        className={clsx("min-w-0 overflow-hidden rounded-lg border bg-danger/10", borderClass)}
+      >
+        <div className="relative aspect-[4/3] bg-surface-elevated">
+          {hero?.imgPath ? (
+            <img
+              src={resolveHeroImageUrl(hero.imgPath)}
+              alt={hero.name}
+              className="h-full w-full object-cover grayscale"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-lg font-black text-danger">#{heroId}</div>
+          )}
+          <div className="absolute inset-0 bg-danger/10" />
+          <span className="absolute right-1.5 top-1.5 rounded bg-danger px-1.5 py-0.5 text-[9px] font-black uppercase text-white">
+            Banned
+          </span>
+        </div>
+        <p className="truncate border-t border-danger/30 px-2 py-1.5 text-center text-xs font-bold uppercase text-danger">
+          {hero?.name || `Hero ${heroId}`}
+        </p>
+      </div>
+    );
+  };
+
+  const renderTeamBans = (team: Team | undefined, bans: (number | null)[], side: "A" | "B") => {
+    const borderClass = side === "A" ? "border-[color:var(--color-team-a)]/50" : "border-[color:var(--color-team-b)]/50";
+    const accentClass = side === "A" ? "text-[color:var(--color-team-a)]" : "text-[color:var(--color-team-b)]";
+    const slots = [bans[0], bans[1]];
+
+    return (
+      <section className={clsx("rounded-lg border bg-surface-elevated/45 p-3", borderClass)}>
+        <div className="mb-3 flex min-w-0 items-center gap-2">
+          <div className={clsx("grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full border bg-surface-elevated", borderClass)}>
+            {team?.logo ? (
+              <img src={team.logo} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <span className={clsx("text-sm font-black", accentClass)}>{team?.name?.charAt(0) || side}</span>
+            )}
+          </div>
+          <div className="min-w-0">
+            <p className={clsx("truncate text-sm font-black uppercase", accentClass)}>{team?.name || `Team ${side}`}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Bans this game</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {slots.map((heroId, index) => renderBanSlot(heroId, index, side))}
+        </div>
+      </section>
+    );
+  };
 
   return (
     <div className="min-h-[80vh] flex flex-col items-center justify-center gap-8">
@@ -2774,6 +2871,11 @@ function PlayingPhase({
               </p>
             </div>
           )}
+
+          <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {renderTeamBans(teamA, teamABans, "A")}
+            {renderTeamBans(teamB, teamBBans, "B")}
+          </div>
 
           {/* Game Ended Button - Only Manager Can End Game */}
           {isManager && (
