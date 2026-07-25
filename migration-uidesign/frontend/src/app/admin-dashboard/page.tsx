@@ -171,15 +171,15 @@ function WrappedSection({ token }: { token: string }) {
   }, [token]);
 
   async function generate() {
-    if (!confirm("Generate the Goonginga Wrapped now? Statistics will be permanently frozen for this tournament.")) return;
+    if (!confirm("Refresh the Goonginga Wrapped now? This stores the latest stats snapshot without recalculating it on every visit.")) return;
     setGenerating(true);
     try {
       const data = await adminGenerateGoongingaWrapped(token);
       setWrapped(data);
       setAssets(data.assets || {});
-      showNotif("success", "Goonginga Wrapped generated. Add the PNG cutouts below whenever you are ready.");
+      showNotif("success", wrapped ? "Goonginga Wrapped refreshed." : "Goonginga Wrapped generated.");
     } catch (error: any) {
-      showNotif("error", error?.message || "Could not generate Goonginga Wrapped.");
+      showNotif("error", error?.message || "Could not update Goonginga Wrapped.");
     } finally {
       setGenerating(false);
     }
@@ -208,19 +208,38 @@ function WrappedSection({ token }: { token: string }) {
         <CardHeader className="flex flex-row items-center justify-between gap-4">
           <div>
             <CardTitle>Goonginga Wrapped</CardTitle>
-            <p className="mt-1 text-sm text-muted">A single frozen season snapshot. Opening the public Wrapped never recalculates player statistics.</p>
+            <p className="mt-1 text-sm text-muted">A stored season snapshot that the public Wrapped can read instantly without re-running calculations on every visit.</p>
           </div>
-          {wrapped && <Button variant="secondary" onClick={() => window.open("/wrapped", "_blank")}>Open Wrapped</Button>}
+          <div className="flex flex-wrap gap-2">
+            {wrapped && <Button variant="secondary" onClick={() => window.open("/wrapped", "_blank")}>Open Wrapped</Button>}
+            <Button onClick={generate} disabled={generating}>{generating ? (wrapped ? "Refreshing..." : "Generating...") : (wrapped ? "Refresh Wrapped" : "Generate Wrapped")}</Button>
+          </div>
         </CardHeader>
         <CardContent>
           {wrapped ? (
-            <div className="rounded-lg border border-success/25 bg-success/5 p-4 text-sm text-muted">
-              <p className="font-semibold text-foreground">Snapshot locked on {new Date(wrapped.generatedAt).toLocaleString()}.</p>
-              <p className="mt-1">{wrapped.snapshot.tournament.name} · {wrapped.snapshot.overview.games} games · {wrapped.snapshot.overview.players} players</p>
+            <div className="grid gap-4 rounded-lg border border-success/25 bg-success/5 p-4 text-sm text-muted md:grid-cols-2">
+              <div>
+                <p className="font-semibold text-foreground">Latest snapshot: {new Date(wrapped.generatedAt).toLocaleString()}.</p>
+                <p className="mt-1">{wrapped.snapshot.tournament.name}</p>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <div className="rounded-md border border-border/70 bg-background/70 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">Games</p>
+                  <p className="mt-1 text-xl font-bold text-foreground">{wrapped.snapshot.overview.games}</p>
+                </div>
+                <div className="rounded-md border border-border/70 bg-background/70 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">Players</p>
+                  <p className="mt-1 text-xl font-bold text-foreground">{wrapped.snapshot.overview.players}</p>
+                </div>
+                <div className="rounded-md border border-border/70 bg-background/70 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">Teams</p>
+                  <p className="mt-1 text-xl font-bold text-foreground">{wrapped.snapshot.overview.teams.length}</p>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="flex flex-col items-start gap-4 rounded-lg border border-border bg-surface/50 p-5 sm:flex-row sm:items-center sm:justify-between">
-              <p className="max-w-xl text-sm text-muted">Generate it when the season data is ready. This action can only happen once for the current tournament.</p>
+              <p className="max-w-xl text-sm text-muted">Generate it when the season data is ready. You can refresh the snapshot later as stats change, while the public Wrapped keeps reading the stored result.</p>
               <Button onClick={generate} disabled={generating}>{generating ? "Generating..." : "Generate Goonginga Wrapped"}</Button>
             </div>
           )}

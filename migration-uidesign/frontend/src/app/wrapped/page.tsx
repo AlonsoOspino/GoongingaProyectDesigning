@@ -20,11 +20,15 @@ function formatNumber(value: number | null, decimals = 0) {
   return value.toLocaleString(undefined, { maximumFractionDigits: decimals, minimumFractionDigits: decimals });
 }
 
-function PlayerStory({ story, image }: { story: Story; image?: string | null }) {
+function PlayerStory({ story, image, chapter }: { story: Story; image?: string | null; chapter: number }) {
   const hasData = story.value !== null && story.value !== undefined;
   return (
     <article className={styles.storyPanel}>
       <div className={styles.copyColumn}>
+        <div className={styles.chapterBar}>
+          <span>CHAPTER {String(chapter).padStart(2, "0")}</span>
+          <span>{story.label}</span>
+        </div>
         <p className={styles.eyebrow}>{story.eyebrow}</p>
         <h2 className={styles.storyTitle}>{story.title}</h2>
         <div className={styles.metricBlock}>
@@ -48,10 +52,14 @@ function PlayerStory({ story, image }: { story: Story; image?: string | null }) 
   );
 }
 
-function DraftStory({ story, image, detail }: { story: Story; image?: string | null; detail: string | null }) {
+function DraftStory({ story, image, detail, chapter }: { story: Story; image?: string | null; detail: string | null; chapter: number }) {
   return (
     <article className={styles.storyPanel}>
       <div className={styles.copyColumn}>
+        <div className={styles.chapterBar}>
+          <span>CHAPTER {String(chapter).padStart(2, "0")}</span>
+          <span>{story.label}</span>
+        </div>
         <p className={styles.eyebrow}>{story.eyebrow}</p>
         <h2 className={styles.storyTitle}>{story.title}</h2>
         <div className={styles.metricBlock}>
@@ -75,12 +83,22 @@ function Intro({ wrapped, onStart }: { wrapped: GoongingaWrapped; onStart: () =>
   return (
     <section className={styles.introPanel}>
       <div className={styles.introCopy}>
+        <div className={styles.heroBanner}>
+          <span>OVERWATCH LEAGUE ARCHIVE</span>
+          <span>POWERED BY GOONGINGA</span>
+        </div>
         <p className={styles.eyebrow}>GOONGINGA LEAGUE PRESENTS</p>
         <h1>YOUR<br /><span>WRAPPED</span></h1>
         <p className={styles.introText}>In {wrapped.snapshot.overview.weeks} weeks, {wrapped.snapshot.overview.players} players turned {wrapped.snapshot.overview.games} games into a season worth replaying.</p>
+        <div className={styles.heroStats}>
+          <div className={styles.heroStat}><span>TEAMS</span><strong>{teams.length}</strong></div>
+          <div className={styles.heroStat}><span>GAMES</span><strong>{wrapped.snapshot.overview.games}</strong></div>
+          <div className={styles.heroStat}><span>PLAYERS</span><strong>{wrapped.snapshot.overview.players}</strong></div>
+        </div>
         <button type="button" className={styles.startButton} onClick={onStart}>Start the story <span aria-hidden="true">&gt;</span></button>
       </div>
       <div className={styles.orbitStage} aria-label="Participating teams">
+        <div className={styles.stageHeader}><span>ARENA ROSTER</span><strong>{teams.length}</strong></div>
         <div className={styles.orbitRing} />
         <div className={styles.orbitRingInner} />
         <div className={styles.orbitCore}><span>GG</span><small>{wrapped.snapshot.tournament.name}</small></div>
@@ -149,12 +167,13 @@ export default function WrappedPage() {
   return (
     <main className={styles.wrapped}>
       <div className={styles.noise} />
+      <div className={styles.heroBackdrop} aria-hidden="true" />
       <div className={styles.progress} aria-hidden="true">
         {Array.from({ length: stories.length + 1 }).map((_, itemIndex) => <span key={itemIndex} className={itemIndex <= index ? styles.progressActive : ""} />)}
       </div>
       <div className={styles.storyCounter}>{String(index + 1).padStart(2, "0")} / {String(stories.length + 1).padStart(2, "0")}</div>
       <div className={styles.content}>
-        {isIntro ? <Intro wrapped={wrapped} onStart={() => advance(1)} /> : isDraftStory && story ? <DraftStory story={story} image={image} detail={draftDetail} /> : story ? <PlayerStory story={story} image={image} /> : null}
+        {isIntro ? <Intro wrapped={wrapped} onStart={() => advance(1)} /> : isDraftStory && story ? <DraftStory story={story} image={image} detail={draftDetail} chapter={index} /> : story ? <PlayerStory story={story} image={image} chapter={index} /> : null}
       </div>
       <div className={styles.controls}>
         <button type="button" onClick={() => advance(-1)} disabled={index === 0} aria-label="Previous story">&lt;</button>
