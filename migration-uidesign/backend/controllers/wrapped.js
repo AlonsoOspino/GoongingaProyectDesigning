@@ -198,7 +198,7 @@ async function buildSnapshot(tournament) {
     .map((map) => ({ map, count: mapPlayCounts.get(map.id) || 0 }))
     .filter((item) => item.count > 0)
     .sort((left, right) => left.count - right.count || left.map.description.localeCompare(right.map.description))
-    .slice(0, 4)
+    .slice(0, 3)
     .map(({ map, count }) => toMapRanking(map, count))
     .filter(Boolean);
 
