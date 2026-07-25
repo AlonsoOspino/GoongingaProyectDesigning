@@ -27,6 +27,7 @@ function buildInsert(table, row) {
 async function generateBackupSql() {
   const [
     tournaments,
+    wrapped,
     teams,
     members,
     matches,
@@ -38,6 +39,7 @@ async function generateBackupSql() {
     allowedMapsJoin,
   ] = await Promise.all([
     prisma.tournament.findMany({ orderBy: { id: "asc" } }),
+    prisma.wrapped.findMany({ orderBy: { id: "asc" } }),
     prisma.team.findMany({ orderBy: { id: "asc" } }),
     prisma.member.findMany({ orderBy: { id: "asc" } }),
     prisma.match.findMany({ orderBy: { id: "asc" } }),
@@ -54,11 +56,12 @@ async function generateBackupSql() {
   lines.push(`-- Generated at ${new Date().toISOString()}`);
   lines.push("BEGIN;");
   lines.push(
-    'TRUNCATE TABLE "PlayerStat", "DraftAction", "DraftTable", "LeaderboardOverlayAsset", "News", "Match", "Member", "Team", "Tournament", "_AllowedMaps" RESTART IDENTITY CASCADE;'
+    'TRUNCATE TABLE "PlayerStat", "DraftAction", "DraftTable", "LeaderboardOverlayAsset", "Wrapped", "News", "Match", "Member", "Team", "Tournament", "_AllowedMaps" RESTART IDENTITY CASCADE;'
   );
 
   const orderedTables = [
     ["Tournament", tournaments],
+    ["Wrapped", wrapped],
     ["Team", teams],
     ["Member", members],
     ["Match", matches],
@@ -183,6 +186,7 @@ function parseExecutableStatements(script) {
 
 const RESTORE_INSERT_ORDER = [
   "Tournament",
+  "Wrapped",
   "Map",
   "Hero",
   "Team",
@@ -211,6 +215,7 @@ const RESTORE_INSERT_ORDER = [
  */
 const SEQUENCE_BACKED_TABLES = [
   "Tournament",
+  "Wrapped",
   "Team",
   "Member",
   "Match",

@@ -8,3 +8,4 @@ export * from "@/lib/api/playerStat";
 export * from "@/lib/api/overlayAssets";
 export * from "@/lib/api/team";
 export * from "@/lib/api/types";
+export * from "@/lib/api/wrapped";

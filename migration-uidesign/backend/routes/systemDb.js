@@ -48,7 +48,7 @@ router.post("/wipe", authMiddleware, adminMiddleware, async (req, res) => {
     }
 
     await restoreFromBackupSql(
-      'TRUNCATE TABLE "PlayerStat", "DraftAction", "DraftTable", "LeaderboardOverlayAsset", "News", "Match", "Member", "Team", "Tournament", "_AllowedMaps" RESTART IDENTITY CASCADE;'
+      'TRUNCATE TABLE "PlayerStat", "DraftAction", "DraftTable", "LeaderboardOverlayAsset", "Wrapped", "News", "Match", "Member", "Team", "Tournament", "_AllowedMaps" RESTART IDENTITY CASCADE;'
     );
 
     return res.json({ message: "Database deleted successfully. Edit Assets configuration was cleared. Maps and heroes were preserved." });

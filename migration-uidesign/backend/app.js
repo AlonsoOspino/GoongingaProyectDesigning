@@ -16,6 +16,7 @@ const mapRoutes = require("./routes/map");
 const heroRoutes = require("./routes/hero");
 const systemDbRoutes = require("./routes/systemDb");
 const leaderboardOverlayAssetRoutes = require("./routes/leaderboardOverlayAsset");
+const wrappedRoutes = require("./routes/wrapped");
 const { ensureAdminUser } = require("./utils/ensureAdminUser");
 const cors = require("cors");
 const app = express();
@@ -70,6 +71,7 @@ app.use("/map", mapRoutes);
 app.use("/hero", heroRoutes);
 app.use("/system-db", systemDbRoutes);
 app.use("/overlay-assets", leaderboardOverlayAssetRoutes);
+app.use("/wrapped", wrappedRoutes);
 
 const startServer = async () => {
   if (!process.env.DATABASE_URL) {

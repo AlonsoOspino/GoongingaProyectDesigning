@@ -15,6 +15,17 @@ model Tournament {
   state     TournamentState @default(SCHEDULED)
   matches   Match[]
   teams     Team[]
+  wrapped   Wrapped?
+}
+
+model Wrapped {
+  id           Int        @id @default(autoincrement())
+  tournamentId Int        @unique
+  snapshot     Json
+  assets       Json       @default("{}")
+  generatedAt  DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 }
 
 model Member {

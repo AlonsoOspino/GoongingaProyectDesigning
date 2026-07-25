@@ -25,11 +25,13 @@ import {
   adminUpdateWeekMaps,
   type CreateMatchPayload, type CreateTeamPayload, type Member, type AdminGameMap,
 } from "@/lib/api/admin";
+import type { GoongingaWrapped, WrappedAssetKey, WrappedAssets } from "@/lib/api/wrapped";
+import { adminGenerateGoongingaWrapped, getAdminGoongingaWrapped, adminUpdateGoongingaWrappedAssets } from "@/lib/api/wrapped";
 import { convertToISODateTime, formatDateEST, formatForDateInput, formatForDateTimeInput } from "@/lib/dateUtils";
 import { getLeaderboard, getMatches, getTeams, type Match, type Team } from "@/lib/api";
 import type { Tournament } from "@/lib/api/types";
 
-type ActiveTab = "tournament" | "matches" | "weekMaps" | "teams" | "users" | "database";
+type ActiveTab = "tournament" | "matches" | "weekMaps" | "teams" | "users" | "wrapped" | "database";
 
 const ALL_MATCH_TYPES: Match["type"][] = [
   "ROUNDROBIN",
@@ -110,6 +112,7 @@ export default function AdminDashboardPage() {
             <TabsTrigger value="weekMaps">Week Maps</TabsTrigger>
             <TabsTrigger value="teams">Teams</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="wrapped">Wrapped</TabsTrigger>
             <TabsTrigger value="database">Database</TabsTrigger>
           </TabsList>
           <TabsContent value="tournament"><TournamentSection token={token!} /></TabsContent>
@@ -117,10 +120,139 @@ export default function AdminDashboardPage() {
           <TabsContent value="weekMaps"><WeekMapsSection token={token!} /></TabsContent>
           <TabsContent value="teams"><TeamsSection token={token!} /></TabsContent>
           <TabsContent value="users"><UsersSection token={token!} /></TabsContent>
+          <TabsContent value="wrapped"><WrappedSection token={token!} /></TabsContent>
           <TabsContent value="database"><DatabaseSection token={token!} /></TabsContent>
         </Tabs>
       </div>
     </main>
+  );
+}
+
+// ==================== GOONGINGA WRAPPED ====================
+const WRAPPED_IMAGE_FIELDS: Array<{ key: WrappedAssetKey; label: string }> = [
+  { key: "kills", label: "Best Kills" },
+  { key: "healing", label: "Best Healing" },
+  { key: "assists", label: "Best Assists" },
+  { key: "lowestDeaths", label: "Lowest Deaths" },
+  { key: "mitigation", label: "Top Mitigation" },
+  { key: "kda", label: "Best K/D Ratio" },
+  { key: "totalDamage", label: "Total Damage" },
+  { key: "totalHealing", label: "Total Healing" },
+  { key: "mostBannedHero", label: "Most Banned Hero" },
+  { key: "mostPickedMap", label: "Most Picked Map" },
+];
+
+function WrappedSection({ token }: { token: string }) {
+  const [wrapped, setWrapped] = useState<GoongingaWrapped | null>(null);
+  const [assets, setAssets] = useState<WrappedAssets>({});
+  const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const showNotif = (type: "success" | "error", message: string) => {
+    setNotification({ type, message });
+    setTimeout(() => setNotification(null), 4000);
+  };
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const data = await getAdminGoongingaWrapped(token);
+        setWrapped(data);
+        setAssets(data.assets || {});
+      } catch (error: any) {
+        if (error?.status !== 404) showNotif("error", error?.message || "Could not load Goonginga Wrapped.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    void load();
+  }, [token]);
+
+  async function generate() {
+    if (!confirm("Generate the Goonginga Wrapped now? Statistics will be permanently frozen for this tournament.")) return;
+    setGenerating(true);
+    try {
+      const data = await adminGenerateGoongingaWrapped(token);
+      setWrapped(data);
+      setAssets(data.assets || {});
+      showNotif("success", "Goonginga Wrapped generated. Add the PNG cutouts below whenever you are ready.");
+    } catch (error: any) {
+      showNotif("error", error?.message || "Could not generate Goonginga Wrapped.");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function saveAssets() {
+    setSaving(true);
+    try {
+      const data = await adminUpdateGoongingaWrappedAssets(token, assets);
+      setWrapped(data);
+      setAssets(data.assets || {});
+      showNotif("success", "Wrapped images saved.");
+    } catch (error: any) {
+      showNotif("error", error?.message || "Could not save Wrapped images.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) return <Card variant="bordered"><CardContent className="p-8 text-center text-muted">Loading...</CardContent></Card>;
+
+  return (
+    <div className="space-y-6">
+      {notification && <div className={`rounded-lg border p-4 ${notification.type === "success" ? "border-success/30 bg-success/10 text-success" : "border-danger/30 bg-danger/10 text-danger"}`}>{notification.message}</div>}
+      <Card variant="bordered">
+        <CardHeader className="flex flex-row items-center justify-between gap-4">
+          <div>
+            <CardTitle>Goonginga Wrapped</CardTitle>
+            <p className="mt-1 text-sm text-muted">A single frozen season snapshot. Opening the public Wrapped never recalculates player statistics.</p>
+          </div>
+          {wrapped && <Button variant="secondary" onClick={() => window.open("/wrapped", "_blank")}>Open Wrapped</Button>}
+        </CardHeader>
+        <CardContent>
+          {wrapped ? (
+            <div className="rounded-lg border border-success/25 bg-success/5 p-4 text-sm text-muted">
+              <p className="font-semibold text-foreground">Snapshot locked on {new Date(wrapped.generatedAt).toLocaleString()}.</p>
+              <p className="mt-1">{wrapped.snapshot.tournament.name} · {wrapped.snapshot.overview.games} games · {wrapped.snapshot.overview.players} players</p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-start gap-4 rounded-lg border border-border bg-surface/50 p-5 sm:flex-row sm:items-center sm:justify-between">
+              <p className="max-w-xl text-sm text-muted">Generate it when the season data is ready. This action can only happen once for the current tournament.</p>
+              <Button onClick={generate} disabled={generating}>{generating ? "Generating..." : "Generate Goonginga Wrapped"}</Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {wrapped && (
+        <Card variant="bordered">
+          <CardHeader>
+            <CardTitle>Wrapped PNG Cutouts</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="mb-5 text-sm text-muted">Upload transparent PNGs for each story. These images are presentation-only and do not modify the saved stats.</p>
+            <div className="grid gap-5 lg:grid-cols-2">
+              {WRAPPED_IMAGE_FIELDS.map((field) => (
+                <ImageUploadField
+                  key={field.key}
+                  label={field.label}
+                  type="image"
+                  value={assets[field.key] || ""}
+                  onChange={(url) => setAssets((current) => ({ ...current, [field.key]: url }))}
+                  previewAlt={`${field.label} Wrapped cutout`}
+                  previewClassName="bg-surface-elevated"
+                  placeholder="Upload a transparent PNG or paste its URL"
+                />
+              ))}
+            </div>
+            <div className="mt-6 flex justify-end"><Button onClick={saveAssets} disabled={saving}>{saving ? "Saving images..." : "Save Wrapped Images"}</Button></div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 }
 
