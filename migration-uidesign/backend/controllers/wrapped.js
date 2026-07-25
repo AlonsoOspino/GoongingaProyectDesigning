@@ -1,11 +1,14 @@
 const prisma = require("../config/prisma");
+const { retryAfterWrappedMigration } = require("../utils/ensureWrappedSchema");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 let cachedWrapped = null;
 
 async function getLatestWrapped() {
   if (cachedWrapped) return cachedWrapped;
-  cachedWrapped = await prisma.wrapped.findFirst({ orderBy: { generatedAt: "desc" } });
+  cachedWrapped = await retryAfterWrappedMigration(() =>
+    prisma.wrapped.findFirst({ orderBy: { generatedAt: "desc" } })
+  );
   return cachedWrapped;
 }
 
@@ -174,7 +177,9 @@ async function generateWrapped(_req, res) {
     const tournament = await prisma.tournament.findFirst({ orderBy: { id: "asc" } });
     if (!tournament) return res.status(400).json({ message: "Create a tournament before generating its Wrapped." });
 
-    const existing = await prisma.wrapped.findUnique({ where: { tournamentId: tournament.id } });
+    const existing = await retryAfterWrappedMigration(() =>
+      prisma.wrapped.findUnique({ where: { tournamentId: tournament.id } })
+    );
     if (existing) {
       return res.status(409).json({ message: "This tournament already has a generated Wrapped. Its stats are locked." });
     }
