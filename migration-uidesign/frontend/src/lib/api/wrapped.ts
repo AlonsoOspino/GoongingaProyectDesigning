@@ -1,6 +1,18 @@
 import { apiRequest } from "@/lib/api/client";
 
 export type WrappedAssetKey =
+  | "damagePer10"
+  | "healingPer10"
+  | "killsPer10"
+  | "assistsPer10"
+  | "mitigationPer10"
+  | "lowestDeathsPer10"
+  | "damageTotal"
+  | "healingTotal"
+  | "killsTotal"
+  | "assistsTotal"
+  | "mitigationTotal"
+  | "performanceKda"
   | "kills"
   | "healing"
   | "assists"
@@ -22,6 +34,12 @@ export interface WrappedPlayerLeader {
   gameNumber: number;
 }
 
+export interface WrappedMapRanking {
+  name: string;
+  image: string | null;
+  count: number;
+}
+
 export interface WrappedSnapshot {
   generatedAt: string;
   tournament: { id: number; name: string; startDate: string };
@@ -30,6 +48,24 @@ export interface WrappedSnapshot {
     games: number;
     players: number;
     teams: Array<{ id: number; name: string; logo: string | null }>;
+  };
+  averagesPer10: {
+    damage: WrappedPlayerLeader | null;
+    healing: WrappedPlayerLeader | null;
+    kills: WrappedPlayerLeader | null;
+    assists: WrappedPlayerLeader | null;
+    mitigation: WrappedPlayerLeader | null;
+    lowestDeaths: WrappedPlayerLeader | null;
+  };
+  totals: {
+    damage: WrappedPlayerLeader | null;
+    healing: WrappedPlayerLeader | null;
+    kills: WrappedPlayerLeader | null;
+    assists: WrappedPlayerLeader | null;
+    mitigation: WrappedPlayerLeader | null;
+  };
+  performance: {
+    kda: WrappedPlayerLeader | null;
   };
   leaders: {
     kills: WrappedPlayerLeader | null;
@@ -42,8 +78,9 @@ export interface WrappedSnapshot {
     totalHealing: WrappedPlayerLeader | null;
   };
   draft: {
-    mostBannedHero: { name: string; image: string | null; count: number } | null;
-    mostPickedMap: { name: string; image: string | null; count: number } | null;
+    mostBannedHero: WrappedMapRanking | null;
+    mostPickedMap: WrappedMapRanking | null;
+    leastPlayedMaps: WrappedMapRanking[];
   };
 }
 
