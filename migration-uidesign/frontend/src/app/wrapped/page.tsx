@@ -144,7 +144,7 @@ export default function WrappedPage() {
   const story = stories[index - 1];
   const isDraftStory = story?.key === "mostBannedHero" || story?.key === "mostPickedMap";
   const draftDetail = story?.key === "mostBannedHero" ? wrapped.snapshot.draft.mostBannedHero?.name || null : wrapped.snapshot.draft.mostPickedMap?.name || null;
-  const image = story ? wrapped.assets[story.key] || story.artwork || null : null;
+  const image = story ? wrapped.assets[story.key] || null : null;
 
   return (
     <main className={styles.wrapped}>

@@ -2,6 +2,7 @@ const express = require("express");
 const authMiddleware = require("../middlewares/authMiddleware");
 const adminMiddleware = require("../middlewares/admin");
 const { generateBackupSql, restoreFromBackupSql } = require("../utils/dbBackupSql");
+const { invalidateWrappedCache } = require("../controllers/wrapped");
 
 const router = express.Router();
 const RESTORE_CONFIRMATION_TEXT = "RESTORE DATABASE";
@@ -29,6 +30,7 @@ router.post("/restore", authMiddleware, adminMiddleware, async (req, res) => {
     }
 
     const result = await restoreFromBackupSql(script);
+    invalidateWrappedCache();
     return res.json({
       message: "Database restore completed successfully.",
       ...result,
@@ -50,6 +52,7 @@ router.post("/wipe", authMiddleware, adminMiddleware, async (req, res) => {
     await restoreFromBackupSql(
       'TRUNCATE TABLE "PlayerStat", "DraftAction", "DraftTable", "LeaderboardOverlayAsset", "Wrapped", "News", "Match", "Member", "Team", "Tournament", "_AllowedMaps" RESTART IDENTITY CASCADE;'
     );
+    invalidateWrappedCache();
 
     return res.json({ message: "Database deleted successfully. Edit Assets configuration was cleared. Maps and heroes were preserved." });
   } catch (error) {

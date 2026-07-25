@@ -1,6 +1,17 @@
 const prisma = require("../config/prisma");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+let cachedWrapped = null;
+
+async function getLatestWrapped() {
+  if (cachedWrapped) return cachedWrapped;
+  cachedWrapped = await prisma.wrapped.findFirst({ orderBy: { generatedAt: "desc" } });
+  return cachedWrapped;
+}
+
+function invalidateWrappedCache() {
+  cachedWrapped = null;
+}
 
 function pickBest(items, getValue, lowerIsBetter = false) {
   if (!items.length) return null;
@@ -145,7 +156,7 @@ async function buildSnapshot(tournament) {
 
 async function getCurrentWrapped(req, res) {
   try {
-    const wrapped = await prisma.wrapped.findFirst({ orderBy: { generatedAt: "desc" } });
+    const wrapped = await getLatestWrapped();
     if (!wrapped) return res.status(404).json({ message: "Goonginga Wrapped has not been generated yet." });
     res.set("Cache-Control", "public, max-age=300");
     return res.json(wrapped);
@@ -170,6 +181,7 @@ async function generateWrapped(_req, res) {
 
     const snapshot = await buildSnapshot(tournament);
     const wrapped = await prisma.wrapped.create({ data: { tournamentId: tournament.id, snapshot, assets: {} } });
+    cachedWrapped = wrapped;
     return res.status(201).json(wrapped);
   } catch (error) {
     return res.status(400).json({ message: error?.message || "Failed to generate Goonginga Wrapped." });
@@ -178,7 +190,7 @@ async function generateWrapped(_req, res) {
 
 async function updateAssets(req, res) {
   try {
-    const wrapped = await prisma.wrapped.findFirst({ orderBy: { generatedAt: "desc" } });
+    const wrapped = await getLatestWrapped();
     if (!wrapped) return res.status(404).json({ message: "Generate the Wrapped before adding its images." });
 
     const assets = req.body?.assets;
@@ -192,10 +204,11 @@ async function updateAssets(req, res) {
         .map(([key, value]) => [key, value.trim()])
     );
     const updated = await prisma.wrapped.update({ where: { id: wrapped.id }, data: { assets: cleanAssets } });
+    cachedWrapped = updated;
     return res.json(updated);
   } catch (error) {
     return res.status(400).json({ message: error?.message || "Failed to save Wrapped images." });
   }
 }
 
-module.exports = { getCurrentWrapped, getAdminWrapped, generateWrapped, updateAssets };
+module.exports = { getCurrentWrapped, getAdminWrapped, generateWrapped, updateAssets, invalidateWrappedCache };
