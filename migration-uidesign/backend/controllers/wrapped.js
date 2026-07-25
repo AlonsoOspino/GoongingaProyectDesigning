@@ -41,6 +41,15 @@ function toPlayerLeader(stat, value, precision = 0) {
   };
 }
 
+function toMapRanking(map, count) {
+  if (!map) return null;
+  return {
+    name: map.description || "Unknown",
+    image: map.imgPath || null,
+    count,
+  };
+}
+
 function mostFrequent(actions, actionType, recordsById, labelField) {
   const counts = new Map();
   for (const action of actions) {
@@ -75,6 +84,12 @@ async function buildSnapshot(tournament) {
         damage: true,
         healing: true,
         mitigation: true,
+        damagePer10: true,
+        healingPer10: true,
+        mitigationPer10: true,
+        killsPer10: true,
+        assistsPer10: true,
+        deathsPer10: true,
         matchId: true,
         gameNumber: true,
         match: { select: { semanas: true } },
@@ -100,6 +115,10 @@ async function buildSnapshot(tournament) {
       select: { id: true, name: true, logo: true },
       orderBy: { name: "asc" },
     }),
+    prisma.map.findMany({
+      select: { id: true, description: true, imgPath: true },
+      orderBy: { description: "asc" },
+    }),
   ]);
 
   const heroIds = [...new Set(actions.filter((item) => item.action === "BAN").map((item) => item.value))];
@@ -124,13 +143,29 @@ async function buildSnapshot(tournament) {
       damage: 0,
       healing: 0,
       mitigation: 0,
+      damagePer10: 0,
+      healingPer10: 0,
+      mitigationPer10: 0,
+      killsPer10: 0,
+      assistsPer10: 0,
+      deathsPer10: 0,
+      games: 0,
+      latestGameNumber: stat.gameNumber,
     };
+    current.games += 1;
     current.kills += stat.kills;
     current.assists += stat.assists;
     current.deaths += stat.deaths;
     current.damage += stat.damage;
     current.healing += stat.healing;
     current.mitigation += stat.mitigation;
+    current.damagePer10 += stat.damagePer10;
+    current.healingPer10 += stat.healingPer10;
+    current.mitigationPer10 += stat.mitigationPer10;
+    current.killsPer10 += stat.killsPer10;
+    current.assistsPer10 += stat.assistsPer10;
+    current.deathsPer10 += stat.deathsPer10;
+    current.latestGameNumber = Math.max(current.latestGameNumber, stat.gameNumber);
     totalByPlayer.set(key, current);
   }
 
@@ -138,6 +173,7 @@ async function buildSnapshot(tournament) {
   const bestKdaStat = pickBest(aggregatedPlayers, (item) => item.kills / Math.max(1, item.deaths));
   const topDamage = pickBest([...totalByPlayer.values()], (item) => item.damage);
   const topHealing = pickBest([...totalByPlayer.values()], (item) => item.healing);
+  const topKills = pickBest([...totalByPlayer.values()], (item) => item.kills);
   const generatedAt = new Date();
   const elapsedWeeks = Math.max(1, Math.ceil((generatedAt.getTime() - new Date(tournament.startDate).getTime()) / (7 * DAY_MS)));
   const scheduledWeeks = Math.max(0, ...stats.map((stat) => Number(stat.match?.semanas || 0)));
@@ -146,6 +182,25 @@ async function buildSnapshot(tournament) {
   const bestAssists = pickBest(aggregatedPlayers, (item) => item.assists);
   const lowestDeaths = pickBest(aggregatedPlayers, (item) => item.deaths, true);
   const bestMitigation = pickBest(aggregatedPlayers, (item) => item.mitigation);
+  const bestDamagePer10 = pickBest(aggregatedPlayers, (item) => item.damagePer10);
+  const bestHealingPer10 = pickBest(aggregatedPlayers, (item) => item.healingPer10);
+  const bestKillsPer10 = pickBest(aggregatedPlayers, (item) => item.killsPer10);
+  const bestAssistsPer10 = pickBest(aggregatedPlayers, (item) => item.assistsPer10);
+  const bestMitigationPer10 = pickBest(aggregatedPlayers, (item) => item.mitigationPer10);
+  const lowestDeathsPer10 = pickBest(aggregatedPlayers, (item) => item.deathsPer10, true);
+
+  const mapPlayCounts = new Map();
+  for (const action of actions) {
+    if (action.action !== "PICK" || !action.value) continue;
+    mapPlayCounts.set(action.value, (mapPlayCounts.get(action.value) || 0) + 1);
+  }
+  const leastPlayedMaps = maps
+    .map((map) => ({ map, count: mapPlayCounts.get(map.id) || 0 }))
+    .filter((item) => item.count > 0)
+    .sort((left, right) => left.count - right.count || left.map.description.localeCompare(right.map.description))
+    .slice(0, 4)
+    .map(({ map, count }) => toMapRanking(map, count))
+    .filter(Boolean);
 
   return {
     generatedAt: generatedAt.toISOString(),
@@ -160,6 +215,24 @@ async function buildSnapshot(tournament) {
       players: new Set(stats.map((stat) => stat.userId)).size,
       teams,
     },
+    averagesPer10: {
+      damage: bestDamagePer10 ? toPlayerLeader(bestDamagePer10.stat, bestDamagePer10.damagePer10, 2) : null,
+      healing: bestHealingPer10 ? toPlayerLeader(bestHealingPer10.stat, bestHealingPer10.healingPer10, 2) : null,
+      kills: bestKillsPer10 ? toPlayerLeader(bestKillsPer10.stat, bestKillsPer10.killsPer10, 2) : null,
+      assists: bestAssistsPer10 ? toPlayerLeader(bestAssistsPer10.stat, bestAssistsPer10.assistsPer10, 2) : null,
+      mitigation: bestMitigationPer10 ? toPlayerLeader(bestMitigationPer10.stat, bestMitigationPer10.mitigationPer10, 2) : null,
+      lowestDeaths: lowestDeathsPer10 ? toPlayerLeader(lowestDeathsPer10.stat, lowestDeathsPer10.deathsPer10, 2) : null,
+    },
+    totals: {
+      damage: topDamage ? toPlayerLeader(topDamage.stat, topDamage.damage) : null,
+      healing: topHealing ? toPlayerLeader(topHealing.stat, topHealing.healing) : null,
+      kills: topKills ? toPlayerLeader(topKills.stat, topKills.kills) : null,
+      assists: bestAssists ? toPlayerLeader(bestAssists.stat, bestAssists.assists) : null,
+      mitigation: bestMitigation ? toPlayerLeader(bestMitigation.stat, bestMitigation.mitigation) : null,
+    },
+    performance: {
+      kda: bestKdaStat ? toPlayerLeader(bestKdaStat.stat, bestKdaStat.kills / Math.max(1, bestKdaStat.deaths), 2) : null,
+    },
     leaders: {
       kills: bestKills ? toPlayerLeader(bestKills.stat, bestKills.kills) : null,
       healing: bestHealing ? toPlayerLeader(bestHealing.stat, bestHealing.healing) : null,
@@ -173,6 +246,7 @@ async function buildSnapshot(tournament) {
     draft: {
       mostBannedHero: mostFrequent(actions, "BAN", heroesById, "name"),
       mostPickedMap: mostFrequent(actions, "PICK", mapsById, "description"),
+      leastPlayedMaps,
     },
   };
 }
