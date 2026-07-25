@@ -68,6 +68,7 @@ async function buildSnapshot(tournament) {
     prisma.playerStat.findMany({
       where: { match: { tournamentId: tournament.id, status: "FINISHED" } },
       select: {
+        userId: true,
         kills: true,
         assists: true,
         deaths: true,
@@ -113,19 +114,38 @@ async function buildSnapshot(tournament) {
   const totalByPlayer = new Map();
 
   for (const stat of stats) {
-    const key = stat.user.nickname;
-    const current = totalByPlayer.get(key) || { stat, damage: 0, healing: 0 };
+    const key = stat.userId;
+    const current = totalByPlayer.get(key) || {
+      stat,
+      user: stat.user,
+      kills: 0,
+      assists: 0,
+      deaths: 0,
+      damage: 0,
+      healing: 0,
+      mitigation: 0,
+    };
+    current.kills += stat.kills;
+    current.assists += stat.assists;
+    current.deaths += stat.deaths;
     current.damage += stat.damage;
     current.healing += stat.healing;
+    current.mitigation += stat.mitigation;
     totalByPlayer.set(key, current);
   }
 
-  const bestKdaStat = pickBest(stats, (stat) => stat.kills / Math.max(1, stat.deaths));
+  const aggregatedPlayers = [...totalByPlayer.values()];
+  const bestKdaStat = pickBest(aggregatedPlayers, (item) => item.kills / Math.max(1, item.deaths));
   const topDamage = pickBest([...totalByPlayer.values()], (item) => item.damage);
   const topHealing = pickBest([...totalByPlayer.values()], (item) => item.healing);
   const generatedAt = new Date();
   const elapsedWeeks = Math.max(1, Math.ceil((generatedAt.getTime() - new Date(tournament.startDate).getTime()) / (7 * DAY_MS)));
   const scheduledWeeks = Math.max(0, ...stats.map((stat) => Number(stat.match?.semanas || 0)));
+  const bestKills = pickBest(aggregatedPlayers, (item) => item.kills);
+  const bestHealing = pickBest(aggregatedPlayers, (item) => item.healing);
+  const bestAssists = pickBest(aggregatedPlayers, (item) => item.assists);
+  const lowestDeaths = pickBest(aggregatedPlayers, (item) => item.deaths, true);
+  const bestMitigation = pickBest(aggregatedPlayers, (item) => item.mitigation);
 
   return {
     generatedAt: generatedAt.toISOString(),
@@ -137,16 +157,16 @@ async function buildSnapshot(tournament) {
     overview: {
       weeks: Math.max(elapsedWeeks, scheduledWeeks),
       games: new Set(stats.map((stat) => `${stat.matchId}:${stat.gameNumber}`)).size,
-      players: new Set(stats.map((stat) => stat.user.nickname)).size,
+      players: new Set(stats.map((stat) => stat.userId)).size,
       teams,
     },
     leaders: {
-      kills: toPlayerLeader(pickBest(stats, (stat) => stat.kills), pickBest(stats, (stat) => stat.kills)?.kills || 0),
-      healing: toPlayerLeader(pickBest(stats, (stat) => stat.healing), pickBest(stats, (stat) => stat.healing)?.healing || 0),
-      assists: toPlayerLeader(pickBest(stats, (stat) => stat.assists), pickBest(stats, (stat) => stat.assists)?.assists || 0),
-      lowestDeaths: toPlayerLeader(pickBest(stats, (stat) => stat.deaths, true), pickBest(stats, (stat) => stat.deaths, true)?.deaths || 0),
-      mitigation: toPlayerLeader(pickBest(stats, (stat) => stat.mitigation), pickBest(stats, (stat) => stat.mitigation)?.mitigation || 0),
-      kda: toPlayerLeader(bestKdaStat, bestKdaStat ? bestKdaStat.kills / Math.max(1, bestKdaStat.deaths) : 0, 2),
+      kills: bestKills ? toPlayerLeader(bestKills.stat, bestKills.kills) : null,
+      healing: bestHealing ? toPlayerLeader(bestHealing.stat, bestHealing.healing) : null,
+      assists: bestAssists ? toPlayerLeader(bestAssists.stat, bestAssists.assists) : null,
+      lowestDeaths: lowestDeaths ? toPlayerLeader(lowestDeaths.stat, lowestDeaths.deaths) : null,
+      mitigation: bestMitigation ? toPlayerLeader(bestMitigation.stat, bestMitigation.mitigation) : null,
+      kda: bestKdaStat ? toPlayerLeader(bestKdaStat.stat, bestKdaStat.kills / Math.max(1, bestKdaStat.deaths), 2) : null,
       totalDamage: topDamage ? toPlayerLeader(topDamage.stat, topDamage.damage) : null,
       totalHealing: topHealing ? toPlayerLeader(topHealing.stat, topHealing.healing) : null,
     },
@@ -180,14 +200,16 @@ async function generateWrapped(_req, res) {
     const existing = await retryAfterWrappedMigration(() =>
       prisma.wrapped.findUnique({ where: { tournamentId: tournament.id } })
     );
-    if (existing) {
-      return res.status(409).json({ message: "This tournament already has a generated Wrapped. Its stats are locked." });
-    }
 
     const snapshot = await buildSnapshot(tournament);
-    const wrapped = await prisma.wrapped.create({ data: { tournamentId: tournament.id, snapshot, assets: {} } });
+    const wrapped = existing
+      ? await prisma.wrapped.update({
+          where: { id: existing.id },
+          data: { snapshot, generatedAt: new Date(), updatedAt: new Date() },
+        })
+      : await prisma.wrapped.create({ data: { tournamentId: tournament.id, snapshot, assets: {} } });
     cachedWrapped = wrapped;
-    return res.status(201).json(wrapped);
+    return res.status(existing ? 200 : 201).json(wrapped);
   } catch (error) {
     return res.status(400).json({ message: error?.message || "Failed to generate Goonginga Wrapped." });
   }
