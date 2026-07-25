@@ -10,26 +10,19 @@ import {
 } from "@/lib/api/wrapped";
 import styles from "./wrapped.module.css";
 
-type MetricCard = {
-  key: WrappedAssetKey;
-  label: string;
-  value: WrappedPlayerLeader | null;
-  precision?: number;
-  suffix?: string;
-};
-
 type Story = {
   key: string;
-  kind: "overview" | "matrix" | "performance" | "draft" | "ranking";
+  kind: "metric" | "draft" | "ranking";
   eyebrow: string;
   title: string;
   deck: string;
-  summary?: string;
-  cards?: MetricCard[];
-  lead?: WrappedPlayerLeader | null;
-  leadLabel?: string;
-  leadSuffix?: string;
-  artKey?: WrappedAssetKey;
+  summary: string;
+  side: "left" | "right";
+  metric?: WrappedPlayerLeader | null;
+  metricLabel?: string;
+  precision?: number;
+  suffix?: string;
+  imageKey?: WrappedAssetKey;
   draftHero?: WrappedMapRanking | null;
   draftMap?: WrappedMapRanking | null;
   ranking?: WrappedMapRanking[];
@@ -45,107 +38,57 @@ function getImage(wrapped: GoongingaWrapped, key?: WrappedAssetKey | null) {
   return wrapped.assets[key] || null;
 }
 
-function LayoutShell({
-  story,
-  chapter,
-  children,
-  className,
-}: {
-  story: Story;
-  chapter: number;
-  children: ReactNode;
-  className?: string;
-}) {
+function animatedHeadline(text: string) {
+  return text.split(/(\s+)/).map((part, wordIndex) => {
+    if (/^\s+$/.test(part)) return part;
+    return (
+      <span key={`${part}-${wordIndex}`} className={styles.headlineWord}>
+        {part.split("").map((char, charIndex) => (
+          <span key={`${char}-${charIndex}`} className={styles.headlineChar} style={{ "--char-index": charIndex } as CSSProperties}>
+            {char}
+          </span>
+        ))}
+      </span>
+    );
+  });
+}
+
+function LayoutShell({ story, chapter, children, className }: { story: Story; chapter: number; children: ReactNode; className?: string; }) {
   return (
-    <article className={`${styles.storyPanel} ${className || ""}`} data-story-kind={story.kind}>
+    <article className={`${styles.storyPanel} ${story.side === "right" ? styles.alignRight : styles.alignLeft} ${className || ""}`} data-story-kind={story.kind}>
       <div className={styles.storyFrame}>
         <div className={styles.chapterBar}>
           <span>CHAPTER {String(chapter).padStart(2, "0")}</span>
           <span>{story.deck}</span>
         </div>
         <p className={styles.eyebrow}>{story.eyebrow}</p>
-        <h2 className={styles.storyTitle}>{story.title}</h2>
+        <h2 className={styles.storyTitle}>{animatedHeadline(story.title)}</h2>
+        <p className={styles.slideSummary}>{story.summary}</p>
       </div>
       <div className={styles.storyContent}>{children}</div>
     </article>
   );
 }
 
-function MetricCardView({ card, image }: { card: MetricCard; image?: string | null }) {
-  const hasData = card.value !== null && card.value !== undefined;
-  const precision = card.precision ?? 0;
-  const displayValue = hasData ? formatNumber(card.value.value, precision) : "NO DATA";
+function MetricSlide({ story, wrapped, chapter }: { story: Story; wrapped: GoongingaWrapped; chapter: number }) {
+  const hasData = story.metric !== null && story.metric !== undefined;
+  const image = getImage(wrapped, story.imageKey);
   return (
-    <article className={styles.metricCard}>
-      <div className={styles.metricCardBody}>
-        <span className={styles.metricLabel}>{card.label}</span>
-        <strong className={styles.metricValue}>{displayValue}{hasData && card.suffix ? <small>{card.suffix}</small> : null}</strong>
+    <LayoutShell story={story} chapter={chapter} className={styles.metricShell}>
+      <div className={styles.metricCopy}>
+        <div className={styles.metricLabel}>{story.metricLabel}</div>
+        <strong className={styles.metricValue}>{hasData ? formatNumber(story.metric!.value, story.precision ?? 0) : "NO DATA"}{hasData && story.suffix ? <small>{story.suffix}</small> : null}</strong>
         <div className={styles.playerLine}>
           <span className={styles.playerDot} />
-          <span>{card.value?.player || "Awaiting results"}</span>
-          {card.value?.team ? <em>{card.value.team}</em> : null}
+          <span>{story.metric?.player || "Awaiting results"}</span>
+          {story.metric?.team ? <em>{story.metric.team}</em> : null}
         </div>
-        {card.value?.gameNumber ? <p className={styles.gameNote}>Recorded in game {card.value.gameNumber}</p> : null}
+        {story.metric?.gameNumber ? <p className={styles.gameNote}>Recorded in game {story.metric.gameNumber}</p> : null}
       </div>
-      <div className={styles.metricCutout}>
-        {image ? <img src={image} alt={card.label} className={styles.cutoutImage} /> : <div className={styles.metricPlaceholder}><span>PNG</span><small>RECORTADO</small></div>}
-      </div>
-    </article>
-  );
-}
-
-function MatrixSlide({ story, wrapped, chapter, cards, reverse = false }: {
-  story: Story;
-  wrapped: GoongingaWrapped;
-  chapter: number;
-  cards: MetricCard[];
-  reverse?: boolean;
-}) {
-  return (
-    <LayoutShell story={story} chapter={chapter} className={`${styles.matrixShell} ${reverse ? styles.matrixReverse : ""}`}>
-      <div className={styles.matrixHeader}>
-        <p className={styles.slideKicker}>{story.deck}</p>
-        <p className={styles.slideSummary}>{story.summary}</p>
-        <div className={styles.slideStats}>
-          <div><span>TEAMS</span><strong>{wrapped.snapshot.overview.teams.length}</strong></div>
-          <div><span>GAMES</span><strong>{wrapped.snapshot.overview.games}</strong></div>
-          <div><span>PLAYERS</span><strong>{wrapped.snapshot.overview.players}</strong></div>
-        </div>
-      </div>
-      <div className={styles.matrixGrid}>
-        {cards.map((card) => (
-          <MetricCardView key={card.key} card={card} image={getImage(wrapped, card.key)} />
-        ))}
-      </div>
-    </LayoutShell>
-  );
-}
-
-function PerformanceSlide({ story, wrapped, chapter }: { story: Story; wrapped: GoongingaWrapped; chapter: number }) {
-  const kda = wrapped.snapshot.performance.kda;
-  return (
-    <LayoutShell story={story} chapter={chapter} className={styles.performanceShell}>
-      <div className={styles.performanceCopy}>
-        <p className={styles.slideKicker}>{story.deck}</p>
-        <p className={styles.slideSummary}>{story.summary}</p>
-        <div className={styles.kdaBignumWrap}>
-          <span className={styles.kdaLabel}>BEST KDA</span>
-          <strong className={styles.kdaBignum}>{kda ? formatNumber(kda.value, 2) : "--"}<small> K/D</small></strong>
-        </div>
-        <div className={styles.playerLine}>
-          <span className={styles.playerDot} />
-          <span>{kda?.player || "Awaiting results"}</span>
-          {kda?.team ? <em>{kda.team}</em> : null}
-        </div>
-      </div>
-      <div className={styles.performanceVisual}>
-        <div className={styles.performanceGlyph}>K/D</div>
-        <div className={styles.cutoutStage}>
-          {getImage(wrapped, "performanceKda") || getImage(wrapped, "kda") ? (
-            <img src={getImage(wrapped, "performanceKda") || getImage(wrapped, "kda") || undefined} alt="Best KDA cutout" className={styles.cutoutImageLarge} />
-          ) : (
-            <div className={styles.metricPlaceholder}><span>KDA</span><small>EPIC CUTOUT</small></div>
-          )}
+      <div className={styles.stageVisual}>
+        <div className={styles.visualGlyph}>{story.deck}</div>
+        <div className={`${styles.heroCutout} ${story.side === "right" ? styles.heroCutoutRight : styles.heroCutoutLeft}`}>
+          {image ? <img src={image} alt={story.metricLabel || story.title} className={styles.cutoutImage} /> : <div className={styles.metricPlaceholder}><span>PNG</span><small>NO FRAME</small></div>}
         </div>
       </div>
     </LayoutShell>
@@ -153,43 +96,38 @@ function PerformanceSlide({ story, wrapped, chapter }: { story: Story; wrapped: 
 }
 
 function DraftSlide({ story, wrapped, chapter }: { story: Story; wrapped: GoongingaWrapped; chapter: number }) {
+  const imageHero = getImage(wrapped, "mostBannedHero");
+  const imageMap = getImage(wrapped, "mostPickedMap");
   return (
     <LayoutShell story={story} chapter={chapter} className={styles.draftShell}>
-      <div className={styles.draftGrid}>
-        <article className={styles.draftPanel}>
-          <p className={styles.slideKicker}>MOST BANNED HERO</p>
+      <div className={styles.draftStrip}>
+        <article className={styles.draftCard}>
+          <span className={styles.slideKicker}>MOST BANNED HERO</span>
           <h3 className={styles.draftTitle}>{story.draftHero?.name || "NO DATA"}</h3>
           <p className={styles.draftCount}>{story.draftHero ? `${story.draftHero.count} bans` : "No banned hero data"}</p>
-          <div className={styles.cutoutStage}>
-            {getImage(wrapped, "mostBannedHero") ? <img src={getImage(wrapped, "mostBannedHero") || undefined} alt="Most banned hero" className={styles.cutoutImageLarge} /> : <div className={styles.metricPlaceholder}><span>HERO</span><small>NO BACKGROUND</small></div>}
-          </div>
+          <div className={styles.heroCutout}><img src={imageHero || undefined} alt="Most banned hero" className={styles.cutoutImage} /></div>
         </article>
-        <article className={styles.draftPanel}>
-          <p className={styles.slideKicker}>MOST PICKED MAP</p>
+        <article className={styles.draftCard}>
+          <span className={styles.slideKicker}>MOST PICKED MAP</span>
           <h3 className={styles.draftTitle}>{story.draftMap?.name || "NO DATA"}</h3>
           <p className={styles.draftCount}>{story.draftMap ? `${story.draftMap.count} picks` : "No picked map data"}</p>
-          <div className={styles.cutoutStage}>
-            {getImage(wrapped, "mostPickedMap") ? <img src={getImage(wrapped, "mostPickedMap") || undefined} alt="Most picked map" className={styles.cutoutImageLarge} /> : <div className={styles.metricPlaceholder}><span>MAP</span><small>NO BACKGROUND</small></div>}
-          </div>
+          <div className={styles.heroCutout}><img src={imageMap || undefined} alt="Most picked map" className={styles.cutoutImage} /></div>
         </article>
       </div>
     </LayoutShell>
   );
 }
 
-function RankingSlide({ story, chapter }: { story: Story; chapter: number }) {
+function LeastMapsSlide({ story, wrapped, chapter }: { story: Story; wrapped: GoongingaWrapped; chapter: number }) {
+  const mapKeys: Array<WrappedAssetKey> = ["leastPickedMap1", "leastPickedMap2", "leastPickedMap3"];
   return (
     <LayoutShell story={story} chapter={chapter} className={styles.rankingShell}>
-      <div className={styles.rankingHeader}>
-        <p className={styles.slideKicker}>{story.deck}</p>
-        <p className={styles.slideSummary}>{story.summary}</p>
-      </div>
       <div className={styles.rankingGrid}>
         {(story.ranking || []).map((item, index) => (
           <article className={styles.rankingCard} key={`${item.name}-${index}`}>
             <span className={styles.rankIndex}>0{index + 1}</span>
             <div className={styles.rankArt}>
-              {item.image ? <img src={item.image} alt={item.name} className={styles.rankImage} /> : <div className={styles.metricPlaceholder}><span>MAP</span><small>LOW PLAY</small></div>}
+              {getImage(wrapped, mapKeys[index]) ? <img src={getImage(wrapped, mapKeys[index]) || undefined} alt={item.name} className={styles.rankImage} /> : <div className={styles.metricPlaceholder}><span>MAP</span><small>LOW PICK</small></div>}
             </div>
             <div className={styles.rankText}>
               <h3>{item.name}</h3>
@@ -213,7 +151,7 @@ function Intro({ wrapped, onStart }: { wrapped: GoongingaWrapped; onStart: () =>
           <span>POWERED BY GOONGINGA</span>
         </div>
         <p className={styles.eyebrow}>GOONGINGA LEAGUE PRESENTS</p>
-        <h1>YOUR<br /><span>WRAPPED</span></h1>
+        <h1>{animatedHeadline("YOUR WRAPPED")}</h1>
         <p className={styles.introText}>In {wrapped.snapshot.overview.weeks} weeks, {wrapped.snapshot.overview.players} players turned {wrapped.snapshot.overview.games} games into a season worth replaying.</p>
         <div className={styles.heroStats}>
           <div className={styles.heroStat}><span>TEAMS</span><strong>{teams.length}</strong></div>
@@ -264,62 +202,162 @@ export default function WrappedPage() {
     const { averagesPer10, totals, performance, draft } = wrapped.snapshot;
     return [
       {
-        key: "averages",
-        kind: "matrix",
+        key: "bestAverageKills",
+        kind: "metric",
         eyebrow: "BEST AVERAGES PER 10 MIN",
-        title: "Season tempo leaders",
-        deck: "AVERAGE TEMPO",
-        summary: "The players who controlled fights every 10 minutes, not just across the whole season.",
-        cards: [
-          { key: "damagePer10", label: "Damage / 10", value: averagesPer10.damage, precision: 2 },
-          { key: "healingPer10", label: "Healing / 10", value: averagesPer10.healing, precision: 2 },
-          { key: "killsPer10", label: "Kills / 10", value: averagesPer10.kills, precision: 2 },
-          { key: "assistsPer10", label: "Assists / 10", value: averagesPer10.assists, precision: 2 },
-          { key: "mitigationPer10", label: "Mitigation / 10", value: averagesPer10.mitigation, precision: 2 },
-          { key: "lowestDeathsPer10", label: "Deaths / 10", value: averagesPer10.lowestDeaths, precision: 2, suffix: " LOW" },
-        ],
+        title: "Best Average Kills",
+        deck: "AVERAGE KILLS",
+        summary: "The player with the sharpest kill production every 10 minutes.",
+        side: "left",
+        metric: averagesPer10.kills,
+        metricLabel: "Best Average Kills",
+        precision: 2,
+        imageKey: "bestAverageKills",
       },
       {
-        key: "totals",
-        kind: "matrix",
-        eyebrow: "TOTAL SEASON SUMS",
-        title: "The big numbers",
-        deck: "SEASON TOTALS",
-        summary: "Absolute production after the full season, summed across every finished match.",
-        cards: [
-          { key: "damageTotal", label: "Total Damage", value: totals.damage },
-          { key: "healingTotal", label: "Total Healing", value: totals.healing },
-          { key: "killsTotal", label: "Total Kills", value: totals.kills },
-          { key: "assistsTotal", label: "Total Assists", value: totals.assists },
-          { key: "mitigationTotal", label: "Total Mitigation", value: totals.mitigation },
-        ],
+        key: "bestAverageDamage",
+        kind: "metric",
+        eyebrow: "BEST AVERAGES PER 10 MIN",
+        title: "Best Average Damage",
+        deck: "AVERAGE DAMAGE",
+        summary: "The damage leader who dictated the pace every 10 minutes.",
+        side: "right",
+        metric: averagesPer10.damage,
+        metricLabel: "Best Average Damage",
+        precision: 2,
+        imageKey: "bestAverageDamage",
       },
       {
-        key: "kda",
-        kind: "performance",
+        key: "bestAverageMitigation",
+        kind: "metric",
+        eyebrow: "BEST AVERAGES PER 10 MIN",
+        title: "Best Average Mitigation",
+        deck: "AVERAGE MITIGATION",
+        summary: "The player who absorbed the most pressure every 10 minutes.",
+        side: "left",
+        metric: averagesPer10.mitigation,
+        metricLabel: "Best Average Mitigation",
+        precision: 2,
+        imageKey: "bestAverageMitigation",
+      },
+      {
+        key: "bestAverageHealing",
+        kind: "metric",
+        eyebrow: "BEST AVERAGES PER 10 MIN",
+        title: "Best Average Healing",
+        deck: "AVERAGE HEALING",
+        summary: "The healer keeping the team alive with the cleanest output per 10.",
+        side: "right",
+        metric: averagesPer10.healing,
+        metricLabel: "Best Average Healing",
+        precision: 2,
+        imageKey: "bestAverageHealing",
+      },
+      {
+        key: "bestAverageAssists",
+        kind: "metric",
+        eyebrow: "BEST AVERAGES PER 10 MIN",
+        title: "Best Average Assists",
+        deck: "AVERAGE ASSISTS",
+        summary: "The player enabling fights every 10 minutes with constant playmaking.",
+        side: "left",
+        metric: averagesPer10.assists,
+        metricLabel: "Best Average Assists",
+        precision: 2,
+        imageKey: "bestAverageAssists",
+      },
+      {
+        key: "bestAverageLowestDeaths",
+        kind: "metric",
+        eyebrow: "BEST AVERAGES PER 10 MIN",
+        title: "Best Average Lowest Deaths",
+        deck: "AVERAGE SURVIVAL",
+        summary: "The safest player per 10, surviving fights at the highest rate.",
+        side: "right",
+        metric: averagesPer10.lowestDeaths,
+        metricLabel: "Best Average Lowest Deaths",
+        precision: 2,
+        imageKey: "bestAverageLowestDeaths",
+        suffix: " LOW",
+      },
+      {
+        key: "mostDamageDealt",
+        kind: "metric",
+        eyebrow: "SEASON SUMS",
+        title: "Most Damage Dealt",
+        deck: "TOTAL DAMAGE",
+        summary: "The raw damage stack after the season-long grind.",
+        side: "left",
+        metric: totals.damage,
+        metricLabel: "Most Damage Dealt",
+        imageKey: "mostDamageDealt",
+      },
+      {
+        key: "biggestHealingOutput",
+        kind: "metric",
+        eyebrow: "SEASON SUMS",
+        title: "Biggest Healing Output",
+        deck: "TOTAL HEALING",
+        summary: "The healing total that carried the longest.",
+        side: "right",
+        metric: totals.healing,
+        metricLabel: "Biggest Healing Output",
+        imageKey: "biggestHealingOutput",
+      },
+      {
+        key: "mitigationTotal",
+        kind: "metric",
+        eyebrow: "SEASON SUMS",
+        title: "Mitigation",
+        deck: "TOTAL MITIGATION",
+        summary: "The full-season mitigation total, no filters.",
+        side: "left",
+        metric: totals.mitigation,
+        metricLabel: "Mitigation",
+        imageKey: "mitigationTotal",
+      },
+      {
+        key: "bestIndividualPerformanceKda",
+        kind: "metric",
         eyebrow: "BEST PERFORMANCE",
-        title: "Cleanest K/D in the league",
+        title: "Best Individual Perfomance (KDA)",
         deck: "KDA",
-        summary: "The season's sharpest performance index, built on the full stat trail.",
-        lead: performance.kda,
+        summary: "The cleanest individual K/D performance of the season.",
+        side: "right",
+        metric: performance.kda,
+        metricLabel: "Best Individual Perfomance (KDA)",
+        precision: 2,
+        imageKey: "bestIndividualPerformanceKda",
+        suffix: " K/D",
       },
       {
-        key: "draft",
+        key: "mostBannedHero",
         kind: "draft",
         eyebrow: "THE DRAFT HAS SPOKEN",
-        title: "Ban pressure and map control",
-        deck: "DRAFT POWER",
-        summary: "The hero nobody wanted and the map everybody trusted.",
+        title: "Most banned Hero",
+        deck: "DRAFT BAN",
+        summary: "The hero that got removed from the pool over and over.",
+        side: "left",
         draftHero: draft.mostBannedHero,
+      },
+      {
+        key: "mostPickedMap",
+        kind: "draft",
+        eyebrow: "THE DRAFT HAS SPOKEN",
+        title: "Most picked Map",
+        deck: "DRAFT PICK",
+        summary: "The map the season kept choosing again and again.",
+        side: "right",
         draftMap: draft.mostPickedMap,
       },
       {
-        key: "leastMaps",
+        key: "leastPickedMaps",
         kind: "ranking",
-        eyebrow: "MAPS LESS PLAYED",
-        title: "The quiet corners of the pool",
-        deck: "LOW USAGE MAPS",
-        summary: "The maps that stayed at the bottom of the rotation.",
+        eyebrow: "LEAST PICKED MAPS",
+        title: "Least picked maps",
+        deck: "LOW ROTATION",
+        summary: "The three maps that stayed on the floor the most.",
+        side: "left",
         ranking: draft.leastPlayedMaps,
       },
     ];
@@ -334,7 +372,6 @@ export default function WrappedPage() {
 
   const isIntro = index === 0;
   const story = stories[index - 1];
-  const reverseLayout = Boolean((index - 1) % 2);
 
   return (
     <main className={styles.wrapped}>
@@ -347,14 +384,12 @@ export default function WrappedPage() {
       <div className={styles.content}>
         {isIntro ? (
           <Intro wrapped={wrapped} onStart={() => advance(1)} />
-        ) : story?.kind === "matrix" && story.cards ? (
-          <MatrixSlide story={story} wrapped={wrapped} chapter={index} cards={story.cards} reverse={reverseLayout} />
-        ) : story?.kind === "performance" ? (
-          <PerformanceSlide story={story} wrapped={wrapped} chapter={index} />
+        ) : story?.kind === "metric" ? (
+          <MetricSlide story={story} wrapped={wrapped} chapter={index} />
         ) : story?.kind === "draft" ? (
           <DraftSlide story={story} wrapped={wrapped} chapter={index} />
         ) : story?.kind === "ranking" ? (
-          <RankingSlide story={story} chapter={index} />
+          <LeastMapsSlide story={story} wrapped={wrapped} chapter={index} />
         ) : null}
       </div>
       <div className={styles.controls}>

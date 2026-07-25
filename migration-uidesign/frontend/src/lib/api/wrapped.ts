@@ -1,6 +1,21 @@
 import { apiRequest } from "@/lib/api/client";
 
 export type WrappedAssetKey =
+  | "bestAverageKills"
+  | "bestAverageDamage"
+  | "bestAverageMitigation"
+  | "bestAverageHealing"
+  | "bestAverageAssists"
+  | "bestAverageLowestDeaths"
+  | "mostDamageDealt"
+  | "biggestHealingOutput"
+  | "mitigationTotal"
+  | "bestIndividualPerformanceKda"
+  | "mostBannedHero"
+  | "mostPickedMap"
+  | "leastPickedMap1"
+  | "leastPickedMap2"
+  | "leastPickedMap3"
   | "damagePer10"
   | "healingPer10"
   | "killsPer10"
@@ -11,7 +26,6 @@ export type WrappedAssetKey =
   | "healingTotal"
   | "killsTotal"
   | "assistsTotal"
-  | "mitigationTotal"
   | "performanceKda"
   | "kills"
   | "healing"
@@ -21,8 +35,7 @@ export type WrappedAssetKey =
   | "kda"
   | "totalDamage"
   | "totalHealing"
-  | "mostBannedHero"
-  | "mostPickedMap";
+;
 
 export type WrappedAssets = Partial<Record<WrappedAssetKey, string>>;
 

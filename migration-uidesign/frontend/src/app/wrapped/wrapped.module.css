@@ -836,6 +836,225 @@
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+.alignLeft,
+.alignRight {
+  grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);
+}
+
+.alignRight .storyFrame { order: 2; }
+.alignRight .storyContent { order: 1; }
+
+.metricShell,
+.draftShell,
+.rankingShell {
+  grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);
+}
+
+.metricCopy {
+  display: grid;
+  align-content: start;
+  gap: 0.55rem;
+  padding-top: 0.35rem;
+}
+
+.headlineWord {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.headlineChar {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(1.2em) rotateX(90deg) scale(0.95);
+  animation: headlineIn 0.75s cubic-bezier(0.18, 0.95, 0.22, 1) forwards;
+  animation-delay: calc(var(--char-index) * 0.04s);
+  transform-origin: center bottom;
+}
+
+.storyTitle .headlineWord:nth-child(1) .headlineChar { animation-delay: calc(var(--char-index) * 0.04s + 0.05s); }
+
+.slideSummary {
+  max-width: 30rem;
+  margin: 0;
+  color: rgba(244, 239, 226, 0.82);
+  font-size: 1rem;
+  line-height: 1.42;
+}
+
+.stageVisual {
+  position: relative;
+  display: grid;
+  min-height: 600px;
+  align-items: end;
+}
+
+.visualGlyph {
+  position: absolute;
+  inset: auto auto 6% 4%;
+  z-index: 0;
+  color: rgba(255, 255, 255, 0.05);
+  font-family: var(--font-league-gothic), sans-serif;
+  font-size: clamp(9rem, 20vw, 18rem);
+  line-height: 0.78;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.heroCutout {
+  position: absolute;
+  bottom: -2%;
+  width: min(40vw, 560px);
+  aspect-ratio: 0.95;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.heroCutoutLeft { left: -4%; }
+.heroCutoutRight { right: -4%; }
+
+.heroCutout img,
+.heroCutout .cutoutImage {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: bottom center;
+  filter: drop-shadow(0 18px 36px rgba(0, 0, 0, 0.42)) drop-shadow(0 0 28px rgba(246, 196, 67, 0.18));
+}
+
+.draftStrip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.draftCard {
+  position: relative;
+  min-height: 560px;
+  padding: 1.2rem 1.15rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(145deg, rgba(246, 196, 67, 0.07), transparent 48%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(5, 9, 14, 0.9));
+  box-shadow: 0 26px 56px rgba(0, 0, 0, 0.34);
+  overflow: hidden;
+}
+
+.draftCard::after {
+  position: absolute;
+  inset: auto 0 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--magenta), var(--cyan));
+  content: "";
+  opacity: 0.75;
+}
+
+.draftCard .heroCutout {
+  bottom: -1%;
+  width: min(34vw, 470px);
+  left: auto;
+  right: 2%;
+}
+
+.draftTitle {
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(4rem, 6vw, 7rem);
+  line-height: 0.8;
+}
+
+.draftCount { margin: 0; color: var(--yellow); }
+
+.rankingGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.rankingCard {
+  position: relative;
+  min-height: 360px;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(5, 9, 14, 0.9));
+  box-shadow: 0 22px 50px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+}
+
+.rankArt {
+  position: relative;
+  min-height: 190px;
+}
+
+.rankText h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(3rem, 5vw, 5rem);
+  line-height: 0.82;
+}
+
+.rankText strong {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--yellow);
+  font-size: 2.2rem;
+  line-height: 0.84;
+}
+
+.rankText span { color: var(--muted); }
+
+.metricValue,
+.kdaBignum {
+  display: block;
+  margin-top: 0.05rem;
+  font-size: clamp(5rem, 9vw, 8.7rem);
+  line-height: 0.78;
+  color: var(--text);
+}
+
+.metricValue small,
+.kdaBignum small { margin-left: 0.25rem; font-size: 0.2em; }
+
+.metricLabel,
+.kdaLabel {
+  color: var(--cyan);
+  margin-bottom: 0.15rem;
+}
+
+.metricPlaceholder {
+  display: grid;
+  place-items: center;
+  gap: 0.15rem;
+  width: 100%;
+  height: 100%;
+  min-height: 180px;
+  color: rgba(255, 255, 255, 0.82);
+  text-align: center;
+  text-transform: uppercase;
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(5, 9, 14, 0.12));
+}
+
+.metricPlaceholder span {
+  color: var(--yellow);
+  font-family: var(--font-league-gothic), sans-serif;
+  font-size: 5rem;
+  line-height: 0.82;
+}
+
+.metricPlaceholder small {
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+}
+
+.playerLine,
+.gameNote { position: relative; z-index: 3; }
+
+@keyframes headlineIn {
+  from { opacity: 0; transform: translateY(1.2em) rotateX(90deg) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) rotateX(0) scale(1); }
+}
+
 @media (max-width: 1180px) {
   .introPanel,
   .storyPanel {
@@ -843,27 +1062,17 @@
     min-height: auto;
   }
 
-  .matrixReverse .storyFrame,
-  .matrixReverse .storyContent {
+  .alignRight .storyFrame,
+  .alignRight .storyContent {
     order: initial;
   }
 
-  .matrixGrid,
-  .draftGrid,
   .rankingGrid {
     grid-template-columns: 1fr 1fr;
   }
 
-  .performanceShell {
-    grid-template-columns: 1fr;
-  }
-
-  .performanceVisual {
+  .stageVisual {
     min-height: 440px;
-  }
-
-  .metricCard {
-    grid-template-columns: minmax(0, 1fr) 160px;
   }
 }
 
@@ -879,20 +1088,17 @@
   .orbitTeam { transform: rotate(var(--team-angle)) translateX(min(39vw, 185px)) rotate(calc(var(--team-angle) * -1)); }
   .teamBadge { width: 44px; }
   .storyTitle { font-size: 3.6rem; }
-  .matrixGrid,
-  .draftGrid,
   .rankingGrid,
+  .draftStrip,
   .slideStats { grid-template-columns: 1fr; }
-  .metricCard,
-  .draftPanel,
+  .draftCard,
   .rankingCard {
     min-height: auto;
   }
   .metricValue,
-  .kdaBignum { font-size: 4.7rem; }
-  .kdaBignum { line-height: 0.82; }
-  .performanceGlyph { inset: auto auto 2% 0; font-size: 8rem; }
-  .cutoutStage { width: min(82vw, 360px); }
+  .kdaBignum { font-size: 4.7rem; line-height: 0.82; }
+  .stageVisual { min-height: 360px; }
+  .heroCutout { width: min(72vw, 340px); }
   .metricPlaceholder span { font-size: 4rem; }
   .controls { right: 1.15rem; bottom: 1rem; }
 }
@@ -903,9 +1109,6 @@
   .heroBackdrop,
   .orbitStage,
   .orbitTeam,
-  .cutoutImage,
-  .cutoutImageLarge,
-  .rankImage,
   .introPanel,
   .storyPanel {
     animation: none;
