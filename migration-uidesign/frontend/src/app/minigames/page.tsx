@@ -22,6 +22,7 @@ type QuestionAnswer = {
 type Question = {
   id: string;
   prompt: string;
+  multiplier: number;
   answers: QuestionAnswer[];
 };
 
@@ -70,6 +71,7 @@ type RoundState = {
 
 type RoomState = {
   roomId: string;
+  title: string;
   generatedAt: number;
   updatedAt: number;
   questions: Question[];
@@ -96,6 +98,7 @@ const DEFAULT_QUESTIONS: Question[] = [
   {
     id: "inflate",
     prompt: "Name something that can be inflated or deflated.",
+    multiplier: 1,
     answers: [
       { word: "Tire", points: 42 },
       { word: "Balloon", points: 31 },
@@ -107,6 +110,7 @@ const DEFAULT_QUESTIONS: Question[] = [
   {
     id: "late",
     prompt: "Name a reason somebody gets to practice late.",
+    multiplier: 1,
     answers: [
       { word: "Traffic", points: 39 },
       { word: "Overslept", points: 28 },
@@ -118,6 +122,7 @@ const DEFAULT_QUESTIONS: Question[] = [
   {
     id: "tilt",
     prompt: "Name something players blame first after a rough match.",
+    multiplier: 2,
     answers: [
       { word: "Lag", points: 36 },
       { word: "Teammates", points: 25 },
@@ -129,6 +134,7 @@ const DEFAULT_QUESTIONS: Question[] = [
   {
     id: "boost",
     prompt: "Name something you would bring to a hype watch party.",
+    multiplier: 2,
     answers: [
       { word: "Snacks", points: 34 },
       { word: "Energy drink", points: 24 },
@@ -140,6 +146,7 @@ const DEFAULT_QUESTIONS: Question[] = [
   {
     id: "secret",
     prompt: "Name a place to hide a secret strategy.",
+    multiplier: 3,
     answers: [
       { word: "Notebook", points: 30 },
       { word: "Discord DM", points: 27 },
@@ -220,6 +227,7 @@ function createRoomState(): RoomState {
   const generatedAt = now();
   return {
     roomId: makeToken(),
+    title: "Family Feud Arcade",
     generatedAt,
     updatedAt: generatedAt,
     questions: DEFAULT_QUESTIONS,
@@ -241,6 +249,59 @@ function createFreshRoomState() {
       board: [],
     },
   } satisfies RoomState;
+}
+
+type QuestionDraft = Question & {
+  answers: QuestionAnswer[];
+};
+
+function createDraftQuestion(index: number): QuestionDraft {
+  return {
+    id: makeId(),
+    prompt: index === 0 ? "Name something worth points on the board." : "",
+    multiplier: 1,
+    answers: [{ word: "", points: 0 }],
+  };
+}
+
+function createDraftQuestions() {
+  return [createDraftQuestion(0)];
+}
+
+function createRoomFromDraft(title: string, questions: QuestionDraft[]): RoomState {
+  const generatedAt = now();
+  const normalizedQuestions = questions
+    .map((question) => ({
+      ...question,
+      prompt: question.prompt.trim(),
+      multiplier: Number.isFinite(question.multiplier) && question.multiplier > 0 ? question.multiplier : 1,
+      answers: question.answers
+        .map((answer) => ({
+          word: answer.word.trim(),
+          points: Number.isFinite(answer.points) && answer.points > 0 ? Math.round(answer.points) : 0,
+        }))
+        .filter((answer) => answer.word.length > 0 && answer.points > 0),
+    }))
+    .filter((question) => question.prompt.length > 0)
+    .map((question) => ({
+      ...question,
+      answers: question.answers.length > 0 ? question.answers : [{ word: "Placeholder", points: 1 }],
+    }));
+
+  const roomQuestions = normalizedQuestions.length > 0 ? normalizedQuestions : DEFAULT_QUESTIONS;
+
+  return {
+    roomId: makeToken(),
+    title: title.trim() || "Family Feud Arcade",
+    generatedAt,
+    updatedAt: generatedAt,
+    questions: roomQuestions,
+    teams: {
+      alpha: createTeam("alpha", "Team Alpha", makeToken()),
+      beta: createTeam("beta", "Team Beta", makeToken()),
+    },
+    round: createRoundState(),
+  };
 }
 
 function readStoredRoom(): RoomState | null {
@@ -523,6 +584,8 @@ export default function MinigamesPage() {
   const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode);
   const [room, setRoom] = useState<RoomState | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [draftTitle, setDraftTitle] = useState("Family Feud Arcade");
+  const [draftQuestions, setDraftQuestions] = useState<QuestionDraft[]>(() => createDraftQuestions());
   const [joinName, setJoinName] = useState("");
   const [selectedTeamId, setSelectedTeamId] = useState<TeamId | null>(null);
   const [stealGuess, setStealGuess] = useState("");
@@ -545,11 +608,14 @@ export default function MinigamesPage() {
   useEffect(() => {
     const stored = readStoredRoom();
     const nextRoom = stored ? cleanupRoom(stored) : null;
-    const initialRoom = nextRoom ?? (viewMode === "manager" ? createFreshRoomState() : null);
-    if (initialRoom && (!stored || initialRoom !== stored)) {
-      writeStoredRoom(initialRoom);
+    if (nextRoom) {
+      setDraftTitle(nextRoom.title);
+      setDraftQuestions(nextRoom.questions.map((question) => ({ ...question })));
+    } else if (viewMode === "manager") {
+      setDraftTitle("Family Feud Arcade");
+      setDraftQuestions(createDraftQuestions());
     }
-    setRoom(initialRoom);
+    setRoom(nextRoom);
     setLoaded(true);
   }, [viewMode]);
 
@@ -637,15 +703,57 @@ export default function MinigamesPage() {
     saveRoom(updater);
   }, [saveRoom]);
 
-  const handleGenerateRoom = useCallback(() => {
-    const next = createFreshRoomState();
+  const handleAddDraftQuestion = useCallback(() => {
+    setDraftQuestions((current) => [...current, createDraftQuestion(current.length)]);
+  }, []);
+
+  const handleUpdateDraftQuestion = useCallback((index: number, updater: (question: QuestionDraft) => QuestionDraft) => {
+    setDraftQuestions((current) => current.map((question, questionIndex) => (questionIndex === index ? updater(question) : question)));
+  }, []);
+
+  const handleAddDraftAnswer = useCallback((questionIndex: number) => {
+    handleUpdateDraftQuestion(questionIndex, (question) => ({
+      ...question,
+      answers: [...question.answers, { word: "", points: 0 }],
+    }));
+  }, [handleUpdateDraftQuestion]);
+
+  const handleRemoveDraftAnswer = useCallback((questionIndex: number, answerIndex: number) => {
+    handleUpdateDraftQuestion(questionIndex, (question) => ({
+      ...question,
+      answers: question.answers.filter((_, index) => index !== answerIndex),
+    }));
+  }, [handleUpdateDraftQuestion]);
+
+  const handleUpdateDraftAnswer = useCallback((questionIndex: number, answerIndex: number, nextAnswer: Partial<QuestionAnswer>) => {
+    handleUpdateDraftQuestion(questionIndex, (question) => ({
+      ...question,
+      answers: question.answers.map((answer, index) => (index === answerIndex ? { ...answer, ...nextAnswer } : answer)),
+    }));
+  }, [handleUpdateDraftQuestion]);
+
+  const handleRemoveDraftQuestion = useCallback((questionIndex: number) => {
+    setDraftQuestions((current) => {
+      if (current.length <= 1) return current;
+      return current.filter((_, index) => index !== questionIndex);
+    });
+  }, []);
+
+  const handleUpdateDraftQuestionFields = useCallback((questionIndex: number, nextFields: Partial<QuestionDraft>) => {
+    handleUpdateDraftQuestion(questionIndex, (question) => ({ ...question, ...nextFields }));
+  }, [handleUpdateDraftQuestion]);
+
+  const handleCreateGame = useCallback(() => {
+    const next = createRoomFromDraft(draftTitle, draftQuestions);
     writeStoredRoom(next);
     setRoom(next);
     setJoinName("");
     setSelectedTeamId(null);
     setStealGuess("");
     setViewMode("manager");
-  }, []);
+    setDraftTitle(next.title);
+    setDraftQuestions(next.questions.map((question) => ({ ...question })));
+  }, [draftQuestions, draftTitle]);
 
   const handleCopyInvite = useCallback(async (token: string) => {
     try {
@@ -785,7 +893,7 @@ export default function MinigamesPage() {
           number: current.round.number + 1,
           phase: "question",
           activeQuestionIndex: question ? questionIndex : null,
-          multiplier: current.round.multiplier || 1,
+          multiplier: question?.multiplier || 1,
           controllingTeamId: null,
           starterTeamId: null,
           starterPlayerId: null,
@@ -993,19 +1101,6 @@ export default function MinigamesPage() {
     handleWrongAnswer(teamId, guessWord);
   }, [handleCorrectAnswer, handleWrongAnswer, room]);
 
-  const handleSetMultiplier = useCallback((multiplier: 1 | 2 | 3) => {
-    if (!room) return;
-    updateRoom((current) => ({
-      ...current,
-      updatedAt: now(),
-      round: {
-        ...current.round,
-        multiplier,
-        logs: [createLog(`Round multiplier set to x${multiplier}.`, "info"), ...current.round.logs],
-      },
-    }));
-  }, [room, updateRoom]);
-
   const handleSteal = useCallback(() => {
     if (!room || room.round.phase !== "steal" || !room.round.activeGuessTeamId) return;
     const teamId = room.round.activeGuessTeamId;
@@ -1109,6 +1204,144 @@ export default function MinigamesPage() {
     );
   }
 
+  if (viewMode === "manager" && !room) {
+    return (
+      <main className="min-h-screen px-4 py-6 md:px-8">
+        <div className="mx-auto max-w-7xl space-y-6">
+          <header className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-border bg-black/25 p-4 backdrop-blur">
+            <div>
+              <div className="text-xs uppercase tracking-[0.35em] text-primary/80">Minigames</div>
+              <h1 className="font-[family-name:var(--font-league-gothic)] text-5xl uppercase tracking-[0.18em] text-white md:text-6xl">
+                Build the game
+              </h1>
+              <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+                Create the title, add as many questions as you want, attach unlimited answers with points, and set the multiplier for each round directly on the question.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="primary" onClick={handleCreateGame}>Create game</Button>
+              <Link href="/">
+                <Button variant="ghost">Back home</Button>
+              </Link>
+            </div>
+          </header>
+
+          <section className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+            <Card variant="featured" className="border-primary/25 bg-card/95">
+              <CardHeader>
+                <CardTitle className="font-[family-name:var(--font-league-gothic)] text-4xl uppercase tracking-[0.14em]">
+                  Game title
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Input
+                  label="Title"
+                  placeholder="Family Feud Arcade"
+                  value={draftTitle}
+                  onChange={(event) => setDraftTitle(event.target.value)}
+                />
+                <div className="rounded-xl border border-border bg-surface/60 p-3 text-sm text-muted-foreground">
+                  This title will appear in the manager board and the player view once the game is created.
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card variant="featured" className="border-border bg-card/95">
+              <CardHeader className="flex items-center justify-between gap-3">
+                <CardTitle className="font-[family-name:var(--font-league-gothic)] text-4xl uppercase tracking-[0.14em]">
+                  Questions
+                </CardTitle>
+                <Button variant="outline" onClick={handleAddDraftQuestion}>+ Add question</Button>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                {draftQuestions.map((question, questionIndex) => (
+                  <div key={question.id} className="rounded-2xl border border-border bg-black/25 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                        Question {questionIndex + 1}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleRemoveDraftQuestion(questionIndex)}
+                          disabled={draftQuestions.length <= 1}
+                        >
+                          Remove question
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-4 md:grid-cols-[1fr_160px]">
+                      <Input
+                        label="Question prompt"
+                        placeholder='Name something that can be inflated or deflated.'
+                        value={question.prompt}
+                        onChange={(event) => handleUpdateDraftQuestionFields(questionIndex, { prompt: event.target.value })}
+                      />
+                      <Input
+                        label="Multiplier"
+                        type="number"
+                        min={1}
+                        step={1}
+                        value={String(question.multiplier)}
+                        onChange={(event) => handleUpdateDraftQuestionFields(questionIndex, { multiplier: Number(event.target.value) || 1 })}
+                      />
+                    </div>
+
+                    <div className="mt-4 space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Answers</div>
+                          <div className="text-sm text-muted-foreground">Add as many board answers as you need.</div>
+                        </div>
+                        <Button size="sm" variant="outline" onClick={() => handleAddDraftAnswer(questionIndex)}>+ Add answer</Button>
+                      </div>
+
+                      {question.answers.map((answer, answerIndex) => (
+                        <div key={`${question.id}-${answerIndex}`} className="grid gap-3 md:grid-cols-[1fr_160px_auto]">
+                          <Input
+                            label={answerIndex === 0 ? "Word" : `Word ${answerIndex + 1}`}
+                            placeholder="Tire"
+                            value={answer.word}
+                            onChange={(event) => handleUpdateDraftAnswer(questionIndex, answerIndex, { word: event.target.value })}
+                          />
+                          <Input
+                            label={answerIndex === 0 ? "Points" : `Points ${answerIndex + 1}`}
+                            type="number"
+                            min={0}
+                            step={1}
+                            value={String(answer.points)}
+                            onChange={(event) => handleUpdateDraftAnswer(questionIndex, answerIndex, { points: Number(event.target.value) || 0 })}
+                          />
+                          <div className="flex items-end">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleRemoveDraftAnswer(questionIndex, answerIndex)}
+                              disabled={question.answers.length <= 1}
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+              <CardFooter className="flex items-center justify-between gap-3">
+                <div className="text-sm text-muted-foreground">Multiplier applies to every reveal in that question.</div>
+                <Button onClick={handleCreateGame}>Create game</Button>
+              </CardFooter>
+            </Card>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
   const activeRoom = room ?? createFreshRoomState();
   const currentQuestion = findQuestionByIndex(activeRoom, activeRoom.round.activeQuestionIndex) ?? activeQuestion;
   const teamForInvite = activeTeam ? activeRoom.teams[activeTeam] : null;
@@ -1121,7 +1354,7 @@ export default function MinigamesPage() {
           <div>
             <div className="text-xs uppercase tracking-[0.35em] text-primary/80">Minigames</div>
             <h1 className="font-[family-name:var(--font-league-gothic)] text-5xl uppercase tracking-[0.18em] text-white md:text-6xl">
-              Family Feud Arcade
+              {activeRoom.title}
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
               A two-team, five-player structure for Overwatch nights. The manager handles the room, the users join with secret links, and the round board stays visible the whole time.
@@ -1174,10 +1407,8 @@ export default function MinigamesPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid gap-2 sm:grid-cols-3">
-                  <Button variant={activeRoom.round.multiplier === 1 ? "primary" : "outline"} onClick={() => handleSetMultiplier(1)}>x1</Button>
-                  <Button variant={activeRoom.round.multiplier === 2 ? "primary" : "outline"} onClick={() => handleSetMultiplier(2)}>x2</Button>
-                  <Button variant={activeRoom.round.multiplier === 3 ? "primary" : "outline"} onClick={() => handleSetMultiplier(3)}>x3</Button>
+                <div className="rounded-xl border border-border bg-surface/60 p-3 text-sm text-muted-foreground">
+                  Current question multiplier: x{currentQuestion?.multiplier || 1}
                 </div>
 
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -1202,7 +1433,7 @@ export default function MinigamesPage() {
                 Generate two invite links, one per team. Players join, type their name, and stay visible until their heartbeat expires or they leave.
               </p>
               <div className="grid gap-3">
-                <Button onClick={handleGenerateRoom}>Generate new secret links</Button>
+                <Button onClick={handleCreateGame}>Generate new secret links</Button>
                 {copyFeedback ? <div className="text-sm text-primary">{copyFeedback}</div> : null}
               </div>
               <div className="grid gap-4 md:grid-cols-2">
