@@ -1518,13 +1518,15 @@ export default function MinigamesPage() {
                 {copyFeedback ? <div className="text-sm text-primary">{copyFeedback}</div> : null}
               </div>
               <div className="grid gap-4 md:grid-cols-2">
-                {visibleTeams.length > 0 ? visibleTeams.map(([teamId, team]) => (
+                {(Object.entries(activeRoom.teams) as Array<[TeamId, Team]>).map(([teamId, team], index) => (
                   <div key={teamId} className="rounded-2xl border border-border bg-black/25 p-4">
                     <div className="flex items-center justify-between gap-2">
                       <div>
-                        <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{teamLabel(teamId)}</div>
+                        <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                          Invite link {index + 1}
+                        </div>
                         <div className="font-[family-name:var(--font-league-gothic)] text-3xl uppercase tracking-[0.12em] text-white">
-                          {team.name}
+                          {team.players.length > 0 ? team.name : `Team ${index + 1}`}
                         </div>
                       </div>
                       <Badge variant={teamId === "alpha" ? "primary" : "secondary"}>{team.inviteToken}</Badge>
@@ -1539,11 +1541,7 @@ export default function MinigamesPage() {
                       <Button size="sm" variant="ghost" onClick={() => setViewMode("user")}>Preview user view</Button>
                     </div>
                   </div>
-                )) : (
-                  <div className="md:col-span-2 rounded-xl border border-dashed border-border/60 bg-surface/40 px-4 py-6 text-sm text-muted-foreground">
-                    Teams stay hidden until someone joins their invite link.
-                  </div>
-                )}
+                ))}
               </div>
             </div>
           </Panel>
