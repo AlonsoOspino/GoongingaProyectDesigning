@@ -37,6 +37,8 @@ type Participant = {
 type Team = {
   id: TeamId;
   name: string;
+  logoUrl: string | null;
+  captainId: string | null;
   inviteToken: string;
   score: number;
   players: Participant[];
@@ -193,6 +195,8 @@ function createTeam(id: TeamId, name: string, inviteToken: string): Team {
   return {
     id,
     name,
+    logoUrl: null,
+    captainId: null,
     inviteToken,
     score: 0,
     players: [],
@@ -352,6 +356,21 @@ function clearRoomIdentities(room: RoomState | null) {
   clearIdentity(room.teams.beta.inviteToken);
 }
 
+function encodeRoomSnapshot(room: RoomState) {
+  if (typeof window === "undefined") return "";
+  return window.btoa(unescape(encodeURIComponent(JSON.stringify(room))));
+}
+
+function decodeRoomSnapshot(snapshot: string) {
+  if (typeof window === "undefined") return null;
+  try {
+    const json = decodeURIComponent(window.atob(snapshot).split("").map((character) => `%${character.charCodeAt(0).toString(16).padStart(2, "0")}`).join(""));
+    return JSON.parse(json) as RoomState;
+  } catch {
+    return null;
+  }
+}
+
 function roomFromInvite(room: RoomState | null, inviteToken: string) {
   if (!room) return null;
   if (room.teams.alpha.inviteToken === inviteToken) return { room, teamId: "alpha" as const };
@@ -417,9 +436,13 @@ function cleanupRoom(room: RoomState): RoomState {
   };
 }
 
-function formatInviteUrl(inviteToken: string) {
+function formatInviteUrl(inviteToken: string, room?: RoomState | null) {
   if (typeof window === "undefined") return `/minigames?invite=${inviteToken}`;
-  return `${window.location.origin}/minigames?invite=${inviteToken}`;
+  const params = new URLSearchParams({ invite: inviteToken });
+  if (room) {
+    params.set("room", encodeRoomSnapshot(room));
+  }
+  return `${window.location.origin}/minigames?${params.toString()}`;
 }
 
 function isParticipantLocked(participant: Participant, currentRound: number) {
@@ -599,6 +622,8 @@ export default function MinigamesPage() {
   const [draftTitle, setDraftTitle] = useState("Family Feud Arcade");
   const [draftQuestions, setDraftQuestions] = useState<QuestionDraft[]>(() => createDraftQuestions());
   const [joinName, setJoinName] = useState("");
+  const [captainTeamName, setCaptainTeamName] = useState("");
+  const [captainTeamLogo, setCaptainTeamLogo] = useState("");
   const [selectedTeamId, setSelectedTeamId] = useState<TeamId | null>(null);
   const [stealGuess, setStealGuess] = useState("");
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
@@ -620,17 +645,25 @@ export default function MinigamesPage() {
 
   useEffect(() => {
     const stored = readStoredRoom();
-    const nextRoom = stored ? cleanupRoom(stored) : null;
+    const roomSnapshot = (searchParams?.get("room") || "").trim();
+    const snapshotRoom = roomSnapshot ? decodeRoomSnapshot(roomSnapshot) : null;
+    const nextRoom = stored ? cleanupRoom(stored) : snapshotRoom ? cleanupRoom(snapshotRoom) : null;
     if (nextRoom) {
       setDraftTitle(nextRoom.title);
       setDraftQuestions(nextRoom.questions.map((question) => ({ ...question })));
+      const invitedMatch = inviteToken ? roomFromInvite(nextRoom, inviteToken) : null;
+      const invitedTeam = invitedMatch ? invitedMatch.room.teams[invitedMatch.teamId] : null;
+      setCaptainTeamName(invitedTeam?.name || "");
+      setCaptainTeamLogo(invitedTeam?.logoUrl || "");
     } else if (viewMode === "manager") {
       setDraftTitle("Family Feud Arcade");
       setDraftQuestions(createDraftQuestions());
+      setCaptainTeamName("");
+      setCaptainTeamLogo("");
     }
     setRoom(nextRoom);
     setLoaded(true);
-  }, [viewMode]);
+  }, [searchParams, viewMode]);
 
   useEffect(() => {
     if (!loaded) return;
@@ -761,6 +794,8 @@ export default function MinigamesPage() {
     writeStoredRoom(next);
     setRoom(next);
     setJoinName("");
+    setCaptainTeamName("");
+    setCaptainTeamLogo("");
     setSelectedTeamId(null);
     setStealGuess("");
     setViewMode("manager");
@@ -785,13 +820,13 @@ export default function MinigamesPage() {
 
   const handleCopyInvite = useCallback(async (token: string) => {
     try {
-      await copyToClipboard(formatInviteUrl(token));
+      await copyToClipboard(formatInviteUrl(token, room));
       setCopyFeedback("Invite copied.");
       window.setTimeout(() => setCopyFeedback(null), 1800);
     } catch {
       setCopyFeedback("Copy failed. Use the displayed link.");
     }
-  }, []);
+  }, [room]);
 
   const handleJoinTeam = useCallback(() => {
     if (!room || !inviteToken || !activeInviteTarget || !joinName.trim()) return;
@@ -802,6 +837,10 @@ export default function MinigamesPage() {
     const existingPlayerId = identity?.participantId ?? null;
     const participantId = existingPlayerId || makeId();
     const trimmedName = joinName.trim();
+    const isFirstPlayer = room.teams[teamId].players.length === 0;
+    if (isFirstPlayer && (isBlank(captainTeamName) || isBlank(captainTeamLogo))) return;
+    const nextTeamName = isFirstPlayer && !isBlank(captainTeamName) ? captainTeamName.trim() : room.teams[teamId].name;
+    const nextTeamLogo = isFirstPlayer && !isBlank(captainTeamLogo) ? captainTeamLogo.trim() : room.teams[teamId].logoUrl;
 
     updateRoom((current) => {
       const team = current.teams[teamId];
@@ -830,6 +869,9 @@ export default function MinigamesPage() {
           ...current.teams,
           [teamId]: {
             ...team,
+            name: nextTeamName,
+            logoUrl: nextTeamLogo,
+            captainId: team.captainId || (isFirstPlayer ? participantId : team.captainId),
             players: nextPlayers,
           },
         },
@@ -842,7 +884,7 @@ export default function MinigamesPage() {
       teamId,
       inviteToken,
     });
-  }, [activeInviteTarget, activeTeam, inviteToken, joinName, room, selectedTeamId, updateRoom]);
+  }, [activeInviteTarget, activeTeam, captainTeamLogo, captainTeamName, inviteToken, joinName, room, selectedTeamId, updateRoom]);
 
   const handleLeaveTeam = useCallback(() => {
     if (!room || !inviteToken) return;
@@ -1373,7 +1415,14 @@ export default function MinigamesPage() {
   const activeRoom = room ?? createFreshRoomState();
   const currentQuestion = findQuestionByIndex(activeRoom, activeRoom.round.activeQuestionIndex) ?? activeQuestion;
   const teamForInvite = activeTeam ? activeRoom.teams[activeTeam] : null;
-  const canJoin = Boolean(activeTeam && inviteToken && joinName.trim());
+  const canJoin = Boolean(
+    activeTeam &&
+      inviteToken &&
+      joinName.trim() &&
+      (!activeInviteTarget || !room || activeRoom.teams[activeInviteTarget.teamId].players.length > 0 || (captainTeamName.trim() && captainTeamLogo.trim()))
+  );
+  const visibleTeams = (Object.entries(activeRoom.teams) as Array<[TeamId, Team]>).filter(([, team]) => team.players.length > 0);
+  const activeInviteTeamIsEmpty = activeInviteTarget ? activeRoom.teams[activeInviteTarget.teamId].players.length === 0 : false;
 
   return (
     <main className="min-h-screen px-4 py-6 md:px-8">
@@ -1415,7 +1464,7 @@ export default function MinigamesPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="grid gap-4 sm:grid-cols-2">
-                {(Object.entries(activeRoom.teams) as Array<[TeamId, Team]>).map(([teamId, team]) => (
+                {visibleTeams.length > 0 ? visibleTeams.map(([teamId, team]) => (
                   <div key={teamId} className="rounded-xl border border-border bg-surface/70 p-4">
                     <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{teamLabel(teamId)}</div>
                     <div className="font-[family-name:var(--font-league-gothic)] text-4xl uppercase tracking-[0.12em] text-white">
@@ -1424,7 +1473,11 @@ export default function MinigamesPage() {
                     <div className="mt-3 text-3xl font-bold text-primary">{team.score}</div>
                     <div className="mt-2 text-sm text-muted-foreground">{team.players.length} / {MAX_PLAYERS_PER_TEAM} players</div>
                   </div>
-                ))}
+                )) : (
+                  <div className="sm:col-span-2 rounded-xl border border-dashed border-border/60 bg-surface/40 px-4 py-6 text-sm text-muted-foreground">
+                    No teams are visible yet. The captain appears after the first player joins an invite link.
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -1465,7 +1518,7 @@ export default function MinigamesPage() {
                 {copyFeedback ? <div className="text-sm text-primary">{copyFeedback}</div> : null}
               </div>
               <div className="grid gap-4 md:grid-cols-2">
-                {(Object.entries(activeRoom.teams) as Array<[TeamId, Team]>).map(([teamId, team]) => (
+                {visibleTeams.length > 0 ? visibleTeams.map(([teamId, team]) => (
                   <div key={teamId} className="rounded-2xl border border-border bg-black/25 p-4">
                     <div className="flex items-center justify-between gap-2">
                       <div>
@@ -1477,7 +1530,7 @@ export default function MinigamesPage() {
                       <Badge variant={teamId === "alpha" ? "primary" : "secondary"}>{team.inviteToken}</Badge>
                     </div>
                     <div className="mt-3 break-all rounded-lg border border-border bg-surface/70 p-3 text-xs text-muted-foreground">
-                      {formatInviteUrl(team.inviteToken)}
+                      {formatInviteUrl(team.inviteToken, activeRoom)}
                     </div>
                     <div className="mt-3 flex gap-2">
                       <Button size="sm" variant="outline" onClick={() => handleCopyInvite(team.inviteToken)}>
@@ -1486,7 +1539,11 @@ export default function MinigamesPage() {
                       <Button size="sm" variant="ghost" onClick={() => setViewMode("user")}>Preview user view</Button>
                     </div>
                   </div>
-                ))}
+                )) : (
+                  <div className="md:col-span-2 rounded-xl border border-dashed border-border/60 bg-surface/40 px-4 py-6 text-sm text-muted-foreground">
+                    Teams stay hidden until someone joins their invite link.
+                  </div>
+                )}
               </div>
             </div>
           </Panel>
@@ -1601,18 +1658,43 @@ export default function MinigamesPage() {
                     <Badge variant="primary">Invite active</Badge>
                     <Badge variant="outline">{activeInviteTarget.teamId === "alpha" ? "Alpha channel" : "Beta channel"}</Badge>
                   </div>
-                  <Input
-                    label="Player name"
-                    placeholder="Enter player name"
-                    value={joinName}
-                    onChange={(event) => setJoinName(event.target.value)}
-                  />
+                  {activeInviteTeamIsEmpty ? (
+                    <>
+                      <Input
+                        label="Captain name"
+                        placeholder="Enter your player name"
+                        value={joinName}
+                        onChange={(event) => setJoinName(event.target.value)}
+                      />
+                      <Input
+                        label="Team name"
+                        placeholder="Enter team name"
+                        value={captainTeamName}
+                        onChange={(event) => setCaptainTeamName(event.target.value)}
+                      />
+                      <Input
+                        label="Team logo image link"
+                        placeholder="https://example.com/logo.png"
+                        value={captainTeamLogo}
+                        onChange={(event) => setCaptainTeamLogo(event.target.value)}
+                      />
+                    </>
+                  ) : (
+                    <Input
+                      label="Player name"
+                      placeholder="Enter player name"
+                      value={joinName}
+                      onChange={(event) => setJoinName(event.target.value)}
+                    />
+                  )}
                   <div className="flex flex-wrap gap-2">
                     <Button onClick={handleJoinTeam} disabled={!canJoin}>Join team</Button>
                     <Button variant="outline" onClick={handleLeaveTeam} disabled={!readIdentity(inviteToken)}>Leave team</Button>
                   </div>
                   <div className="rounded-xl border border-border bg-black/25 p-3 text-sm text-muted-foreground">
-                    You are joining {teamForInvite?.name || "this team"}. If the tab closes or the heartbeat stops, the player name disappears from the lobby.
+                    {activeInviteTeamIsEmpty
+                      ? "You are the first player here, so you become the captain and name the team before joining."
+                      : `You are joining ${teamForInvite?.name || "this team"}. If the tab closes or the heartbeat stops, the player name disappears from the lobby.`}
                   </div>
                 </div>
               ) : (
@@ -1669,4 +1751,8 @@ export default function MinigamesPage() {
       </div>
     </main>
   );
+}
+
+function isBlank(value: string | null | undefined) {
+  return !value || value.trim().length === 0;
 }
