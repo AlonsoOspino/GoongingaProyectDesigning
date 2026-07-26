@@ -14,10 +14,11 @@ export function RouteAwareShell({ children }: { children: ReactNode }) {
   const isOverlayRoute = pathname.startsWith("/overlay");
   const isWrappedRoute = pathname.startsWith("/wrapped");
   const isDraftTableRoute = pathname.startsWith("/draft-table");
+  const isMinigamesRoute = pathname.startsWith("/minigames");
   const hasDraftAccessKey = isDraftTableRoute && Boolean(searchParams?.get("key"));
   const isKeyViewerMode = hasDraftAccessKey && user?.role !== "MANAGER";
 
-  if (isOverlayRoute || isWrappedRoute || hasDraftAccessKey || isKeyViewerMode) {
+  if (isOverlayRoute || isWrappedRoute || isMinigamesRoute || hasDraftAccessKey || isKeyViewerMode) {
     return <>{children}</>;
   }
 
