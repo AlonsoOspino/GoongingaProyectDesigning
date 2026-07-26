@@ -233,13 +233,12 @@ function createRoomState(): RoomState {
 
 function createFreshRoomState() {
   const room = createRoomState();
-  const [firstQuestion] = room.questions;
   return {
     ...room,
     round: {
       ...room.round,
       preparedQuestionIndex: 0,
-      board: firstQuestion ? getQuestionBoard(firstQuestion) : [],
+      board: [],
     },
   } satisfies RoomState;
 }
@@ -300,7 +299,7 @@ function findQuestionByIndex(room: RoomState, index: number | null) {
   return room.questions[index] ?? null;
 }
 
-function cleanupRoom(room: RoomState) {
+function cleanupRoom(room: RoomState): RoomState {
   const cutoff = now() - PLAYER_TTL_MS;
   let changed = false;
   const nextTeams = { ...room.teams };
@@ -339,14 +338,7 @@ function cleanupRoom(room: RoomState) {
           starterTeamId: null,
           starterPlayerId: null,
           activeGuessTeamId: null,
-          logs: [
-            {
-              id: makeId(),
-              label: "Starter disconnected. Select a new participant.",
-              kind: "danger",
-            },
-            ...room.round.logs,
-          ],
+          logs: [createLog("Starter disconnected. Select a new participant.", "danger"), ...room.round.logs],
         }
       : room.round,
   };
@@ -640,10 +632,6 @@ export default function MinigamesPage() {
     window.addEventListener("beforeunload", beforeUnload);
     return () => window.removeEventListener("beforeunload", beforeUnload);
   }, [inviteToken, saveRoom, viewMode]);
-
-  const ensureRoom = useCallback(() => {
-    saveRoom((current) => current ?? createFreshRoomState());
-  }, [saveRoom]);
 
   const updateRoom = useCallback((updater: (current: RoomState) => RoomState) => {
     saveRoom(updater);
@@ -947,8 +935,9 @@ export default function MinigamesPage() {
           round: {
             ...next.round,
             phase: "round-over",
-            controllingTeamId: guessTeamId,
+            controllingTeamId: null,
             activeGuessTeamId: null,
+            roundPoints: 0,
             logs: [createLog("Every answer is on the board. Round is complete.", "success"), ...next.round.logs],
           },
         };
@@ -1036,7 +1025,8 @@ export default function MinigamesPage() {
             logs: [createLog(`${teamLabel(teamId)} missed the steal. Original team keeps the points.`, "danger"), ...current.round.logs],
             phase: "round-over",
             activeGuessTeamId: null,
-            controllingTeamId: winningTeamId,
+            controllingTeamId: null,
+            roundPoints: 0,
           },
         };
       }
@@ -1054,6 +1044,8 @@ export default function MinigamesPage() {
           logs: [createLog(`${teamLabel(teamId)} stole the round with "${answer.word}".`, "success"), ...current.round.logs],
           phase: "round-over",
           activeGuessTeamId: null,
+          controllingTeamId: null,
+          roundPoints: 0,
         },
       };
       return applyRoundPoints(next, teamId, current.round.roundPoints);
