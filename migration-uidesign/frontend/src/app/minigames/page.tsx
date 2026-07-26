@@ -88,6 +88,7 @@ type IdentityRecord = {
 
 const ROOM_STORAGE_KEY = "goon.minigames.room";
 const IDENTITY_STORAGE_PREFIX = "goon.minigames.identity.";
+const DELETE_CONFIRMATION_TEXT = "DELETE GAME";
 const PLAYER_TTL_MS = 15000;
 const HEARTBEAT_INTERVAL_MS = 4000;
 const MAX_PLAYERS_PER_TEAM = 5;
@@ -340,6 +341,17 @@ function clearIdentity(inviteToken: string) {
   window.localStorage.removeItem(`${IDENTITY_STORAGE_PREFIX}${inviteToken}`);
 }
 
+function clearStoredRoom() {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(ROOM_STORAGE_KEY);
+}
+
+function clearRoomIdentities(room: RoomState | null) {
+  if (!room) return;
+  clearIdentity(room.teams.alpha.inviteToken);
+  clearIdentity(room.teams.beta.inviteToken);
+}
+
 function roomFromInvite(room: RoomState | null, inviteToken: string) {
   if (!room) return null;
   if (room.teams.alpha.inviteToken === inviteToken) return { room, teamId: "alpha" as const };
@@ -589,6 +601,7 @@ export default function MinigamesPage() {
   const [joinName, setJoinName] = useState("");
   const [selectedTeamId, setSelectedTeamId] = useState<TeamId | null>(null);
   const [stealGuess, setStealGuess] = useState("");
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
   const activeInviteTarget = useMemo(() => roomFromInvite(room, inviteToken), [room, inviteToken]);
@@ -754,6 +767,21 @@ export default function MinigamesPage() {
     setDraftTitle(next.title);
     setDraftQuestions(next.questions.map((question) => ({ ...question })));
   }, [draftQuestions, draftTitle]);
+
+  const handleDeleteGame = useCallback(() => {
+    if (deleteConfirmation.trim() !== DELETE_CONFIRMATION_TEXT) return;
+    clearRoomIdentities(room);
+    clearStoredRoom();
+    setRoom(null);
+    setDraftTitle("Family Feud Arcade");
+    setDraftQuestions(createDraftQuestions());
+    setJoinName("");
+    setSelectedTeamId(null);
+    setStealGuess("");
+    setCopyFeedback(null);
+    setDeleteConfirmation("");
+    setViewMode("manager");
+  }, [deleteConfirmation, room]);
 
   const handleCopyInvite = useCallback(async (token: string) => {
     try {
@@ -1609,6 +1637,31 @@ export default function MinigamesPage() {
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+          </Panel>
+
+          <Panel title="Danger zone" eyebrow="Delete current game">
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                This removes the current room from storage and sends the manager back to the setup screen.
+                Any invited player identities tied to this room are cleared too.
+              </p>
+              <Input
+                label={`Type ${DELETE_CONFIRMATION_TEXT} to confirm`}
+                placeholder={DELETE_CONFIRMATION_TEXT}
+                value={deleteConfirmation}
+                onChange={(event) => setDeleteConfirmation(event.target.value)}
+              />
+              <Button
+                variant="danger"
+                onClick={handleDeleteGame}
+                disabled={deleteConfirmation.trim() !== DELETE_CONFIRMATION_TEXT}
+              >
+                Delete game and reset
+              </Button>
+              <div className="rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger">
+                You must type {DELETE_CONFIRMATION_TEXT} exactly before the delete button works.
               </div>
             </div>
           </Panel>
