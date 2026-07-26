@@ -57,7 +57,7 @@ type RoundState = {
   phase: RoundPhase;
   preparedQuestionIndex: number;
   activeQuestionIndex: number | null;
-  multiplier: 1 | 2 | 3;
+  multiplier: number;
   controllingTeamId: TeamId | null;
   starterTeamId: TeamId | null;
   starterPlayerId: string | null;
