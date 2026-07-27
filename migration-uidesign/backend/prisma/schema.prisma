@@ -27,6 +27,16 @@ model Wrapped {
   tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 }
 
+model FamilyFeudGame {
+  id               Int      @id @default(autoincrement())
+  roomId           String   @unique
+  alphaInviteToken String   @unique
+  betaInviteToken  String   @unique
+  state            Json
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
 model Member {
   id                   Int          @id @default(autoincrement())
   nickname             String
