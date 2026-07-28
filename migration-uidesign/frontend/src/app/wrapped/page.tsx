@@ -177,10 +177,6 @@ function PlayerSlide({ story, wrapped }: { story: PlayerStory; wrapped: Goonging
           <PlayerProfile leader={leader} />
         </div>
       </div>
-      <div className={styles.storyArt}>
-        <span className={styles.backgroundWord} aria-hidden="true">{story.title.split(" ")[0]}</span>
-        <div className={styles.artworkCaption}>{artwork ? "FEATURED ARTWORK" : "ARTWORK READY"}</div>
-      </div>
     </section>
   );
 }
