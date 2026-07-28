@@ -177,8 +177,8 @@ export function WrappedManagementPanel({ token }: { token: string }) {
       {wrapped && (
         <Card variant="bordered">
           <CardHeader>
-            <CardTitle>Story artwork</CardTitle>
-            <p className="mt-1 text-sm text-muted">Each card identifies the actual player or map that will appear in the stream before you upload its cutout.</p>
+            <CardTitle>Story backgrounds</CardTitle>
+            <p className="mt-1 text-sm text-muted">Upload the full background artwork for each story. Player profile photos stay separate beside the player name in the stream.</p>
           </CardHeader>
           <CardContent>
             <div className="grid gap-5 lg:grid-cols-2">
@@ -206,13 +206,13 @@ export function WrappedManagementPanel({ token }: { token: string }) {
                       </div>
                     </div>
                     <ImageUploadField
-                      label={field.title}
+                      label={`Background artwork · ${field.title}`}
                       type="image"
                       value={assets[field.key] || ""}
                       onChange={(url) => setAssets((current) => ({ ...current, [field.key]: url }))}
-                      previewAlt={`${field.title} Wrapped artwork`}
+                      previewAlt={`${field.title} Wrapped background artwork`}
                       previewClassName="bg-surface-elevated"
-                      placeholder="Upload a transparent PNG or paste its URL"
+                      placeholder="Upload background art or paste its URL"
                     />
                   </section>
                 );

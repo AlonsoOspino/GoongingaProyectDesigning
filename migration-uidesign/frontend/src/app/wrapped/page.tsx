@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   getGoongingaWrapped,
   resolveWrappedSnapshot,
@@ -86,6 +86,19 @@ function useCountUp(target: number, active: boolean, reducedMotion: boolean) {
   return value;
 }
 
+function TeamTile({ team }: { team: GoongingaWrapped["snapshot"]["overview"]["teams"][number] }) {
+  const [logoUnavailable, setLogoUnavailable] = useState(!team.logo);
+  return (
+    <div className={styles.teamTile}>
+      {!logoUnavailable && team.logo ? (
+        <img src={team.logo} alt={team.name} onError={() => setLogoUnavailable(true)} />
+      ) : (
+        <span aria-label={team.name}>{team.name.slice(0, 2).toUpperCase()}</span>
+      )}
+    </div>
+  );
+}
+
 function IntroSlide({ wrapped, onStart }: { wrapped: GoongingaWrapped; onStart: () => void }) {
   const snapshot = resolveWrappedSnapshot(wrapped.snapshot);
   const teams = snapshot.overview.teams.slice(0, 12);
@@ -93,8 +106,8 @@ function IntroSlide({ wrapped, onStart }: { wrapped: GoongingaWrapped; onStart: 
     <section className={`${styles.slide} ${styles.introSlide}`} aria-label="Wrapped introduction">
       <div className={styles.introCopy}>
         <p className={styles.eyebrow}>GOONGINGA LEAGUE · SEASON ARCHIVE</p>
-        <h1><span>The season</span> remembers</h1>
-        <p className={styles.introDescription}>Every final fight, every clutch save, every name that made this season impossible to forget.</p>
+        <h1><span>Season</span> in review</h1>
+        <p className={styles.introDescription}>A complete record of the players, battles and moments that defined this Goonginga season.</p>
         <div className={styles.introNumbers}>
           <div><strong>{snapshot.overview.games}</strong><span>Battles logged</span></div>
           <div><strong>{snapshot.overview.players}</strong><span>Names in record</span></div>
@@ -102,17 +115,16 @@ function IntroSlide({ wrapped, onStart }: { wrapped: GoongingaWrapped; onStart: 
         </div>
         <button type="button" className={styles.startButton} onClick={onStart}>Begin the replay <span aria-hidden="true">↓</span></button>
       </div>
-      <div className={styles.orbit} aria-label={`${teams.length} teams in the season`}>
-        <div className={styles.orbitRing} />
-        <div className={styles.orbitCore}>GG<span>{wrapped.snapshot.tournament.name}</span></div>
-        {teams.map((team, index) => {
-          const angle = (360 / Math.max(teams.length, 1)) * index;
-          return (
-            <div key={team.id} className={styles.teamOrbit} style={{ "--team-angle": `${angle}deg`, "--team-index": index } as CSSProperties}>
-              {team.logo ? <img src={team.logo} alt={team.name} /> : <span>{team.name.slice(0, 2).toUpperCase()}</span>}
-            </div>
-          );
-        })}
+      <div className={styles.coverVisual} aria-label={`${teams.length} teams in the season`}>
+        <div className={styles.coverFrame}>
+          <p>GOONGINGA LEAGUE</p>
+          <strong>GG</strong>
+          <span>{wrapped.snapshot.tournament.name}</span>
+        </div>
+        <div className={styles.teamWall}>
+          {teams.map((team) => <TeamTile key={team.id} team={team} />)}
+        </div>
+        <p className={styles.coverStamp}>{teams.length} TEAMS · ONE SEASON</p>
       </div>
     </section>
   );
@@ -126,24 +138,39 @@ function Art({ src, alt, fallback }: { src?: string | null; alt: string; fallbac
   );
 }
 
+function PlayerProfile({ leader }: { leader: WrappedPlayerLeader | null }) {
+  const initials = leader?.player?.slice(0, 2).toUpperCase() || "GG";
+  return (
+    <div className={styles.playerProfile}>
+      {leader?.profilePic ? <img src={leader.profilePic} alt={leader.player} /> : <span>{initials}</span>}
+      <div>
+        <strong>{leader?.player || "No eligible player"}</strong>
+        <small>{leader?.team || "No team"}</small>
+      </div>
+    </div>
+  );
+}
+
 function PlayerSlide({ story, wrapped }: { story: PlayerStory; wrapped: GoongingaWrapped }) {
   const leader = story.value;
-  const image = wrapped.assets[story.assetKey] || leader?.profilePic || null;
+  const artwork = wrapped.assets[story.assetKey] || null;
   return (
     <section className={`${styles.slide} ${styles.playerSlide} ${styles[`layout${story.layout[0].toUpperCase()}${story.layout.slice(1)}`]}`} aria-label={story.title}>
+      <div className={styles.artworkBackdrop} aria-hidden="true">
+        {artwork && <img src={artwork} alt="" />}
+      </div>
       <div className={styles.storyCopy}>
         <p className={styles.eyebrow}>{story.eyebrow}</p>
         <h2>{story.title}</h2>
         <p className={styles.storyCaption}>{story.caption}</p>
         <div className={styles.valueBlock}>
           <strong>{formatNumber(leader?.value, story.decimals ?? 0)}<small>{story.suffix || ""}</small></strong>
-          <span>{leader?.player || "No eligible player"}</span>
-          {leader?.team && <em>{leader.team}</em>}
+          <PlayerProfile leader={leader} />
         </div>
       </div>
       <div className={styles.storyArt}>
         <span className={styles.backgroundWord} aria-hidden="true">{story.title.split(" ")[0]}</span>
-        <Art src={image} alt={leader?.player || story.title} fallback={leader?.player?.slice(0, 2).toUpperCase() || "GG"} />
+        <div className={styles.artworkCaption}>{artwork ? "FEATURED ARTWORK" : "ARTWORK READY"}</div>
       </div>
     </section>
   );
@@ -171,11 +198,11 @@ function MapSlide({ story, wrapped }: { story: MapStory; wrapped: GoongingaWrapp
 function FinaleSlide({ wrapped, active, reducedMotion }: { wrapped: GoongingaWrapped; active: boolean; reducedMotion: boolean }) {
   const { totals, games, players } = resolveWrappedSnapshot(wrapped.snapshot).overview;
   const counters = [
-    { label: "Firepower unleashed", value: useCountUp(totals.damage, active, reducedMotion), tone: "damage" },
-    { label: "Lifelines delivered", value: useCountUp(totals.healing, active, reducedMotion), tone: "healing" },
-    { label: "Frontline held", value: useCountUp(totals.mitigation, active, reducedMotion), tone: "mitigation" },
-    { label: "Battles logged", value: useCountUp(games, active, reducedMotion), tone: "games" },
-    { label: "Names in the record", value: useCountUp(players, active, reducedMotion), tone: "players" },
+    { label: "Damage done", value: useCountUp(totals.damage, active, reducedMotion), tone: "damage" },
+    { label: "Healing done", value: useCountUp(totals.healing, active, reducedMotion), tone: "healing" },
+    { label: "Mitigation done", value: useCountUp(totals.mitigation, active, reducedMotion), tone: "mitigation" },
+    { label: "Games played", value: useCountUp(games, active, reducedMotion), tone: "games" },
+    { label: "Players recorded", value: useCountUp(players, active, reducedMotion), tone: "players" },
   ];
 
   return (
@@ -183,7 +210,7 @@ function FinaleSlide({ wrapped, active, reducedMotion }: { wrapped: GoongingaWra
       <div className={styles.finaleGlow} aria-hidden="true" />
       <div className={styles.finaleHeading}>
         <p className={styles.eyebrow}>GOONGINGA LEAGUE · {new Date(wrapped.generatedAt).getFullYear()}</p>
-        <h2>What a season leaves behind</h2>
+        <h2>The complete season in numbers</h2>
       </div>
       <div className={styles.counterGrid}>
         {counters.map((counter) => (
@@ -193,7 +220,7 @@ function FinaleSlide({ wrapped, active, reducedMotion }: { wrapped: GoongingaWra
           </div>
         ))}
       </div>
-      <p className={styles.finaleSignoff}>The record is frozen. The story stays loud.</p>
+      <p className={styles.finaleSignoff}>GOONGINGA LEAGUE · OFFICIAL SEASON RECORD</p>
     </section>
   );
 }
