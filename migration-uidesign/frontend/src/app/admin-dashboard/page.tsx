@@ -14,6 +14,7 @@ import { ImageUploadField } from "@/components/ui/ImageUploadField";
 import { Modal, ModalHeader, ModalTitle, ModalContent, ModalFooter } from "@/components/ui/Modal";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/Table";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
+import { WrappedManagementPanel } from "@/components/wrapped/WrappedManagementPanel";
 import { resolveMapImageUrl } from "@/lib/assetUrls";
 import { deleteReplacedBlobImage } from "@/lib/blobUpload";
 import {
@@ -25,8 +26,6 @@ import {
   adminUpdateWeekMaps,
   type CreateMatchPayload, type CreateTeamPayload, type Member, type AdminGameMap,
 } from "@/lib/api/admin";
-import type { GoongingaWrapped, WrappedAssetKey, WrappedAssets } from "@/lib/api/wrapped";
-import { adminGenerateGoongingaWrapped, getAdminGoongingaWrapped, adminUpdateGoongingaWrappedAssets } from "@/lib/api/wrapped";
 import { convertToISODateTime, formatDateEST, formatForDateInput, formatForDateTimeInput } from "@/lib/dateUtils";
 import { getLeaderboard, getMatches, getTeams, type Match, type Team } from "@/lib/api";
 import type { Tournament } from "@/lib/api/types";
@@ -120,163 +119,11 @@ export default function AdminDashboardPage() {
           <TabsContent value="weekMaps"><WeekMapsSection token={token!} /></TabsContent>
           <TabsContent value="teams"><TeamsSection token={token!} /></TabsContent>
           <TabsContent value="users"><UsersSection token={token!} /></TabsContent>
-          <TabsContent value="wrapped"><WrappedSection token={token!} /></TabsContent>
+          <TabsContent value="wrapped"><WrappedManagementPanel token={token!} /></TabsContent>
           <TabsContent value="database"><DatabaseSection token={token!} /></TabsContent>
         </Tabs>
       </div>
     </main>
-  );
-}
-
-// ==================== GOONGINGA WRAPPED ====================
-const WRAPPED_IMAGE_FIELDS: Array<{ key: WrappedAssetKey; label: string }> = [
-  { key: "bestAverageKills", label: "1) Best Average Kills" },
-  { key: "bestAverageDamage", label: "2) Best Average Damage" },
-  { key: "bestAverageMitigation", label: "3) Best Average Mitigation" },
-  { key: "bestAverageHealing", label: "4) Best Average Healing" },
-  { key: "bestAverageAssists", label: "5) Best Average Assists" },
-  { key: "bestAverageLowestDeaths", label: "6) Best Average Lowest Deaths" },
-  { key: "mostDamageDealt", label: "7) Most Damage Dealt" },
-  { key: "biggestHealingOutput", label: "8) Biggest Healing Output" },
-  { key: "mitigationTotal", label: "9) Mitigation" },
-  { key: "bestIndividualPerformanceKda", label: "10) Best Individual Perfomance (KDA)" },
-  { key: "mostBannedHero", label: "11) Most banned Hero" },
-  { key: "mostPickedMap", label: "12) Most picked Map" },
-  { key: "leastPickedMap1", label: "13) Least picked map #1" },
-  { key: "leastPickedMap2", label: "14) Least picked map #2" },
-  { key: "leastPickedMap3", label: "15) Least picked map #3" },
-];
-
-function WrappedSection({ token }: { token: string }) {
-  const [wrapped, setWrapped] = useState<GoongingaWrapped | null>(null);
-  const [assets, setAssets] = useState<WrappedAssets>({});
-  const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
-
-  const showNotif = (type: "success" | "error", message: string) => {
-    setNotification({ type, message });
-    setTimeout(() => setNotification(null), 4000);
-  };
-
-  useEffect(() => {
-    async function load() {
-      try {
-        const data = await getAdminGoongingaWrapped(token);
-        setWrapped(data);
-        setAssets(data.assets || {});
-      } catch (error: any) {
-        if (error?.status !== 404) showNotif("error", error?.message || "Could not load Goonginga Wrapped.");
-      } finally {
-        setLoading(false);
-      }
-    }
-    void load();
-  }, [token]);
-
-  async function generate() {
-    if (!confirm("Refresh the Goonginga Wrapped now? This stores the latest stats snapshot without recalculating it on every visit.")) return;
-    setGenerating(true);
-    try {
-      const data = await adminGenerateGoongingaWrapped(token);
-      setWrapped(data);
-      setAssets(data.assets || {});
-      showNotif("success", wrapped ? "Goonginga Wrapped refreshed." : "Goonginga Wrapped generated.");
-    } catch (error: any) {
-      showNotif("error", error?.message || "Could not update Goonginga Wrapped.");
-    } finally {
-      setGenerating(false);
-    }
-  }
-
-  async function saveAssets() {
-    setSaving(true);
-    try {
-      const data = await adminUpdateGoongingaWrappedAssets(token, assets);
-      setWrapped(data);
-      setAssets(data.assets || {});
-      showNotif("success", "Wrapped images saved.");
-    } catch (error: any) {
-      showNotif("error", error?.message || "Could not save Wrapped images.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  if (loading) return <Card variant="bordered"><CardContent className="p-8 text-center text-muted">Loading...</CardContent></Card>;
-
-  return (
-    <div className="space-y-6">
-      {notification && <div className={`rounded-lg border p-4 ${notification.type === "success" ? "border-success/30 bg-success/10 text-success" : "border-danger/30 bg-danger/10 text-danger"}`}>{notification.message}</div>}
-      <Card variant="bordered">
-        <CardHeader className="flex flex-row items-center justify-between gap-4">
-          <div>
-            <CardTitle>Goonginga Wrapped</CardTitle>
-            <p className="mt-1 text-sm text-muted">A stored season snapshot that the public Wrapped can read instantly without re-running calculations on every visit.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {wrapped && <Button variant="secondary" onClick={() => window.open("/wrapped", "_blank")}>Open Wrapped</Button>}
-            <Button onClick={generate} disabled={generating}>{generating ? (wrapped ? "Refreshing..." : "Generating...") : (wrapped ? "Refresh Wrapped" : "Generate Wrapped")}</Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {wrapped ? (
-            <div className="grid gap-4 rounded-lg border border-success/25 bg-success/5 p-4 text-sm text-muted md:grid-cols-2">
-              <div>
-                <p className="font-semibold text-foreground">Latest snapshot: {new Date(wrapped.generatedAt).toLocaleString()}.</p>
-                <p className="mt-1">{wrapped.snapshot.tournament.name}</p>
-              </div>
-              <div className="grid gap-2 sm:grid-cols-3">
-                <div className="rounded-md border border-border/70 bg-background/70 p-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">Games</p>
-                  <p className="mt-1 text-xl font-bold text-foreground">{wrapped.snapshot.overview.games}</p>
-                </div>
-                <div className="rounded-md border border-border/70 bg-background/70 p-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">Players</p>
-                  <p className="mt-1 text-xl font-bold text-foreground">{wrapped.snapshot.overview.players}</p>
-                </div>
-                <div className="rounded-md border border-border/70 bg-background/70 p-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">Teams</p>
-                  <p className="mt-1 text-xl font-bold text-foreground">{wrapped.snapshot.overview.teams.length}</p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-start gap-4 rounded-lg border border-border bg-surface/50 p-5 sm:flex-row sm:items-center sm:justify-between">
-              <p className="max-w-xl text-sm text-muted">Generate it when the season data is ready. You can refresh the snapshot later as stats change, while the public Wrapped keeps reading the stored result.</p>
-              <Button onClick={generate} disabled={generating}>{generating ? "Generating..." : "Generate Goonginga Wrapped"}</Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {wrapped && (
-        <Card variant="bordered">
-          <CardHeader>
-            <CardTitle>Wrapped PNG Cutouts</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="mb-5 text-sm text-muted">Upload transparent PNGs for each story. These images are presentation-only and do not modify the saved stats.</p>
-            <div className="grid gap-5 lg:grid-cols-2">
-              {WRAPPED_IMAGE_FIELDS.map((field) => (
-                <ImageUploadField
-                  key={field.key}
-                  label={field.label}
-                  type="image"
-                  value={assets[field.key] || ""}
-                  onChange={(url) => setAssets((current) => ({ ...current, [field.key]: url }))}
-                  previewAlt={`${field.label} Wrapped cutout`}
-                  previewClassName="bg-surface-elevated"
-                  placeholder="Upload a transparent PNG or paste its URL"
-                />
-              ))}
-            </div>
-            <div className="mt-6 flex justify-end"><Button onClick={saveAssets} disabled={saving}>{saving ? "Saving images..." : "Save Wrapped Images"}</Button></div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
   );
 }
 

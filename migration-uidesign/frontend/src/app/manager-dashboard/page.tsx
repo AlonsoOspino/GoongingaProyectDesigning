@@ -11,6 +11,7 @@ import { MapTimer } from "@/components/match/MapTimer";
 import { PauseRequestNotification } from "@/components/match/PauseRequestNotification";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
 import { Input } from "@/components/ui/Input";
+import { WrappedManagementPanel } from "@/components/wrapped/WrappedManagementPanel";
 import {
   getMatches,
   getTeams,
@@ -34,7 +35,7 @@ import {
 import { formatDateEST, formatDateTimeEST } from "@/lib/dateUtils";
 import type { PlayerStat } from "@/lib/api/types";
 
-type TabValue = "scheduled" | "active" | "pending" | "stats";
+type TabValue = "scheduled" | "active" | "pending" | "stats" | "wrapped";
 type MapType = "CONTROL" | "HYBRID" | "PAYLOAD" | "PUSH" | "FLASHPOINT";
 type HeroRole = "TANK" | "DPS" | "SUPPORT";
 
@@ -611,6 +612,7 @@ export default function ManagerDashboardPage() {
             <TabsTrigger value="active">Active ({activeMatches.length})</TabsTrigger>
             <TabsTrigger value="pending">Pending ({pendingMatches.length})</TabsTrigger>
             <TabsTrigger value="stats">Stats</TabsTrigger>
+            <TabsTrigger value="wrapped">Wrapped</TabsTrigger>
           </TabsList>
 
           {/* SCHEDULED TAB */}
@@ -1144,6 +1146,10 @@ export default function ManagerDashboardPage() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="wrapped">
+            {token ? <WrappedManagementPanel token={token} /> : null}
           </TabsContent>
         </Tabs>
       </div>
