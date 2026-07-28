@@ -5,9 +5,11 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { ImageUploadField } from "@/components/ui/ImageUploadField";
+import { Select } from "@/components/ui/Select";
 import {
   freezeGoongingaWrapped,
   getManageGoongingaWrapped,
+  resolveWrappedAssets,
   resolveWrappedSnapshot,
   updateManageGoongingaWrappedAssets,
   type GoongingaWrapped,
@@ -59,7 +61,7 @@ function fieldsFor(wrapped: GoongingaWrapped): AssetField[] {
 
 export function WrappedManagementPanel({ token }: { token: string }) {
   const [wrapped, setWrapped] = useState<GoongingaWrapped | null>(null);
-  const [assets, setAssets] = useState<WrappedAssets>({});
+  const [assets, setAssets] = useState<WrappedAssets>({ images: {}, flipped: {} });
   const [loading, setLoading] = useState(true);
   const [freezing, setFreezing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -77,7 +79,7 @@ export function WrappedManagementPanel({ token }: { token: string }) {
     try {
       const data = await getManageGoongingaWrapped(token);
       setWrapped(data);
-      setAssets(data.assets || {});
+      setAssets(resolveWrappedAssets(data.assets));
     } catch (error: any) {
       if (error?.status !== 404) notify("error", error?.message || "Could not load Goonginga Wrapped.");
     } finally {
@@ -100,9 +102,10 @@ export function WrappedManagementPanel({ token }: { token: string }) {
     setFreezing(true);
     try {
       const data = await freezeGoongingaWrapped(token);
-      const clearedCount = Object.keys(assets).length - Object.keys(data.assets || {}).length;
+      const nextAssets = resolveWrappedAssets(data.assets);
+      const clearedCount = Object.keys(assets.images).length - Object.keys(nextAssets.images).length;
       setWrapped(data);
-      setAssets(data.assets || {});
+      setAssets(nextAssets);
       notify("success", `${action} complete.${clearedCount > 0 ? ` ${clearedCount} outdated artwork item(s) were cleared.` : ""}`);
     } catch (error: any) {
       notify("error", error?.message || "Could not freeze the Wrapped snapshot.");
@@ -116,7 +119,7 @@ export function WrappedManagementPanel({ token }: { token: string }) {
     try {
       const data = await updateManageGoongingaWrappedAssets(token, assets);
       setWrapped(data);
-      setAssets(data.assets || {});
+      setAssets(resolveWrappedAssets(data.assets));
       notify("success", "Wrapped artwork saved.");
     } catch (error: any) {
       notify("error", error?.message || "Could not save Wrapped artwork.");
@@ -208,11 +211,26 @@ export function WrappedManagementPanel({ token }: { token: string }) {
                     <ImageUploadField
                       label={`Background artwork · ${field.title}`}
                       type="image"
-                      value={assets[field.key] || ""}
-                      onChange={(url) => setAssets((current) => ({ ...current, [field.key]: url }))}
+                      value={assets.images[field.key] || ""}
+                      onChange={(url) => setAssets((current) => ({
+                        ...current,
+                        images: { ...current.images, [field.key]: url },
+                      }))}
                       previewAlt={`${field.title} Wrapped background artwork`}
                       previewClassName="bg-surface-elevated"
                       placeholder="Upload background art or paste its URL"
+                    />
+                    <Select
+                      label="Invert horizontally"
+                      value={assets.flipped[field.key] ? "yes" : "no"}
+                      options={[
+                        { value: "no", label: "No" },
+                        { value: "yes", label: "Yes" },
+                      ]}
+                      onChange={(event) => setAssets((current) => ({
+                        ...current,
+                        flipped: { ...current.flipped, [field.key]: event.target.value === "yes" },
+                      }))}
                     />
                   </section>
                 );

@@ -103,9 +103,12 @@ test("buildLeaderboardAverages matches the Player Stats running average formula"
   assert.equal(rows[0].killsPer10, 3);
 });
 
-test("refresh retains artwork only when the player or map subject is unchanged", () => {
+test("refresh retains matching artwork and its horizontal flip setting", () => {
   const previous = {
-    assets: { averageKills: "https://cdn.example/alpha.png", mostPickedMap: "https://cdn.example/zulu.png" },
+    assets: {
+      images: { averageKills: "https://cdn.example/alpha.png", mostPickedMap: "https://cdn.example/zulu.png" },
+      flipped: { averageKills: true, mostPickedMap: true },
+    },
     snapshot: {
       averagesPer10: { kills: { userId: 1 } },
       maps: { mostPicked: { mapId: 2 } },
@@ -117,8 +120,23 @@ test("refresh retains artwork only when the player or map subject is unchanged",
   };
 
   assert.deepEqual(wrappedController.__testables.retainMatchingAssets(previous, next), {
-    averageKills: "https://cdn.example/alpha.png",
+    images: { averageKills: "https://cdn.example/alpha.png" },
+    flipped: { averageKills: true },
   });
+});
+
+test("asset settings accept legacy image-only records and discard invalid flip values", () => {
+  assert.deepEqual(
+    wrappedController.__testables.normalizeAssets({ averageKills: " https://cdn.example/alpha.png ", unknown: "https://cdn.example/nope.png" }),
+    { images: { averageKills: "https://cdn.example/alpha.png" }, flipped: {} }
+  );
+  assert.deepEqual(
+    wrappedController.__testables.normalizeAssets({
+      images: { averageKills: "https://cdn.example/alpha.png" },
+      flipped: { averageKills: true, bestKd: "yes", unknown: true },
+    }),
+    { images: { averageKills: "https://cdn.example/alpha.png" }, flipped: { averageKills: true } }
+  );
 });
 
 test("manager/admin middleware permits both roles and rejects others", () => {

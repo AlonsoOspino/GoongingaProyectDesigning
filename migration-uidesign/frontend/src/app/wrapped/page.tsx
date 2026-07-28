@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   getGoongingaWrapped,
+  resolveWrappedAssets,
   resolveWrappedSnapshot,
   type GoongingaWrapped,
   type WrappedAssetKey,
@@ -86,15 +87,19 @@ function useCountUp(target: number, active: boolean, reducedMotion: boolean) {
   return value;
 }
 
-function TeamTile({ team }: { team: GoongingaWrapped["snapshot"]["overview"]["teams"][number] }) {
+function TeamTile({ team, index }: { team: GoongingaWrapped["snapshot"]["overview"]["teams"][number]; index: number }) {
   const [logoUnavailable, setLogoUnavailable] = useState(!team.logo);
   return (
     <div className={styles.teamTile}>
-      {!logoUnavailable && team.logo ? (
-        <img src={team.logo} alt={team.name} onError={() => setLogoUnavailable(true)} />
-      ) : (
-        <span aria-label={team.name}>{team.name.slice(0, 2).toUpperCase()}</span>
-      )}
+      <span className={styles.teamIndex}>{String(index + 1).padStart(2, "0")}</span>
+      <div className={styles.teamMark}>
+        {!logoUnavailable && team.logo ? (
+          <img src={team.logo} alt={team.name} onError={() => setLogoUnavailable(true)} />
+        ) : (
+          <span aria-label={team.name}>{team.name.slice(0, 2).toUpperCase()}</span>
+        )}
+      </div>
+      <p>{team.name}</p>
     </div>
   );
 }
@@ -116,24 +121,26 @@ function IntroSlide({ wrapped, onStart }: { wrapped: GoongingaWrapped; onStart: 
         <button type="button" className={styles.startButton} onClick={onStart}>Begin the replay <span aria-hidden="true">↓</span></button>
       </div>
       <div className={styles.coverVisual} aria-label={`${teams.length} teams in the season`}>
-        <div className={styles.coverFrame}>
-          <p>GOONGINGA LEAGUE</p>
-          <strong>GG</strong>
-          <span>{wrapped.snapshot.tournament.name}</span>
+        <div className={styles.coverHeading}>
+          <p>{wrapped.snapshot.tournament.name}</p>
+          <strong>The league</strong>
         </div>
-        <div className={styles.teamWall}>
-          {teams.map((team) => <TeamTile key={team.id} team={team} />)}
+        <div className={styles.coverRoster}>
+          {teams.map((team, index) => <TeamTile key={team.id} team={team} index={index} />)}
         </div>
-        <p className={styles.coverStamp}>{teams.length} TEAMS · ONE SEASON</p>
+        <div className={styles.coverFooter}>
+          <span>{teams.length} teams</span>
+          <span>One season · one record</span>
+        </div>
       </div>
     </section>
   );
 }
 
-function Art({ src, alt, fallback }: { src?: string | null; alt: string; fallback: string }) {
+function Art({ src, alt, fallback, flipped = false }: { src?: string | null; alt: string; fallback: string; flipped?: boolean }) {
   return (
     <div className={styles.artFrame}>
-      {src ? <img src={src} alt={alt} className={styles.artImage} /> : <div className={styles.artFallback} aria-label={`${alt}: artwork pending`}>{fallback}</div>}
+      {src ? <img src={src} alt={alt} className={`${styles.artImage} ${flipped ? styles.artworkFlipped : ""}`} /> : <div className={styles.artFallback} aria-label={`${alt}: artwork pending`}>{fallback}</div>}
     </div>
   );
 }
@@ -153,11 +160,13 @@ function PlayerProfile({ leader }: { leader: WrappedPlayerLeader | null }) {
 
 function PlayerSlide({ story, wrapped }: { story: PlayerStory; wrapped: GoongingaWrapped }) {
   const leader = story.value;
-  const artwork = wrapped.assets[story.assetKey] || null;
+  const assets = resolveWrappedAssets(wrapped.assets);
+  const artwork = assets.images[story.assetKey] || null;
+  const flipped = assets.flipped[story.assetKey] === true;
   return (
     <section className={`${styles.slide} ${styles.playerSlide} ${styles[`layout${story.layout[0].toUpperCase()}${story.layout.slice(1)}`]}`} aria-label={story.title}>
       <div className={styles.artworkBackdrop} aria-hidden="true">
-        {artwork && <img src={artwork} alt="" />}
+        {artwork && <img src={artwork} alt="" className={flipped ? styles.artworkFlipped : undefined} />}
       </div>
       <div className={styles.storyCopy}>
         <p className={styles.eyebrow}>{story.eyebrow}</p>
@@ -178,11 +187,14 @@ function PlayerSlide({ story, wrapped }: { story: PlayerStory; wrapped: Goonging
 
 function MapSlide({ story, wrapped }: { story: MapStory; wrapped: GoongingaWrapped }) {
   const map = story.value;
-  const image = wrapped.assets[story.assetKey] || map?.image || null;
+  const assets = resolveWrappedAssets(wrapped.assets);
+  const uploadedArtwork = assets.images[story.assetKey] || null;
+  const image = uploadedArtwork || map?.image || null;
+  const flipped = Boolean(uploadedArtwork && assets.flipped[story.assetKey]);
   return (
     <section className={`${styles.slide} ${styles.mapSlide} ${styles[`layout${story.layout[0].toUpperCase()}${story.layout.slice(1)}`]}`} aria-label={story.title}>
       <div className={styles.mapImageWrap}>
-        <Art src={image} alt={map?.name || story.title} fallback="MAP" />
+        <Art src={image} alt={map?.name || story.title} fallback="MAP" flipped={flipped} />
         <span className={styles.mapCount}>{map ? `${map.count} PICK${map.count === 1 ? "" : "S"}` : "NO DATA"}</span>
       </div>
       <div className={styles.mapCopy}>

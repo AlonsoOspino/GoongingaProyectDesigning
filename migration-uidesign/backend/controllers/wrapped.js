@@ -135,18 +135,43 @@ function getSnapshotAssetSubject(snapshot, key) {
   return null;
 }
 
-function retainMatchingAssets(previousWrapped, nextSnapshot) {
-  const previousAssets = previousWrapped?.assets;
-  if (!previousAssets || typeof previousAssets !== "object" || Array.isArray(previousAssets)) return {};
+function normalizeAssets(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { images: {}, flipped: {} };
+  }
 
-  return Object.fromEntries(
-    Object.entries(previousAssets).filter(([key, url]) =>
-      ASSET_KEYS.has(key) &&
-      typeof url === "string" &&
-      getSnapshotAssetSubject(previousWrapped.snapshot, key) &&
-      getSnapshotAssetSubject(previousWrapped.snapshot, key) === getSnapshotAssetSubject(nextSnapshot, key)
+  const imageSource = value.images && typeof value.images === "object" && !Array.isArray(value.images)
+    ? value.images
+    : value;
+  const flipSource = value.flipped && typeof value.flipped === "object" && !Array.isArray(value.flipped)
+    ? value.flipped
+    : {};
+
+  return {
+    images: Object.fromEntries(
+      Object.entries(imageSource)
+        .filter(([key, url]) => ASSET_KEYS.has(key) && typeof url === "string" && url.trim())
+        .map(([key, url]) => [key, url.trim()])
+    ),
+    flipped: Object.fromEntries(
+      Object.entries(flipSource).filter(([key, enabled]) => ASSET_KEYS.has(key) && enabled === true)
+    ),
+  };
+}
+
+function retainMatchingAssets(previousWrapped, nextSnapshot) {
+  const previousAssets = normalizeAssets(previousWrapped?.assets);
+  const images = Object.fromEntries(
+    Object.entries(previousAssets.images).filter(([key]) =>
+      getSnapshotAssetSubject(previousWrapped?.snapshot, key) &&
+      getSnapshotAssetSubject(previousWrapped?.snapshot, key) === getSnapshotAssetSubject(nextSnapshot, key)
     )
   );
+  const flipped = Object.fromEntries(
+    Object.entries(previousAssets.flipped).filter(([key]) => Object.prototype.hasOwnProperty.call(images, key))
+  );
+
+  return { images, flipped };
 }
 
 async function buildSnapshot(tournament) {
@@ -361,15 +386,10 @@ async function updateAssets(req, res) {
 
     const assets = req.body?.assets;
     if (!assets || typeof assets !== "object" || Array.isArray(assets)) {
-      return res.status(400).json({ message: "assets must be an object of image URLs." });
+      return res.status(400).json({ message: "assets must contain image URLs and horizontal flip settings." });
     }
 
-    const cleanAssets = Object.fromEntries(
-      Object.entries(assets)
-        .filter(([key, value]) => ASSET_KEYS.has(key) && typeof value === "string")
-        .map(([key, value]) => [key, value.trim()])
-        .filter(([, value]) => value)
-    );
+    const cleanAssets = normalizeAssets(assets);
     const updated = await prisma.wrapped.update({ where: { id: wrapped.id }, data: { assets: cleanAssets } });
     cachedWrapped = updated;
     return res.json(updated);
@@ -387,5 +407,5 @@ module.exports = {
   generateWrapped,
   updateAssets,
   invalidateWrappedCache,
-  __testables: { buildLeaderboardAverages, pickBest, retainMatchingAssets },
+  __testables: { buildLeaderboardAverages, pickBest, normalizeAssets, retainMatchingAssets },
 };

@@ -14,7 +14,53 @@ export type WrappedAssetKey =
   | "mostPickedMap"
   | "leastPickedMap";
 
-export type WrappedAssets = Partial<Record<WrappedAssetKey, string>>;
+export type WrappedAssetUrls = Partial<Record<WrappedAssetKey, string>>;
+export type WrappedAssetFlips = Partial<Record<WrappedAssetKey, boolean>>;
+
+export type WrappedAssets = {
+  images: WrappedAssetUrls;
+  flipped: WrappedAssetFlips;
+};
+
+type LegacyWrappedAssets = WrappedAssetUrls;
+
+const wrappedAssetKeys = new Set<WrappedAssetKey>([
+  "averageKills",
+  "averageHealing",
+  "averageDamage",
+  "averageMitigation",
+  "averageAssists",
+  "averageSurvival",
+  "totalDamage",
+  "totalHealing",
+  "totalMitigation",
+  "bestKd",
+  "mostPickedMap",
+  "leastPickedMap",
+]);
+
+/** Supports Wrapped records created before artwork preferences were introduced. */
+export function resolveWrappedAssets(value: unknown): WrappedAssets {
+  const empty: WrappedAssets = { images: {}, flipped: {} };
+  if (!value || typeof value !== "object" || Array.isArray(value)) return empty;
+
+  const raw = value as Record<string, unknown>;
+  const imageSource = raw.images && typeof raw.images === "object" && !Array.isArray(raw.images)
+    ? raw.images as Record<string, unknown>
+    : raw;
+  const flipSource = raw.flipped && typeof raw.flipped === "object" && !Array.isArray(raw.flipped)
+    ? raw.flipped as Record<string, unknown>
+    : {};
+
+  const images = Object.fromEntries(
+    Object.entries(imageSource).filter(([key, image]) => wrappedAssetKeys.has(key as WrappedAssetKey) && typeof image === "string" && image.trim())
+  ) as WrappedAssetUrls;
+  const flipped = Object.fromEntries(
+    Object.entries(flipSource).filter(([key, enabled]) => wrappedAssetKeys.has(key as WrappedAssetKey) && enabled === true)
+  ) as WrappedAssetFlips;
+
+  return { images, flipped };
+}
 
 export interface WrappedPlayerLeader {
   userId: number;
@@ -67,7 +113,7 @@ export interface GoongingaWrapped {
   id: number;
   tournamentId: number;
   snapshot: WrappedSnapshot;
-  assets: WrappedAssets;
+  assets: WrappedAssets | LegacyWrappedAssets;
   generatedAt: string;
   updatedAt: string;
 }
