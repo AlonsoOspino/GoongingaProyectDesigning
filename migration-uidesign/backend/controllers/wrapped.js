@@ -2,7 +2,6 @@ const prisma = require("../config/prisma");
 const { retryAfterWrappedMigration } = require("../utils/ensureWrappedSchema");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const RATE_PER_TEN_SECONDS = 10 * 60;
 const ASSET_KEYS = new Set([
   "averageKills",
   "averageHealing",
@@ -73,9 +72,46 @@ function toMapRanking(map, count) {
   };
 }
 
-function getPlayerRate(player, field) {
-  if (player.validDuration <= 0) return Number.NaN;
-  return (player[field] / player.validDuration) * RATE_PER_TEN_SECONDS;
+function round2(value) {
+  return Math.round(value * 100) / 100;
+}
+
+// Keep the Wrapped leaderboard in lockstep with /playerStat/public and the
+// frontend buildPlayerAverages helper. That page averages each stored /10
+// value per recorded game (rather than recomputing a duration-weighted rate).
+function buildLeaderboardAverages(stats) {
+  const byUser = new Map();
+  const metrics = ["damagePer10", "mitigationPer10", "healingPer10", "assistsPer10", "deathsPer10", "killsPer10"];
+
+  for (const stat of stats) {
+    const current = byUser.get(stat.userId) || {
+      userId: stat.userId,
+      user: stat.user,
+      games: 0,
+      ...Object.fromEntries(metrics.map((metric) => [metric, 0])),
+    };
+    const n = current.games;
+    current.games += 1;
+    current.user = stat.user || current.user;
+    for (const metric of metrics) {
+      current[metric] = (current[metric] * n + Number(stat[metric] || 0)) / (n + 1);
+    }
+    byUser.set(stat.userId, current);
+  }
+
+  return [...byUser.values()].map((player) => ({
+    ...player,
+    ...Object.fromEntries(metrics.map((metric) => [metric, round2(player[metric])])),
+  }));
+}
+
+function pickLeaderboardLeader(players, metric, lowerIsBetter = false) {
+  return players.reduce((best, player) => {
+    if (!best) return player;
+    return lowerIsBetter
+      ? player[metric] < best[metric] ? player : best
+      : player[metric] > best[metric] ? player : best;
+  }, null);
 }
 
 function getSnapshotAssetSubject(snapshot, key) {
@@ -114,7 +150,7 @@ function retainMatchingAssets(previousWrapped, nextSnapshot) {
 }
 
 async function buildSnapshot(tournament) {
-  const [stats, actions, teams, maps] = await Promise.all([
+  const [stats, leaderboardStats, actions, teams, maps] = await Promise.all([
     prisma.playerStat.findMany({
       where: { match: { tournamentId: tournament.id, status: "FINISHED" } },
       select: {
@@ -137,6 +173,27 @@ async function buildSnapshot(tournament) {
           },
         },
       },
+    }),
+    prisma.playerStat.findMany({
+      // Same source and ordering as GET /playerStat/public, which powers the
+      // Player Stats leaderboard shown to managers and viewers.
+      select: {
+        userId: true,
+        damagePer10: true,
+        healingPer10: true,
+        mitigationPer10: true,
+        killsPer10: true,
+        assistsPer10: true,
+        deathsPer10: true,
+        user: {
+          select: {
+            nickname: true,
+            profilePic: true,
+            team: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
     }),
     prisma.draftAction.findMany({
       where: {
@@ -193,10 +250,11 @@ async function buildSnapshot(tournament) {
   }
 
   const players = [...totalsByPlayer.values()];
+  const leaderboardPlayers = buildLeaderboardAverages(leaderboardStats);
   const playerOptions = { getTieLabel: (player) => player.user.nickname };
-  const rateLeader = (field, lowerIsBetter = false) => {
-    const winner = pickBest(players, (player) => getPlayerRate(player, field), { ...playerOptions, lowerIsBetter });
-    return winner ? toPlayerLeader(winner, getPlayerRate(winner, field), 2) : null;
+  const rateLeader = (metric, lowerIsBetter = false) => {
+    const winner = pickLeaderboardLeader(leaderboardPlayers, metric, lowerIsBetter);
+    return winner ? toPlayerLeader(winner, winner[metric], 2) : null;
   };
   const totalLeader = (field) => {
     const winner = pickBest(players, (player) => player[field], playerOptions);
@@ -232,12 +290,12 @@ async function buildSnapshot(tournament) {
       totals: globalTotals,
     },
     averagesPer10: {
-      kills: rateLeader("kills"),
-      healing: rateLeader("healing"),
-      damage: rateLeader("damage"),
-      mitigation: rateLeader("mitigation"),
-      assists: rateLeader("assists"),
-      lowestDeaths: rateLeader("deaths", true),
+      kills: rateLeader("killsPer10"),
+      healing: rateLeader("healingPer10"),
+      damage: rateLeader("damagePer10"),
+      mitigation: rateLeader("mitigationPer10"),
+      assists: rateLeader("assistsPer10"),
+      lowestDeaths: rateLeader("deathsPer10", true),
     },
     totals: {
       damage: totalLeader("damage"),
@@ -329,5 +387,5 @@ module.exports = {
   generateWrapped,
   updateAssets,
   invalidateWrappedCache,
-  __testables: { getPlayerRate, pickBest, retainMatchingAssets },
+  __testables: { buildLeaderboardAverages, pickBest, retainMatchingAssets },
 };
