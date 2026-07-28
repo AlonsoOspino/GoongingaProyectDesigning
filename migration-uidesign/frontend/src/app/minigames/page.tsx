@@ -510,21 +510,6 @@ function clearRoomIdentities(room: RoomState | null) {
   clearIdentity(room.teams.beta.inviteToken);
 }
 
-function encodeRoomSnapshot(room: RoomState) {
-  if (typeof window === "undefined") return "";
-  return window.btoa(unescape(encodeURIComponent(JSON.stringify(room))));
-}
-
-function decodeRoomSnapshot(snapshot: string) {
-  if (typeof window === "undefined") return null;
-  try {
-    const json = decodeURIComponent(window.atob(snapshot).split("").map((character) => `%${character.charCodeAt(0).toString(16).padStart(2, "0")}`).join(""));
-    return JSON.parse(json) as RoomState;
-  } catch {
-    return null;
-  }
-}
-
 function roomFromInvite(room: RoomState | null, inviteToken: string) {
   if (!room) return null;
   if (room.teams.alpha.inviteToken === inviteToken) return { room, teamId: "alpha" as const };
@@ -617,6 +602,10 @@ function isParticipantLocked(participant: Participant, currentRound: number) {
   return participant.cooldownUntilRound > currentRound;
 }
 
+function isAnswerPhase(phase: RoundPhase) {
+  return phase === "faceoff" || phase === "control" || phase === "steal";
+}
+
 function createLog(label: string, kind: AnswerKind): RoundLog {
   return { id: makeId(), label, kind };
 }
@@ -706,6 +695,18 @@ function FaceoffSlot({ label, team, participant }: { label: string; team: Team; 
           <div className="truncate text-xs text-muted-foreground">{team.name}</div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function DecorRail() {
+  return (
+    <div className="mt-4 grid max-w-xl grid-cols-3 gap-2" aria-hidden="true">
+      {["/winton.jpg", "/PREMATCH.png", "/GameCards.png"].map((src) => (
+        <div key={src} className="h-20 overflow-hidden rounded-lg border border-border bg-surface/60">
+          <img src={src} alt="" className="h-full w-full object-cover" />
+        </div>
+      ))}
     </div>
   );
 }
@@ -839,6 +840,7 @@ export default function MinigamesPage() {
   const [selectedTeamId, setSelectedTeamId] = useState<TeamId | null>(null);
   const [stealGuess, setStealGuess] = useState("");
   const [managerGuess, setManagerGuess] = useState("");
+  const [playerGuess, setPlayerGuess] = useState("");
   const [members, setMembers] = useState<MemberProfile[]>([]);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
@@ -874,7 +876,7 @@ export default function MinigamesPage() {
     async function loadRoom() {
       const stored = readStoredRoom();
       const gameId = (searchParams?.get("game") || readStoredRoomId()).trim();
-      let nextRoom: RoomState | null = null;
+      let nextRoom: RoomState | null = !inviteToken && !gameId ? stored : null;
 
       try {
         if (inviteToken) {
@@ -1032,7 +1034,9 @@ export default function MinigamesPage() {
   const handleAddDraftAnswer = useCallback((questionIndex: number) => {
     handleUpdateDraftQuestion(questionIndex, (question) => ({
       ...question,
-      answers: [...question.answers, { word: "", points: 0 }],
+      answers: question.answers.length >= MAX_BOARD_ANSWERS
+        ? question.answers
+        : [...question.answers, { word: "", points: 0 }],
     }));
   }, [handleUpdateDraftQuestion]);
 
@@ -1078,6 +1082,7 @@ export default function MinigamesPage() {
     setSelectedTeamId(null);
     setStealGuess("");
     setManagerGuess("");
+    setPlayerGuess("");
     setViewMode("manager");
     setDraftTitle(savedRoom.title);
     setDraftQuestions(savedRoom.questions.map((question) => ({ ...question })));
@@ -1103,6 +1108,7 @@ export default function MinigamesPage() {
     setSelectedTeamId(null);
     setStealGuess("");
     setManagerGuess("");
+    setPlayerGuess("");
     setCopyFeedback(null);
     setDeleteConfirmation("");
     setViewMode("manager");
@@ -1130,7 +1136,7 @@ export default function MinigamesPage() {
         logs: [createLog("Manager started the game. Invite links are now open for players.", "success"), ...current.round.logs],
       },
     }));
-  }, [applyRoundPoints, room, updateRoom]);
+  }, [room, updateRoom]);
 
   const handleJoinTeam = useCallback(() => {
     if (!room || !room.gameStarted || !inviteToken || !activeInviteTarget || !joinName.trim()) return;
@@ -1410,6 +1416,8 @@ export default function MinigamesPage() {
           phase: "round-over",
           controllingTeamId: teamId,
           activeGuessTeamId: null,
+          pendingGuess: null,
+          roundPoints: 0,
           logs: [createLog(`${teamLabel(teamId)} keeps ${current.round.roundPoints} points.`, "success"), ...current.round.logs],
         },
       };
@@ -1429,7 +1437,7 @@ export default function MinigamesPage() {
         index === answerIndex ? { ...entry, revealed: true } : entry
       ));
       const nextRoundPoints = current.round.roundPoints + earned;
-      const isBoardClear = nextBoard.every((entry) => entry.revealed);
+      const isBoardClear = nextBoard.filter(isFilledAnswer).every((entry) => entry.revealed);
       const revealLog = createLog(`${teamLabel(guessTeamId)} revealed "${answer.word}" for ${earned} points.`, "success");
 
       if (current.round.phase === "steal") {
@@ -1626,7 +1634,7 @@ export default function MinigamesPage() {
         round: nextRound,
       };
     });
-  }, [room, updateRoom]);
+  }, [applyRoundPoints, room, updateRoom]);
 
   const handleSubmitGuess = useCallback((teamId: TeamId, guessWord: string) => {
     if (!room || !["faceoff", "control", "steal"].includes(room.round.phase) || !guessWord.trim()) return;
@@ -1659,6 +1667,30 @@ export default function MinigamesPage() {
 
     handleSubmitGuess(teamId, stealGuess || room.round.stealGuess);
   }, [handleSubmitGuess, room, stealGuess]);
+
+  const handleManagerSubmitGuess = useCallback(() => {
+    if (!room?.round.activeGuessTeamId || !managerGuess.trim()) return;
+    handleSubmitGuess(room.round.activeGuessTeamId, managerGuess);
+    setManagerGuess("");
+  }, [handleSubmitGuess, managerGuess, room]);
+
+  const handleResolvePendingMatch = useCallback((answerIndex: number) => {
+    const guess = room?.round.pendingGuess;
+    if (!guess) return;
+    handleCorrectAnswer(guess.teamId, answerIndex);
+    setManagerGuess("");
+    setStealGuess("");
+    setPlayerGuess("");
+  }, [handleCorrectAnswer, room]);
+
+  const handleResolveNoCoincidence = useCallback(() => {
+    const guess = room?.round.pendingGuess;
+    if (!guess) return;
+    handleWrongAnswer(guess.teamId, guess.word);
+    setManagerGuess("");
+    setStealGuess("");
+    setPlayerGuess("");
+  }, [handleWrongAnswer, room]);
 
   const handleFinishRound = useCallback(() => {
     if (!room) return;
@@ -1807,9 +1839,16 @@ export default function MinigamesPage() {
                       <div className="flex items-center justify-between gap-3">
                         <div>
                           <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Answers</div>
-                          <div className="text-sm text-muted-foreground">Add as many board answers as you need.</div>
+                          <div className="text-sm text-muted-foreground">Add up to 8 ranked board answers.</div>
                         </div>
-                        <Button size="sm" variant="outline" onClick={() => handleAddDraftAnswer(questionIndex)}>+ Add answer</Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleAddDraftAnswer(questionIndex)}
+                          disabled={question.answers.length >= MAX_BOARD_ANSWERS}
+                        >
+                          + Add answer
+                        </Button>
                       </div>
 
                       {question.answers.map((answer, answerIndex) => (
@@ -1858,7 +1897,34 @@ export default function MinigamesPage() {
   const activeRoom = room ?? createFreshRoomState();
   const currentQuestion = findQuestionByIndex(activeRoom, activeRoom.round.activeQuestionIndex) ?? activeQuestion;
   const teamForInvite = activeTeam ? activeRoom.teams[activeTeam] : null;
+  const activeIdentity = inviteToken ? readIdentity(inviteToken) : null;
+  const activeIdentityParticipant = activeIdentity ? getParticipant(activeRoom, activeIdentity.teamId, activeIdentity.participantId) : null;
+  const pendingGuess = activeRoom.round.pendingGuess;
+  const pendingGuessPlayer = getPendingGuessPlayer(activeRoom, pendingGuess);
+  const activeRoundInProgress = activeRoom.round.phase === "question" || isAnswerPhase(activeRoom.round.phase);
+  const canStartRound = activeRoom.gameStarted && !activeRoundInProgress;
+  const canBeginFaceoff = activeRoom.round.phase === "question" && Boolean(activeRoom.round.faceoffPlayerIds.alpha && activeRoom.round.faceoffPlayerIds.beta);
+  const managerSearchTerm = normalize(pendingGuess?.word || managerGuess);
+  const managerMatchCandidates = activeRoom.round.board
+    .map((answer, index) => ({ answer, index }))
+    .filter(({ answer }) => isFilledAnswer(answer) && !answer.revealed)
+    .filter(({ answer }) => !managerSearchTerm || normalize(answer.word).includes(managerSearchTerm) || managerSearchTerm.includes(normalize(answer.word)));
+  const userIsFaceoffParticipant = activeIdentity?.teamId
+    ? activeRoom.round.phase !== "faceoff" || activeRoom.round.faceoffPlayerIds[activeIdentity.teamId] === activeIdentity.participantId
+    : false;
+  const userCanSubmitAnswer = Boolean(
+    viewMode === "user" &&
+      activeTeam &&
+      activeIdentity &&
+      activeIdentityParticipant &&
+      isAnswerPhase(activeRoom.round.phase) &&
+      !pendingGuess &&
+      activeRoom.round.activeGuessTeamId === activeIdentity.teamId &&
+      activeTeam === activeIdentity.teamId &&
+      userIsFaceoffParticipant
+  );
   const canJoin = Boolean(
+    activeRoom.gameStarted &&
     activeTeam &&
       inviteToken &&
       joinName.trim() &&
@@ -1876,23 +1942,34 @@ export default function MinigamesPage() {
             <h1 className="font-[family-name:var(--font-league-gothic)] text-5xl uppercase tracking-[0.18em] text-white md:text-6xl">
               {activeRoom.title}
             </h1>
-            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-              A two-team, five-player structure for Overwatch nights. The manager handles the room, the users join with secret links, and the round board stays visible the whole time.
-            </p>
-          </div>
+              <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+                A two-team, five-player structure for Overwatch nights. The manager handles the room, the users join with secret links, and the round board stays visible the whole time.
+              </p>
+              <DecorRail />
+            </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant={viewMode === "manager" ? "primary" : "outline"} onClick={() => setViewMode("manager")}>
-              Manager view
-            </Button>
-            <Button variant={viewMode === "user" ? "primary" : "outline"} onClick={() => setViewMode("user")}>
-              User view
-            </Button>
+            {!inviteToken ? (
+              <>
+                <Button variant={viewMode === "manager" ? "primary" : "outline"} onClick={() => setViewMode("manager")}>
+                  Manager view
+                </Button>
+                <Button variant={viewMode === "user" ? "primary" : "outline"} onClick={() => setViewMode("user")}>
+                  User view
+                </Button>
+              </>
+            ) : null}
             <Link href="/">
               <Button variant="ghost">Back home</Button>
             </Link>
           </div>
         </header>
+
+        {syncFeedback ? (
+          <div className="rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+            {syncFeedback}
+          </div>
+        ) : null}
 
         <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <Panel title="The board" eyebrow="Live round">
@@ -1924,271 +2001,409 @@ export default function MinigamesPage() {
               </CardContent>
             </Card>
 
-            <Card variant="bordered" className="border-border bg-card/95">
-              <CardHeader>
-                <CardTitle className="font-[family-name:var(--font-league-gothic)] text-3xl uppercase tracking-[0.14em]">
-                  Round controls
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="rounded-xl border border-border bg-surface/60 p-3 text-sm text-muted-foreground">
-                  Current question multiplier: x{currentQuestion?.multiplier || 1}
-                </div>
-
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <Button onClick={handleStartRound}>Start round</Button>
-                  <Button variant="outline" onClick={handleFinishRound}>Close round</Button>
-                </div>
-
-                {room ? (
+            {viewMode === "manager" ? (
+              <Card variant="bordered" className="border-border bg-card/95">
+                <CardHeader>
+                  <CardTitle className="font-[family-name:var(--font-league-gothic)] text-3xl uppercase tracking-[0.14em]">
+                    Round controls
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
                   <div className="rounded-xl border border-border bg-surface/60 p-3 text-sm text-muted-foreground">
-                    {nextRoundStarterHint}
+                    Current question multiplier: x{currentQuestion?.multiplier || 1}
                   </div>
-                ) : null}
-              </CardContent>
-            </Card>
+
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <Button onClick={handleStartGameLobby} disabled={activeRoom.gameStarted}>
+                      Start game
+                    </Button>
+                    <Button onClick={handleStartRound} disabled={!canStartRound}>
+                      Start round
+                    </Button>
+                    <Button variant="outline" onClick={handleFinishRound} disabled={activeRoom.round.phase === "lobby"}>
+                      Close round
+                    </Button>
+                  </div>
+
+                  {room ? (
+                    <div className="rounded-xl border border-border bg-surface/60 p-3 text-sm text-muted-foreground">
+                      {nextRoundStarterHint}
+                    </div>
+                  ) : null}
+                </CardContent>
+              </Card>
+            ) : (
+              <Card variant="bordered" className="border-border bg-card/95">
+                <CardHeader>
+                  <CardTitle className="font-[family-name:var(--font-league-gothic)] text-3xl uppercase tracking-[0.14em]">
+                    Your turn
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {activeIdentityParticipant && activeIdentity ? (
+                    <div className="flex items-center gap-3 rounded-xl border border-border bg-surface/60 p-3">
+                      <Avatar size="lg" src={activeIdentityParticipant.profilePic ?? teamForInvite?.logoUrl ?? undefined} fallback={activeIdentityParticipant.name} alt={activeIdentityParticipant.name} />
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-white">{activeIdentityParticipant.name}</div>
+                        <div className="truncate text-xs text-muted-foreground">{activeRoom.teams[activeIdentity.teamId].name}</div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-border/60 bg-surface/40 p-4 text-sm text-muted-foreground">
+                      Join with your team invite before answering.
+                    </div>
+                  )}
+
+                  {userCanSubmitAnswer ? (
+                    <div className="space-y-3 rounded-xl border border-primary/30 bg-primary/10 p-4">
+                      <Input
+                        label={activeRoom.round.phase === "steal" ? "Steal answer" : "Answer"}
+                        placeholder="Type your answer"
+                        value={playerGuess}
+                        onChange={(event) => setPlayerGuess(event.target.value)}
+                      />
+                      <Button
+                        className="w-full"
+                        onClick={() => {
+                          if (!activeIdentity || !playerGuess.trim()) return;
+                          handleSubmitGuess(activeIdentity.teamId, playerGuess);
+                          setPlayerGuess("");
+                        }}
+                        disabled={!playerGuess.trim()}
+                      >
+                        Submit answer
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-border bg-black/25 p-3 text-sm text-muted-foreground">
+                      {!activeRoom.gameStarted
+                        ? "Waiting for the manager to start the game."
+                        : pendingGuess
+                          ? "An answer is waiting for manager confirmation."
+                          : activeRoom.round.activeGuessTeamId
+                            ? `${teamLabel(activeRoom.round.activeGuessTeamId)} is answering.`
+                            : "Waiting for the next answer window."}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
         </section>
 
-        <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-          <Panel title="Secret links" eyebrow="Manager setup">
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Generate two invite links, one per team. Players join, type their name, and stay visible until their heartbeat expires or they leave.
-              </p>
-              <div className="grid gap-3">
-                <Button onClick={handleCreateGame}>Generate new secret links</Button>
-                {copyFeedback ? <div className="text-sm text-primary">{copyFeedback}</div> : null}
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                {(Object.entries(activeRoom.teams) as Array<[TeamId, Team]>).map(([teamId, team], index) => (
-                  <div key={teamId} className="rounded-2xl border border-border bg-black/25 p-4">
-                    <div className="flex items-center justify-between gap-2">
-                      <div>
-                        <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                          Invite link {index + 1}
+        {viewMode === "manager" ? (
+          <>
+            <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+              <Panel title="Secret links" eyebrow="Manager setup">
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    Each game keeps exactly two assigned invite links. Start the game when you want those links to admit players.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button onClick={handleStartGameLobby} disabled={activeRoom.gameStarted}>
+                      Start game
+                    </Button>
+                    <Badge variant={activeRoom.gameStarted ? "success" : "warning"}>
+                      {activeRoom.gameStarted ? "Links open" : "Links waiting"}
+                    </Badge>
+                    {copyFeedback ? <div className="text-sm text-primary">{copyFeedback}</div> : null}
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {(Object.entries(activeRoom.teams) as Array<[TeamId, Team]>).map(([teamId, team], index) => (
+                      <div key={teamId} className="rounded-2xl border border-border bg-black/25 p-4">
+                        <div className="flex items-center justify-between gap-2">
+                          <div>
+                            <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                              Invite link {index + 1}
+                            </div>
+                            <div className="font-[family-name:var(--font-league-gothic)] text-3xl uppercase tracking-[0.12em] text-white">
+                              {team.players.length > 0 ? team.name : `Team ${index + 1}`}
+                            </div>
+                          </div>
+                          <Badge variant={teamId === "alpha" ? "primary" : "secondary"}>{team.inviteToken}</Badge>
                         </div>
-                        <div className="font-[family-name:var(--font-league-gothic)] text-3xl uppercase tracking-[0.12em] text-white">
-                          {team.players.length > 0 ? team.name : `Team ${index + 1}`}
+                        <div className="mt-3 break-all rounded-lg border border-border bg-surface/70 p-3 text-xs text-muted-foreground">
+                          {formatInviteUrl(team.inviteToken, activeRoom)}
+                        </div>
+                        <div className="mt-3 flex gap-2">
+                          <Button size="sm" variant="outline" onClick={() => handleCopyInvite(team.inviteToken)}>
+                            Copy link
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setViewMode("user")}>Preview user view</Button>
                         </div>
                       </div>
-                      <Badge variant={teamId === "alpha" ? "primary" : "secondary"}>{team.inviteToken}</Badge>
+                    ))}
+                  </div>
+                </div>
+              </Panel>
+
+              <Panel title="Question flow" eyebrow="Manager control">
+                <div className="space-y-4">
+                  <div>
+                    <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Choose the next question</div>
+                    <select
+                      className="mt-2 w-full rounded-md border border-input-border bg-input px-3 py-2 text-foreground"
+                      value={activeRoom.round.preparedQuestionIndex}
+                      onChange={(event) => handleSetPreparedQuestion(Number(event.target.value))}
+                      disabled={activeRoundInProgress}
+                    >
+                      {activeRoom.questions.map((question, index) => (
+                        <option key={question.id} value={index}>{index + 1}. {question.prompt}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="rounded-2xl border border-border bg-surface/60 p-4">
+                    <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Question preview</div>
+                    <div className="mt-2 font-[family-name:var(--font-league-gothic)] text-4xl uppercase tracking-[0.1em] text-white">
+                      {currentQuestion?.prompt || "No question selected"}
                     </div>
-                    <div className="mt-3 break-all rounded-lg border border-border bg-surface/70 p-3 text-xs text-muted-foreground">
-                      {formatInviteUrl(team.inviteToken, activeRoom)}
+                  </div>
+
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    <div className="rounded-xl border border-border bg-black/25 p-4">
+                      <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Face-off control</div>
+                      <div className="mt-3 grid gap-2">
+                        <Button variant="outline" onClick={() => handleBeginFaceoff("alpha")} disabled={!canBeginFaceoff}>
+                          Alpha starts
+                        </Button>
+                        <Button variant="outline" onClick={() => handleBeginFaceoff("beta")} disabled={!canBeginFaceoff}>
+                          Beta starts
+                        </Button>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <Button size="sm" variant="ghost" onClick={() => handleFaceoffWinner("alpha")}>Force Alpha control</Button>
+                          <Button size="sm" variant="ghost" onClick={() => handleFaceoffWinner("beta")}>Force Beta control</Button>
+                        </div>
+                        <Button variant="danger" onClick={handleBothFaceoffMiss}>Both teams miss</Button>
+                      </div>
                     </div>
-                    <div className="mt-3 flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => handleCopyInvite(team.inviteToken)}>
-                        Copy link
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => setViewMode("user")}>Preview user view</Button>
+
+                    <div className="rounded-xl border border-border bg-black/25 p-4">
+                      <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Answer confirmation</div>
+                      {pendingGuess ? (
+                        <div className="mt-3 space-y-3">
+                          <div className="rounded-lg border border-primary/30 bg-primary/10 p-3 text-sm text-primary">
+                            {pendingGuessPlayer?.name || teamLabel(pendingGuess.teamId)} submitted "{pendingGuess.word}".
+                          </div>
+                          <div className="grid gap-2">
+                            {managerMatchCandidates.length > 0 ? managerMatchCandidates.map(({ answer, index }) => (
+                              <Button
+                                key={`${answer.word}-${index}`}
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleResolvePendingMatch(index)}
+                              >
+                                Match #{index + 1}: {answer.word} ({scoreAnswer(answer, activeRoom.round.multiplier)} pts)
+                              </Button>
+                            )) : (
+                              <div className="rounded-lg border border-dashed border-border/60 p-3 text-sm text-muted-foreground">
+                                No hidden board answer matches this text.
+                              </div>
+                            )}
+                            <Button variant="danger" onClick={handleResolveNoCoincidence}>
+                              NO COINCIDENCE
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-3 space-y-3">
+                          <Input
+                            label="Manager answer entry"
+                            placeholder="Type an answer to search the board"
+                            value={managerGuess}
+                            onChange={(event) => setManagerGuess(event.target.value)}
+                          />
+                          <Button
+                            className="w-full"
+                            onClick={handleManagerSubmitGuess}
+                            disabled={!activeRoom.round.activeGuessTeamId || !isAnswerPhase(activeRoom.round.phase) || !managerGuess.trim()}
+                          >
+                            Submit for {activeRoom.round.activeGuessTeamId ? teamLabel(activeRoom.round.activeGuessTeamId) : "active team"}
+                          </Button>
+                          {managerGuess.trim() ? (
+                            <div className="grid gap-2">
+                              {managerMatchCandidates.map(({ answer, index }) => (
+                                <div key={`${answer.word}-${index}`} className="rounded-lg border border-border bg-surface/60 px-3 py-2 text-sm text-foreground">
+                                  #{index + 1} {answer.word} - {scoreAnswer(answer, activeRoom.round.multiplier)} pts
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </Panel>
+            </section>
+
+            <section className="grid gap-6 lg:grid-cols-2">
+              <Panel title="Team rosters" eyebrow="Lobby management">
+                <div className="grid gap-4 md:grid-cols-2">
+                  {(Object.entries(activeRoom.teams) as Array<[TeamId, Team]>).map(([teamId, team]) => (
+                    <div key={teamId} className="rounded-2xl border border-border bg-black/25 p-4">
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{teamLabel(teamId)}</div>
+                          <div className="font-[family-name:var(--font-league-gothic)] text-3xl uppercase tracking-[0.12em] text-white">
+                            {team.name}
+                          </div>
+                        </div>
+                        <Badge variant={teamId === "alpha" ? "primary" : "secondary"}>{team.players.length}/5</Badge>
+                      </div>
+
+                      <div className="mt-4 space-y-2">
+                        {team.players.length > 0 ? team.players.map((player) => (
+                          <div key={player.id} className="rounded-lg border border-border bg-surface/70 px-3 py-2 text-sm text-foreground">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="flex min-w-0 items-center gap-2">
+                                <Avatar size="sm" src={player.profilePic ?? undefined} fallback={player.name} alt={player.name} />
+                                <span className="truncate">{player.name}</span>
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {isParticipantLocked(player, currentRoundNumber) ? `Locked until round ${player.cooldownUntilRound}` : "Active"}
+                              </span>
+                            </div>
+                          </div>
+                        )) : (
+                          <div className="rounded-lg border border-dashed border-border/60 px-3 py-4 text-sm text-muted-foreground">
+                            No players have joined yet.
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-4">
+                        <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Pick the round participant</div>
+                        <div className="mt-3">
+                          <TeamPlayers
+                            team={team}
+                            currentRound={currentRoundNumber}
+                            selectedPlayerId={activeRoom.round.faceoffPlayerIds[teamId]}
+                            onPick={(playerId) => handlePickStarter(teamId, playerId)}
+                            disabled={activeRoom.round.phase !== "question"}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Panel>
+
+              <Panel title="Danger zone" eyebrow="Delete current game">
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    This removes the current room from storage and sends the manager back to the setup screen.
+                    Any invited player identities tied to this room are cleared too.
+                  </p>
+                  <Input
+                    label={`Type ${DELETE_CONFIRMATION_TEXT} to confirm`}
+                    placeholder={DELETE_CONFIRMATION_TEXT}
+                    value={deleteConfirmation}
+                    onChange={(event) => setDeleteConfirmation(event.target.value)}
+                  />
+                  <Button
+                    variant="danger"
+                    onClick={handleDeleteGame}
+                    disabled={deleteConfirmation.trim() !== DELETE_CONFIRMATION_TEXT}
+                  >
+                    Delete game and reset
+                  </Button>
+                  <div className="rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger">
+                    You must type {DELETE_CONFIRMATION_TEXT} exactly before the delete button works.
+                  </div>
+                </div>
+              </Panel>
+            </section>
+          </>
+        ) : (
+          <section className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+            <Panel title="Join team" eyebrow="Player lobby">
+              <div className="space-y-4">
+                {activeInviteTarget ? (
+                  <div className="space-y-4 rounded-2xl border border-border bg-surface/60 p-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="primary">Invite active</Badge>
+                      <Badge variant="outline">{activeInviteTarget.teamId === "alpha" ? "Alpha channel" : "Beta channel"}</Badge>
+                    </div>
+                    {!activeRoom.gameStarted ? (
+                      <div className="rounded-xl border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
+                        Waiting for the manager to start the game before players can join.
+                      </div>
+                    ) : activeInviteTeamIsEmpty ? (
+                      <>
+                        <Input
+                          label="Captain name"
+                          placeholder="Enter your player name"
+                          value={joinName}
+                          onChange={(event) => setJoinName(event.target.value)}
+                        />
+                        <Input
+                          label="Team name"
+                          placeholder="Enter team name"
+                          value={captainTeamName}
+                          onChange={(event) => setCaptainTeamName(event.target.value)}
+                        />
+                        <Input
+                          label="Team pfp image link"
+                          placeholder="https://example.com/logo.png"
+                          value={captainTeamLogo}
+                          onChange={(event) => setCaptainTeamLogo(event.target.value)}
+                        />
+                      </>
+                    ) : (
+                      <Input
+                        label="Player name"
+                        placeholder="Enter player name"
+                        value={joinName}
+                        onChange={(event) => setJoinName(event.target.value)}
+                      />
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      <Button onClick={handleJoinTeam} disabled={!canJoin}>Join team</Button>
+                      <Button variant="outline" onClick={handleLeaveTeam} disabled={!activeIdentity}>Leave team</Button>
+                    </div>
+                    <div className="rounded-xl border border-border bg-black/25 p-3 text-sm text-muted-foreground">
+                      {activeInviteTeamIsEmpty
+                        ? "The first player here becomes captain and sets the team name plus pfp link."
+                        : `You are joining ${teamForInvite?.name || "this team"}.`}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-border/60 bg-surface/40 p-4 text-sm text-muted-foreground">
+                    Open one of the secret invite links to bind this page to a team.
+                  </div>
+                )}
+              </div>
+            </Panel>
+
+            <Panel title="Team members" eyebrow="Player view">
+              <div className="grid gap-4 md:grid-cols-2">
+                {(Object.entries(activeRoom.teams) as Array<[TeamId, Team]>).map(([teamId, team]) => (
+                  <div key={teamId} className="rounded-2xl border border-border bg-black/25 p-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="font-[family-name:var(--font-league-gothic)] text-3xl uppercase tracking-[0.12em] text-white">
+                        {team.name}
+                      </div>
+                      <Badge variant={teamId === "alpha" ? "primary" : "secondary"}>{team.players.length}/5</Badge>
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      {team.players.length > 0 ? team.players.map((player) => (
+                        <div key={player.id} className="flex items-center gap-2 rounded-lg border border-border bg-surface/70 px-3 py-2 text-sm">
+                          <Avatar size="sm" src={player.profilePic ?? undefined} fallback={player.name} alt={player.name} />
+                          <span className="truncate text-foreground">{player.name}</span>
+                        </div>
+                      )) : (
+                        <div className="rounded-lg border border-dashed border-border/60 p-3 text-sm text-muted-foreground">
+                          Waiting...
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
-          </Panel>
-
-          <Panel title="Question flow" eyebrow="Manager control">
-            <div className="space-y-4">
-              <div>
-                <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Choose the next question</div>
-                <select
-                  className="mt-2 w-full rounded-md border border-input-border bg-input px-3 py-2 text-foreground"
-                  value={activeRoom.round.preparedQuestionIndex}
-                  onChange={(event) => handleSetPreparedQuestion(Number(event.target.value))}
-                >
-                  {activeRoom.questions.map((question, index) => (
-                    <option key={question.id} value={index}>{index + 1}. {question.prompt}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="rounded-2xl border border-border bg-surface/60 p-4">
-                <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Question preview</div>
-                <div className="mt-2 font-[family-name:var(--font-league-gothic)] text-4xl uppercase tracking-[0.1em] text-white">
-                  {currentQuestion?.prompt || "No question selected"}
-                </div>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-border bg-black/25 p-4">
-                  <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Face-off control</div>
-                  <div className="mt-3 grid gap-2">
-                    <Button variant="outline" onClick={() => handleFaceoffWinner("alpha")}>Alpha wins face-off</Button>
-                    <Button variant="outline" onClick={() => handleFaceoffWinner("beta")}>Beta wins face-off</Button>
-                    <Button variant="danger" onClick={handleBothFaceoffMiss}>Both teams miss</Button>
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-border bg-black/25 p-4">
-                  <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Steal round</div>
-                  <Input
-                    label="Steal guess"
-                    placeholder="Type the one-word steal answer"
-                    value={stealGuess}
-                    onChange={(event) => setStealGuess(event.target.value)}
-                  />
-                  <Button className="mt-3 w-full" variant="primary" onClick={handleSteal} disabled={!stealGuess.trim()}>
-                    Submit steal
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </Panel>
-        </section>
-
-        <section className="grid gap-6 lg:grid-cols-2">
-          <Panel title="Team rosters" eyebrow="Lobby management">
-            <div className="grid gap-4 md:grid-cols-2">
-              {(Object.entries(activeRoom.teams) as Array<[TeamId, Team]>).map(([teamId, team]) => (
-                <div key={teamId} className="rounded-2xl border border-border bg-black/25 p-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{teamLabel(teamId)}</div>
-                      <div className="font-[family-name:var(--font-league-gothic)] text-3xl uppercase tracking-[0.12em] text-white">
-                        {team.name}
-                      </div>
-                    </div>
-                    <Badge variant={teamId === "alpha" ? "primary" : "secondary"}>{team.players.length}/5</Badge>
-                  </div>
-
-                  <div className="mt-4 space-y-2">
-                    {team.players.length > 0 ? team.players.map((player) => (
-                      <div key={player.id} className="rounded-lg border border-border bg-surface/70 px-3 py-2 text-sm text-foreground">
-                        <div className="flex items-center justify-between gap-2">
-                          <span>{player.name}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {isParticipantLocked(player, currentRoundNumber) ? `Locked until round ${player.cooldownUntilRound}` : "Active"}
-                          </span>
-                        </div>
-                      </div>
-                    )) : (
-                      <div className="rounded-lg border border-dashed border-border/60 px-3 py-4 text-sm text-muted-foreground">
-                        No players have joined yet.
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="mt-4">
-                    <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Pick the round participant</div>
-                    <div className="mt-3">
-                      <TeamPlayers
-                        team={team}
-                        currentRound={currentRoundNumber}
-                        selectedPlayerId={activeRoom.round.starterTeamId === teamId ? activeRoom.round.starterPlayerId : null}
-                        onPick={(playerId) => handlePickStarter(teamId, playerId)}
-                        disabled={activeRoom.round.phase === "round-over" || activeRoom.round.phase === "lobby"}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Panel>
-
-          <Panel title="User view" eyebrow="Join lobby">
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Switch to the user view to simulate how the invited players will join the room. Names are stored per invite link and cleared when the heartbeat expires.
-              </p>
-
-              {activeInviteTarget ? (
-                <div className="space-y-4 rounded-2xl border border-border bg-surface/60 p-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="primary">Invite active</Badge>
-                    <Badge variant="outline">{activeInviteTarget.teamId === "alpha" ? "Alpha channel" : "Beta channel"}</Badge>
-                  </div>
-                  {activeInviteTeamIsEmpty ? (
-                    <>
-                      <Input
-                        label="Captain name"
-                        placeholder="Enter your player name"
-                        value={joinName}
-                        onChange={(event) => setJoinName(event.target.value)}
-                      />
-                      <Input
-                        label="Team name"
-                        placeholder="Enter team name"
-                        value={captainTeamName}
-                        onChange={(event) => setCaptainTeamName(event.target.value)}
-                      />
-                      <Input
-                        label="Team logo image link"
-                        placeholder="https://example.com/logo.png"
-                        value={captainTeamLogo}
-                        onChange={(event) => setCaptainTeamLogo(event.target.value)}
-                      />
-                    </>
-                  ) : (
-                    <Input
-                      label="Player name"
-                      placeholder="Enter player name"
-                      value={joinName}
-                      onChange={(event) => setJoinName(event.target.value)}
-                    />
-                  )}
-                  <div className="flex flex-wrap gap-2">
-                    <Button onClick={handleJoinTeam} disabled={!canJoin}>Join team</Button>
-                    <Button variant="outline" onClick={handleLeaveTeam} disabled={!readIdentity(inviteToken)}>Leave team</Button>
-                  </div>
-                  <div className="rounded-xl border border-border bg-black/25 p-3 text-sm text-muted-foreground">
-                    {activeInviteTeamIsEmpty
-                      ? "You are the first player here, so you become the captain and name the team before joining."
-                      : `You are joining ${teamForInvite?.name || "this team"}. If the tab closes or the heartbeat stops, the player name disappears from the lobby.`}
-                  </div>
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-dashed border-border/60 bg-surface/40 p-4 text-sm text-muted-foreground">
-                  Open the secret invite link in this view to bind a player to a team.
-                </div>
-              )}
-
-              <div className="rounded-2xl border border-border bg-black/25 p-4">
-                <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Current answer board</div>
-                <div className="mt-3 grid gap-3 md:grid-cols-2">
-                  {activeRoom.round.board.length > 0 ? activeRoom.round.board.map((answer, index) => (
-                    <div key={`${answer.word}-${index}`} className="rounded-lg border border-border bg-surface/60 px-3 py-2 text-sm">
-                      <div className="flex items-center justify-between gap-2">
-                        <span>{answer.revealed ? answer.word : "Hidden answer"}</span>
-                        <span className="text-xs text-muted-foreground">{answer.revealed ? `${answer.points * activeRoom.round.multiplier}` : "X"}</span>
-                      </div>
-                    </div>
-                  )) : (
-                    <div className="md:col-span-2 rounded-lg border border-dashed border-border/60 px-3 py-4 text-sm text-muted-foreground">
-                      The board appears after a round starts.
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </Panel>
-
-          <Panel title="Danger zone" eyebrow="Delete current game">
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                This removes the current room from storage and sends the manager back to the setup screen.
-                Any invited player identities tied to this room are cleared too.
-              </p>
-              <Input
-                label={`Type ${DELETE_CONFIRMATION_TEXT} to confirm`}
-                placeholder={DELETE_CONFIRMATION_TEXT}
-                value={deleteConfirmation}
-                onChange={(event) => setDeleteConfirmation(event.target.value)}
-              />
-              <Button
-                variant="danger"
-                onClick={handleDeleteGame}
-                disabled={deleteConfirmation.trim() !== DELETE_CONFIRMATION_TEXT}
-              >
-                Delete game and reset
-              </Button>
-              <div className="rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger">
-                You must type {DELETE_CONFIRMATION_TEXT} exactly before the delete button works.
-              </div>
-            </div>
-          </Panel>
-        </section>
+            </Panel>
+          </section>
+        )}
       </div>
     </main>
   );
