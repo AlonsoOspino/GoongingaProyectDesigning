@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "@/features/session/SessionProvider";
 import { login } from "@/lib/api/auth";
@@ -11,11 +11,14 @@ import { Button } from "@/components/ui/Button";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { setSession } = useSession();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const requestedNextPath = searchParams.get("next") || "/my-team";
+  const nextPath = requestedNextPath.startsWith("/") && !requestedNextPath.startsWith("//") ? requestedNextPath : "/my-team";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,7 +28,7 @@ export default function LoginPage() {
     try {
       const response = await login(username, password);
       setSession(response.token, response.user);
-      router.push("/my-team");
+      router.push(nextPath);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to sign in");
     } finally {

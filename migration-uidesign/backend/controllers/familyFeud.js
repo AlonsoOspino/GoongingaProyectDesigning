@@ -105,6 +105,80 @@ async function getGameByInvite(req, res) {
   }
 }
 
+async function joinGameTeam(req, res) {
+  try {
+    const roomId = String(req.params.roomId || "").trim();
+    const inviteToken = String(req.body?.inviteToken || "").trim().toUpperCase();
+    const requestedTeamName = typeof req.body?.teamName === "string" ? req.body.teamName.trim() : "";
+    const game = await prisma.familyFeudGame.findUnique({ where: { roomId } });
+
+    if (!game) return res.status(404).json({ message: "Family Feud game not found." });
+    if (!game.state?.gameStarted) return res.status(409).json({ message: "The manager has not opened the player links yet." });
+
+    const teamId = game.alphaInviteToken === inviteToken
+      ? "alpha"
+      : game.betaInviteToken === inviteToken
+        ? "beta"
+        : null;
+    if (!teamId) return res.status(403).json({ message: "This player link does not belong to the game." });
+
+    const member = await prisma.member.findUnique({
+      where: { id: Number(req.user?.id) },
+      select: { id: true, nickname: true, profilePic: true },
+    });
+    if (!member) return res.status(401).json({ message: "Your Goonginga account could not be found." });
+
+    const state = preserveStableLinks(game, game.state);
+    const otherTeamId = teamId === "alpha" ? "beta" : "alpha";
+    const currentTeam = state.teams[teamId];
+    const otherTeam = state.teams[otherTeamId];
+    const alreadyOnOtherTeam = (otherTeam.players || []).some((player) => Number(player.memberId) === member.id);
+    if (alreadyOnOtherTeam) return res.status(409).json({ message: "You are already assigned to the other Family Feud team." });
+
+    const participantId = `member-${member.id}`;
+    const existingPlayer = (currentTeam.players || []).find((player) => Number(player.memberId) === member.id);
+    if (!existingPlayer && (currentTeam.players || []).length >= 5) {
+      return res.status(409).json({ message: "This Family Feud team already has five players." });
+    }
+
+    const timestamp = Date.now();
+    const participant = {
+      id: participantId,
+      memberId: member.id,
+      name: member.nickname,
+      profilePic: member.profilePic || null,
+      joinedAt: existingPlayer?.joinedAt || timestamp,
+      lastSeenAt: timestamp,
+      cooldownUntilRound: existingPlayer?.cooldownUntilRound || 0,
+    };
+    const players = existingPlayer
+      ? currentTeam.players.map((player) => (Number(player.memberId) === member.id ? participant : player))
+      : [...(currentTeam.players || []), participant];
+    const isCaptain = !currentTeam.captainId;
+    const nextState = {
+      ...state,
+      updatedAt: timestamp,
+      teams: {
+        ...state.teams,
+        [teamId]: {
+          ...currentTeam,
+          name: isCaptain && requestedTeamName ? requestedTeamName.slice(0, 48) : currentTeam.name,
+          logoUrl: currentTeam.logoUrl || member.profilePic || null,
+          captainId: currentTeam.captainId || participantId,
+          players,
+        },
+      },
+    };
+    const updated = await prisma.familyFeudGame.update({
+      where: { roomId },
+      data: { state: nextState },
+    });
+    return res.json({ ...toPayload(updated), teamId, participantId, isCaptain });
+  } catch (error) {
+    return res.status(400).json({ message: error?.message || "Failed to join the Family Feud team." });
+  }
+}
+
 async function updateGame(req, res) {
   try {
     const roomId = String(req.params.roomId || "").trim();
@@ -143,6 +217,7 @@ module.exports = {
   getLatestGame,
   getGame,
   getGameByInvite,
+  joinGameTeam,
   updateGame,
   deleteGame,
 };

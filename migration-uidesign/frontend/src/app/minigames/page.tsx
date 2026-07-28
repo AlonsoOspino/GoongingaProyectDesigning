@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { apiRequest } from "@/lib/api/client";
 import type { MemberProfile } from "@/lib/api/types";
+import { getMemberProfileById } from "@/lib/api/auth";
+import { parseSurveyQuestionBlocks } from "@/lib/familyFeud/surveyImport";
+import { useSession } from "@/features/session/SessionProvider";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -102,19 +105,9 @@ type RoomState = {
   round: RoundState;
 };
 
-type IdentityRecord = {
-  participantId: string;
-  name: string;
-  teamId: TeamId;
-  inviteToken: string;
-};
-
 const ROOM_STORAGE_KEY = "goon.minigames.room";
 const ROOM_ID_STORAGE_KEY = "goon.minigames.roomId";
-const IDENTITY_STORAGE_PREFIX = "goon.minigames.identity.";
 const DELETE_CONFIRMATION_TEXT = "DELETE GAME";
-const PLAYER_TTL_MS = 45000;
-const HEARTBEAT_INTERVAL_MS = 4000;
 const MAX_PLAYERS_PER_TEAM = 5;
 const MAX_STRIKES_PER_QUESTION = 3;
 const COOLDOWN_ROUNDS = MAX_PLAYERS_PER_TEAM;
@@ -219,19 +212,6 @@ function isFilledAnswer(answer: QuestionAnswer) {
 
 function scoreAnswer(answer: QuestionAnswer, multiplier: number) {
   return answer.points * POINTS_PER_SURVEY_RESPONSE * multiplier;
-}
-
-function createParticipant(name = "", member?: MemberProfile | null) {
-  const createdAt = now();
-  return {
-    id: makeId(),
-    memberId: member?.id ?? null,
-    name,
-    profilePic: member?.profilePic ?? null,
-    joinedAt: createdAt,
-    lastSeenAt: createdAt,
-    cooldownUntilRound: 0,
-  } satisfies Participant;
 }
 
 function createTeam(id: TeamId, name: string, inviteToken: string): Team {
@@ -438,26 +418,6 @@ function readStoredRoomId() {
   return window.localStorage.getItem(ROOM_ID_STORAGE_KEY) || "";
 }
 
-function readIdentity(inviteToken: string): IdentityRecord | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(`${IDENTITY_STORAGE_PREFIX}${inviteToken}`);
-    return raw ? (JSON.parse(raw) as IdentityRecord) : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeIdentity(record: IdentityRecord) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(`${IDENTITY_STORAGE_PREFIX}${record.inviteToken}`, JSON.stringify(record));
-}
-
-function clearIdentity(inviteToken: string) {
-  if (typeof window === "undefined") return;
-  window.localStorage.removeItem(`${IDENTITY_STORAGE_PREFIX}${inviteToken}`);
-}
-
 function clearStoredRoom() {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(ROOM_STORAGE_KEY);
@@ -483,9 +443,19 @@ async function fetchRemoteRoom(roomId: string) {
   return hydrateRoomState(payload.state);
 }
 
-async function fetchRemoteInvite(inviteToken: string) {
+async function fetchRemoteInvite(inviteToken: string, token: string) {
   const payload = await apiRequest<FamilyFeudGamePayload>(`/family-feud/invite/${encodeURIComponent(inviteToken)}`, {
     cache: "no-store",
+    token,
+  });
+  return hydrateRoomState(payload.state);
+}
+
+async function joinRemoteTeam(roomId: string, inviteToken: string, token: string, teamName?: string) {
+  const payload = await apiRequest<FamilyFeudGamePayload>(`/family-feud/games/${encodeURIComponent(roomId)}/join`, {
+    method: "POST",
+    token,
+    body: { inviteToken, teamName },
   });
   return hydrateRoomState(payload.state);
 }
@@ -502,12 +472,6 @@ async function deleteRemoteRoom(roomId: string) {
   await apiRequest(`/family-feud/games/${encodeURIComponent(roomId)}`, {
     method: "DELETE",
   });
-}
-
-function clearRoomIdentities(room: RoomState | null) {
-  if (!room) return;
-  clearIdentity(room.teams.alpha.inviteToken);
-  clearIdentity(room.teams.beta.inviteToken);
 }
 
 function roomFromInvite(room: RoomState | null, inviteToken: string) {
@@ -531,70 +495,12 @@ function findQuestionByIndex(room: RoomState, index: number | null) {
 }
 
 function cleanupRoom(room: RoomState): RoomState {
-  const cutoff = now() - PLAYER_TTL_MS;
-  let changed = false;
-  const hydrated = hydrateRoomState(room);
-  const nextTeams = { ...hydrated.teams };
-  const nextFaceoffPlayerIds = { ...hydrated.round.faceoffPlayerIds };
-
-  for (const teamId of ["alpha", "beta"] as TeamId[]) {
-    const team = hydrated.teams[teamId];
-    const players = team.players.filter((player) => player.lastSeenAt >= cutoff);
-    const selectedPlayerStillThere = nextFaceoffPlayerIds[teamId]
-      ? players.some((player) => player.id === nextFaceoffPlayerIds[teamId])
-      : true;
-
-    if (players.length !== team.players.length || !selectedPlayerStillThere) {
-      changed = true;
-    }
-
-    if (!selectedPlayerStillThere) {
-      nextFaceoffPlayerIds[teamId] = null;
-    }
-
-    nextTeams[teamId] = {
-      ...team,
-      players,
-    };
-  }
-
-  const starterTeam = hydrated.round.starterTeamId;
-  const starterPlayerGone = starterTeam
-    ? !nextTeams[starterTeam].players.some((player) => player.id === hydrated.round.starterPlayerId)
-    : false;
-  const pendingGuessPlayerGone = hydrated.round.pendingGuess?.playerId
-    ? !nextTeams[hydrated.round.pendingGuess.teamId].players.some((player) => player.id === hydrated.round.pendingGuess?.playerId)
-    : false;
-
-  if (!changed && !starterPlayerGone && !pendingGuessPlayerGone) return hydrated;
-
-  return {
-    ...hydrated,
-    updatedAt: now(),
-    teams: nextTeams,
-    round: starterPlayerGone || pendingGuessPlayerGone
-      ? {
-          ...hydrated.round,
-          faceoffPlayerIds: nextFaceoffPlayerIds,
-          starterTeamId: starterPlayerGone ? null : hydrated.round.starterTeamId,
-          starterPlayerId: starterPlayerGone ? null : hydrated.round.starterPlayerId,
-          activeGuessTeamId: starterPlayerGone ? null : hydrated.round.activeGuessTeamId,
-          pendingGuess: pendingGuessPlayerGone ? null : hydrated.round.pendingGuess,
-          logs: [createLog("A selected player disconnected. Review the current round before continuing.", "danger"), ...hydrated.round.logs],
-        }
-      : {
-          ...hydrated.round,
-          faceoffPlayerIds: nextFaceoffPlayerIds,
-        },
-  };
+  return hydrateRoomState(room);
 }
 
-function formatInviteUrl(inviteToken: string, room?: RoomState | null) {
+function formatInviteUrl(inviteToken: string) {
   if (typeof window === "undefined") return `/minigames?invite=${inviteToken}`;
   const params = new URLSearchParams({ invite: inviteToken, view: "user" });
-  if (room) {
-    params.set("game", room.roomId);
-  }
   return `${window.location.origin}/minigames?${params.toString()}`;
 }
 
@@ -620,12 +526,6 @@ function createLog(label: string, kind: AnswerKind): RoundLog {
 function copyToClipboard(text: string) {
   if (typeof navigator === "undefined" || !navigator.clipboard) return Promise.reject(new Error("Clipboard not available."));
   return navigator.clipboard.writeText(text);
-}
-
-function findMemberForName(members: MemberProfile[], name: string) {
-  const normalizedName = normalize(name);
-  if (!normalizedName) return null;
-  return members.find((member) => normalize(member.nickname) === normalizedName || normalize(member.user) === normalizedName) ?? null;
 }
 
 function getParticipant(room: RoomState, teamId: TeamId | null, playerId: string | null) {
@@ -912,22 +812,23 @@ function StreamTeam({ team, teamId, participant }: { team: Team; teamId: TeamId;
 
 export default function MinigamesPage() {
   const searchParams = useSearchParams();
+  const { token, user, isAuthenticated, isHydrated } = useSession();
   const inviteToken = (searchParams?.get("invite") || "").trim().toUpperCase();
   const requestedView = searchParams?.get("view");
+  const loginReturnPath = `/minigames${searchParams?.toString() ? `?${searchParams.toString()}` : ""}`;
   const initialViewMode: ViewMode = inviteToken ? "user" : (requestedView === "stream" ? "stream" : requestedView === "user" ? "user" : "manager");
   const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode);
   const [room, setRoom] = useState<RoomState | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [draftTitle, setDraftTitle] = useState("Family Feud Arcade");
   const [draftQuestions, setDraftQuestions] = useState<QuestionDraft[]>(() => createDraftQuestions());
-  const [joinName, setJoinName] = useState("");
+  const [questionImport, setQuestionImport] = useState("");
+  const [questionImportFeedback, setQuestionImportFeedback] = useState<string | null>(null);
   const [captainTeamName, setCaptainTeamName] = useState("");
-  const [captainTeamLogo, setCaptainTeamLogo] = useState("");
-  const [selectedTeamId, setSelectedTeamId] = useState<TeamId | null>(null);
   const [stealGuess, setStealGuess] = useState("");
   const [managerGuess, setManagerGuess] = useState("");
   const [playerGuess, setPlayerGuess] = useState("");
-  const [members, setMembers] = useState<MemberProfile[]>([]);
+  const [currentMember, setCurrentMember] = useState<MemberProfile | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
@@ -940,6 +841,14 @@ export default function MinigamesPage() {
   const activeTeam = activeInviteTarget?.teamId ?? null;
   const activeQuestion = useMemo(() => findQuestionByIndex(room ?? createFreshRoomState(), room?.round.activeQuestionIndex ?? null), [room]);
   const currentRoundNumber = room?.round.number || 0;
+  const parsedQuestionImport = useMemo(
+    () => parseSurveyQuestionBlocks(questionImport, MAX_BOARD_ANSWERS),
+    [questionImport]
+  );
+  const parsedQuestionImportAnswerCount = useMemo(
+    () => parsedQuestionImport.reduce((total, question) => total + question.answers.length, 0),
+    [parsedQuestionImport]
+  );
 
   const saveRoom = useCallback((updater: (current: RoomState) => RoomState) => {
     setRoom((current) => {
@@ -964,18 +873,23 @@ export default function MinigamesPage() {
     let cancelled = false;
 
     async function loadRoom() {
+      if (inviteToken && !isHydrated) return;
       const stored = readStoredRoom();
       const gameId = (searchParams?.get("game") || readStoredRoomId()).trim();
       let nextRoom: RoomState | null = !inviteToken && !gameId ? stored : null;
 
       try {
         if (inviteToken) {
-          nextRoom = await fetchRemoteInvite(inviteToken);
+          if (!token) {
+            nextRoom = null;
+          } else {
+            nextRoom = await fetchRemoteInvite(inviteToken, token);
+          }
         } else if (gameId) {
           nextRoom = await fetchRemoteRoom(gameId);
         }
       } catch (error) {
-        nextRoom = stored;
+        nextRoom = inviteToken ? null : stored;
         setSyncFeedback(error instanceof Error ? error.message : "Could not reach the Family Feud backend.");
       }
 
@@ -989,13 +903,11 @@ export default function MinigamesPage() {
         const invitedMatch = inviteToken ? roomFromInvite(hydratedRoom, inviteToken) : null;
         const invitedTeam = invitedMatch ? invitedMatch.room.teams[invitedMatch.teamId] : null;
         setCaptainTeamName(invitedTeam?.name || "");
-        setCaptainTeamLogo(invitedTeam?.logoUrl || "");
         setRoom(hydratedRoom);
       } else {
         setDraftTitle("Family Feud Arcade");
         setDraftQuestions(createDraftQuestions());
         setCaptainTeamName("");
-        setCaptainTeamLogo("");
         setRoom(null);
       }
 
@@ -1006,7 +918,7 @@ export default function MinigamesPage() {
     return () => {
       cancelled = true;
     };
-  }, [inviteToken, searchParams]);
+  }, [inviteToken, isHydrated, searchParams, token]);
 
   useEffect(() => {
     if (!loaded || !room) return;
@@ -1022,7 +934,8 @@ export default function MinigamesPage() {
 
     const syncFromBackend = async () => {
       try {
-        const next = inviteToken ? await fetchRemoteInvite(inviteToken) : await fetchRemoteRoom(room.roomId);
+        if (inviteToken && !token) return;
+        const next = inviteToken ? await fetchRemoteInvite(inviteToken, token!) : await fetchRemoteRoom(room.roomId);
         if (cancelled) return;
         writeStoredRoom(next);
         setRoom(next);
@@ -1044,70 +957,27 @@ export default function MinigamesPage() {
       window.removeEventListener("storage", syncFromStorage);
       window.clearInterval(interval);
     };
-  }, [inviteToken, loaded, room?.roomId]);
-
-  useEffect(() => {
-    if (!inviteToken || !room) return;
-    const inviteMatch = roomFromInvite(room, inviteToken);
-    if (inviteMatch) {
-      const identity = readIdentity(inviteToken);
-      if (identity) {
-        setJoinName(identity.name);
-      }
-    }
-  }, [inviteToken, room]);
+  }, [inviteToken, loaded, room?.roomId, token]);
 
   useEffect(() => {
     let cancelled = false;
-    async function loadMembers() {
-      try {
-        const allMembers = await apiRequest<MemberProfile[]>("/member/all", { cache: "no-store" });
-        if (!cancelled) setMembers(allMembers);
-      } catch {
-        if (!cancelled) setMembers([]);
-      }
+    if (!inviteToken || !token || !user) {
+      setCurrentMember(null);
+      return;
     }
 
-    void loadMembers();
+    void getMemberProfileById(user.id, token)
+      .then((member) => {
+        if (!cancelled) setCurrentMember(member);
+      })
+      .catch((error) => {
+        if (!cancelled) setSyncFeedback(error instanceof Error ? error.message : "Could not load your Goonginga profile.");
+      });
+
     return () => {
       cancelled = true;
     };
-  }, []);
-
-  useEffect(() => {
-    if (!room || !inviteToken) return;
-    const identity = readIdentity(inviteToken);
-    if (identity && room.teams[identity.teamId].inviteToken === inviteToken) {
-      setJoinName(identity.name);
-      setSelectedTeamId(identity.teamId);
-    }
-  }, [inviteToken, room]);
-
-  useEffect(() => {
-    if (!inviteToken || viewMode !== "user") return;
-    const beforeUnload = () => {
-      const identity = readIdentity(inviteToken);
-      if (!identity) return;
-      saveRoom((current) => {
-        const team = current.teams[identity.teamId];
-        return {
-          ...current,
-          updatedAt: now(),
-          teams: {
-            ...current.teams,
-            [identity.teamId]: {
-              ...team,
-              players: team.players.filter((player) => player.id !== identity.participantId),
-            },
-          },
-        };
-      });
-      clearIdentity(inviteToken);
-    };
-
-    window.addEventListener("beforeunload", beforeUnload);
-    return () => window.removeEventListener("beforeunload", beforeUnload);
-  }, [inviteToken, saveRoom, viewMode]);
+  }, [inviteToken, token, user]);
 
   const updateRoom = useCallback((updater: (current: RoomState) => RoomState) => {
     saveRoom(updater);
@@ -1166,10 +1036,7 @@ export default function MinigamesPage() {
     }
     writeStoredRoom(savedRoom);
     setRoom(savedRoom);
-    setJoinName("");
     setCaptainTeamName("");
-    setCaptainTeamLogo("");
-    setSelectedTeamId(null);
     setStealGuess("");
     setManagerGuess("");
     setPlayerGuess("");
@@ -1189,13 +1056,10 @@ export default function MinigamesPage() {
         setSyncFeedback(error instanceof Error ? error.message : "Could not delete the backend game.");
       }
     }
-    clearRoomIdentities(room);
     clearStoredRoom();
     setRoom(null);
     setDraftTitle("Family Feud Arcade");
     setDraftQuestions(createDraftQuestions());
-    setJoinName("");
-    setSelectedTeamId(null);
     setStealGuess("");
     setManagerGuess("");
     setPlayerGuess("");
@@ -1214,9 +1078,24 @@ export default function MinigamesPage() {
     }
   }, []);
 
+  const handleImportQuestions = useCallback(() => {
+    if (parsedQuestionImport.length === 0) {
+      setQuestionImportFeedback("No se detectaron preguntas. Usa una pregunta y respuestas como: 1 Respuesta x10.");
+      return;
+    }
+
+    setDraftQuestions(parsedQuestionImport.map((question) => ({
+      id: makeId(),
+      prompt: question.prompt,
+      multiplier: 1,
+      answers: question.answers.map(({ word, points }) => ({ word, points })),
+    })));
+    setQuestionImportFeedback(`${parsedQuestionImport.length} preguntas y ${parsedQuestionImportAnswerCount} respuestas importadas.`);
+  }, [parsedQuestionImport, parsedQuestionImportAnswerCount]);
+
   const handleCopyInvite = useCallback((token: string) => (
-    handleCopyLink(formatInviteUrl(token, room), "Player link")
-  ), [handleCopyLink, room]);
+    handleCopyLink(formatInviteUrl(token), "Player link")
+  ), [handleCopyLink]);
 
   const handleStartGameLobby = useCallback(() => {
     if (!room) return;
@@ -1232,114 +1111,22 @@ export default function MinigamesPage() {
     }));
   }, [room, updateRoom]);
 
-  const handleJoinTeam = useCallback(() => {
-    if (!room || !room.gameStarted || !inviteToken || !activeInviteTarget || !joinName.trim()) return;
-    const teamId = activeTeam ?? selectedTeamId;
-    if (!teamId) return;
-
-    const identity = readIdentity(inviteToken);
-    const existingPlayerId = identity?.participantId ?? null;
-    const participantId = existingPlayerId || makeId();
-    const trimmedName = joinName.trim();
-    const member = findMemberForName(members, trimmedName);
-
-    updateRoom((current) => {
-      const team = current.teams[teamId];
-      const isFirstPlayer = team.players.length === 0;
-      if (isFirstPlayer && isBlank(captainTeamName)) return current;
-      const nextTeamName = isFirstPlayer && !isBlank(captainTeamName) ? captainTeamName.trim() : team.name;
-      const nextTeamLogo = isFirstPlayer && !isBlank(captainTeamLogo) ? captainTeamLogo.trim() : team.logoUrl;
-      const nextPlayers = team.players.filter((player) => player.id !== participantId);
-      const existingSameNameIndex = nextPlayers.findIndex((player) => normalize(player.name) === normalize(trimmedName));
-      if (existingSameNameIndex >= 0) {
-        nextPlayers[existingSameNameIndex] = {
-          ...nextPlayers[existingSameNameIndex],
-          memberId: member?.id ?? nextPlayers[existingSameNameIndex].memberId ?? null,
-          name: trimmedName,
-          profilePic: member?.profilePic ?? nextPlayers[existingSameNameIndex].profilePic ?? null,
-          lastSeenAt: now(),
-        };
-      } else if (nextPlayers.length < MAX_PLAYERS_PER_TEAM) {
-        nextPlayers.push({
-          ...createParticipant(trimmedName, member),
-          id: participantId,
-        });
-      }
-
-      return {
-        ...current,
-        updatedAt: now(),
-        teams: {
-          ...current.teams,
-          [teamId]: {
-            ...team,
-            name: nextTeamName,
-            logoUrl: nextTeamLogo,
-            captainId: team.captainId || (isFirstPlayer ? participantId : team.captainId),
-            players: nextPlayers,
-          },
-        },
-      };
-    });
-
-    writeIdentity({
-      participantId,
-      name: trimmedName,
-      teamId,
-      inviteToken,
-    });
-  }, [activeInviteTarget, activeTeam, captainTeamLogo, captainTeamName, inviteToken, joinName, members, room, selectedTeamId, updateRoom]);
-
-  const handleLeaveTeam = useCallback(() => {
-    if (!room || !inviteToken) return;
-    const identity = readIdentity(inviteToken);
-    if (!identity) return;
-
-    updateRoom((current) => ({
-      ...current,
-      updatedAt: now(),
-      teams: {
-        ...current.teams,
-        [identity.teamId]: {
-          ...current.teams[identity.teamId],
-          players: current.teams[identity.teamId].players.filter((player) => player.id !== identity.participantId),
-        },
-      },
-    }));
-    clearIdentity(inviteToken);
-    setJoinName("");
-  }, [inviteToken, room, updateRoom]);
-
-  useEffect(() => {
-    if (!room || !inviteToken || viewMode !== "user") return;
-    const identity = readIdentity(inviteToken);
-    if (!identity) return;
-
-    const tick = window.setInterval(() => {
-      updateRoom((current) => {
-        const team = current.teams[identity.teamId];
-        const updatedPlayers = team.players.map((player) => (
-          player.id === identity.participantId
-            ? { ...player, lastSeenAt: now() }
-            : player
-        ));
-
-        return {
-          ...current,
-          updatedAt: now(),
-          teams: {
-            ...current.teams,
-            [identity.teamId]: {
-              ...team,
-              players: updatedPlayers,
-            },
-          },
-        };
-      });
-    }, HEARTBEAT_INTERVAL_MS);
-
-    return () => window.clearInterval(tick);
-  }, [inviteToken, room, updateRoom, viewMode]);
+  const handleJoinTeam = useCallback(async () => {
+    if (!room || !room.gameStarted || !inviteToken || !activeInviteTarget || !token || !currentMember) return;
+    try {
+      const joinedRoom = await joinRemoteTeam(
+        room.roomId,
+        inviteToken,
+        token,
+        activeInviteTarget.room.teams[activeInviteTarget.teamId].players.length === 0 ? captainTeamName : undefined
+      );
+      writeStoredRoom(joinedRoom);
+      setRoom(joinedRoom);
+      setSyncFeedback(null);
+    } catch (error) {
+      setSyncFeedback(error instanceof Error ? error.message : "Could not join this Family Feud team.");
+    }
+  }, [activeInviteTarget, captainTeamName, currentMember, inviteToken, room, token]);
 
   const handleSetPreparedQuestion = useCallback((index: number) => {
     if (!room) return;
@@ -1732,8 +1519,7 @@ export default function MinigamesPage() {
 
   const handleSubmitGuess = useCallback((teamId: TeamId, guessWord: string) => {
     if (!room || !["faceoff", "control", "steal"].includes(room.round.phase) || !guessWord.trim()) return;
-    const identity = inviteToken ? readIdentity(inviteToken) : null;
-    const playerId = identity?.teamId === teamId ? identity.participantId : null;
+    const playerId = activeTeam === teamId && currentMember ? `member-${currentMember.id}` : null;
     updateRoom((current) => ({
       ...current,
       updatedAt: now(),
@@ -1751,7 +1537,7 @@ export default function MinigamesPage() {
         logs: [createLog(`${teamLabel(teamId)} submitted "${guessWord.trim()}". Manager must confirm a match or no coincidence.`, "info"), ...current.round.logs],
       },
     }));
-  }, [inviteToken, room, updateRoom]);
+  }, [activeTeam, currentMember, room, updateRoom]);
 
   const handleSteal = useCallback(() => {
     if (!room || room.round.phase !== "steal" || !room.round.activeGuessTeamId) return;
@@ -1835,8 +1621,15 @@ export default function MinigamesPage() {
           </div>
           <Panel title="Game unavailable" eyebrow={viewMode === "stream" ? "Stream view" : "Player view"}>
             <p className="text-sm text-muted-foreground">
-              This link is not connected to an active Family Feud game yet. Ask the manager to create the game and share the generated link again.
+              {viewMode === "user" && !isAuthenticated
+                ? "Sign in with your Goonginga account before joining a Family Feud team."
+                : "This link is not connected to an active Family Feud game yet. Ask the manager to create the game and share the generated link again."}
             </p>
+            {viewMode === "user" && !isAuthenticated ? (
+              <Link href={`/login?next=${encodeURIComponent(loginReturnPath)}`}>
+                <Button className="mt-4">Sign in to join</Button>
+              </Link>
+            ) : null}
           </Panel>
         </div>
       </main>
@@ -1854,7 +1647,7 @@ export default function MinigamesPage() {
                 Build the game
               </h1>
               <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                Create the title, add as many questions as you want, attach unlimited answers with points, and set the multiplier for each round directly on the question.
+                Set the game title, add questions, import survey results in one paste, and keep up to eight ranked answers per question.
               </p>
             </div>
 
@@ -1865,6 +1658,72 @@ export default function MinigamesPage() {
               </Link>
             </div>
           </header>
+
+          <Card variant="featured" className="border-primary/25 bg-card/95">
+            <CardHeader className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-xs uppercase tracking-[0.3em] text-primary/80">Bulk question import</div>
+                <CardTitle className="mt-1 font-[family-name:var(--font-league-gothic)] text-4xl uppercase tracking-[0.14em]">
+                  Paste survey results
+                </CardTitle>
+              </div>
+              <Button variant="primary" onClick={handleImportQuestions} disabled={!questionImport.trim()}>
+                Import questions
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <label className="block text-sm font-medium text-foreground" htmlFor="survey-question-import">Question blocks</label>
+              <textarea
+                id="survey-question-import"
+                className="min-h-56 w-full resize-y rounded-md border border-input-border bg-input px-3 py-3 font-mono text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary"
+                value={questionImport}
+                onChange={(event) => setQuestionImport(event.target.value)}
+                placeholder={"Most hated\n1 Sombra x11\n2 Cat x7\n3 moira x6\n\nHottest\n1 Widow x6\n2 Winton x5\n5 Domina 3x"}
+              />
+              <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+                <span>Formato: pregunta en una linea; respuestas como <code>1 Sombra x11</code>, <code>1 - Sombra - x11</code> o <code>5 Domina 3x</code>.</span>
+                {questionImportFeedback ? <span className="font-medium text-primary">{questionImportFeedback}</span> : null}
+              </div>
+              {questionImport.trim() ? (
+                <div className="rounded-xl border border-border bg-black/25 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Vista previa</div>
+                    <div className="text-sm text-muted-foreground">
+                      {parsedQuestionImport.length} preguntas | {parsedQuestionImportAnswerCount} respuestas
+                    </div>
+                  </div>
+                  {parsedQuestionImport.length > 0 ? (
+                    <div className="mt-3 grid gap-3 md:grid-cols-2">
+                      {parsedQuestionImport.slice(0, 4).map((question, questionIndex) => (
+                        <div key={`${question.prompt}-${questionIndex}`} className="rounded-lg border border-border bg-surface/70 p-3">
+                          <div className="break-words text-sm font-semibold text-white">
+                            {questionIndex + 1}. {question.prompt}
+                          </div>
+                          <div className="mt-2 space-y-1">
+                            {question.answers.map((answer, answerIndex) => (
+                              <div key={`${questionIndex}-${answer.rank}-${answer.word}-${answerIndex}`} className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                                <span className="truncate">{answer.rank}. {answer.word}</span>
+                                <span className="shrink-0 font-medium text-primary">x{answer.points}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="mt-3 rounded-lg border border-dashed border-border/60 p-3 text-sm text-muted-foreground">
+                      No hay preguntas legibles todavia.
+                    </div>
+                  )}
+                  {parsedQuestionImport.length > 4 ? (
+                    <div className="mt-3 text-xs text-muted-foreground">
+                      Se muestran 4 de {parsedQuestionImport.length} preguntas importables.
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
 
           <section className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
             <Card variant="featured" className="border-primary/25 bg-card/95">
@@ -1992,8 +1851,12 @@ export default function MinigamesPage() {
   if (viewMode === "stream") return <StreamBoard room={activeRoom} />;
   const currentQuestion = findQuestionByIndex(activeRoom, activeRoom.round.activeQuestionIndex) ?? activeQuestion;
   const teamForInvite = activeTeam ? activeRoom.teams[activeTeam] : null;
-  const activeIdentity = inviteToken ? readIdentity(inviteToken) : null;
-  const activeIdentityParticipant = activeIdentity ? getParticipant(activeRoom, activeIdentity.teamId, activeIdentity.participantId) : null;
+  const activeIdentityParticipant = activeTeam && currentMember
+    ? activeRoom.teams[activeTeam].players.find((player) => player.memberId === currentMember.id) ?? null
+    : null;
+  const activeIdentity = activeTeam && activeIdentityParticipant
+    ? { participantId: activeIdentityParticipant.id, name: activeIdentityParticipant.name, teamId: activeTeam, inviteToken }
+    : null;
   const pendingGuess = activeRoom.round.pendingGuess;
   const pendingGuessPlayer = getPendingGuessPlayer(activeRoom, pendingGuess);
   const activeRoundInProgress = activeRoom.round.phase === "question" || isAnswerPhase(activeRoom.round.phase);
@@ -2018,15 +1881,15 @@ export default function MinigamesPage() {
       activeTeam === activeIdentity.teamId &&
       userIsFaceoffParticipant
   );
+  const activeInviteTeamIsEmpty = activeInviteTarget ? activeRoom.teams[activeInviteTarget.teamId].players.length === 0 : false;
   const canJoin = Boolean(
     activeRoom.gameStarted &&
-    activeTeam &&
-      inviteToken &&
-      joinName.trim() &&
-      (!activeInviteTarget || !room || activeRoom.teams[activeInviteTarget.teamId].players.length > 0 || (captainTeamName.trim() && captainTeamLogo.trim()))
+      activeTeam &&
+      token &&
+      currentMember &&
+      (!activeInviteTeamIsEmpty || captainTeamName.trim())
   );
   const visibleTeams = (Object.entries(activeRoom.teams) as Array<[TeamId, Team]>).filter(([, team]) => team.players.length > 0);
-  const activeInviteTeamIsEmpty = activeInviteTarget ? activeRoom.teams[activeInviteTarget.teamId].players.length === 0 : false;
 
   return (
     <main className="min-h-screen px-4 py-6 md:px-8">
@@ -2228,7 +2091,7 @@ export default function MinigamesPage() {
                           <Badge variant={teamId === "alpha" ? "primary" : "secondary"}>{team.inviteToken}</Badge>
                         </div>
                         <div className="mt-3 break-all rounded-lg border border-border bg-surface/70 p-3 text-xs text-muted-foreground">
-                          {formatInviteUrl(team.inviteToken, activeRoom)}
+                          {formatInviteUrl(team.inviteToken)}
                         </div>
                         <div className="mt-3 flex gap-2">
                           <Button size="sm" variant="outline" onClick={() => handleCopyInvite(team.inviteToken)}>
@@ -2434,43 +2297,42 @@ export default function MinigamesPage() {
                       <div className="rounded-xl border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
                         Waiting for the manager to start the game before players can join.
                       </div>
+                    ) : !isAuthenticated || !currentMember ? (
+                      <div className="rounded-xl border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
+                        Your Goonginga session is required to join this team.
+                      </div>
                     ) : activeInviteTeamIsEmpty ? (
                       <>
-                        <Input
-                          label="Captain name"
-                          placeholder="Enter your player name"
-                          value={joinName}
-                          onChange={(event) => setJoinName(event.target.value)}
-                        />
+                        <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/10 p-3">
+                          <Avatar size="lg" src={currentMember.profilePic ?? undefined} fallback={currentMember.nickname} alt={currentMember.nickname} />
+                          <div>
+                            <div className="font-semibold text-white">{currentMember.nickname}</div>
+                            <div className="text-xs text-muted-foreground">This Goonginga account will become captain.</div>
+                          </div>
+                        </div>
                         <Input
                           label="Team name"
                           placeholder="Enter team name"
                           value={captainTeamName}
                           onChange={(event) => setCaptainTeamName(event.target.value)}
                         />
-                        <Input
-                          label="Team pfp image link"
-                          placeholder="https://example.com/logo.png"
-                          value={captainTeamLogo}
-                          onChange={(event) => setCaptainTeamLogo(event.target.value)}
-                        />
                       </>
                     ) : (
-                      <Input
-                        label="Player name"
-                        placeholder="Enter player name"
-                        value={joinName}
-                        onChange={(event) => setJoinName(event.target.value)}
-                      />
+                      <div className="flex items-center gap-3 rounded-xl border border-border bg-black/25 p-3">
+                        <Avatar size="lg" src={currentMember.profilePic ?? undefined} fallback={currentMember.nickname} alt={currentMember.nickname} />
+                        <div>
+                          <div className="font-semibold text-white">{currentMember.nickname}</div>
+                          <div className="text-xs text-muted-foreground">Your profile photo and name come from Goonginga.</div>
+                        </div>
+                      </div>
                     )}
                     <div className="flex flex-wrap gap-2">
-                      <Button onClick={handleJoinTeam} disabled={!canJoin}>Join team</Button>
-                      <Button variant="outline" onClick={handleLeaveTeam} disabled={!activeIdentity}>Leave team</Button>
+                      <Button onClick={handleJoinTeam} disabled={!canJoin}>{activeIdentity ? "Refresh profile" : "Join team"}</Button>
                     </div>
                     <div className="rounded-xl border border-border bg-black/25 p-3 text-sm text-muted-foreground">
                       {activeInviteTeamIsEmpty
-                        ? "The first player here becomes captain and sets the team name plus pfp link."
-                        : `You are joining ${teamForInvite?.name || "this team"}.`}
+                        ? "The first signed-in player becomes captain. Their saved Goonginga profile photo is used automatically."
+                        : `Join ${teamForInvite?.name || "this team"} with your saved Goonginga profile.`}
                     </div>
                   </div>
                 ) : (
@@ -2514,6 +2376,3 @@ export default function MinigamesPage() {
   );
 }
 
-function isBlank(value: string | null | undefined) {
-  return !value || value.trim().length === 0;
-}
