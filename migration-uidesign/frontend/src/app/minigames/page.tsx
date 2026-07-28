@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/Input";
 import { clsx } from "clsx";
 
 type TeamId = "alpha" | "beta";
-type ViewMode = "manager" | "user";
+type ViewMode = "manager" | "user" | "stream";
 type RoundPhase = "lobby" | "question" | "faceoff" | "control" | "steal" | "round-over";
 type AnswerKind = "info" | "success" | "danger";
 type GuessSource = "manager" | "player";
@@ -598,6 +598,13 @@ function formatInviteUrl(inviteToken: string, room?: RoomState | null) {
   return `${window.location.origin}/minigames?${params.toString()}`;
 }
 
+function formatGameViewUrl(view: "manager" | "stream", room?: RoomState | null) {
+  if (typeof window === "undefined") return `/minigames?view=${view}`;
+  const params = new URLSearchParams({ view });
+  if (room) params.set("game", room.roomId);
+  return `${window.location.origin}/minigames?${params.toString()}`;
+}
+
 function isParticipantLocked(participant: Participant, currentRound: number) {
   return participant.cooldownUntilRound > currentRound;
 }
@@ -825,10 +832,89 @@ function BoardGrid({ room }: { room: RoomState }) {
   );
 }
 
+function StreamBoard({ room }: { room: RoomState }) {
+  const question = findQuestionByIndex(room, room.round.activeQuestionIndex);
+  const alphaFaceoff = getParticipant(room, "alpha", room.round.faceoffPlayerIds.alpha);
+  const betaFaceoff = getParticipant(room, "beta", room.round.faceoffPlayerIds.beta);
+
+  return (
+    <main className="min-h-screen bg-background px-5 py-6 text-foreground md:px-10 md:py-8">
+      <div className="mx-auto max-w-[1500px] space-y-5">
+        <header className="flex items-center justify-between border-b border-border pb-4">
+          <div>
+            <div className="text-xs uppercase tracking-[0.3em] text-primary">Live stream board</div>
+            <h1 className="font-[family-name:var(--font-league-gothic)] text-5xl uppercase tracking-[0.1em] text-white md:text-6xl">{room.title}</h1>
+          </div>
+          <div className="text-right">
+            <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Round</div>
+            <div className="font-[family-name:var(--font-league-gothic)] text-4xl uppercase text-primary">{room.round.number || "Lobby"}</div>
+          </div>
+        </header>
+
+        <section className="grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)_260px]">
+          <StreamTeam team={room.teams.alpha} teamId="alpha" participant={alphaFaceoff} />
+          <div className="space-y-5">
+            <div className="border border-border bg-surface px-6 py-5 text-center">
+              <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{room.round.phase.replace("-", " ")}</div>
+              <h2 className="mt-3 font-[family-name:var(--font-league-gothic)] text-5xl uppercase leading-none tracking-[0.08em] text-white md:text-7xl">
+                {question?.prompt || "Waiting for the next question"}
+              </h2>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              {room.round.board.map((answer, index) => (
+                <div key={`${answer.word}-${index}`} className={clsx("flex min-h-20 items-center justify-between border px-5 py-4", answer.revealed ? "border-success bg-success/10" : "border-border bg-surface")}>
+                  <span className="font-[family-name:var(--font-league-gothic)] text-3xl uppercase tracking-[0.08em] text-white">
+                    {answer.revealed && isFilledAnswer(answer) ? answer.word : index + 1}
+                  </span>
+                  {answer.revealed && isFilledAnswer(answer) ? <span className="text-3xl font-bold text-primary">{scoreAnswer(answer, room.round.multiplier)}</span> : null}
+                </div>
+              ))}
+            </div>
+          </div>
+          <StreamTeam team={room.teams.beta} teamId="beta" participant={betaFaceoff} />
+        </section>
+      </div>
+    </main>
+  );
+}
+
+function StreamTeam({ team, teamId, participant }: { team: Team; teamId: TeamId; participant: Participant | null }) {
+  return (
+    <aside className="border border-border bg-surface p-4">
+      <div className="flex items-center gap-3 border-b border-border pb-4">
+        <Avatar size="lg" src={team.logoUrl ?? undefined} fallback={team.name} alt={team.name} />
+        <div className="min-w-0">
+          <div className="truncate font-[family-name:var(--font-league-gothic)] text-3xl uppercase tracking-[0.1em] text-white">{team.name}</div>
+          <div className={clsx("text-xs uppercase tracking-[0.25em]", teamId === "alpha" ? "text-primary" : "text-accent")}>{team.score} points</div>
+        </div>
+      </div>
+      <div className="mt-4 border border-primary/25 bg-black/25 p-3">
+        <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">At the podium</div>
+        <div className="mt-3 flex items-center gap-3">
+          <Avatar size="lg" src={participant?.profilePic ?? undefined} fallback={participant?.name || "?"} alt={participant?.name || "Waiting"} />
+          <span className="truncate text-lg font-semibold text-white">{participant?.name || "Waiting..."}</span>
+        </div>
+      </div>
+      <div className="mt-4 space-y-2">
+        {Array.from({ length: MAX_PLAYERS_PER_TEAM }).map((_, index) => {
+          const player = team.players[index];
+          return (
+            <div key={player?.id || `${teamId}-${index}`} className="flex h-11 items-center gap-3 border border-border bg-black/20 px-3">
+              {player ? <Avatar size="sm" src={player.profilePic ?? undefined} fallback={player.name} alt={player.name} /> : <span className="h-7 w-7 border border-dashed border-border" />}
+              <span className="truncate text-sm text-foreground">{player?.name || "Open seat"}</span>
+            </div>
+          );
+        })}
+      </div>
+    </aside>
+  );
+}
+
 export default function MinigamesPage() {
   const searchParams = useSearchParams();
   const inviteToken = (searchParams?.get("invite") || "").trim().toUpperCase();
-  const initialViewMode = inviteToken ? "user" : (searchParams?.get("view") === "user" ? "user" : "manager");
+  const requestedView = searchParams?.get("view");
+  const initialViewMode: ViewMode = inviteToken ? "user" : (requestedView === "stream" ? "stream" : requestedView === "user" ? "user" : "manager");
   const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode);
   const [room, setRoom] = useState<RoomState | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -845,6 +931,10 @@ export default function MinigamesPage() {
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
+
+  useEffect(() => {
+    setViewMode(inviteToken ? "user" : (requestedView === "stream" ? "stream" : requestedView === "user" ? "user" : "manager"));
+  }, [inviteToken, requestedView]);
 
   const activeInviteTarget = useMemo(() => roomFromInvite(room, inviteToken), [room, inviteToken]);
   const activeTeam = activeInviteTarget?.teamId ?? null;
@@ -1114,15 +1204,19 @@ export default function MinigamesPage() {
     setViewMode("manager");
   }, [deleteConfirmation, room]);
 
-  const handleCopyInvite = useCallback(async (token: string) => {
+  const handleCopyLink = useCallback(async (url: string, label: string) => {
     try {
-      await copyToClipboard(formatInviteUrl(token, room));
-      setCopyFeedback("Invite copied.");
+      await copyToClipboard(url);
+      setCopyFeedback(`${label} copied.`);
       window.setTimeout(() => setCopyFeedback(null), 1800);
     } catch {
       setCopyFeedback("Copy failed. Use the displayed link.");
     }
-  }, [room]);
+  }, []);
+
+  const handleCopyInvite = useCallback((token: string) => (
+    handleCopyLink(formatInviteUrl(token, room), "Player link")
+  ), [handleCopyLink, room]);
 
   const handleStartGameLobby = useCallback(() => {
     if (!room) return;
@@ -1724,7 +1818,7 @@ export default function MinigamesPage() {
     );
   }
 
-  if (viewMode === "user" && !room) {
+  if ((viewMode === "user" || viewMode === "stream") && !room) {
     return (
       <main className="min-h-screen px-4 py-6 md:px-8">
         <div className="mx-auto max-w-6xl space-y-6">
@@ -1739,9 +1833,9 @@ export default function MinigamesPage() {
               <Button variant="outline">Back home</Button>
             </Link>
           </div>
-          <Panel title="Waiting for the manager" eyebrow="User view">
+          <Panel title="Game unavailable" eyebrow={viewMode === "stream" ? "Stream view" : "Player view"}>
             <p className="text-sm text-muted-foreground">
-              The secret link has not been generated yet in this browser session. Open the manager view first to create the room, then share the invite links.
+              This link is not connected to an active Family Feud game yet. Ask the manager to create the game and share the generated link again.
             </p>
           </Panel>
         </div>
@@ -1895,6 +1989,7 @@ export default function MinigamesPage() {
   }
 
   const activeRoom = room ?? createFreshRoomState();
+  if (viewMode === "stream") return <StreamBoard room={activeRoom} />;
   const currentQuestion = findQuestionByIndex(activeRoom, activeRoom.round.activeQuestionIndex) ?? activeQuestion;
   const teamForInvite = activeTeam ? activeRoom.teams[activeTeam] : null;
   const activeIdentity = inviteToken ? readIdentity(inviteToken) : null;
@@ -1949,16 +2044,7 @@ export default function MinigamesPage() {
             </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {!inviteToken ? (
-              <>
-                <Button variant={viewMode === "manager" ? "primary" : "outline"} onClick={() => setViewMode("manager")}>
-                  Manager view
-                </Button>
-                <Button variant={viewMode === "user" ? "primary" : "outline"} onClick={() => setViewMode("user")}>
-                  User view
-                </Button>
-              </>
-            ) : null}
+            <Badge variant={viewMode === "manager" ? "primary" : "secondary"}>{viewMode === "manager" ? "Manager console" : "Player link"}</Badge>
             <Link href="/">
               <Button variant="ghost">Back home</Button>
             </Link>
@@ -2005,12 +2091,17 @@ export default function MinigamesPage() {
               <Card variant="bordered" className="border-border bg-card/95">
                 <CardHeader>
                   <CardTitle className="font-[family-name:var(--font-league-gothic)] text-3xl uppercase tracking-[0.14em]">
-                    Round controls
+                    Run the round
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <div className="grid gap-2 text-sm md:grid-cols-3">
+                    <div className={clsx("border p-3", !activeRoom.gameStarted ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground")}><span className="font-semibold">1. Open lobby</span><br />Players can join after Start game.</div>
+                    <div className={clsx("border p-3", activeRoom.round.phase === "question" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground")}><span className="font-semibold">2. Face-off</span><br />Start round, choose both players, then pick who buzzed first.</div>
+                    <div className={clsx("border p-3", isAnswerPhase(activeRoom.round.phase) ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground")}><span className="font-semibold">3. Confirm board</span><br />Approve a matching answer or mark NO COINCIDENCE.</div>
+                  </div>
                   <div className="rounded-xl border border-border bg-surface/60 p-3 text-sm text-muted-foreground">
-                    Current question multiplier: x{currentQuestion?.multiplier || 1}
+                    Current state: <span className="font-semibold text-foreground">{activeRoom.round.phase.replace("-", " ")}</span>. Question multiplier: x{currentQuestion?.multiplier || 1}.
                   </div>
 
                   <div className="grid gap-2 sm:grid-cols-3">
@@ -2094,10 +2185,10 @@ export default function MinigamesPage() {
         {viewMode === "manager" ? (
           <>
             <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-              <Panel title="Secret links" eyebrow="Manager setup">
+              <Panel title="Share links" eyebrow="Step 1 - Open each workspace">
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    Each game keeps exactly two assigned invite links. Start the game when you want those links to admit players.
+                    Use the manager link only at the host computer, send a player link to each team, and put the stream link into OBS as a browser source. The links stay assigned to this game.
                   </p>
                   <div className="flex flex-wrap items-center gap-2">
                     <Button onClick={handleStartGameLobby} disabled={activeRoom.gameStarted}>
@@ -2108,9 +2199,23 @@ export default function MinigamesPage() {
                     </Badge>
                     {copyFeedback ? <div className="text-sm text-primary">{copyFeedback}</div> : null}
                   </div>
-                  <div className="grid gap-4 md:grid-cols-2">
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="border border-primary/30 bg-primary/10 p-3">
+                      <div className="text-xs uppercase tracking-[0.25em] text-primary">Manager link</div>
+                      <div className="mt-2 break-all text-xs text-muted-foreground">{formatGameViewUrl("manager", activeRoom)}</div>
+                      <Button size="sm" variant="outline" className="mt-3" onClick={() => handleCopyLink(formatGameViewUrl("manager", activeRoom), "Manager link")}>Copy manager link</Button>
+                    </div>
+                    <div className="border border-accent/30 bg-accent/10 p-3">
+                      <div className="text-xs uppercase tracking-[0.25em] text-accent">Stream key link</div>
+                      <div className="mt-2 break-all text-xs text-muted-foreground">{formatGameViewUrl("stream", activeRoom)}</div>
+                      <Button size="sm" variant="outline" className="mt-3" onClick={() => handleCopyLink(formatGameViewUrl("stream", activeRoom), "Stream link")}>Copy stream link</Button>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="mb-2 text-xs uppercase tracking-[0.25em] text-muted-foreground">User links - one per team</div>
+                    <div className="grid gap-4 md:grid-cols-2">
                     {(Object.entries(activeRoom.teams) as Array<[TeamId, Team]>).map(([teamId, team], index) => (
-                      <div key={teamId} className="rounded-2xl border border-border bg-black/25 p-4">
+                      <div key={teamId} className="border border-border bg-black/25 p-4">
                         <div className="flex items-center justify-between gap-2">
                           <div>
                             <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
@@ -2127,17 +2232,17 @@ export default function MinigamesPage() {
                         </div>
                         <div className="mt-3 flex gap-2">
                           <Button size="sm" variant="outline" onClick={() => handleCopyInvite(team.inviteToken)}>
-                            Copy link
+                            Copy player link
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => setViewMode("user")}>Preview user view</Button>
                         </div>
                       </div>
                     ))}
+                    </div>
                   </div>
                 </div>
               </Panel>
 
-              <Panel title="Question flow" eyebrow="Manager control">
+              <Panel title="Face-off and answer desk" eyebrow="Step 2 - Run the live question">
                 <div className="space-y-4">
                   <div>
                     <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Choose the next question</div>
