@@ -34,8 +34,8 @@
   overflow: hidden;
   isolation: isolate;
   background:
-    radial-gradient(ellipse 48% 74% at 86% 48%, rgba(87, 230, 242, 0.16), transparent 72%),
-    radial-gradient(circle at 90% 76%, rgba(246, 196, 67, 0.12), transparent 30%),
+    radial-gradient(ellipse 108% 116% at 50% 50%, transparent 0 43%, rgba(87, 230, 242, 0.184) 100%),
+    radial-gradient(ellipse 76% 92% at 50% 50%, transparent 48%, rgba(246, 196, 67, 0.138) 100%),
     linear-gradient(100deg, #03060a 0%, #071019 46%, #0b1b25 100%);
 }
 
@@ -77,10 +77,10 @@
 .valueBlock { display:grid; gap:.38rem; margin-top:.7rem; }
 .valueBlock strong { color:var(--ink); font-family:var(--font-league-gothic), Impact, sans-serif; font-size:clamp(5.5rem, 10vw, 13rem); font-weight:400; line-height:.72; text-shadow: 0 0 32px rgba(87,230,242,.16); }
 .valueBlock strong small { margin-left:.25rem; color:var(--yellow); font-family:Arial,sans-serif; font-size:.18em; font-weight:900; letter-spacing:.04em; }
-.playerProfile { display:flex; align-items:center; gap:.75rem; margin-top:.4rem; }
+.playerProfile { display:flex; max-width:100%; align-items:center; gap:.75rem; margin-top:.4rem; }
 .playerProfile > img,.playerProfile > span { display:grid; width:clamp(3.6rem,5vw,5.5rem); aspect-ratio:1; place-items:center; overflow:hidden; border:2px solid rgba(246,196,67,.8); border-radius:50%; color:var(--yellow); background:#0b151e; font-family:var(--font-league-gothic),Impact,sans-serif; font-size:2rem; object-fit:cover; box-shadow:0 0 0 6px rgba(246,196,67,.09); }
-.playerProfile div { display:grid; gap:.15rem; }.playerProfile div strong { color:var(--ink); font-family:Arial,sans-serif; font-size:clamp(1.15rem,1.8vw,2.1rem); font-weight:900; line-height:1; text-shadow:none; }.playerProfile div small { color:var(--yellow); font-family:Arial,sans-serif; font-size:.68rem; font-weight:900; letter-spacing:.15em; text-transform:uppercase; }
-.artworkBackdrop { position:absolute; inset:0; z-index:0; overflow:hidden; background:radial-gradient(ellipse 46% 76% at 84% 50%,rgba(87,230,242,.28),transparent 72%); }
+.playerProfile div { display:grid; min-width:0; gap:.15rem; }.playerProfile div strong { overflow:hidden; color:var(--ink); font-family:Arial,sans-serif; font-size:clamp(1.15rem,1.8vw,2.1rem); font-weight:900; line-height:1; text-align:inherit; text-overflow:ellipsis; text-shadow:none; white-space:nowrap; }.playerProfile div small { color:var(--yellow); font-family:Arial,sans-serif; font-size:.68rem; font-weight:900; letter-spacing:.15em; text-transform:uppercase; }
+.artworkBackdrop { position:absolute; inset:0; z-index:0; overflow:hidden; background:radial-gradient(ellipse 118% 126% at 50% 50%,transparent 0 43%,rgba(87,230,242,.322) 100%); }
 .artworkBackdrop img { --art-mirror:1; width:100%; height:100%; object-fit:cover; object-position:center; opacity:.72; filter:saturate(1.16) contrast(1.1) brightness(.92); transform:scaleX(var(--art-mirror)) scale(1.04); }
 .artworkBackdrop .artworkFlipped { --art-mirror:-1; }
 .artworkBackdrop::after { position:absolute; inset:0; content:""; background:linear-gradient(90deg,rgba(3,6,10,1) 0%,rgba(3,6,10,.96) 42%,rgba(3,6,10,.58) 66%,rgba(3,6,10,.12) 100%),linear-gradient(0deg,rgba(3,6,10,.48),transparent 50%); }
@@ -115,7 +115,9 @@
 .layoutSpotlight { grid-template-columns:.9fr 1.1fr; background:radial-gradient(circle at 70% 42%, rgba(255,92,168,.18), transparent 26%), #080a11; }
 .layoutSpotlight .valueBlock strong { text-shadow:0 0 42px rgba(255,92,168,.35); }
 
-.layoutImpact .artworkBackdrop, .layoutNetwork .artworkBackdrop { background:radial-gradient(ellipse 46% 76% at 16% 50%,rgba(87,230,242,.28),transparent 72%); }
+.layoutImpact .valueBlock, .layoutNetwork .valueBlock { justify-items:end; }
+.layoutImpact .playerProfile, .layoutNetwork .playerProfile { justify-content:flex-end; flex-direction:row-reverse; text-align:right; }
+.layoutImpact .artworkBackdrop, .layoutNetwork .artworkBackdrop { background:radial-gradient(ellipse 118% 126% at 50% 50%,transparent 0 43%,rgba(87,230,242,.322) 100%); }
 .layoutImpact .artworkBackdrop::after, .layoutNetwork .artworkBackdrop::after { background:linear-gradient(270deg,rgba(3,6,10,1) 0%,rgba(3,6,10,.96) 42%,rgba(3,6,10,.58) 66%,rgba(3,6,10,.12) 100%),linear-gradient(0deg,rgba(3,6,10,.48),transparent 50%); }
 
 .mapSlide { display:grid; min-height:100%; align-items:center; padding:7vh 9vw; }
@@ -125,7 +127,7 @@
 .mapCount { position:absolute; right:1.2rem; bottom:1.1rem; z-index:2; padding:.55rem .7rem; color:#071018; background:var(--yellow); font-size:.68rem; font-weight:900; letter-spacing:.13em; }
 .mapCopy { position:relative; z-index:3; }
 .mapName { display:block; color:var(--yellow); font-family:var(--font-league-gothic), Impact, sans-serif; font-size:clamp(4.6rem,8vw,10rem); font-weight:400; line-height:.75; text-transform:uppercase; }
-.layoutPanorama { grid-template-columns:1.2fr .8fr; gap:4vw; background:radial-gradient(ellipse 48% 74% at 14% 50%, rgba(87,230,242,.16), transparent 72%),radial-gradient(circle at 10% 76%, rgba(246,196,67,.12), transparent 30%),linear-gradient(260deg,#03060a 0%,#071019 46%,#0b1b25 100%); }
+.layoutPanorama { grid-template-columns:1.2fr .8fr; gap:4vw; background:radial-gradient(ellipse 108% 116% at 50% 50%,transparent 0 43%,rgba(87,230,242,.184) 100%),radial-gradient(ellipse 76% 92% at 50% 50%,transparent 48%,rgba(246,196,67,.138) 100%),linear-gradient(260deg,#03060a 0%,#071019 46%,#0b1b25 100%); }
 .layoutPanorama .mapImageWrap { height:74vh; clip-path:polygon(0 0,100% 10%,94% 100%,7% 89%); }
 .layoutFragment { grid-template-columns:.85fr 1.15fr; gap:3vw; }
 .layoutFragment .mapImageWrap { order:2; height:65vh; clip-path:polygon(17% 0,100% 0,85% 78%,44% 100%,0 72%); }
@@ -158,7 +160,7 @@
 
 @media (max-width: 980px) {
   .introSlide, .playerSlide, .layoutPanorama, .layoutFragment { grid-template-columns:1fr; gap:1rem; padding:10vh 7vw 8vh; }
-  .coverVisual { width:min(75vw,560px); min-height:48vh; }.introCopy h1 { font-size:clamp(5rem,14vw,8rem); }.storyCopy h2,.mapCopy h2 { font-size:clamp(4.2rem,11vw,7rem); }.artFrame { height:42vh; }.layoutImpact .storyCopy,.layoutSurvival .storyCopy,.layoutFortress .storyCopy { position:relative; top:auto; right:auto; bottom:auto; left:auto; max-width:none; text-align:left; }.layoutImpact .storyCopy h2,.layoutImpact .storyCaption,.layoutNetwork .storyCopy h2,.layoutNetwork .storyCaption { margin-left:0; }.layoutImpact .artFrame,.layoutSurvival .artFrame,.layoutFortress .artFrame { width:100%; height:42vh; }.layoutNetwork .storyCopy { grid-column:auto; grid-row:auto; text-align:left; }.layoutCascade .storyCopy,.layoutFragment .mapCopy { padding-left:0; }.mapImageWrap { order:initial !important; height:38vh !important; }.counterGrid { grid-template-columns:repeat(3,minmax(0,1fr)); }.counter { min-height:8rem; }.progress { grid-template-columns:repeat(14,1fr); }
+  .coverVisual { width:min(75vw,560px); min-height:48vh; }.introCopy h1 { font-size:clamp(5rem,14vw,8rem); }.storyCopy h2,.mapCopy h2 { font-size:clamp(4.2rem,11vw,7rem); }.artFrame { height:42vh; }.layoutImpact .storyCopy,.layoutSurvival .storyCopy,.layoutFortress .storyCopy { position:relative; top:auto; right:auto; bottom:auto; left:auto; max-width:none; text-align:left; }.layoutImpact .storyCopy h2,.layoutImpact .storyCaption,.layoutNetwork .storyCopy h2,.layoutNetwork .storyCaption { margin-left:0; }.layoutImpact .artFrame,.layoutSurvival .artFrame,.layoutFortress .artFrame { width:100%; height:42vh; }.layoutNetwork .storyCopy { grid-column:auto; grid-row:auto; text-align:left; }.layoutImpact .valueBlock,.layoutNetwork .valueBlock { justify-items:start; }.layoutImpact .playerProfile,.layoutNetwork .playerProfile { justify-content:flex-start; flex-direction:row; text-align:left; }.layoutCascade .storyCopy,.layoutFragment .mapCopy { padding-left:0; }.mapImageWrap { order:initial !important; height:38vh !important; }.counterGrid { grid-template-columns:repeat(3,minmax(0,1fr)); }.counter { min-height:8rem; }.progress { grid-template-columns:repeat(14,1fr); }
 }
 
 @media (max-width: 620px) {
