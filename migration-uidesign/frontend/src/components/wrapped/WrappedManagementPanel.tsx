@@ -33,7 +33,10 @@ function formatNumber(value: number, decimals = 0) {
 }
 
 function isPlayer(subject: AssetField["subject"]): subject is WrappedPlayerLeader {
-  return Boolean(subject && "userId" in subject);
+  // Legacy Wrapped snapshots did not persist userId, but did include the
+  // player name. Use that stable shape discriminator so managers can refresh
+  // an old snapshot instead of crashing before the first refresh.
+  return Boolean(subject && "player" in subject);
 }
 
 function fieldsFor(wrapped: GoongingaWrapped): AssetField[] {
