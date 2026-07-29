@@ -18,6 +18,7 @@ type PlayerStory = {
   layout: "diagonal" | "column" | "impact" | "shield" | "network" | "survival" | "burst" | "cascade" | "fortress" | "spotlight";
   eyebrow: string;
   title: string;
+  descriptor: string;
   caption: string;
   value: WrappedPlayerLeader | null;
   assetKey: WrappedAssetKey;
@@ -46,7 +47,6 @@ const DEFAULT_AUDIO_DURATION_MS = 12_500;
 const FINAL_FRAME_DURATION_MS = 1_500;
 const MIN_VALID_AUDIO_DURATION_SECONDS = 0.25;
 const CUE_STABLE_GAIN = 1.5;
-const BACKGROUND_VIDEO_PLAYBACK_RATE = 0.8;
 
 function formatNumber(value: number | null | undefined, decimals = 0) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "—";
@@ -105,15 +105,15 @@ function useHighlightSequence(active: boolean, videoPhaseDurationMs: number, red
       return;
     }
     if (reducedMotion || forceComplete) {
-      setStage(4);
+      setStage(6);
       return;
     }
     setStage(0);
     const identityPhase = Math.min(3_000, videoPhaseDurationMs);
     const remainingPhase = Math.max(0, videoPhaseDurationMs - identityPhase);
-    const timeouts = [1, 2, 3, 4].map((nextStage) => window.setTimeout(
+    const timeouts = [1, 2, 3, 4, 5, 6].map((nextStage) => window.setTimeout(
       () => setStage(nextStage),
-      identityPhase + (remainingPhase * nextStage) / 4
+      identityPhase + (remainingPhase * nextStage) / 6
     ));
     return () => timeouts.forEach((timeout) => window.clearTimeout(timeout));
   }, [active, forceComplete, reducedMotion, videoPhaseDurationMs]);
@@ -339,6 +339,7 @@ function PlayerSlide({
   reducedMotion,
   audioDurationMs,
   audioSequenceCompleted,
+  seasonGames,
   onVideoFinished,
   onStoryAudioPlaybackChange,
   onStoryAudioCompleted,
@@ -349,6 +350,7 @@ function PlayerSlide({
   reducedMotion: boolean;
   audioDurationMs: number;
   audioSequenceCompleted: boolean;
+  seasonGames: number;
   onVideoFinished: (storyId: string) => void;
   onStoryAudioPlaybackChange: (storyId: string, playing: boolean) => void;
   onStoryAudioCompleted: (storyId: string) => void;
@@ -373,10 +375,15 @@ function PlayerSlide({
     video.muted = true;
     video.defaultMuted = true;
     video.volume = 0;
-    video.loop = true;
-    video.playbackRate = BACKGROUND_VIDEO_PLAYBACK_RATE;
+    video.loop = false;
+    const sourceDuration = Number.isFinite(video.duration) ? video.duration : 0;
+    const rate = sourceDuration ? sourceDuration / Math.max(audioDurationMs / 1000, 0.1) : 0.8;
+    // The clip plays once, slowed to cover the audio phase. A five-second
+    // source with a long cue sequence becomes a true slow-motion background,
+    // rather than visibly looping.
+    video.playbackRate = clamp(rate, 0.0625, 1);
     void video.play().catch(() => undefined);
-  }, [active, reducedMotion, videoFinished]);
+  }, [active, audioDurationMs, reducedMotion, videoFinished]);
   const freezeVideoOnLastFrame = useCallback(() => {
     const video = videoRef.current;
     if (!video || videoFinished) return;
@@ -402,9 +409,8 @@ function PlayerSlide({
     setVideoFinished(false);
     if (!active || !video) return;
     const playVideo = () => {
-      // Most authored clips are shorter than their cue sequence. Looping them
-      // at a restrained speed keeps the background alive for the entire audio
-      // phase; the real final frame is reserved for the last 1.5 seconds.
+      // The video is deliberately stretched across the cue phase and only its
+      // last frame is reserved for the final 1.5 seconds.
       video.currentTime = 0;
       resumeBackgroundVideo();
     };
@@ -428,7 +434,7 @@ function PlayerSlide({
     onStoryAudioCompleted(story.id);
   }, [onStoryAudioCompleted, story.id]);
 
-  const valueRevealed = revealStage >= 4;
+  const valueRevealed = revealStage >= 6;
   const displayedValue = useCountUp(leader?.value || 0, valueRevealed, reducedMotion, story.decimals ?? 0);
   return (
     <section className={`${styles.slide} ${styles.playerSlide} ${styles[`layout${story.layout[0].toUpperCase()}${story.layout.slice(1)}`]}`} aria-label={story.title}>
@@ -441,7 +447,6 @@ function PlayerSlide({
             playsInline
             muted
             autoPlay={active && !videoFinished}
-            loop={active && !videoFinished}
             preload={active ? "auto" : "none"}
             onCanPlay={resumeBackgroundVideo}
             onLoadedData={resumeBackgroundVideo}
@@ -454,8 +459,10 @@ function PlayerSlide({
       <div className={`${styles.storyCopy} ${active ? styles.storyTimeline : styles.storyWaiting}`}>
         <p className={`${styles.eyebrow} ${revealStage >= 1 ? styles.sequenceEyebrow : styles.sequenceHidden}`}>{story.eyebrow}</p>
         <h2 className={revealStage >= 2 ? styles.sequenceTitle : styles.sequenceHidden}>{story.title}</h2>
-        <p className={`${styles.storyCaption} ${revealStage >= 3 ? styles.sequenceCaption : styles.sequenceHidden}`}>{story.caption}</p>
-        <div className={`${styles.valueBlock} ${revealStage >= 4 ? styles.sequenceValue : styles.sequenceHidden}`}>
+        <p className={`${styles.metricDescriptor} ${revealStage >= 3 ? styles.sequenceDescriptor : styles.sequenceHidden}`}>{story.descriptor}</p>
+        <p className={`${styles.storyCaption} ${revealStage >= 4 ? styles.sequenceCaption : styles.sequenceHidden}`}>{story.caption}</p>
+        <div className={`${styles.seasonFact} ${revealStage >= 5 ? styles.sequenceFact : styles.sequenceHidden}`}><span>Games played during the season</span><strong>{formatNumber(seasonGames)}</strong></div>
+        <div className={`${styles.valueBlock} ${revealStage >= 6 ? styles.sequenceValue : styles.sequenceHidden}`}>
           <strong>{formatNumber(displayedValue, story.decimals ?? 0)}<small>{story.suffix || ""}</small></strong>
         </div>
       </div>
@@ -547,16 +554,16 @@ export default function WrappedPage() {
     if (!wrapped) return [];
     const { averagesPer10, totals, performance, maps } = resolveWrappedSnapshot(wrapped.snapshot);
     return [
-      { id: "averageKills", kind: "player", layout: "diagonal", eyebrow: "BEST AVERAGES · PER 10", title: "Cold-blooded finisher", caption: "The season's sharpest elimination pace.", value: averagesPer10.kills, assetKey: "averageKills", decimals: 2, suffix: " / 10" },
-      { id: "averageHealing", kind: "player", layout: "column", eyebrow: "BEST AVERAGES · PER 10", title: "Lifeline on call", caption: "Keeping every fight alive when it mattered.", value: averagesPer10.healing, assetKey: "averageHealing", decimals: 2, suffix: " / 10" },
-      { id: "averageDamage", kind: "player", layout: "impact", eyebrow: "BEST AVERAGES · PER 10", title: "Pressure, unbroken", caption: "Damage that never gave the lobby room to breathe.", value: averagesPer10.damage, assetKey: "averageDamage", decimals: 2, suffix: " / 10" },
-      { id: "averageMitigation", kind: "player", layout: "shield", eyebrow: "BEST AVERAGES · PER 10", title: "The wall that held", caption: "Pressure absorbed, space protected, fights saved.", value: averagesPer10.mitigation, assetKey: "averageMitigation", decimals: 2, suffix: " / 10" },
-      { id: "averageAssists", kind: "player", layout: "network", eyebrow: "BEST AVERAGES · PER 10", title: "The fight conductor", caption: "Every teamfight had another hand behind it.", value: averagesPer10.assists, assetKey: "averageAssists", decimals: 2, suffix: " / 10" },
-      { id: "averageSurvival", kind: "player", layout: "survival", eyebrow: "BEST AVERAGES · PER 10", title: "Refused to fall", caption: "The lowest death rate on the road to victory.", value: averagesPer10.lowestDeaths, assetKey: "averageSurvival", decimals: 2, suffix: " / 10" },
-      { id: "totalDamage", kind: "player", layout: "burst", eyebrow: "SEASON SUMS", title: "A season of impact", caption: "The heaviest damage total in the record.", value: totals.damage, assetKey: "totalDamage" },
-      { id: "totalHealing", kind: "player", layout: "cascade", eyebrow: "SEASON SUMS", title: "Lifebar architect", caption: "The deepest reserve of healing all season.", value: totals.healing, assetKey: "totalHealing" },
-      { id: "totalMitigation", kind: "player", layout: "fortress", eyebrow: "SEASON SUMS", title: "Frontline fortress", caption: "A season spent holding the line.", value: totals.mitigation, assetKey: "totalMitigation" },
-      { id: "bestKd", kind: "player", layout: "spotlight", eyebrow: "BEST PERFORMANCE", title: "The cleanest finish", caption: "The strongest K/D performance in the season.", value: performance.kd, assetKey: "bestKd", decimals: 2, suffix: " K/D" },
+      { id: "averageKills", kind: "player", layout: "diagonal", eyebrow: "BEST AVERAGES · PER 10", title: "Cold-blooded finisher", descriptor: "Highest average kills per 10 minutes of the season.", caption: "The season's sharpest elimination pace.", value: averagesPer10.kills, assetKey: "averageKills", decimals: 2, suffix: " / 10" },
+      { id: "averageHealing", kind: "player", layout: "column", eyebrow: "BEST AVERAGES · PER 10", title: "Lifeline on call", descriptor: "Highest average healing per 10 minutes of the season.", caption: "Keeping every fight alive when it mattered.", value: averagesPer10.healing, assetKey: "averageHealing", decimals: 2, suffix: " / 10" },
+      { id: "averageDamage", kind: "player", layout: "impact", eyebrow: "BEST AVERAGES · PER 10", title: "Pressure, unbroken", descriptor: "Highest average damage output per 10 minutes of the season.", caption: "Damage that never gave the lobby room to breathe.", value: averagesPer10.damage, assetKey: "averageDamage", decimals: 2, suffix: " / 10" },
+      { id: "averageMitigation", kind: "player", layout: "shield", eyebrow: "BEST AVERAGES · PER 10", title: "The wall that held", descriptor: "Highest average mitigation per 10 minutes of the season.", caption: "Pressure absorbed, space protected, fights saved.", value: averagesPer10.mitigation, assetKey: "averageMitigation", decimals: 2, suffix: " / 10" },
+      { id: "averageAssists", kind: "player", layout: "network", eyebrow: "BEST AVERAGES · PER 10", title: "The fight conductor", descriptor: "Highest average assists per 10 minutes of the season.", caption: "Every teamfight had another hand behind it.", value: averagesPer10.assists, assetKey: "averageAssists", decimals: 2, suffix: " / 10" },
+      { id: "averageSurvival", kind: "player", layout: "survival", eyebrow: "BEST AVERAGES · PER 10", title: "Refused to fall", descriptor: "Lowest average deaths per 10 minutes of the season.", caption: "The lowest death rate on the road to victory.", value: averagesPer10.lowestDeaths, assetKey: "averageSurvival", decimals: 2, suffix: " / 10" },
+      { id: "totalDamage", kind: "player", layout: "burst", eyebrow: "SEASON SUMS", title: "A season of impact", descriptor: "Highest total damage dealt across the full season.", caption: "The heaviest damage total in the record.", value: totals.damage, assetKey: "totalDamage" },
+      { id: "totalHealing", kind: "player", layout: "cascade", eyebrow: "SEASON SUMS", title: "Lifebar architect", descriptor: "Highest total healing delivered across the full season.", caption: "The deepest reserve of healing all season.", value: totals.healing, assetKey: "totalHealing" },
+      { id: "totalMitigation", kind: "player", layout: "fortress", eyebrow: "SEASON SUMS", title: "Frontline fortress", descriptor: "Highest total mitigation recorded across the full season.", caption: "A season spent holding the line.", value: totals.mitigation, assetKey: "totalMitigation" },
+      { id: "bestKd", kind: "player", layout: "spotlight", eyebrow: "BEST PERFORMANCE", title: "The cleanest finish", descriptor: "Highest kill-to-death performance of the season.", caption: "The strongest K/D performance in the season.", value: performance.kd, assetKey: "bestKd", decimals: 2, suffix: " K/D" },
       { id: "mostPickedMap", kind: "map", layout: "panorama", eyebrow: "MAP POOL", title: "Home field", caption: "The battleground that kept calling the season back.", value: maps.mostPicked, assetKey: "mostPickedMap" },
       { id: "leastPickedMap", kind: "map", layout: "fragment", eyebrow: "MAP POOL", title: "The road untaken", caption: "The quietest corner of the draft, zeros included.", value: maps.leastPicked, assetKey: "leastPickedMap" },
       { id: "finale", kind: "finale" },
@@ -565,6 +572,7 @@ export default function WrappedPage() {
 
   const totalSlides = stories.length + 1;
   const media = useMemo(() => wrapped ? resolveWrappedAssets(wrapped.assets) : null, [wrapped]);
+  const seasonGames = useMemo(() => wrapped ? resolveWrappedSnapshot(wrapped.snapshot).overview.games : 0, [wrapped]);
   const storyAudioDurations = useStoryAudioDurations(media?.storyAudios);
   const goTo = useCallback((nextIndex: number, behavior: ScrollBehavior = "smooth") => {
     const bounded = Math.max(0, Math.min(nextIndex, totalSlides - 1));
@@ -695,7 +703,7 @@ export default function WrappedPage() {
           const isActive = started && activeIndex === storyIndex;
           return (
             <div key={story.id} className={`${styles.storyViewport} ${isActive ? styles.storyActive : ""}`}>
-              {story.kind === "player" && <PlayerSlide story={story} wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} audioDurationMs={storyAudioDurations[story.assetKey] || DEFAULT_AUDIO_DURATION_MS} audioSequenceCompleted={completedAudioStoryId === story.id} onVideoFinished={setCompletedVideoStoryId} onStoryAudioPlaybackChange={setStoryAudioPlayback} onStoryAudioCompleted={setStoryAudioCompleted} />}
+              {story.kind === "player" && <PlayerSlide story={story} wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} audioDurationMs={storyAudioDurations[story.assetKey] || DEFAULT_AUDIO_DURATION_MS} audioSequenceCompleted={completedAudioStoryId === story.id} seasonGames={seasonGames} onVideoFinished={setCompletedVideoStoryId} onStoryAudioPlaybackChange={setStoryAudioPlayback} onStoryAudioCompleted={setStoryAudioCompleted} />}
               {story.kind === "map" && <MapSlide story={story} wrapped={wrapped} />}
               {story.kind === "finale" && <FinaleSlide wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} />}
             </div>

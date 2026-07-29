@@ -74,6 +74,10 @@
 .playerSlide { display:grid; min-height:100%; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); align-items:center; gap:3vw; padding: 7vh 9vw; }
 .storyCopy { position:relative; z-index:3; display:grid; align-content:center; gap:.8rem; }
 .storyCopy h2, .mapCopy h2 { max-width:9ch; font-size:clamp(5.4rem, 9vw, 11.5rem); }
+.metricDescriptor { max-width:36rem; margin:0; color:var(--yellow); font-size:clamp(.64rem,.88vw,1rem); font-weight:900; letter-spacing:.14em; line-height:1.35; text-transform:uppercase; }
+.seasonFact { display:flex; align-items:baseline; gap:.7rem; margin-top:.05rem; }
+.seasonFact span { color:var(--muted); font-size:clamp(.56rem,.68vw,.76rem); font-weight:900; letter-spacing:.14em; line-height:1.25; text-transform:uppercase; }
+.seasonFact strong { color:var(--cyan); font-family:var(--font-league-gothic),Impact,sans-serif; font-size:clamp(2.4rem,4vw,5rem); font-weight:400; line-height:.65; text-shadow:0 0 22px rgba(87,230,242,.18); }
 .valueBlock { display:grid; gap:.38rem; margin-top:.7rem; }
 .valueBlock strong { color:var(--ink); font-family:var(--font-league-gothic), Impact, sans-serif; font-size:clamp(5.5rem, 10vw, 13rem); font-weight:400; line-height:.72; text-shadow: 0 0 32px rgba(87,230,242,.16); }
 .valueBlock strong small { margin-left:.25rem; color:var(--yellow); font-family:Arial,sans-serif; font-size:.18em; font-weight:900; letter-spacing:.04em; }
@@ -99,7 +103,9 @@
 .sequenceHidden { opacity:0; pointer-events:none; transform:translateY(1rem) scale(.97); }
 .sequenceEyebrow { animation:eyebrowReveal .45s cubic-bezier(.16,.84,.2,1) both; }
 .sequenceTitle { animation:titleReveal .72s cubic-bezier(.16,.84,.2,1) both; }
+.sequenceDescriptor { animation:captionReveal .55s cubic-bezier(.16,.84,.2,1) both; }
 .sequenceCaption { animation:captionReveal .5s cubic-bezier(.16,.84,.2,1) both; }
+.sequenceFact { animation:valueReveal .62s cubic-bezier(.16,.84,.2,1) both; }
 .sequenceValue { animation:valueReveal .72s cubic-bezier(.16,.84,.2,1) both; }
 .artFrame { position:relative; z-index:1; display:grid; width:min(100%, 680px); height:min(70vh, 720px); place-items:end center; overflow:hidden; }
 .artImage { width:100%; height:100%; object-fit:contain; object-position:bottom center; filter:drop-shadow(0 28px 38px rgba(0,0,0,.5)) drop-shadow(0 0 30px rgba(246,196,67,.18)); }
@@ -115,12 +121,12 @@
 .layoutColumn .storyArt { min-height:88vh; background:linear-gradient(180deg, rgba(87,230,242,.15), transparent 60%); }
 .layoutImpact { grid-template-columns: 1fr; }
 .layoutImpact .storyCopy { position:absolute; right:9vw; bottom:10vh; max-width:50%; text-align:right; }
-.layoutImpact .storyCopy h2, .layoutImpact .storyCaption { margin-left:auto; }
+.layoutImpact .storyCopy h2, .layoutImpact .storyCaption, .layoutImpact .metricDescriptor { margin-left:auto; }
 .layoutImpact .artFrame { width:min(60vw, 850px); height:88vh; }
 .layoutShield { grid-template-columns: 1.15fr .85fr; }
 .layoutShield .storyCopy { padding-left:3vw; }
 .layoutNetwork .storyCopy { grid-column:2; text-align:right; }
-.layoutNetwork .storyCopy h2, .layoutNetwork .storyCaption { margin-left:auto; }
+.layoutNetwork .storyCopy h2, .layoutNetwork .storyCaption, .layoutNetwork .metricDescriptor { margin-left:auto; }
 .layoutSurvival { grid-template-columns:1fr; align-items:end; }
 .layoutSurvival .storyCopy { position:absolute; left:9vw; bottom:8vh; }
 .layoutSurvival .artFrame { width:min(50vw, 660px); height:72vh; transform:translateY(4vh); }
@@ -134,6 +140,7 @@
 .layoutSpotlight .valueBlock strong { text-shadow:0 0 42px rgba(255,92,168,.35); }
 
 .layoutImpact .valueBlock, .layoutNetwork .valueBlock { justify-items:end; }
+.layoutImpact .seasonFact, .layoutNetwork .seasonFact { justify-content:flex-end; text-align:right; }
 .layoutImpact .playerProfile, .layoutNetwork .playerProfile { justify-content:flex-end; flex-direction:row-reverse; text-align:right; }
 .layoutImpact .playerIdentity, .layoutNetwork .playerIdentity { --identity-offset:8vw; --identity-skew:7deg; right:9vw; left:auto; text-align:right; }
 .layoutImpact .playerIdentity::before, .layoutNetwork .playerIdentity::before { right:auto; left:calc(100% + .8rem); transform-origin:left; }
@@ -197,6 +204,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .scrollTrack { scroll-behavior:auto; }.sequenceEyebrow, .sequenceTitle, .sequenceCaption, .sequenceValue, .playerIdentityVisible, .playerIdentity::before, .storyActive .mapCopy, .storyActive .finaleHeading, .storyActive .artFrame, .storyActive .artworkBackdrop img, .artworkBackdrop .videoFrozen, .storyActive .counter { animation:none; }
+  .scrollTrack { scroll-behavior:auto; }.sequenceEyebrow, .sequenceTitle, .sequenceDescriptor, .sequenceCaption, .sequenceFact, .sequenceValue, .playerIdentityVisible, .playerIdentity::before, .storyActive .mapCopy, .storyActive .finaleHeading, .storyActive .artFrame, .storyActive .artworkBackdrop img, .artworkBackdrop .videoFrozen, .storyActive .counter { animation:none; }
   .playerIdentityVisible { opacity:1; transform:none; filter:none; }.playerIdentityVisible::before { opacity:1; transform:scaleX(1); }
 }
