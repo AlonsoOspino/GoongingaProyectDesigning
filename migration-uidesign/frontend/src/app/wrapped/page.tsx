@@ -385,7 +385,11 @@ function PlayerSlide({
     // The clip plays once, slowed to cover the audio phase. A five-second
     // source with a long cue sequence becomes a true slow-motion background,
     // rather than visibly looping.
-    const playbackRate = clamp(rate, 0.0625, 1);
+    // Never allow a background highlight to start at normal speed. Even while
+    // audio metadata is still resolving, it remains visibly slow; once the
+    // real total is known this becomes the exact clip-duration/audio-duration
+    // ratio (for example 5 s / 55 s = 0.09x).
+    const playbackRate = clamp(rate, 0.0625, 0.25);
     video.defaultPlaybackRate = playbackRate;
     video.playbackRate = playbackRate;
     void video.play().catch(() => undefined);
@@ -454,6 +458,8 @@ function PlayerSlide({
             playsInline
             muted
             preload={active ? "auto" : "none"}
+            onLoadedMetadata={resumeBackgroundVideo}
+            onPlay={resumeBackgroundVideo}
           />
         ) : artwork && <img src={artwork} alt="" className={flipped ? styles.artworkFlipped : undefined} />}
       </div>
@@ -461,14 +467,14 @@ function PlayerSlide({
         <PlayerProfile leader={leader} />
       </div>
       <div className={`${styles.storyCopy} ${active ? styles.storyTimeline : styles.storyWaiting}`}>
-        <p className={`${styles.eyebrow} ${revealStage >= 1 ? styles.sequenceEyebrow : styles.sequenceHidden}`}>{story.eyebrow}</p>
-        <h2 className={revealStage >= 2 ? styles.sequenceTitle : styles.sequenceHidden}>{story.title}</h2>
-        <p className={`${styles.metricDescriptor} ${revealStage >= 3 ? styles.sequenceDescriptor : styles.sequenceHidden}`}>{story.descriptor}</p>
-        <div className={styles.seasonFact}><span className={revealStage >= 4 ? styles.sequenceFact : styles.sequenceHidden}>Games played during the season</span><strong className={revealStage >= 5 ? styles.sequenceFact : styles.sequenceHidden}>{formatNumber(seasonGames)}</strong></div>
-        <p className={`${styles.statMarker} ${revealStage >= 6 ? styles.sequenceDescriptor : styles.sequenceHidden}`}>{valueLabel}</p>
-        <div className={`${styles.valueBlock} ${revealStage >= 7 ? styles.sequenceValue : styles.sequenceHidden}`}>
+        {revealStage >= 1 && <p className={`${styles.eyebrow} ${styles.sequenceEyebrow}`}>{story.eyebrow}</p>}
+        {revealStage >= 2 && <h2 className={styles.sequenceTitle}>{story.title}</h2>}
+        {revealStage >= 3 && <p className={`${styles.metricDescriptor} ${styles.sequenceDescriptor}`}>{story.descriptor}</p>}
+        {revealStage >= 4 && <div className={styles.seasonFact}><span className={styles.sequenceFact}>Games played during the season</span>{revealStage >= 5 && <strong className={styles.sequenceFact}>{formatNumber(seasonGames)}</strong>}</div>}
+        {revealStage >= 6 && <p className={`${styles.statMarker} ${styles.sequenceDescriptor}`}>{valueLabel}</p>}
+        {revealStage >= 7 && <div className={`${styles.valueBlock} ${styles.sequenceValue}`}>
           <strong>{formatNumber(displayedValue, story.decimals ?? 0)}<small>{story.suffix || ""}</small></strong>
-        </div>
+        </div>}
       </div>
       <StoryAudioSequence sources={storyAudioSources} active={active} onPlaybackChange={handleStoryAudioPlaybackChange} onComplete={handleStoryAudioComplete} />
     </section>
