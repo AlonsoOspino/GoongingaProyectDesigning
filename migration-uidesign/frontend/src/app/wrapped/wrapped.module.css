@@ -75,8 +75,9 @@
 .storyCopy { position:relative; z-index:3; display:grid; align-content:center; gap:.8rem; }
 .storyCopy h2, .mapCopy h2 { max-width:9ch; font-size:clamp(5.4rem, 9vw, 11.5rem); }
 .metricDescriptor { max-width:36rem; margin:0; color:var(--yellow); font-size:clamp(.64rem,.88vw,1rem); font-weight:900; letter-spacing:.14em; line-height:1.35; text-transform:uppercase; }
+.statMarker { margin:0; color:var(--yellow); font-size:clamp(.56rem,.68vw,.78rem); font-weight:900; letter-spacing:.18em; line-height:1.2; text-transform:uppercase; }
 .seasonFact { display:flex; align-items:baseline; gap:.7rem; margin-top:.05rem; }
-.seasonFact span { color:var(--muted); font-size:clamp(.56rem,.68vw,.76rem); font-weight:900; letter-spacing:.14em; line-height:1.25; text-transform:uppercase; }
+.seasonFact span { color:var(--cyan); font-size:clamp(.56rem,.68vw,.76rem); font-weight:900; letter-spacing:.14em; line-height:1.25; text-transform:uppercase; }
 .seasonFact strong { color:var(--cyan); font-family:var(--font-league-gothic),Impact,sans-serif; font-size:clamp(2.4rem,4vw,5rem); font-weight:400; line-height:.65; text-shadow:0 0 22px rgba(87,230,242,.18); }
 .valueBlock { display:grid; gap:.38rem; margin-top:.7rem; }
 .valueBlock strong { color:var(--ink); font-family:var(--font-league-gothic), Impact, sans-serif; font-size:clamp(5.5rem, 10vw, 13rem); font-weight:400; line-height:.72; text-shadow: 0 0 32px rgba(87,230,242,.16); }
@@ -121,12 +122,12 @@
 .layoutColumn .storyArt { min-height:88vh; background:linear-gradient(180deg, rgba(87,230,242,.15), transparent 60%); }
 .layoutImpact { grid-template-columns: 1fr; }
 .layoutImpact .storyCopy { position:absolute; right:9vw; bottom:10vh; max-width:50%; text-align:right; }
-.layoutImpact .storyCopy h2, .layoutImpact .storyCaption, .layoutImpact .metricDescriptor { margin-left:auto; }
+.layoutImpact .storyCopy h2, .layoutImpact .storyCaption, .layoutImpact .metricDescriptor, .layoutImpact .statMarker { margin-left:auto; }
 .layoutImpact .artFrame { width:min(60vw, 850px); height:88vh; }
 .layoutShield { grid-template-columns: 1.15fr .85fr; }
 .layoutShield .storyCopy { padding-left:3vw; }
 .layoutNetwork .storyCopy { grid-column:2; text-align:right; }
-.layoutNetwork .storyCopy h2, .layoutNetwork .storyCaption, .layoutNetwork .metricDescriptor { margin-left:auto; }
+.layoutNetwork .storyCopy h2, .layoutNetwork .storyCaption, .layoutNetwork .metricDescriptor, .layoutNetwork .statMarker { margin-left:auto; }
 .layoutSurvival { grid-template-columns:1fr; align-items:end; }
 .layoutSurvival .storyCopy { position:absolute; left:9vw; bottom:8vh; }
 .layoutSurvival .artFrame { width:min(50vw, 660px); height:72vh; transform:translateY(4vh); }

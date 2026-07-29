@@ -96,7 +96,7 @@ function useCountUp(target: number, active: boolean, reducedMotion: boolean, dec
   return value;
 }
 
-function useHighlightSequence(active: boolean, videoPhaseDurationMs: number, reducedMotion: boolean, forceComplete = false) {
+function useHighlightSequence(active: boolean, audioDurationMs: number, reducedMotion: boolean) {
   const [stage, setStage] = useState(0);
 
   useEffect(() => {
@@ -104,19 +104,23 @@ function useHighlightSequence(active: boolean, videoPhaseDurationMs: number, red
       setStage(0);
       return;
     }
-    if (reducedMotion || forceComplete) {
-      setStage(6);
+    if (reducedMotion) {
+      setStage(7);
       return;
     }
     setStage(0);
-    const identityPhase = Math.min(3_000, videoPhaseDurationMs);
-    const remainingPhase = Math.max(0, videoPhaseDurationMs - identityPhase);
-    const timeouts = [1, 2, 3, 4, 5, 6].map((nextStage) => window.setTimeout(
+    // The player owns the first three seconds. The remaining objects then
+    // arrive one at a time through the audio; the final counter animation
+    // occupies the extra frozen-frame 1.5 seconds.
+    const identityPhase = Math.min(3_000, audioDurationMs);
+    const fullSequenceDuration = Math.max(identityPhase, audioDurationMs);
+    const remainingPhase = Math.max(0, fullSequenceDuration - identityPhase);
+    const timeouts = [1, 2, 3, 4, 5, 6, 7].map((nextStage) => window.setTimeout(
       () => setStage(nextStage),
-      identityPhase + (remainingPhase * nextStage) / 6
+      identityPhase + (remainingPhase * (nextStage - 1)) / 6
     ));
     return () => timeouts.forEach((timeout) => window.clearTimeout(timeout));
-  }, [active, forceComplete, reducedMotion, videoPhaseDurationMs]);
+  }, [active, audioDurationMs, reducedMotion]);
 
   return stage;
 }
@@ -363,7 +367,7 @@ function PlayerSlide({
   const [videoFinished, setVideoFinished] = useState(!introVideo);
   const videoRef = useRef<HTMLVideoElement>(null);
   const storyAudioSources = assets.storyAudios[story.assetKey] || EMPTY_AUDIO_SOURCES;
-  const revealStage = useHighlightSequence(active, audioDurationMs, reducedMotion, audioSequenceCompleted);
+  const revealStage = useHighlightSequence(active, audioDurationMs, reducedMotion);
 
   const finishVideo = useCallback(() => {
     setVideoFinished(true);
@@ -377,11 +381,13 @@ function PlayerSlide({
     video.volume = 0;
     video.loop = false;
     const sourceDuration = Number.isFinite(video.duration) ? video.duration : 0;
-    const rate = sourceDuration ? sourceDuration / Math.max(audioDurationMs / 1000, 0.1) : 0.8;
+    const rate = sourceDuration ? sourceDuration / Math.max(audioDurationMs / 1000, 0.1) : 0.0625;
     // The clip plays once, slowed to cover the audio phase. A five-second
     // source with a long cue sequence becomes a true slow-motion background,
     // rather than visibly looping.
-    video.playbackRate = clamp(rate, 0.0625, 1);
+    const playbackRate = clamp(rate, 0.0625, 1);
+    video.defaultPlaybackRate = playbackRate;
+    video.playbackRate = playbackRate;
     void video.play().catch(() => undefined);
   }, [active, audioDurationMs, reducedMotion, videoFinished]);
   const freezeVideoOnLastFrame = useCallback(() => {
@@ -434,7 +440,8 @@ function PlayerSlide({
     onStoryAudioCompleted(story.id);
   }, [onStoryAudioCompleted, story.id]);
 
-  const valueRevealed = revealStage >= 6;
+  const valueRevealed = revealStage >= 7;
+  const valueLabel = story.suffix?.includes("/ 10") ? "Season average per 10 minutes" : story.suffix?.includes("K/D") ? "Season K/D record" : "Season total";
   const displayedValue = useCountUp(leader?.value || 0, valueRevealed, reducedMotion, story.decimals ?? 0);
   return (
     <section className={`${styles.slide} ${styles.playerSlide} ${styles[`layout${story.layout[0].toUpperCase()}${story.layout.slice(1)}`]}`} aria-label={story.title}>
@@ -446,10 +453,7 @@ function PlayerSlide({
             className={`${flipped ? styles.artworkFlipped : ""} ${videoFinished ? styles.videoFrozen : ""}`}
             playsInline
             muted
-            autoPlay={active && !videoFinished}
             preload={active ? "auto" : "none"}
-            onCanPlay={resumeBackgroundVideo}
-            onLoadedData={resumeBackgroundVideo}
           />
         ) : artwork && <img src={artwork} alt="" className={flipped ? styles.artworkFlipped : undefined} />}
       </div>
@@ -460,9 +464,9 @@ function PlayerSlide({
         <p className={`${styles.eyebrow} ${revealStage >= 1 ? styles.sequenceEyebrow : styles.sequenceHidden}`}>{story.eyebrow}</p>
         <h2 className={revealStage >= 2 ? styles.sequenceTitle : styles.sequenceHidden}>{story.title}</h2>
         <p className={`${styles.metricDescriptor} ${revealStage >= 3 ? styles.sequenceDescriptor : styles.sequenceHidden}`}>{story.descriptor}</p>
-        <p className={`${styles.storyCaption} ${revealStage >= 4 ? styles.sequenceCaption : styles.sequenceHidden}`}>{story.caption}</p>
-        <div className={`${styles.seasonFact} ${revealStage >= 5 ? styles.sequenceFact : styles.sequenceHidden}`}><span>Games played during the season</span><strong>{formatNumber(seasonGames)}</strong></div>
-        <div className={`${styles.valueBlock} ${revealStage >= 6 ? styles.sequenceValue : styles.sequenceHidden}`}>
+        <div className={styles.seasonFact}><span className={revealStage >= 4 ? styles.sequenceFact : styles.sequenceHidden}>Games played during the season</span><strong className={revealStage >= 5 ? styles.sequenceFact : styles.sequenceHidden}>{formatNumber(seasonGames)}</strong></div>
+        <p className={`${styles.statMarker} ${revealStage >= 6 ? styles.sequenceDescriptor : styles.sequenceHidden}`}>{valueLabel}</p>
+        <div className={`${styles.valueBlock} ${revealStage >= 7 ? styles.sequenceValue : styles.sequenceHidden}`}>
           <strong>{formatNumber(displayedValue, story.decimals ?? 0)}<small>{story.suffix || ""}</small></strong>
         </div>
       </div>
