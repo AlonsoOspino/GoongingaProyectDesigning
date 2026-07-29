@@ -769,9 +769,9 @@ function StreamBoard({ room }: { room: RoomState }) {
       <main className={clsx(styles.streamStage, styles.streamCover)}>
         <div className={styles.stageShade} />
         <div className={styles.coverContent}>
-          <div className={styles.showKicker}>GOONGINGA PRESENTA</div>
+          <div className={styles.showKicker}>GOONGINGA PRESENTS</div>
           <h1 className={styles.showTitle}>{room.title}</h1>
-          <p className={styles.showSubtitle}>{room.phase === "teamLobby" ? "Los equipos están entrando al estudio" : "El show comienza pronto"}</p>
+          <p className={styles.showSubtitle}>{room.phase === "teamLobby" ? "The teams are entering the studio" : "The show starts soon"}</p>
           <div className={styles.lobbyTeams}>
             {(["alpha", "beta"] as TeamId[]).map((teamId) => {
               const team = room.teams[teamId];
@@ -795,8 +795,8 @@ function StreamBoard({ room }: { room: RoomState }) {
     return (
       <main className={clsx(styles.streamStage, styles.duelStage)}>
         <div className={styles.stageShade} />
-        <div className={styles.roundBug}>RONDA {room.currentRound}</div>
-        <div className={styles.duelQuestion}>{question?.prompt || "Prepárense para la siguiente pregunta"}</div>
+        <div className={styles.roundBug}>ROUND {room.currentRound}</div>
+        <div className={styles.duelQuestion}>{question?.prompt || "Get ready for the next question"}</div>
         <section className={styles.duelGrid}>
           {(["alpha", "beta"] as TeamId[]).map((teamId) => {
             const participant = teamId === "alpha" ? alphaFaceoff : betaFaceoff;
@@ -804,10 +804,10 @@ function StreamBoard({ room }: { room: RoomState }) {
             return (
               <div key={teamId} className={clsx(styles.duelist, teamId === "alpha" ? styles.redSide : styles.blueSide)}>
                 <div className={styles.duelistAvatar}>
-                  <Avatar size="xl" src={participant?.profilePic ?? undefined} fallback={participant?.name || "?"} alt={participant?.name || "Sin elegir"} />
+                  <Avatar size="xl" src={participant?.profilePic ?? undefined} fallback={participant?.name || "?"} alt={participant?.name || "Not selected"} />
                 </div>
                 <span>{team.name}</span>
-                <strong>{participant?.name || "ELIGIENDO..."}</strong>
+                <strong>{participant?.name || "SELECTING..."}</strong>
               </div>
             );
           })}
@@ -825,8 +825,8 @@ function StreamBoard({ room }: { room: RoomState }) {
       <main className={clsx(styles.streamStage, styles.resultStage)}>
         <div className={styles.stageShade} />
         <div className={styles.resultContent}>
-          <div className={styles.showKicker}>RONDA {room.currentRound} COMPLETADA</div>
-          <h1 className={styles.resultTitle}>{leader ? `${leader.name} VA AL FRENTE` : "MARCADOR EMPATADO"}</h1>
+          <div className={styles.showKicker}>ROUND {room.currentRound} COMPLETE</div>
+          <h1 className={styles.resultTitle}>{leader ? `${leader.name} TAKES THE LEAD` : "TIED SCORE"}</h1>
           <div className={styles.resultScores}>
             {(["alpha", "beta"] as TeamId[]).map((teamId) => (
               <div key={teamId} className={teamId === "alpha" ? styles.redSide : styles.blueSide}>
@@ -850,7 +850,7 @@ function StreamBoard({ room }: { room: RoomState }) {
           <span>{room.teams.alpha.score}</span>
         </div>
         <div className={styles.roundPot}>
-          <small>RONDA {room.currentRound} · X{room.round.multiplier}</small>
+          <small>ROUND {room.currentRound} · X{room.round.multiplier}</small>
           <strong>{room.round.roundPoints}</strong>
         </div>
         <div className={styles.blueSide}>
@@ -861,7 +861,7 @@ function StreamBoard({ room }: { room: RoomState }) {
       </header>
 
       <section className={styles.questionCurtain}>
-        <h1>{question?.prompt || "Esperando pregunta"}</h1>
+        <h1>{question?.prompt || "Waiting for a question"}</h1>
         <div className={styles.answerBoard}>
           {Array.from({ length: MAX_BOARD_ANSWERS }).map((_, index) => {
             const answer = room.round.board[index];
@@ -875,7 +875,7 @@ function StreamBoard({ room }: { room: RoomState }) {
             );
           })}
         </div>
-        {room.round.pendingGuess ? <div className={styles.pendingPulse}>RESPUESTA RECIBIDA</div> : null}
+        {room.round.pendingGuess ? <div className={styles.pendingPulse}>ANSWER RECEIVED</div> : null}
       </section>
 
       <footer className={styles.strikeBar}>
@@ -1170,7 +1170,7 @@ export default function MinigamesPage() {
 
   const handleImportQuestions = useCallback(() => {
     if (parsedQuestionImport.length === 0) {
-      setQuestionImportFeedback("No se detectaron preguntas. Usa una pregunta y respuestas como: 1 Respuesta x10.");
+      setQuestionImportFeedback("No questions detected. Add a question followed by answers such as: 1 Answer x10.");
       return;
     }
 
@@ -1181,7 +1181,7 @@ export default function MinigamesPage() {
       answers: question.answers.map(({ word, points }) => ({ word, points })),
     })));
     setQuestionEntryMode("manual");
-    setQuestionImportFeedback(`${parsedQuestionImport.length} preguntas y ${parsedQuestionImportAnswerCount} respuestas importadas.`);
+    setQuestionImportFeedback(`${parsedQuestionImport.length} questions and ${parsedQuestionImportAnswerCount} answers imported.`);
   }, [parsedQuestionImport, parsedQuestionImportAnswerCount]);
 
   const handleCopyInvite = useCallback((token: string) => (
@@ -1235,10 +1235,10 @@ export default function MinigamesPage() {
       writeStoredRoom(updatedRoom);
       setRoom(updatedRoom);
       setSyncFeedback(null);
-      setCopyFeedback("Equipo actualizado.");
+      setCopyFeedback("Team updated.");
       window.setTimeout(() => setCopyFeedback(null), 1800);
     } catch (error) {
-      setSyncFeedback(error instanceof Error ? error.message : "No se pudo personalizar el equipo.");
+      setSyncFeedback(error instanceof Error ? error.message : "Could not customize the team.");
     }
   }, [activeTeam, captainTeamLogo, captainTeamName, inviteToken, room, token]);
 
@@ -1724,9 +1724,9 @@ export default function MinigamesPage() {
         <main className={clsx(styles.streamStage, styles.streamCover)}>
           <div className={styles.stageShade} />
           <div className={styles.coverContent}>
-            <div className={styles.showKicker}>GOONGINGA PRESENTA</div>
+            <div className={styles.showKicker}>GOONGINGA PRESENTS</div>
             <h1 className={styles.showTitle}>FAMILY FEUD</h1>
-            <p className={styles.showSubtitle}>Esperando la señal del manager</p>
+            <p className={styles.showSubtitle}>Waiting for the manager</p>
           </div>
         </main>
       );
@@ -1738,21 +1738,21 @@ export default function MinigamesPage() {
           <header className="flex items-center justify-between gap-3 border-b border-[#303a49] pb-4">
             <div>
               <div className="text-xs font-bold uppercase tracking-[0.22em] text-[#e7b958]">Goonginga · Family Feud</div>
-              <h1 className="font-display text-4xl uppercase">Acceso de jugador</h1>
+              <h1 className="font-display text-4xl uppercase">Player access</h1>
             </div>
-            <Link href="/"><Button variant="ghost">Salir</Button></Link>
+            <Link href="/"><Button variant="ghost">Exit</Button></Link>
           </header>
           <section className="mt-8 border-t-4 border-[#e7b958] bg-[#111722] p-7 text-center">
             <div className="mx-auto grid h-16 w-16 place-items-center border-2 border-[#e7b958] font-display text-3xl text-[#e7b958]">FF</div>
-            <h2 className="mt-5 font-display text-4xl uppercase">{!isAuthenticated ? "Inicia sesión para entrar" : "Enlace no disponible"}</h2>
+            <h2 className="mt-5 font-display text-4xl uppercase">{!isAuthenticated ? "Sign in to join" : "Link unavailable"}</h2>
             <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-[#9da6b5]">
               {!isAuthenticated
-                ? "Usaremos tu nombre y foto de Goonginga para mantenerte dentro del equipo incluso si cierras el navegador."
-                : "Este enlace todavía no está conectado a una partida activa. Pide al manager un enlace nuevo."}
+                ? "We use your Goonginga name and profile picture to keep you on the team even if you close your browser."
+                : "This link is not connected to an active game yet. Ask the manager for a new link."}
             </p>
             {!isAuthenticated ? (
               <Link href={`/login?next=${encodeURIComponent(loginReturnPath)}`}>
-                <Button className="mt-6">Iniciar sesión y continuar</Button>
+                <Button className="mt-6">Sign in and continue</Button>
               </Link>
             ) : null}
           </section>
@@ -1769,11 +1769,11 @@ export default function MinigamesPage() {
           <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-5 md:px-8">
             <div>
               <div className="text-xs font-bold uppercase tracking-[0.24em] text-[#e7b958]">Family Feud · Control</div>
-              <h1 className="font-display text-5xl uppercase md:text-6xl">Banco de preguntas</h1>
+              <h1 className="font-display text-5xl uppercase md:text-6xl">Question bank</h1>
             </div>
             <div className="flex items-center gap-3">
-              <span className="border border-[#e7b958]/40 bg-[#16120b] px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] text-[#f3ce7a]">Paso 1 de 5</span>
-              <Link href="/"><Button variant="ghost">Salir</Button></Link>
+              <span className="border border-[#e7b958]/40 bg-[#16120b] px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] text-[#f3ce7a]">Step 1 of 5</span>
+              <Link href="/"><Button variant="ghost">Exit</Button></Link>
             </div>
           </div>
           <div className="mx-auto grid max-w-7xl grid-cols-5 px-4 md:px-8">
@@ -1785,11 +1785,11 @@ export default function MinigamesPage() {
         <div className="mx-auto max-w-7xl px-4 py-7 md:px-8">
           <div className="flex flex-wrap items-end justify-between gap-5">
             <div>
-              <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#8e98a7]">Contenido del juego</div>
-              <h2 className="mt-2 max-w-3xl font-display text-4xl uppercase leading-none md:text-5xl">Prepara las respuestas del tablero</h2>
-              <p className="mt-4 max-w-2xl text-sm leading-6 text-[#aab2c0]">Importa la encuesta completa o edita cada pregunta. Cada respuesta conserva su frecuencia y cada ronda puede tener su propio multiplicador.</p>
+              <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#8e98a7]">Game content</div>
+              <h2 className="mt-2 max-w-3xl font-display text-4xl uppercase leading-none md:text-5xl">Set up the board answers</h2>
+              <p className="mt-4 max-w-2xl text-sm leading-6 text-[#aab2c0]">Import the full survey or edit each question. Every answer keeps its response count, and each round can have its own multiplier.</p>
             </div>
-            <Button onClick={handleCreateGame} disabled={validQuestionCount === 0}>Crear lobby · {validQuestionCount} preguntas</Button>
+            <Button onClick={handleCreateGame} disabled={validQuestionCount === 0}>Create lobby · {validQuestionCount} questions</Button>
           </div>
 
           <div className="mt-8 inline-flex border border-[#303a49] bg-[#0a0e15] p-1">
@@ -1798,21 +1798,21 @@ export default function MinigamesPage() {
               onClick={() => setQuestionEntryMode("paste")}
               className={clsx("px-5 py-2 text-sm font-bold", questionEntryMode === "paste" ? "bg-[#e7b958] text-[#171008]" : "text-[#9da6b5]")}
             >
-              Pegar encuesta
+              Paste survey
             </button>
             <button
               type="button"
               onClick={() => setQuestionEntryMode("manual")}
               className={clsx("px-5 py-2 text-sm font-bold", questionEntryMode === "manual" ? "bg-[#e7b958] text-[#171008]" : "text-[#9da6b5]")}
             >
-              Editor manual
+              Manual editor
             </button>
           </div>
 
           {questionEntryMode === "paste" ? (
             <section className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
               <div>
-                <label htmlFor="survey-question-import-v2" className="text-xs font-bold uppercase tracking-[0.2em] text-[#e7b958]">Encuesta completa</label>
+                <label htmlFor="survey-question-import-v2" className="text-xs font-bold uppercase tracking-[0.2em] text-[#e7b958]">Full survey</label>
                 <textarea
                   id="survey-question-import-v2"
                   className="mt-3 min-h-[430px] w-full resize-y border-2 border-[#303a49] bg-[#0a0e15] p-4 font-mono text-sm leading-6 text-white outline-none placeholder:text-[#596170] focus:border-[#e7b958]"
@@ -1821,16 +1821,16 @@ export default function MinigamesPage() {
                   placeholder={"Most hated\n1 Sombra x11\n2 Cat x7\n3 Moira x6\n\nHottest\n1 Widow x6\n2 Winton x5\n3 Torb x4"}
                 />
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-xs text-[#8e98a7]">Pregunta en una línea. Luego: índice, respuesta y x(cantidad).</p>
-                  <Button onClick={handleImportQuestions} disabled={!questionImport.trim()}>Importar al tablero</Button>
+                  <p className="text-xs text-[#8e98a7]">One question per line, followed by: rank, answer, and x(count).</p>
+                  <Button onClick={handleImportQuestions} disabled={!questionImport.trim()}>Import to board</Button>
                 </div>
                 {questionImportFeedback ? <p className="mt-3 text-sm font-medium text-[#e7b958]">{questionImportFeedback}</p> : null}
               </div>
 
               <aside className="border-t-4 border-[#e7b958] bg-[#111722] p-5">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#e7b958]">Lectura en vivo</div>
-                  <span className="font-mono text-xs text-[#9da6b5]">{parsedQuestionImport.length} preguntas · {parsedQuestionImportAnswerCount} respuestas</span>
+                  <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#e7b958]">Live preview</div>
+                  <span className="font-mono text-xs text-[#9da6b5]">{parsedQuestionImport.length} questions · {parsedQuestionImportAnswerCount} answers</span>
                 </div>
                 <div className="mt-5 space-y-5">
                   {parsedQuestionImport.length > 0 ? parsedQuestionImport.slice(0, 5).map((question, questionIndex) => (
@@ -1848,7 +1848,7 @@ export default function MinigamesPage() {
                     </div>
                   )) : (
                     <div className="grid min-h-72 place-items-center border border-dashed border-[#3b4656] text-center text-sm text-[#7f8998]">
-                      La vista previa aparecerá mientras escribes.
+                      A preview will appear as you type.
                     </div>
                   )}
                 </div>
@@ -1858,10 +1858,10 @@ export default function MinigamesPage() {
             <section className="mt-6">
               <div className="flex items-center justify-between gap-4 border-b border-[#303a49] pb-4">
                 <div>
-                  <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#e7b958]">Editor manual</div>
-                  <p className="mt-1 text-sm text-[#8e98a7]">{draftQuestions.length} preguntas en el juego.</p>
+                  <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#e7b958]">Manual editor</div>
+                  <p className="mt-1 text-sm text-[#8e98a7]">{draftQuestions.length} questions in this game.</p>
                 </div>
-                <Button variant="outline" onClick={handleAddDraftQuestion}>Agregar pregunta</Button>
+                <Button variant="outline" onClick={handleAddDraftQuestion}>Add question</Button>
               </div>
 
               <div className="divide-y divide-[#303a49]">
@@ -1870,33 +1870,33 @@ export default function MinigamesPage() {
                     <div className="grid gap-4 lg:grid-cols-[56px_minmax(0,1fr)_140px_auto] lg:items-end">
                       <div className="font-display text-5xl text-[#e7b958]">{String(questionIndex + 1).padStart(2, "0")}</div>
                       <Input
-                        label="Pregunta"
+                        label="Question"
                         value={question.prompt}
                         onChange={(event) => handleUpdateDraftQuestionFields(questionIndex, { prompt: event.target.value })}
-                        placeholder="Escribe la pregunta..."
+                        placeholder="Enter the question..."
                       />
                       <Input
-                        label="Multiplicador"
+                        label="Multiplier"
                         type="number"
                         min={1}
                         value={String(question.multiplier)}
                         onChange={(event) => handleUpdateDraftQuestionFields(questionIndex, { multiplier: Math.max(1, Number(event.target.value) || 1) })}
                       />
-                      <Button variant="ghost" onClick={() => handleRemoveDraftQuestion(questionIndex)} disabled={draftQuestions.length <= 1}>Eliminar</Button>
+                      <Button variant="ghost" onClick={() => handleRemoveDraftQuestion(questionIndex)} disabled={draftQuestions.length <= 1}>Remove</Button>
                     </div>
                     <div className="mt-5 grid gap-3 md:grid-cols-2">
                       {question.answers.map((answer, answerIndex) => (
                         <div key={`${question.id}-${answerIndex}`} className="grid grid-cols-[34px_minmax(0,1fr)_90px] items-center gap-2">
                           <span className="font-display text-2xl text-[#e7b958]">{answerIndex + 1}</span>
                           <input
-                            aria-label={`Respuesta ${answerIndex + 1} de pregunta ${questionIndex + 1}`}
+                            aria-label={`Answer ${answerIndex + 1} for question ${questionIndex + 1}`}
                             value={answer.word}
                             onChange={(event) => handleUpdateDraftAnswer(questionIndex, answerIndex, { word: event.target.value })}
-                            placeholder="Respuesta"
+                            placeholder="Answer"
                             className="h-11 border border-[#3a4556] bg-[#0a0e15] px-3 text-sm text-white outline-none focus:border-[#e7b958]"
                           />
                           <input
-                            aria-label={`Cantidad ${answerIndex + 1} de pregunta ${questionIndex + 1}`}
+                            aria-label={`Count ${answerIndex + 1} for question ${questionIndex + 1}`}
                             type="number"
                             min={0}
                             value={answer.points}
@@ -1910,7 +1910,7 @@ export default function MinigamesPage() {
                 ))}
               </div>
               <div className="flex justify-end border-t border-[#303a49] pt-5">
-                <Button onClick={handleCreateGame} disabled={validQuestionCount === 0}>Crear lobby · {validQuestionCount} preguntas</Button>
+                <Button onClick={handleCreateGame} disabled={validQuestionCount === 0}>Create lobby · {validQuestionCount} questions</Button>
               </div>
             </section>
           )}
@@ -1964,15 +1964,15 @@ export default function MinigamesPage() {
                 placeholder={"Most hated\n1 Sombra x11\n2 Cat x7\n3 moira x6\n\nHottest\n1 Widow x6\n2 Winton x5\n5 Domina 3x"}
               />
               <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-                <span>Formato: pregunta en una linea; respuestas como <code>1 Sombra x11</code>, <code>1 - Sombra - x11</code> o <code>5 Domina 3x</code>.</span>
+                <span>Format: one question per line; answers such as <code>1 Sombra x11</code>, <code>1 - Sombra - x11</code>, or <code>5 Domina 3x</code>.</span>
                 {questionImportFeedback ? <span className="font-medium text-primary">{questionImportFeedback}</span> : null}
               </div>
               {questionImport.trim() ? (
                 <div className="rounded-xl border border-border bg-black/25 p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Vista previa</div>
+                    <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Preview</div>
                     <div className="text-sm text-muted-foreground">
-                      {parsedQuestionImport.length} preguntas | {parsedQuestionImportAnswerCount} respuestas
+                      {parsedQuestionImport.length} questions | {parsedQuestionImportAnswerCount} answers
                     </div>
                   </div>
                   {parsedQuestionImport.length > 0 ? (
@@ -1995,12 +1995,12 @@ export default function MinigamesPage() {
                     </div>
                   ) : (
                     <div className="mt-3 rounded-lg border border-dashed border-border/60 p-3 text-sm text-muted-foreground">
-                      No hay preguntas legibles todavia.
+                      No readable questions yet.
                     </div>
                   )}
                   {parsedQuestionImport.length > 4 ? (
                     <div className="mt-3 text-xs text-muted-foreground">
-                      Se muestran 4 de {parsedQuestionImport.length} preguntas importables.
+                      Showing 4 of {parsedQuestionImport.length} importable questions.
                     </div>
                   ) : null}
                 </div>
@@ -2180,11 +2180,11 @@ export default function MinigamesPage() {
     .filter(({ answer }) => isFilledAnswer(answer) && !answer.revealed);
 
   const phaseTitle: Record<GamePhase, string> = {
-    notStarted: "Preparar el lobby",
-    teamLobby: "Equipos en el lobby",
-    choosingParticipant: "Elegir participantes",
-    playing: "Mesa de respuestas",
-    roundComplete: "Ronda completada",
+    notStarted: "Set up the lobby",
+    teamLobby: "Teams in the lobby",
+    choosingParticipant: "Choose contestants",
+    playing: "Answer desk",
+    roundComplete: "Round complete",
   };
 
   const phaseStep: Record<GamePhase, number> = {
@@ -2206,13 +2206,13 @@ export default function MinigamesPage() {
             </div>
             <div className="flex items-center gap-3">
               <span className="border border-[#e7b958]/40 bg-[#16120b] px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] text-[#f3ce7a]">
-                Paso {phaseStep[activeRoom.phase]} de 5
+                Step {phaseStep[activeRoom.phase]} of 5
               </span>
-              <Link href="/"><Button variant="ghost">Salir</Button></Link>
+              <Link href="/"><Button variant="ghost">Exit</Button></Link>
             </div>
           </div>
           <div className="mx-auto grid max-w-7xl grid-cols-5 px-4 md:px-8">
-            {["Preguntas", "Lobby", "Participantes", "Jugando", "Resultado"].map((label, index) => (
+            {["Questions", "Lobby", "Contestants", "Playing", "Results"].map((label, index) => (
               <div key={label} className={clsx(
                 "h-1",
                 index + 1 <= phaseStep[activeRoom.phase] ? "bg-[#e7b958]" : "bg-[#252b36]"
@@ -2229,29 +2229,29 @@ export default function MinigamesPage() {
             <section className="space-y-7">
               <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
                 <div>
-                  <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#e7b958]">Links de acceso</div>
+                  <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#e7b958]">Access links</div>
                   <h2 className="mt-2 max-w-3xl font-display text-4xl uppercase leading-none md:text-5xl">
-                    Lleva a ambos equipos al escenario
+                    Bring both teams to the stage
                   </h2>
                   <p className="mt-4 max-w-2xl text-sm leading-6 text-[#aab2c0]">
-                    Cada enlace está fijado a un equipo. El primer usuario de Goonginga que entre será su capitán.
+                    Each link is assigned to one team. The first Goonginga user to join becomes its captain.
                   </p>
                   <div className="mt-6 flex flex-wrap gap-3">
                     {activeRoom.phase === "notStarted" ? (
-                      <Button onClick={handleStartGameLobby}>Abrir enlaces para jugadores</Button>
+                      <Button onClick={handleStartGameLobby}>Open player links</Button>
                     ) : (
                       <Button onClick={handleStartRound} disabled={activeRoom.teams.alpha.players.length === 0 || activeRoom.teams.beta.players.length === 0}>
-                        Empezar con la pregunta 1
+                        Start with question 1
                       </Button>
                     )}
-                    <Button variant="outline" onClick={() => handleCopyLink(formatGameViewUrl("stream", activeRoom), "Link del stream")}>
-                      Copiar link del stream
+                    <Button variant="outline" onClick={() => handleCopyLink(formatGameViewUrl("stream", activeRoom), "Stream link")}>
+                      Copy stream link
                     </Button>
                   </div>
                 </div>
 
                 <div className="border-l-4 border-[#e7b958] bg-[#111722] p-5">
-                  <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#7f8998]">Estado del lobby</div>
+                  <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#7f8998]">Lobby status</div>
                   <div className="mt-4 grid grid-cols-2 gap-3">
                     {(["alpha", "beta"] as TeamId[]).map((teamId) => (
                       <div key={teamId} className={clsx("border p-4", teamId === "alpha" ? "border-[#f24f43]/50 bg-[#2a1113]" : "border-[#4fbdf0]/50 bg-[#0d2030]")}>
@@ -2259,14 +2259,14 @@ export default function MinigamesPage() {
                           <Avatar size="lg" src={activeRoom.teams[teamId].logoUrl ?? undefined} fallback={activeRoom.teams[teamId].name} alt={activeRoom.teams[teamId].name} />
                           <div className="min-w-0">
                             <div className="truncate font-display text-2xl uppercase">{activeRoom.teams[teamId].name}</div>
-                            <div className="text-xs text-[#aab2c0]">{activeRoom.teams[teamId].players.length} / {MAX_PLAYERS_PER_TEAM} jugadores</div>
+                            <div className="text-xs text-[#aab2c0]">{activeRoom.teams[teamId].players.length} / {MAX_PLAYERS_PER_TEAM} players</div>
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
                   {activeRoom.phase === "teamLobby" && (activeRoom.teams.alpha.players.length === 0 || activeRoom.teams.beta.players.length === 0) ? (
-                    <p className="mt-4 text-sm text-[#e7b958]">Necesitas al menos un jugador en cada equipo para comenzar.</p>
+                    <p className="mt-4 text-sm text-[#e7b958]">You need at least one player on each team to begin.</p>
                   ) : null}
                 </div>
               </div>
@@ -2279,7 +2279,7 @@ export default function MinigamesPage() {
                     <article key={teamId} className={clsx("border-t-4 bg-[#111722] p-5", teamId === "alpha" ? "border-[#f24f43]" : "border-[#4fbdf0]")}>
                       <div className="flex items-start justify-between gap-4">
                         <div>
-                          <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#7f8998]">Equipo {index + 1}</div>
+                          <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#7f8998]">Team {index + 1}</div>
                           <h3 className="mt-1 font-display text-4xl uppercase">{team.name}</h3>
                         </div>
                         <span className="bg-[#070b12] px-3 py-2 font-mono text-xs text-[#e7b958]">{team.inviteToken}</span>
@@ -2287,14 +2287,14 @@ export default function MinigamesPage() {
                       <div className="mt-4 overflow-hidden border border-[#2c3544] bg-[#090d14] px-3 py-3 font-mono text-xs text-[#9ca5b4]">
                         <span className="block truncate">{inviteUrl}</span>
                       </div>
-                      <Button className="mt-4" variant="outline" onClick={() => handleCopyInvite(team.inviteToken)}>Copiar enlace</Button>
+                      <Button className="mt-4" variant="outline" onClick={() => handleCopyInvite(team.inviteToken)}>Copy link</Button>
                       <div className="mt-5 grid grid-cols-5 gap-2">
                         {Array.from({ length: MAX_PLAYERS_PER_TEAM }).map((_, playerIndex) => {
                           const player = team.players[playerIndex];
                           return (
                             <div key={player?.id || playerIndex} className="grid min-w-0 justify-items-center gap-2 text-center">
                               {player ? <Avatar size="md" src={player.profilePic ?? undefined} fallback={player.name} alt={player.name} /> : <div className="h-10 w-10 border border-dashed border-[#384252]" />}
-                              <span className="w-full truncate text-[11px] text-[#aab2c0]">{player?.name || "Libre"}</span>
+                              <span className="w-full truncate text-[11px] text-[#aab2c0]">{player?.name || "Open"}</span>
                             </div>
                           );
                         })}
@@ -2309,7 +2309,7 @@ export default function MinigamesPage() {
           {activeRoom.phase === "choosingParticipant" ? (
             <section className="space-y-7">
               <div className="border-y border-[#e7b958]/40 bg-[#111722] px-5 py-6 text-center">
-                <div className="text-xs font-bold uppercase tracking-[0.22em] text-[#e7b958]">Ronda {activeRoom.currentRound} · Pregunta al aire</div>
+                <div className="text-xs font-bold uppercase tracking-[0.22em] text-[#e7b958]">Round {activeRoom.currentRound} · Question live</div>
                 <h2 className="mx-auto mt-3 max-w-5xl font-display text-4xl uppercase leading-none md:text-6xl">{currentQuestion?.prompt}</h2>
               </div>
               <div className="grid gap-6 lg:grid-cols-2">
@@ -2321,7 +2321,7 @@ export default function MinigamesPage() {
                       <div className="mb-5 flex items-center justify-between gap-3">
                         <div>
                           <div className="text-xs uppercase tracking-[0.18em] text-[#8e98a7]">{team.name}</div>
-                          <h3 className="font-display text-4xl uppercase">{selected?.name || "Elige un participante"}</h3>
+                          <h3 className="font-display text-4xl uppercase">{selected?.name || "Choose a contestant"}</h3>
                         </div>
                         <Avatar size="lg" src={selected?.profilePic ?? team.logoUrl ?? undefined} fallback={selected?.name || team.name} alt={selected?.name || team.name} />
                       </div>
@@ -2336,8 +2336,8 @@ export default function MinigamesPage() {
                 })}
               </div>
               <div className="mx-auto max-w-2xl border border-[#e7b958]/40 bg-[#15130e] p-5 text-center">
-                <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#e7b958]">¿Quién responde primero?</div>
-                <p className="mt-2 text-sm text-[#aab2c0]">Selecciona un jugador por lado y luego marca quién ganó el buzzer.</p>
+                <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#e7b958]">Who answers first?</div>
+                <p className="mt-2 text-sm text-[#aab2c0]">Choose one player from each side, then select who won the buzzer.</p>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <Button onClick={() => handleBeginFaceoff("alpha")} disabled={!canBeginFaceoff}>{activeRoom.teams.alpha.name}</Button>
                   <Button onClick={() => handleBeginFaceoff("beta")} disabled={!canBeginFaceoff}>{activeRoom.teams.beta.name}</Button>
@@ -2349,25 +2349,25 @@ export default function MinigamesPage() {
           {activeRoom.phase === "playing" ? (
             <section className="mx-auto max-w-5xl">
               <div className="text-center">
-                <div className="text-xs font-bold uppercase tracking-[0.22em] text-[#e7b958]">Ronda {activeRoom.currentRound} · {activeRoom.round.roundPoints} puntos en mesa</div>
+                <div className="text-xs font-bold uppercase tracking-[0.22em] text-[#e7b958]">Round {activeRoom.currentRound} · {activeRoom.round.roundPoints} points on the board</div>
                 <h2 className="mt-2 font-display text-4xl uppercase leading-none md:text-6xl">{currentQuestion?.prompt}</h2>
                 <p className="mt-3 text-sm text-[#aab2c0]">
-                  Responde {activeRoom.round.activeGuessTeamId ? activeRoom.teams[activeRoom.round.activeGuessTeamId].name : "el equipo activo"}.
+                  {activeRoom.round.activeGuessTeamId ? activeRoom.teams[activeRoom.round.activeGuessTeamId].name : "The active team"} answers.
                 </p>
               </div>
 
               {pendingGuess ? (
                 <div className="mt-8 border-t-4 border-[#e7b958] bg-[#111722] p-6">
-                  <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#e7b958]">Respuesta recibida</div>
+                  <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#e7b958]">Answer received</div>
                   <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
                     <div>
-                      <div className="text-sm text-[#8e98a7]">{pendingGuessPlayer?.name || activeRoom.teams[pendingGuess.teamId].name} dijo</div>
+                      <div className="text-sm text-[#8e98a7]">{pendingGuessPlayer?.name || activeRoom.teams[pendingGuess.teamId].name} said</div>
                       <div className="font-display text-5xl uppercase text-white md:text-7xl">“{pendingGuess.word}”</div>
                     </div>
                     <Badge variant={pendingGuess.teamId === "alpha" ? "danger" : "secondary"}>{activeRoom.teams[pendingGuess.teamId].name}</Badge>
                   </div>
                   <div className="mt-7">
-                    <div className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-[#8e98a7]">Escoge la respuesta correcta del tablero</div>
+                    <div className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-[#8e98a7]">Choose the matching board answer</div>
                     <div className="grid gap-3 md:grid-cols-2">
                       {hiddenAnswers.map(({ answer, index }) => {
                         const suggested = managerMatchCandidates.some((candidate) => candidate.index === index);
@@ -2388,15 +2388,15 @@ export default function MinigamesPage() {
                         );
                       })}
                     </div>
-                    <Button className="mt-5 w-full" variant="danger" onClick={handleResolveNoCoincidence}>No coincidencia · marcar X</Button>
+                    <Button className="mt-5 w-full" variant="danger" onClick={handleResolveNoCoincidence}>No match · mark an X</Button>
                   </div>
                 </div>
               ) : (
                 <div className="mt-8 grid min-h-72 place-items-center border border-[#303a49] bg-[#0d121b] p-8 text-center">
                   <div>
                     <div className="mx-auto grid h-16 w-16 place-items-center border-2 border-[#e7b958] font-display text-4xl text-[#e7b958]">?</div>
-                    <h3 className="mt-5 font-display text-4xl uppercase">Esperando una respuesta</h3>
-                    <p className="mt-2 text-sm text-[#8e98a7]">La respuesta del jugador aparecerá aquí para que la confirmes.</p>
+                    <h3 className="mt-5 font-display text-4xl uppercase">Waiting for an answer</h3>
+                    <p className="mt-2 text-sm text-[#8e98a7]">The player&apos;s answer will appear here for you to confirm.</p>
                   </div>
                 </div>
               )}
@@ -2405,8 +2405,8 @@ export default function MinigamesPage() {
 
           {activeRoom.phase === "roundComplete" ? (
             <section className="mx-auto max-w-5xl text-center">
-              <div className="text-xs font-bold uppercase tracking-[0.22em] text-[#e7b958]">Ronda {activeRoom.currentRound} terminada</div>
-              <h2 className="mt-2 font-display text-6xl uppercase md:text-8xl">Marcador</h2>
+              <div className="text-xs font-bold uppercase tracking-[0.22em] text-[#e7b958]">Round {activeRoom.currentRound} complete</div>
+              <h2 className="mt-2 font-display text-6xl uppercase md:text-8xl">Scoreboard</h2>
               <div className="mt-8 grid gap-5 md:grid-cols-2">
                 {(["alpha", "beta"] as TeamId[]).map((teamId) => (
                   <div key={teamId} className={clsx("border-t-4 bg-[#111722] p-7", teamId === "alpha" ? "border-[#f24f43]" : "border-[#4fbdf0]")}>
@@ -2417,7 +2417,7 @@ export default function MinigamesPage() {
                 ))}
               </div>
               <div className="mx-auto mt-7 max-w-2xl border border-[#303a49] bg-[#0d121b] p-5">
-                <label className="block text-left text-xs font-bold uppercase tracking-[0.18em] text-[#8e98a7]" htmlFor="next-question">Siguiente pregunta</label>
+                <label className="block text-left text-xs font-bold uppercase tracking-[0.18em] text-[#8e98a7]" htmlFor="next-question">Next question</label>
                 <select
                   id="next-question"
                   className="mt-2 w-full border border-[#3a4556] bg-[#080c13] px-3 py-3 text-white"
@@ -2426,7 +2426,7 @@ export default function MinigamesPage() {
                 >
                   {activeRoom.questions.map((question, index) => <option key={question.id} value={index}>{index + 1}. {question.prompt}</option>)}
                 </select>
-                <Button className="mt-4 w-full" onClick={handleStartRound}>Preparar siguiente ronda</Button>
+                <Button className="mt-4 w-full" onClick={handleStartRound}>Set up next round</Button>
               </div>
             </section>
           ) : null}
@@ -2443,7 +2443,7 @@ export default function MinigamesPage() {
         <header className={clsx("border-b-4 bg-[#0d111a]", activeTeam === "alpha" ? "border-[#f24f43]" : "border-[#4fbdf0]")}>
           <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-4 py-4">
             <div className="min-w-0">
-              <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#e7b958]">Family Feud · Jugador</div>
+              <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#e7b958]">Family Feud · Player</div>
               <h1 className="truncate font-display text-4xl uppercase">{team?.name || activeRoom.title}</h1>
             </div>
             {team ? <Avatar size="lg" src={team.logoUrl ?? undefined} fallback={team.name} alt={team.name} /> : null}
@@ -2455,15 +2455,15 @@ export default function MinigamesPage() {
           {copyFeedback ? <div className="mb-5 border border-success/40 bg-success/10 px-4 py-3 text-sm text-success">{copyFeedback}</div> : null}
 
           {!activeInviteTarget ? (
-            <div className="border border-danger/40 bg-danger/10 p-6 text-center text-danger">Este enlace no pertenece a ningún equipo.</div>
+            <div className="border border-danger/40 bg-danger/10 p-6 text-center text-danger">This link does not belong to a team.</div>
           ) : null}
 
           {activeInviteTarget && activeRoom.phase === "notStarted" ? (
             <section className="grid min-h-[65vh] place-items-center text-center">
               <div>
                 <div className="mx-auto grid h-20 w-20 place-items-center border-2 border-[#e7b958] font-display text-5xl text-[#e7b958]">FF</div>
-                <h2 className="mt-6 font-display text-5xl uppercase">El lobby aún está cerrado</h2>
-                <p className="mt-3 text-[#9da6b5]">Quédate aquí. La pantalla cambiará cuando el manager abra los equipos.</p>
+                <h2 className="mt-6 font-display text-5xl uppercase">The lobby is still closed</h2>
+                <p className="mt-3 text-[#9da6b5]">Stay on this page. It will update when the manager opens the teams.</p>
               </div>
             </section>
           ) : null}
@@ -2473,55 +2473,55 @@ export default function MinigamesPage() {
               {!activeIdentity ? (
                 <div className="border-t-4 border-[#e7b958] bg-[#111722] p-6">
                   <div className="flex items-center gap-4">
-                    <Avatar size="xl" src={currentMember?.profilePic ?? undefined} fallback={currentMember?.nickname || "?"} alt={currentMember?.nickname || "Usuario"} />
+                    <Avatar size="xl" src={currentMember?.profilePic ?? undefined} fallback={currentMember?.nickname || "?"} alt={currentMember?.nickname || "User"} />
                     <div>
-                      <div className="text-xs font-bold uppercase tracking-[0.18em] text-[#e7b958]">Tu cuenta de Goonginga</div>
-                      <h2 className="font-display text-4xl uppercase">{currentMember?.nickname || "Inicia sesión"}</h2>
+                      <div className="text-xs font-bold uppercase tracking-[0.18em] text-[#e7b958]">Your Goonginga account</div>
+                      <h2 className="font-display text-4xl uppercase">{currentMember?.nickname || "Sign in"}</h2>
                     </div>
                   </div>
                   {activeInviteTeamIsEmpty ? (
                     <div className="mt-6">
-                      <Input label="Nombre del equipo" value={captainTeamName} onChange={(event) => setCaptainTeamName(event.target.value)} placeholder="Elige un nombre" />
-                      <p className="mt-2 text-xs text-[#9da6b5]">Serás el capitán por ser el primero en entrar.</p>
+                      <Input label="Team name" value={captainTeamName} onChange={(event) => setCaptainTeamName(event.target.value)} placeholder="Choose a name" />
+                      <p className="mt-2 text-xs text-[#9da6b5]">You will be captain because you are the first player to join.</p>
                     </div>
                   ) : (
-                    <p className="mt-6 text-sm text-[#aab2c0]">Vas a entrar a {team?.name}. Tu nombre y foto vienen de tu perfil.</p>
+                    <p className="mt-6 text-sm text-[#aab2c0]">You are joining {team?.name}. Your name and picture come from your profile.</p>
                   )}
-                  <Button className="mt-6 w-full" onClick={handleJoinTeam} disabled={!canJoin}>Unirme al equipo</Button>
+                  <Button className="mt-6 w-full" onClick={handleJoinTeam} disabled={!canJoin}>Join team</Button>
                 </div>
               ) : (
                 <div className="space-y-6">
                   <div className="border-t-4 border-[#e7b958] bg-[#111722] p-6">
                     <div className="flex items-center gap-4">
-                      <Avatar size="xl" src={activeIdentityParticipant?.profilePic ?? undefined} fallback={activeIdentityParticipant?.name || "?"} alt={activeIdentityParticipant?.name || "Jugador"} />
+                      <Avatar size="xl" src={activeIdentityParticipant?.profilePic ?? undefined} fallback={activeIdentityParticipant?.name || "?"} alt={activeIdentityParticipant?.name || "Player"} />
                       <div>
-                        <div className="text-xs font-bold uppercase tracking-[0.18em] text-success">Conectado</div>
+                        <div className="text-xs font-bold uppercase tracking-[0.18em] text-success">Connected</div>
                         <h2 className="font-display text-4xl uppercase">{activeIdentityParticipant?.name}</h2>
-                        <p className="text-sm text-[#9da6b5]">{activeUserIsCaptain ? "Capitán del equipo" : "Miembro del equipo"}</p>
+                        <p className="text-sm text-[#9da6b5]">{activeUserIsCaptain ? "Team captain" : "Team member"}</p>
                       </div>
                     </div>
                   </div>
 
                   {activeUserIsCaptain ? (
                     <div className="border border-[#303a49] bg-[#0d121b] p-6">
-                      <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#e7b958]">Personaliza tu equipo</div>
+                      <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#e7b958]">Customize your team</div>
                       <div className="mt-5 space-y-5">
-                        <Input label="Nombre" value={captainTeamName} onChange={(event) => setCaptainTeamName(event.target.value)} />
+                        <Input label="Name" value={captainTeamName} onChange={(event) => setCaptainTeamName(event.target.value)} />
                         <ImageUploadField
                           label="Logo"
                           value={captainTeamLogo}
                           onChange={setCaptainTeamLogo}
                           type="logo"
-                          previewAlt={`Logo de ${team?.name || "equipo"}`}
-                          placeholder="Pega una URL o sube una imagen"
+                          previewAlt={`${team?.name || "Team"} logo`}
+                          placeholder="Paste a URL or upload an image"
                         />
-                        <Button className="w-full" onClick={handleCustomizeTeam} disabled={!captainTeamName.trim()}>Guardar equipo</Button>
+                        <Button className="w-full" onClick={handleCustomizeTeam} disabled={!captainTeamName.trim()}>Save team</Button>
                       </div>
                     </div>
                   ) : null}
 
                   <div>
-                    <div className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-[#8e98a7]">Tu equipo · {team?.players.length}/{MAX_PLAYERS_PER_TEAM}</div>
+                    <div className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-[#8e98a7]">Your team · {team?.players.length}/{MAX_PLAYERS_PER_TEAM}</div>
                     <div className="grid gap-2 sm:grid-cols-2">
                       {team?.players.map((player) => (
                         <div key={player.id} className="flex items-center gap-3 border border-[#303a49] bg-[#111722] p-3">
@@ -2540,14 +2540,14 @@ export default function MinigamesPage() {
           {activeInviteTarget && activeRoom.phase === "choosingParticipant" ? (
             <section className="grid min-h-[65vh] place-items-center text-center">
               <div className="w-full max-w-2xl">
-                <div className="text-xs font-bold uppercase tracking-[0.22em] text-[#e7b958]">Ronda {activeRoom.currentRound}</div>
+                <div className="text-xs font-bold uppercase tracking-[0.22em] text-[#e7b958]">Round {activeRoom.currentRound}</div>
                 <h2 className="mt-3 font-display text-5xl uppercase leading-none md:text-7xl">{currentQuestion?.prompt}</h2>
                 <div className={clsx("mx-auto mt-9 flex max-w-md items-center gap-4 border p-5", selectedParticipant ? "border-[#e7b958] bg-[#17140d]" : "border-[#303a49] bg-[#111722]")}>
-                  <Avatar size="xl" src={selectedParticipant?.profilePic ?? team?.logoUrl ?? undefined} fallback={selectedParticipant?.name || team?.name || "?"} alt={selectedParticipant?.name || "Esperando"} />
+                  <Avatar size="xl" src={selectedParticipant?.profilePic ?? team?.logoUrl ?? undefined} fallback={selectedParticipant?.name || team?.name || "?"} alt={selectedParticipant?.name || "Waiting"} />
                   <div className="text-left">
-                    <div className="text-xs uppercase tracking-[0.18em] text-[#8e98a7]">Representante de tu equipo</div>
-                    <div className="font-display text-4xl uppercase">{selectedParticipant?.name || "El manager está eligiendo"}</div>
-                    {selectedParticipant?.id === activeIdentityParticipant?.id ? <div className="mt-1 text-sm font-bold text-[#e7b958]">Prepárate: eres tú.</div> : null}
+                    <div className="text-xs uppercase tracking-[0.18em] text-[#8e98a7]">Your team&apos;s contestant</div>
+                    <div className="font-display text-4xl uppercase">{selectedParticipant?.name || "The manager is choosing"}</div>
+                    {selectedParticipant?.id === activeIdentityParticipant?.id ? <div className="mt-1 text-sm font-bold text-[#e7b958]">Get ready: it&apos;s you.</div> : null}
                   </div>
                 </div>
               </div>
@@ -2557,11 +2557,11 @@ export default function MinigamesPage() {
           {activeInviteTarget && activeRoom.phase === "playing" ? (
             <section className="grid min-h-[65vh] place-items-center">
               <div className="w-full max-w-2xl text-center">
-                <div className="text-xs font-bold uppercase tracking-[0.22em] text-[#e7b958]">Ronda {activeRoom.currentRound} · {activeRoom.round.roundPoints} puntos</div>
+                <div className="text-xs font-bold uppercase tracking-[0.22em] text-[#e7b958]">Round {activeRoom.currentRound} · {activeRoom.round.roundPoints} points</div>
                 <h2 className="mt-3 font-display text-4xl uppercase leading-none md:text-6xl">{currentQuestion?.prompt}</h2>
                 {userCanSubmitAnswer ? (
                   <div className="mt-9 border-t-4 border-[#e7b958] bg-[#111722] p-6 text-left">
-                    <label htmlFor="player-answer" className="text-xs font-bold uppercase tracking-[0.2em] text-[#e7b958]">Tu respuesta</label>
+                    <label htmlFor="player-answer" className="text-xs font-bold uppercase tracking-[0.2em] text-[#e7b958]">Your answer</label>
                     <input
                       id="player-answer"
                       value={playerGuess}
@@ -2572,7 +2572,7 @@ export default function MinigamesPage() {
                           setPlayerGuess("");
                         }
                       }}
-                      placeholder="Escribe lo primero que piensas..."
+                      placeholder="Type the first thing that comes to mind..."
                       autoComplete="off"
                       className="mt-3 h-16 w-full border-2 border-[#e7b958] bg-[#070b12] px-4 font-display text-3xl uppercase text-white placeholder:text-[#596170] focus:outline-none"
                     />
@@ -2585,14 +2585,14 @@ export default function MinigamesPage() {
                         setPlayerGuess("");
                       }}
                     >
-                      Enviar respuesta
+                      Submit answer
                     </Button>
                   </div>
                 ) : (
                   <div className="mt-9 border border-[#303a49] bg-[#111722] p-7">
-                    <div className="font-display text-4xl uppercase">{pendingGuess ? "Respuesta enviada" : "Espera tu turno"}</div>
+                    <div className="font-display text-4xl uppercase">{pendingGuess ? "Answer submitted" : "Wait for your turn"}</div>
                     <p className="mt-2 text-sm text-[#9da6b5]">
-                      {pendingGuess ? "El manager está comparándola con el tablero." : `${activeRoom.round.activeGuessTeamId ? activeRoom.teams[activeRoom.round.activeGuessTeamId].name : "El otro equipo"} está respondiendo.`}
+                      {pendingGuess ? "The manager is comparing it with the board." : `${activeRoom.round.activeGuessTeamId ? activeRoom.teams[activeRoom.round.activeGuessTeamId].name : "The other team"} is answering.`}
                     </p>
                   </div>
                 )}
@@ -2603,8 +2603,8 @@ export default function MinigamesPage() {
           {activeInviteTarget && activeRoom.phase === "roundComplete" ? (
             <section className="grid min-h-[65vh] place-items-center text-center">
               <div className="w-full max-w-xl">
-                <div className="text-xs font-bold uppercase tracking-[0.22em] text-[#e7b958]">Ronda {activeRoom.currentRound} completada</div>
-                <h2 className="mt-3 font-display text-6xl uppercase">Marcador</h2>
+                <div className="text-xs font-bold uppercase tracking-[0.22em] text-[#e7b958]">Round {activeRoom.currentRound} complete</div>
+                <h2 className="mt-3 font-display text-6xl uppercase">Scoreboard</h2>
                 <div className="mt-7 grid grid-cols-2 gap-3">
                   {(["alpha", "beta"] as TeamId[]).map((teamId) => (
                     <div key={teamId} className={clsx("border-t-4 bg-[#111722] p-5", teamId === "alpha" ? "border-[#f24f43]" : "border-[#4fbdf0]")}>
@@ -2613,7 +2613,7 @@ export default function MinigamesPage() {
                     </div>
                   ))}
                 </div>
-                <p className="mt-6 text-sm text-[#9da6b5]">La siguiente ronda aparecerá automáticamente.</p>
+                <p className="mt-6 text-sm text-[#9da6b5]">The next round will appear automatically.</p>
               </div>
             </section>
           ) : null}
