@@ -51,7 +51,7 @@ export async function uploadMediaToBlob(file: File, type: BlobMediaType, token: 
 
   const blob = await upload(`wrapped/${type}/${Date.now()}-${basename}.${extension}`, file, {
     access: "public",
-    handleUploadUrl: "/api/upload/client",
+    handleUploadUrl: "/api/upload",
     clientPayload: JSON.stringify({ type }),
     headers: { Authorization: `Bearer ${token}` },
     // Sends the bytes from the browser directly to Blob, avoiding the platform

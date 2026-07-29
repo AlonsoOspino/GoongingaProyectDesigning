@@ -247,7 +247,7 @@ export function WrappedManagementPanel({ token }: { token: string }) {
                         videos: { ...current.videos, [field.key]: url },
                       }))}
                       placeholder="Upload a 15-second maximum video or paste its URL"
-                      hint="Use a clip shorter than 15 seconds so its final frame can hold and zoom."
+                      hint="Use MP4 (H.264 + AAC) or WebM, under 15 seconds, so the final frame can hold and zoom in every browser/OBS source."
                     />
                     <Select
                       label="Mirror video horizontally"

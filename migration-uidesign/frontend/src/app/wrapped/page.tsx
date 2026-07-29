@@ -41,6 +41,8 @@ type Story = PlayerStory | MapStory | { id: "finale"; kind: "finale" };
 const CINEMATIC_STORY_DURATION_MS = 15_000;
 const STANDARD_STORY_DURATION_MS = 4000;
 const EMPTY_AUDIO_SOURCES: string[] = [];
+const MUSIC_HIGHLIGHT_VOLUME = 0.38;
+const MUSIC_RESTING_VOLUME = 0.65;
 
 function formatNumber(value: number | null | undefined, decimals = 0) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "—";
@@ -310,7 +312,7 @@ function PlayerSlide({
           <strong>{formatNumber(displayedValue, story.decimals ?? 0)}<small>{story.suffix || ""}</small></strong>
         </div>
       </div>
-      <StoryAudioSequence sources={storyAudioSources} active={revealed} onPlaybackChange={handleStoryAudioPlaybackChange} />
+      <StoryAudioSequence sources={storyAudioSources} active={active} onPlaybackChange={handleStoryAudioPlaybackChange} />
     </section>
   );
 }
@@ -471,11 +473,13 @@ export default function WrappedPage() {
     general.loop = true;
     void general.play().catch(() => undefined);
     const activeStory = activeIndex > 0 ? stories[activeIndex - 1] : null;
-    const isVideoIntroduction = activeStory?.kind === "player" && Boolean(media.videos[activeStory.assetKey]);
+    const isPlayerHighlight = activeStory?.kind === "player";
     const isStoryAudioPlaying = activeStory?.kind === "player" && storyAudioPlayingId === activeStory.id;
-    const targetVolume = isStoryAudioPlaying ? 0 : isVideoIntroduction && completedVideoStoryId !== activeStory?.id ? 1 : 0.5;
-    return fadeAudio(general, targetVolume, isStoryAudioPlaying ? 420 : 650);
-  }, [activeIndex, completedVideoStoryId, media?.soundtrack.general, media?.videos, started, stories, storyAudioPlayingId]);
+    const targetVolume = isStoryAudioPlaying || (isPlayerHighlight && completedVideoStoryId !== activeStory.id)
+      ? MUSIC_HIGHLIGHT_VOLUME
+      : MUSIC_RESTING_VOLUME;
+    return fadeAudio(general, targetVolume, isStoryAudioPlaying ? 360 : 650);
+  }, [activeIndex, completedVideoStoryId, media?.soundtrack.general, started, stories, storyAudioPlayingId]);
 
   useEffect(() => {
     setCompletedVideoStoryId(null);
