@@ -38,11 +38,16 @@ type MapStory = {
 
 type Story = PlayerStory | MapStory | { id: "finale"; kind: "finale" };
 
-const CINEMATIC_STORY_DURATION_MS = 15_000;
 const STANDARD_STORY_DURATION_MS = 4000;
 const EMPTY_AUDIO_SOURCES: string[] = [];
 const MUSIC_HIGHLIGHT_VOLUME = 0.38;
 const MUSIC_RESTING_VOLUME = 0.65;
+const DEFAULT_AUDIO_DURATION_MS = 12_500;
+const FINAL_FRAME_DURATION_MS = 2_500;
+const CUE_TARGET_RMS = 0.24;
+const CUE_MIN_GAIN = 1.3;
+const CUE_MAX_GAIN = 2.5;
+const audioGainCache = new Map<string, Promise<number>>();
 
 function formatNumber(value: number | null | undefined, decimals = 0) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "—";
@@ -92,23 +97,29 @@ function useCountUp(target: number, active: boolean, reducedMotion: boolean, dec
   return value;
 }
 
-function useDelayedReveal(active: boolean, delayMs: number, reducedMotion: boolean) {
-  const [visible, setVisible] = useState(false);
+function useHighlightSequence(active: boolean, videoPhaseDurationMs: number, reducedMotion: boolean) {
+  const [stage, setStage] = useState(0);
 
   useEffect(() => {
     if (!active) {
-      setVisible(false);
+      setStage(0);
       return;
     }
     if (reducedMotion) {
-      setVisible(true);
+      setStage(4);
       return;
     }
-    const timeout = window.setTimeout(() => setVisible(true), delayMs);
-    return () => window.clearTimeout(timeout);
-  }, [active, delayMs, reducedMotion]);
+    setStage(0);
+    const identityPhase = Math.min(3_000, videoPhaseDurationMs);
+    const remainingPhase = Math.max(0, videoPhaseDurationMs - identityPhase);
+    const timeouts = [1, 2, 3, 4].map((nextStage) => window.setTimeout(
+      () => setStage(nextStage),
+      identityPhase + (remainingPhase * nextStage) / 4
+    ));
+    return () => timeouts.forEach((timeout) => window.clearTimeout(timeout));
+  }, [active, reducedMotion, videoPhaseDurationMs]);
 
-  return visible;
+  return stage;
 }
 
 function fadeAudio(audio: HTMLAudioElement, targetVolume: number, durationMs: number) {
@@ -122,6 +133,75 @@ function fadeAudio(audio: HTMLAudioElement, targetVolume: number, durationMs: nu
   };
   frame = requestAnimationFrame(tick);
   return () => cancelAnimationFrame(frame);
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function getNormalizedCueGain(url: string, context: AudioContext) {
+  const cached = audioGainCache.get(url);
+  if (cached) return cached;
+
+  const gain = fetch(url)
+    .then((response) => {
+      if (!response.ok) throw new Error("Unable to analyse cue audio.");
+      return response.arrayBuffer();
+    })
+    .then((buffer) => context.decodeAudioData(buffer))
+    .then((buffer) => {
+      let sumSquares = 0;
+      let sampleCount = 0;
+      for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
+        const data = buffer.getChannelData(channel);
+        const step = Math.max(1, Math.floor(data.length / 48_000));
+        for (let index = 0; index < data.length; index += step) {
+          sumSquares += data[index] * data[index];
+          sampleCount += 1;
+        }
+      }
+      const rms = sampleCount ? Math.sqrt(sumSquares / sampleCount) : 0;
+      return clamp(CUE_TARGET_RMS / Math.max(rms, 0.02), CUE_MIN_GAIN, CUE_MAX_GAIN);
+    })
+    .catch(() => CUE_MIN_GAIN);
+  audioGainCache.set(url, gain);
+  return gain;
+}
+
+function useStoryAudioDurations(storyAudios: Partial<Record<WrappedAssetKey, string[]>> | undefined) {
+  const [durations, setDurations] = useState<Partial<Record<WrappedAssetKey, number>>>({});
+  const sourcesKey = useMemo(() => JSON.stringify(storyAudios || {}), [storyAudios]);
+
+  useEffect(() => {
+    const entries = Object.entries(storyAudios || {}) as Array<[WrappedAssetKey, string[]]>;
+    if (!entries.length) {
+      setDurations({});
+      return;
+    }
+    let cancelled = false;
+    const getDuration = (source: string) => new Promise<number>((resolve) => {
+      const audio = new Audio();
+      const timeout = window.setTimeout(() => resolve(0), 8_000);
+      audio.preload = "metadata";
+      audio.onloadedmetadata = () => {
+        window.clearTimeout(timeout);
+        resolve(Number.isFinite(audio.duration) ? audio.duration : 0);
+      };
+      audio.onerror = () => {
+        window.clearTimeout(timeout);
+        resolve(0);
+      };
+      audio.src = source;
+    });
+
+    void Promise.all(entries.map(async ([key, sources]) => [key, (await Promise.all(sources.map(getDuration))).reduce((total, duration) => total + duration, 0)] as const))
+      .then((nextEntries) => {
+        if (!cancelled) setDurations(Object.fromEntries(nextEntries));
+      });
+    return () => { cancelled = true; };
+  }, [sourcesKey, storyAudios]);
+
+  return durations;
 }
 
 function TeamTile({ team, index }: { team: GoongingaWrapped["snapshot"]["overview"]["teams"][number]; index: number }) {
@@ -204,18 +284,58 @@ function StoryAudioSequence({ sources, active, onPlaybackChange }: { sources: st
 
     let cancelled = false;
     let current: HTMLAudioElement | null = null;
+    let currentSource: MediaElementAudioSourceNode | null = null;
+    let currentGain: GainNode | null = null;
     let index = 0;
+    const context = window.AudioContext ? new AudioContext() : null;
+    const compressor = context?.createDynamicsCompressor();
+    if (compressor && context) {
+      compressor.threshold.value = -18;
+      compressor.knee.value = 12;
+      compressor.ratio.value = 8;
+      compressor.attack.value = 0.008;
+      compressor.release.value = 0.18;
+      compressor.connect(context.destination);
+    }
+
+    const disconnectCurrent = () => {
+      currentSource?.disconnect();
+      currentGain?.disconnect();
+      currentSource = null;
+      currentGain = null;
+    };
     const playNext = async () => {
       if (cancelled) return;
       if (index >= sources.length) {
         onPlaybackChange(false);
         return;
       }
-      current = new Audio(sources[index]);
+      disconnectCurrent();
+      const sourceUrl = sources[index];
+      current = new Audio();
+      current.crossOrigin = "anonymous";
+      current.src = sourceUrl;
       index += 1;
       current.preload = "auto";
       current.onended = playNext;
       try {
+        if (context && compressor) {
+          try {
+            const gainNode = context.createGain();
+            currentSource = context.createMediaElementSource(current);
+            currentGain = gainNode;
+            gainNode.gain.value = CUE_MIN_GAIN;
+            currentSource.connect(gainNode).connect(compressor);
+            void getNormalizedCueGain(sourceUrl, context).then((gain) => {
+              if (!cancelled && currentGain === gainNode) gainNode.gain.setTargetAtTime(gain, context.currentTime, 0.16);
+            });
+            await context.resume();
+          } catch {
+            // Keep the cue playable if a third-party URL does not allow the
+            // Web Audio graph. Blob-hosted assets use the normalized path.
+            current.volume = 1;
+          }
+        }
         await current.play();
         if (!cancelled) onPlaybackChange(true);
       } catch {
@@ -230,6 +350,8 @@ function StoryAudioSequence({ sources, active, onPlaybackChange }: { sources: st
         current.onended = null;
         current.pause();
       }
+      disconnectCurrent();
+      void context?.close();
       onPlaybackChange(false);
     };
   }, [active, onPlaybackChange, sources]);
@@ -242,6 +364,7 @@ function PlayerSlide({
   wrapped,
   active,
   reducedMotion,
+  audioDurationMs,
   onVideoFinished,
   onStoryAudioPlaybackChange,
 }: {
@@ -249,6 +372,7 @@ function PlayerSlide({
   wrapped: GoongingaWrapped;
   active: boolean;
   reducedMotion: boolean;
+  audioDurationMs: number;
   onVideoFinished: (storyId: string) => void;
   onStoryAudioPlaybackChange: (storyId: string, playing: boolean) => void;
 }) {
@@ -260,6 +384,12 @@ function PlayerSlide({
   const [videoFinished, setVideoFinished] = useState(!introVideo);
   const videoRef = useRef<HTMLVideoElement>(null);
   const storyAudioSources = assets.storyAudios[story.assetKey] || EMPTY_AUDIO_SOURCES;
+  const revealStage = useHighlightSequence(active, audioDurationMs, reducedMotion);
+
+  const finishVideo = useCallback(() => {
+    setVideoFinished(true);
+    onVideoFinished(story.id);
+  }, [onVideoFinished, story.id]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -271,21 +401,46 @@ function PlayerSlide({
 
     setVideoFinished(false);
     if (!active || !video) return;
-    video.currentTime = 0;
-    void video.play().catch(() => undefined);
-    return () => video.pause();
-  }, [active, introVideo, onVideoFinished, reducedMotion, story.id]);
+    let finishTimeout = 0;
+    let finished = false;
+    const finishOnSeek = () => finishVideo();
+    const freezeOnLastFrame = () => {
+      if (finished) return;
+      finished = true;
+      video.pause();
+      const lastFrame = Number.isFinite(video.duration) && video.duration > 0 ? Math.max(0, video.duration - 0.04) : 0;
+      if (lastFrame && Math.abs(video.currentTime - lastFrame) > 0.03) {
+        video.addEventListener("seeked", finishOnSeek, { once: true });
+        video.currentTime = lastFrame;
+      } else {
+        finishVideo();
+      }
+    };
+    const playVideo = () => {
+      const sourceDuration = Number.isFinite(video.duration) ? video.duration : 0;
+      const requestedRate = sourceDuration ? sourceDuration / Math.max(audioDurationMs / 1000, 0.1) : 0.86;
+      // Keep the background cinematic: it can slow down to meet the cue
+      // timeline, but never accelerates beyond normal speed.
+      video.playbackRate = clamp(requestedRate, 0.55, 0.92);
+      video.currentTime = 0;
+      void video.play().catch(() => undefined);
+    };
 
-  const finishVideo = useCallback(() => {
-    setVideoFinished(true);
-    onVideoFinished(story.id);
-  }, [onVideoFinished, story.id]);
+    if (video.readyState >= 1) playVideo();
+    else video.addEventListener("loadedmetadata", playVideo, { once: true });
+    finishTimeout = window.setTimeout(freezeOnLastFrame, audioDurationMs);
+    return () => {
+      window.clearTimeout(finishTimeout);
+      video.removeEventListener("loadedmetadata", playVideo);
+      video.removeEventListener("seeked", finishOnSeek);
+      video.pause();
+    };
+  }, [active, audioDurationMs, finishVideo, introVideo, onVideoFinished, reducedMotion, story.id]);
   const handleStoryAudioPlaybackChange = useCallback((playing: boolean) => {
     onStoryAudioPlaybackChange(story.id, playing);
   }, [onStoryAudioPlaybackChange, story.id]);
 
-  const revealed = active && (reducedMotion || !introVideo || videoFinished);
-  const valueRevealed = useDelayedReveal(revealed, 850, reducedMotion);
+  const valueRevealed = revealStage >= 4;
   const displayedValue = useCountUp(leader?.value || 0, valueRevealed, reducedMotion, story.decimals ?? 0);
   return (
     <section className={`${styles.slide} ${styles.playerSlide} ${styles[`layout${story.layout[0].toUpperCase()}${story.layout.slice(1)}`]}`} aria-label={story.title}>
@@ -297,18 +452,17 @@ function PlayerSlide({
             className={`${flipped ? styles.artworkFlipped : ""} ${videoFinished ? styles.videoFrozen : ""}`}
             playsInline
             preload="auto"
-            onEnded={finishVideo}
           />
         ) : artwork && <img src={artwork} alt="" className={flipped ? styles.artworkFlipped : undefined} />}
       </div>
       <div className={`${styles.playerIdentity} ${active ? styles.playerIdentityVisible : ""}`}>
         <PlayerProfile leader={leader} />
       </div>
-      <div className={`${styles.storyCopy} ${revealed ? styles.storyRevealed : styles.storyWaiting}`}>
-        <p className={styles.eyebrow}>{story.eyebrow}</p>
-        <h2>{story.title}</h2>
-        <p className={styles.storyCaption}>{story.caption}</p>
-        <div className={styles.valueBlock}>
+      <div className={`${styles.storyCopy} ${active ? styles.storyTimeline : styles.storyWaiting}`}>
+        <p className={`${styles.eyebrow} ${revealStage >= 1 ? styles.sequenceEyebrow : styles.sequenceHidden}`}>{story.eyebrow}</p>
+        <h2 className={revealStage >= 2 ? styles.sequenceTitle : styles.sequenceHidden}>{story.title}</h2>
+        <p className={`${styles.storyCaption} ${revealStage >= 3 ? styles.sequenceCaption : styles.sequenceHidden}`}>{story.caption}</p>
+        <div className={`${styles.valueBlock} ${revealStage >= 4 ? styles.sequenceValue : styles.sequenceHidden}`}>
           <strong>{formatNumber(displayedValue, story.decimals ?? 0)}<small>{story.suffix || ""}</small></strong>
         </div>
       </div>
@@ -417,6 +571,7 @@ export default function WrappedPage() {
 
   const totalSlides = stories.length + 1;
   const media = useMemo(() => wrapped ? resolveWrappedAssets(wrapped.assets) : null, [wrapped]);
+  const storyAudioDurations = useStoryAudioDurations(media?.storyAudios);
   const goTo = useCallback((nextIndex: number, behavior: ScrollBehavior = "smooth") => {
     const bounded = Math.max(0, Math.min(nextIndex, totalSlides - 1));
     setActiveIndex(bounded);
@@ -489,10 +644,12 @@ export default function WrappedPage() {
   useEffect(() => {
     if (!started || reducedMotion || activeIndex >= totalSlides - 1) return;
     const activeStory = activeIndex > 0 ? stories[activeIndex - 1] : null;
-    const duration = activeStory?.kind === "player" ? CINEMATIC_STORY_DURATION_MS : STANDARD_STORY_DURATION_MS;
+    const duration = activeStory?.kind === "player"
+      ? (storyAudioDurations[activeStory.assetKey] || DEFAULT_AUDIO_DURATION_MS) + FINAL_FRAME_DURATION_MS
+      : STANDARD_STORY_DURATION_MS;
     const timeout = window.setTimeout(() => goTo(activeIndex + 1), duration);
     return () => window.clearTimeout(timeout);
-  }, [activeIndex, goTo, reducedMotion, started, stories, totalSlides]);
+  }, [activeIndex, goTo, reducedMotion, started, stories, storyAudioDurations, totalSlides]);
 
   useEffect(() => {
     const viewport = scrollRef.current;
@@ -541,7 +698,7 @@ export default function WrappedPage() {
           const isActive = started && activeIndex === storyIndex;
           return (
             <div key={story.id} className={`${styles.storyViewport} ${isActive ? styles.storyActive : ""}`}>
-              {story.kind === "player" && <PlayerSlide story={story} wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} onVideoFinished={setCompletedVideoStoryId} onStoryAudioPlaybackChange={setStoryAudioPlayback} />}
+              {story.kind === "player" && <PlayerSlide story={story} wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} audioDurationMs={storyAudioDurations[story.assetKey] || DEFAULT_AUDIO_DURATION_MS} onVideoFinished={setCompletedVideoStoryId} onStoryAudioPlaybackChange={setStoryAudioPlayback} />}
               {story.kind === "map" && <MapSlide story={story} wrapped={wrapped} />}
               {story.kind === "finale" && <FinaleSlide wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} />}
             </div>
