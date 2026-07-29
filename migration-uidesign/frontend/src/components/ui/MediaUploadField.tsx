@@ -9,6 +9,7 @@ type MediaUploadFieldProps = {
   value: string;
   onChange: (url: string) => void;
   type: BlobMediaType;
+  token: string;
   placeholder?: string;
   hint?: string;
 };
@@ -18,7 +19,7 @@ const mediaConfig = {
   audio: { accept: "audio/mpeg,audio/mp4,audio/wav,audio/x-wav,audio/ogg,audio/webm,audio/aac", empty: "No audio", action: "Upload audio" },
 } satisfies Record<BlobMediaType, { accept: string; empty: string; action: string }>;
 
-export function MediaUploadField({ label, value, onChange, type, placeholder, hint }: MediaUploadFieldProps) {
+export function MediaUploadField({ label, value, onChange, type, token, placeholder, hint }: MediaUploadFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +30,7 @@ export function MediaUploadField({ label, value, onChange, type, placeholder, hi
     setUploading(true);
     setError(null);
     try {
-      onChange(await uploadMediaToBlob(file, type));
+      onChange(await uploadMediaToBlob(file, type, token));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally {

@@ -188,6 +188,7 @@ export function WrappedManagementPanel({ token }: { token: string }) {
               <MediaUploadField
                 label="Introductory loop"
                 type="audio"
+                token={token}
                 value={assets.soundtrack.intro || ""}
                 onChange={(url) => setAssets((current) => ({ ...current, soundtrack: { ...current.soundtrack, intro: url } }))}
                 hint="Loops on the cover before Start."
@@ -195,6 +196,7 @@ export function WrappedManagementPanel({ token }: { token: string }) {
               <MediaUploadField
                 label="General Wrapped track"
                 type="audio"
+                token={token}
                 value={assets.soundtrack.general || ""}
                 onChange={(url) => setAssets((current) => ({ ...current, soundtrack: { ...current.soundtrack, general: url } }))}
                 hint="Plays through the recap and is reduced while story audio cues play."
@@ -238,6 +240,7 @@ export function WrappedManagementPanel({ token }: { token: string }) {
                     <MediaUploadField
                       label={`Video introduction - ${field.title}`}
                       type="video"
+                      token={token}
                       value={assets.videos[field.key] || ""}
                       onChange={(url) => setAssets((current) => ({
                         ...current,
@@ -267,6 +270,7 @@ export function WrappedManagementPanel({ token }: { token: string }) {
                             key={audioIndex}
                             label={`Audio cue ${audioIndex + 1}`}
                             type="audio"
+                            token={token}
                             value={sources[audioIndex] || ""}
                             onChange={(url) => setAssets((current) => {
                               const nextSources = [...(current.storyAudios[field.key] || [])];
