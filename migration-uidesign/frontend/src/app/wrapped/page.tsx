@@ -43,13 +43,10 @@ const EMPTY_AUDIO_SOURCES: string[] = [];
 const MUSIC_HIGHLIGHT_VOLUME = 0.38;
 const MUSIC_RESTING_VOLUME = 0.65;
 const DEFAULT_AUDIO_DURATION_MS = 12_500;
-const FINAL_FRAME_DURATION_MS = 2_500;
+const FINAL_FRAME_DURATION_MS = 1_500;
 const MIN_VALID_AUDIO_DURATION_SECONDS = 0.25;
-const CUE_TARGET_RMS = 0.24;
-const CUE_MIN_GAIN = 1.3;
-const CUE_MAX_GAIN = 2.5;
+const CUE_STABLE_GAIN = 1.5;
 const BACKGROUND_VIDEO_PLAYBACK_RATE = 0.8;
-const audioGainCache = new Map<string, Promise<number>>();
 
 function formatNumber(value: number | null | undefined, decimals = 0) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "—";
@@ -140,35 +137,6 @@ function fadeAudio(audio: HTMLAudioElement, targetVolume: number, durationMs: nu
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
-}
-
-function getNormalizedCueGain(url: string, context: AudioContext) {
-  const cached = audioGainCache.get(url);
-  if (cached) return cached;
-
-  const gain = fetch(url)
-    .then((response) => {
-      if (!response.ok) throw new Error("Unable to analyse cue audio.");
-      return response.arrayBuffer();
-    })
-    .then((buffer) => context.decodeAudioData(buffer))
-    .then((buffer) => {
-      let sumSquares = 0;
-      let sampleCount = 0;
-      for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
-        const data = buffer.getChannelData(channel);
-        const step = Math.max(1, Math.floor(data.length / 48_000));
-        for (let index = 0; index < data.length; index += step) {
-          sumSquares += data[index] * data[index];
-          sampleCount += 1;
-        }
-      }
-      const rms = sampleCount ? Math.sqrt(sumSquares / sampleCount) : 0;
-      return clamp(CUE_TARGET_RMS / Math.max(rms, 0.02), CUE_MIN_GAIN, CUE_MAX_GAIN);
-    })
-    .catch(() => CUE_MIN_GAIN);
-  audioGainCache.set(url, gain);
-  return gain;
 }
 
 function useStoryAudioDurations(storyAudios: Partial<Record<WrappedAssetKey, string[]>> | undefined) {
@@ -317,10 +285,9 @@ function StoryAudioSequence({ sources, active, onPlaybackChange, onComplete }: {
         return;
       }
       disconnectCurrent();
-      const sourceUrl = sources[index];
       current = new Audio();
       current.crossOrigin = "anonymous";
-      current.src = sourceUrl;
+      current.src = sources[index];
       index += 1;
       current.preload = "auto";
       current.onended = playNext;
@@ -330,11 +297,11 @@ function StoryAudioSequence({ sources, active, onPlaybackChange, onComplete }: {
             const gainNode = context.createGain();
             currentSource = context.createMediaElementSource(current);
             currentGain = gainNode;
-            gainNode.gain.value = CUE_MIN_GAIN;
+            // A fixed gain + compressor is intentionally used instead of
+            // decoding every uploaded file a second time for loudness analysis.
+            // That duplicate 30–40 MB download was causing playback stalls.
+            gainNode.gain.value = CUE_STABLE_GAIN;
             currentSource.connect(gainNode).connect(compressor);
-            void getNormalizedCueGain(sourceUrl, context).then((gain) => {
-              if (!cancelled && currentGain === gainNode) gainNode.gain.setTargetAtTime(gain, context.currentTime, 0.16);
-            });
             await context.resume();
           } catch {
             // Keep the cue playable if a third-party URL does not allow the
@@ -437,7 +404,7 @@ function PlayerSlide({
     const playVideo = () => {
       // Most authored clips are shorter than their cue sequence. Looping them
       // at a restrained speed keeps the background alive for the entire audio
-      // phase; the real final frame is reserved for the last 2.5 seconds.
+      // phase; the real final frame is reserved for the last 1.5 seconds.
       video.currentTime = 0;
       resumeBackgroundVideo();
     };
@@ -475,7 +442,7 @@ function PlayerSlide({
             muted
             autoPlay={active && !videoFinished}
             loop={active && !videoFinished}
-            preload="auto"
+            preload={active ? "auto" : "none"}
             onCanPlay={resumeBackgroundVideo}
             onLoadedData={resumeBackgroundVideo}
           />

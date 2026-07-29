@@ -247,7 +247,7 @@ export function WrappedManagementPanel({ token }: { token: string }) {
                         videos: { ...current.videos, [field.key]: url },
                       }))}
                       placeholder="Upload a 15-second maximum video or paste its URL"
-                      hint="Use MP4 (H.264 + AAC) or WebM, under 15 seconds, so the final frame can hold and zoom in every browser/OBS source."
+                      hint="Use MP4 (H.264 + AAC) or WebM under 15 seconds. For smooth browser/OBS playback, keep each clip near 10–15 MB."
                     />
                     <Select
                       label="Mirror video horizontally"
@@ -278,6 +278,7 @@ export function WrappedManagementPanel({ token }: { token: string }) {
                               while (nextSources.length && !nextSources[nextSources.length - 1]) nextSources.pop();
                               return { ...current, storyAudios: { ...current.storyAudios, [field.key]: nextSources } };
                             })}
+                            hint="Use MP3/AAC at 128–192 kbps; avoid 30–40 MB cues so the stream stays smooth."
                           />
                         );
                       })}
