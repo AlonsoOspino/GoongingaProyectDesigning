@@ -47,6 +47,7 @@ const DEFAULT_AUDIO_DURATION_MS = 12_500;
 const FINAL_FRAME_DURATION_MS = 1_500;
 const MIN_VALID_AUDIO_DURATION_SECONDS = 0.25;
 const CUE_STABLE_GAIN = 1.5;
+const BACKGROUND_VIDEO_PLAYBACK_RATE = 0.75;
 
 function formatNumber(value: number | null | undefined, decimals = 0) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "—";
@@ -111,11 +112,19 @@ function useHighlightSequence(active: boolean, audioDurationMs: number) {
     const identityPhase = Math.min(3_000, audioDurationMs);
     const fullSequenceDuration = Math.max(identityPhase, audioDurationMs);
     const remainingPhase = Math.max(0, fullSequenceDuration - identityPhase);
-    const timeouts = [1, 2, 3, 4, 5, 6, 7].map((nextStage) => window.setTimeout(
-      () => setStage(nextStage),
-      identityPhase + (remainingPhase * (nextStage - 1)) / 6
-    ));
-    return () => timeouts.forEach((timeout) => window.clearTimeout(timeout));
+    const laterStepDuration = remainingPhase / 6;
+    let currentStage = 0;
+    let timeout = 0;
+    const advance = () => {
+      currentStage += 1;
+      setStage(currentStage);
+      if (currentStage < 7) timeout = window.setTimeout(advance, laterStepDuration);
+    };
+    // Deliberately chain the timeouts. A high-bitrate video can delay the
+    // event loop; independent timers would then flush together and make every
+    // title look as if it appeared at once.
+    timeout = window.setTimeout(advance, identityPhase);
+    return () => window.clearTimeout(timeout);
   }, [active, audioDurationMs]);
 
   return stage;
@@ -377,25 +386,17 @@ function PlayerSlide({
   }, [audioDurationMs, onVideoFinished, story.id]);
   const resumeBackgroundVideo = useCallback(() => {
     const video = videoRef.current;
-    if (!video || !active || videoFinished || reducedMotion) return;
+    if (!video || !active || reducedMotion) return;
     video.muted = true;
     video.defaultMuted = true;
     video.volume = 0;
     video.loop = false;
-    const sourceDuration = Number.isFinite(video.duration) ? video.duration : 0;
-    const rate = sourceDuration ? sourceDuration / Math.max(audioDurationMs / 1000, 0.1) : 0.0625;
-    // The clip plays once, slowed to cover the audio phase. A five-second
-    // source with a long cue sequence becomes a true slow-motion background,
-    // rather than visibly looping.
-    // Never allow a background highlight to start at normal speed. Even while
-    // audio metadata is still resolving, it remains visibly slow; once the
-    // real total is known this becomes the exact clip-duration/audio-duration
-    // ratio (for example 5 s / 55 s = 0.09x).
-    const playbackRate = clamp(rate, 0.0625, 0.75);
-    video.defaultPlaybackRate = playbackRate;
-    video.playbackRate = playbackRate;
+    // Every highlight clip plays once at the agreed fixed speed. Once its last
+    // frame is reached, the remaining highlight time belongs to the zoom.
+    video.defaultPlaybackRate = BACKGROUND_VIDEO_PLAYBACK_RATE;
+    video.playbackRate = BACKGROUND_VIDEO_PLAYBACK_RATE;
     void video.play().catch(() => undefined);
-  }, [active, audioDurationMs, reducedMotion, videoFinished]);
+  }, [active, reducedMotion]);
   const freezeVideoOnLastFrame = useCallback(() => {
     const video = videoRef.current;
     if (!video || videoFinished) return;
@@ -467,7 +468,6 @@ function PlayerSlide({
             muted
             preload={active ? "auto" : "none"}
             onLoadedMetadata={resumeBackgroundVideo}
-            onPlay={resumeBackgroundVideo}
             onEnded={finishVideo}
           />
         ) : artwork && <img src={artwork} alt="" className={flipped ? styles.artworkFlipped : undefined} />}
