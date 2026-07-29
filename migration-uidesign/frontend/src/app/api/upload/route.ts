@@ -55,22 +55,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
 
-    // Validate file type for images
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+    const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+    const allowedVideoTypes = ['video/mp4', 'video/webm', 'video/quicktime']
+    const allowedAudioTypes = ['audio/mpeg', 'audio/mp4', 'audio/wav', 'audio/x-wav', 'audio/ogg', 'audio/webm', 'audio/aac']
+    const isVideo = type === 'video'
+    const isAudio = type === 'audio'
+    const allowedTypes = isVideo ? allowedVideoTypes : isAudio ? allowedAudioTypes : allowedImageTypes
+
     if (!allowedTypes.includes(file.type)) {
+      const expected = isVideo
+        ? 'MP4, WebM, and MOV videos'
+        : isAudio
+        ? 'MP3, M4A, WAV, OGG, AAC, and WebM audio'
+        : 'JPEG, PNG, GIF, and WebP images'
       return NextResponse.json(
-        { error: 'Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.' },
+        { error: `Invalid file type. Only ${expected} are allowed.` },
         { status: 400 }
       )
     }
 
-    // Limit file size to 5MB
-    const maxSize = 5 * 1024 * 1024
+    const maxSize = isVideo ? 100 * 1024 * 1024 : isAudio ? 25 * 1024 * 1024 : 5 * 1024 * 1024
     if (file.size > maxSize) {
-      return NextResponse.json(
-        { error: 'File size exceeds 5MB limit.' },
-        { status: 400 }
-      )
+      const limit = isVideo ? '100MB' : isAudio ? '25MB' : '5MB'
+      return NextResponse.json({ error: `File size exceeds ${limit} limit.` }, { status: 400 })
     }
 
     const uploadFile = type === 'logo' ? await normalizeLogoFile(file) : file

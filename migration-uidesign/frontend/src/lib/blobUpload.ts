@@ -1,4 +1,6 @@
 export type BlobImageType = "logo" | "roster" | "banner" | "profile" | "map" | "hero" | "image";
+export type BlobMediaType = "video" | "audio";
+export type BlobUploadType = BlobImageType | BlobMediaType;
 
 export function isVercelBlobUrl(value?: string | null) {
   if (!value) return false;
@@ -10,7 +12,7 @@ export function isVercelBlobUrl(value?: string | null) {
   }
 }
 
-export async function uploadImageToBlob(file: File, type: BlobImageType) {
+export async function uploadToBlob(file: File, type: BlobUploadType) {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("type", type);
@@ -30,6 +32,14 @@ export async function uploadImageToBlob(file: File, type: BlobImageType) {
   }
 
   return payload.url;
+}
+
+export async function uploadImageToBlob(file: File, type: BlobImageType) {
+  return uploadToBlob(file, type);
+}
+
+export async function uploadMediaToBlob(file: File, type: BlobMediaType) {
+  return uploadToBlob(file, type);
 }
 
 export async function deleteBlobImage(url?: string | null) {

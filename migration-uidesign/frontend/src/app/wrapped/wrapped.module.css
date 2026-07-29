@@ -81,9 +81,12 @@
 .playerProfile > img,.playerProfile > span { display:grid; width:clamp(3.6rem,5vw,5.5rem); aspect-ratio:1; place-items:center; overflow:hidden; border:2px solid rgba(246,196,67,.8); border-radius:50%; color:var(--yellow); background:#0b151e; font-family:var(--font-league-gothic),Impact,sans-serif; font-size:2rem; object-fit:cover; box-shadow:0 0 0 6px rgba(246,196,67,.09); }
 .playerProfile div { display:grid; min-width:0; gap:.15rem; }.playerProfile div strong { overflow:hidden; color:var(--ink); font-family:Arial,sans-serif; font-size:clamp(1.15rem,1.8vw,2.1rem); font-weight:900; line-height:1; text-align:inherit; text-overflow:ellipsis; text-shadow:none; white-space:nowrap; }.playerProfile div small { color:var(--yellow); font-family:Arial,sans-serif; font-size:.68rem; font-weight:900; letter-spacing:.15em; text-transform:uppercase; }
 .artworkBackdrop { position:absolute; inset:0; z-index:0; overflow:hidden; background:radial-gradient(ellipse 118% 126% at 50% 50%,transparent 0 43%,rgba(87,230,242,.322) 100%); }
-.artworkBackdrop img { --art-mirror:1; width:100%; height:100%; object-fit:cover; object-position:center; opacity:.72; filter:saturate(1.16) contrast(1.1) brightness(.92); transform:scaleX(var(--art-mirror)) scale(1.04); }
+.artworkBackdrop img,.artworkBackdrop video { --art-mirror:1; width:100%; height:100%; object-fit:cover; object-position:center; opacity:.72; filter:saturate(1.16) contrast(1.1) brightness(.92); transform:scaleX(var(--art-mirror)) scale(1.04); }
 .artworkBackdrop .artworkFlipped { --art-mirror:-1; }
+.artworkBackdrop .videoFrozen { animation:freezeFrameZoom 7s cubic-bezier(.18,.75,.22,1) both; }
 .artworkBackdrop::after { position:absolute; inset:0; content:""; background:linear-gradient(90deg,rgba(3,6,10,1) 0%,rgba(3,6,10,.96) 42%,rgba(3,6,10,.58) 66%,rgba(3,6,10,.12) 100%),linear-gradient(0deg,rgba(3,6,10,.48),transparent 50%); }
+.storyWaiting { opacity:0; pointer-events:none; transform:translateY(3%) scale(.98); }
+.storyRevealed { animation:copyReveal .8s cubic-bezier(.18,.75,.22,1) both; }
 .artFrame { position:relative; z-index:1; display:grid; width:min(100%, 680px); height:min(70vh, 720px); place-items:end center; overflow:hidden; }
 .artImage { width:100%; height:100%; object-fit:contain; object-position:bottom center; filter:drop-shadow(0 28px 38px rgba(0,0,0,.5)) drop-shadow(0 0 30px rgba(246,196,67,.18)); }
 .artImage.artworkFlipped { transform:scaleX(-1); }
@@ -144,7 +147,7 @@
 .counterDamage strong { color:#ff8a63; }.counterHealing strong { color:#80f2b3; }.counterMitigation strong { color:var(--cyan); }.counterGames strong { color:var(--yellow); }.counterPlayers strong { color:#ff91c1; }
 .finaleSignoff { position:relative; z-index:2; margin:3vh 0 0; color:var(--muted); text-align:left; font-size:.75rem; font-weight:800; letter-spacing:.18em; text-transform:uppercase; }
 
-.storyActive .storyCopy, .storyActive .mapCopy, .storyActive .finaleHeading { animation:copyZoom 4s cubic-bezier(.18,.75,.22,1) both; }
+.storyActive .mapCopy, .storyActive .finaleHeading { animation:copyZoom 4s cubic-bezier(.18,.75,.22,1) both; }
 .storyActive .artFrame, .storyActive .artworkBackdrop img { animation:artZoom 4s cubic-bezier(.18,.75,.22,1) both; }
 .storyActive .counter { animation:counterIn .7s cubic-bezier(.18,.75,.22,1) both; animation-delay:calc(var(--counter-index, 0) * .08s); }
 
@@ -155,7 +158,9 @@
 .status { display:grid; min-height:100dvh; place-content:center; padding:2rem; color:var(--ink); background:radial-gradient(circle at center,rgba(246,196,67,.13),transparent 30%),#05080d; text-align:center; }.status p { color:var(--cyan); font-size:.7rem; font-weight:900; letter-spacing:.2em; }.status h1 { max-width:16ch; margin:1rem 0 0; font-family:var(--font-league-gothic),Impact,sans-serif; font-size:clamp(4rem,8vw,8rem); font-weight:400; line-height:.8; text-transform:uppercase; }
 
 @keyframes artZoom { from { opacity:0; transform:scaleX(var(--art-mirror, 1)) scale(.88) translateY(7%); } 18% { opacity:1; } to { opacity:1; transform:scaleX(var(--art-mirror, 1)) scale(1.08) translateY(0); } }
+@keyframes freezeFrameZoom { from { transform:scaleX(var(--art-mirror, 1)) scale(1.04); } to { transform:scaleX(var(--art-mirror, 1)) scale(1.12); } }
 @keyframes copyZoom { from { opacity:0; transform:translateY(5%) scale(.94); } 18% { opacity:1; } to { opacity:1; transform:translateY(0) scale(1.035); } }
+@keyframes copyReveal { from { opacity:0; transform:translateY(4%) scale(.96); } to { opacity:1; transform:translateY(0) scale(1); } }
 @keyframes counterIn { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
 
 @media (max-width: 980px) {
@@ -168,5 +173,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .scrollTrack { scroll-behavior:auto; }.storyActive .storyCopy, .storyActive .mapCopy, .storyActive .finaleHeading, .storyActive .artFrame, .storyActive .artworkBackdrop img, .storyActive .counter { animation:none; }
+  .scrollTrack { scroll-behavior:auto; }.storyRevealed, .storyActive .mapCopy, .storyActive .finaleHeading, .storyActive .artFrame, .storyActive .artworkBackdrop img, .artworkBackdrop .videoFrozen, .storyActive .counter { animation:none; }
 }

@@ -38,7 +38,8 @@ type MapStory = {
 
 type Story = PlayerStory | MapStory | { id: "finale"; kind: "finale" };
 
-const STORY_DURATION_MS = 4000;
+const CINEMATIC_STORY_DURATION_MS = 15_000;
+const STANDARD_STORY_DURATION_MS = 4000;
 
 function formatNumber(value: number | null | undefined, decimals = 0) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "—";
@@ -59,7 +60,7 @@ function useReducedMotion() {
   return reduced;
 }
 
-function useCountUp(target: number, active: boolean, reducedMotion: boolean) {
+function useCountUp(target: number, active: boolean, reducedMotion: boolean, decimals = 0) {
   const [value, setValue] = useState(0);
 
   useEffect(() => {
@@ -77,7 +78,8 @@ function useCountUp(target: number, active: boolean, reducedMotion: boolean) {
     const startedAt = performance.now();
     const tick = (now: number) => {
       const progress = Math.min(1, (now - startedAt) / duration);
-      setValue(Math.round(target * (1 - Math.pow(1 - progress, 3))));
+      const next = target * (1 - Math.pow(1 - progress, 3));
+      setValue(Number(next.toFixed(decimals)));
       if (progress < 1) frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
@@ -85,6 +87,19 @@ function useCountUp(target: number, active: boolean, reducedMotion: boolean) {
   }, [active, reducedMotion, target]);
 
   return value;
+}
+
+function fadeAudio(audio: HTMLAudioElement, targetVolume: number, durationMs: number) {
+  const initialVolume = audio.volume;
+  const startedAt = performance.now();
+  let frame = 0;
+  const tick = (now: number) => {
+    const progress = Math.min(1, (now - startedAt) / durationMs);
+    audio.volume = initialVolume + (targetVolume - initialVolume) * progress;
+    if (progress < 1) frame = requestAnimationFrame(tick);
+  };
+  frame = requestAnimationFrame(tick);
+  return () => cancelAnimationFrame(frame);
 }
 
 function TeamTile({ team, index }: { team: GoongingaWrapped["snapshot"]["overview"]["teams"][number]; index: number }) {
@@ -158,32 +173,109 @@ function PlayerProfile({ leader }: { leader: WrappedPlayerLeader | null }) {
   );
 }
 
-function PlayerSlide({ story, wrapped }: { story: PlayerStory; wrapped: GoongingaWrapped }) {
+function StoryAudioSequence({ sources, active }: { sources: string[]; active: boolean }) {
+  useEffect(() => {
+    if (!active || !sources.length) return;
+
+    let cancelled = false;
+    let current: HTMLAudioElement | null = null;
+    let index = 0;
+    const playNext = () => {
+      if (cancelled || index >= sources.length) return;
+      current = new Audio(sources[index]);
+      index += 1;
+      current.preload = "auto";
+      current.onended = playNext;
+      void current.play().catch(() => undefined);
+    };
+
+    playNext();
+    return () => {
+      cancelled = true;
+      if (current) {
+        current.onended = null;
+        current.pause();
+      }
+    };
+  }, [active, sources]);
+
+  return null;
+}
+
+function PlayerSlide({
+  story,
+  wrapped,
+  active,
+  reducedMotion,
+  onVideoFinished,
+}: {
+  story: PlayerStory;
+  wrapped: GoongingaWrapped;
+  active: boolean;
+  reducedMotion: boolean;
+  onVideoFinished: (storyId: string) => void;
+}) {
   const leader = story.value;
-  const assets = resolveWrappedAssets(wrapped.assets);
+  const assets = useMemo(() => resolveWrappedAssets(wrapped.assets), [wrapped.assets]);
+  const introVideo = assets.videos[story.assetKey] || null;
   const artwork = assets.images[story.assetKey] || null;
   const flipped = assets.flipped[story.assetKey] === true;
+  const [videoFinished, setVideoFinished] = useState(!introVideo);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!introVideo || reducedMotion) {
+      setVideoFinished(true);
+      if (active) onVideoFinished(story.id);
+      return;
+    }
+
+    setVideoFinished(false);
+    if (!active || !video) return;
+    video.currentTime = 0;
+    void video.play().catch(() => undefined);
+    return () => video.pause();
+  }, [active, introVideo, onVideoFinished, reducedMotion, story.id]);
+
+  const finishVideo = useCallback(() => {
+    setVideoFinished(true);
+    onVideoFinished(story.id);
+  }, [onVideoFinished, story.id]);
+
+  const revealed = active && (reducedMotion || !introVideo || videoFinished);
+  const displayedValue = useCountUp(leader?.value || 0, revealed, reducedMotion, story.decimals ?? 0);
   return (
     <section className={`${styles.slide} ${styles.playerSlide} ${styles[`layout${story.layout[0].toUpperCase()}${story.layout.slice(1)}`]}`} aria-label={story.title}>
       <div className={styles.artworkBackdrop} aria-hidden="true">
-        {artwork && <img src={artwork} alt="" className={flipped ? styles.artworkFlipped : undefined} />}
+        {introVideo ? (
+          <video
+            ref={videoRef}
+            src={introVideo}
+            className={`${flipped ? styles.artworkFlipped : ""} ${videoFinished ? styles.videoFrozen : ""}`}
+            playsInline
+            preload="auto"
+            onEnded={finishVideo}
+          />
+        ) : artwork && <img src={artwork} alt="" className={flipped ? styles.artworkFlipped : undefined} />}
       </div>
-      <div className={styles.storyCopy}>
+      <div className={`${styles.storyCopy} ${revealed ? styles.storyRevealed : styles.storyWaiting}`}>
         <p className={styles.eyebrow}>{story.eyebrow}</p>
         <h2>{story.title}</h2>
         <p className={styles.storyCaption}>{story.caption}</p>
         <div className={styles.valueBlock}>
-          <strong>{formatNumber(leader?.value, story.decimals ?? 0)}<small>{story.suffix || ""}</small></strong>
+          <strong>{formatNumber(displayedValue, story.decimals ?? 0)}<small>{story.suffix || ""}</small></strong>
           <PlayerProfile leader={leader} />
         </div>
       </div>
+      <StoryAudioSequence sources={assets.storyAudios[story.assetKey] || []} active={revealed} />
     </section>
   );
 }
 
 function MapSlide({ story, wrapped }: { story: MapStory; wrapped: GoongingaWrapped }) {
   const map = story.value;
-  const assets = resolveWrappedAssets(wrapped.assets);
+  const assets = useMemo(() => resolveWrappedAssets(wrapped.assets), [wrapped.assets]);
   const uploadedArtwork = assets.images[story.assetKey] || null;
   const image = uploadedArtwork || map?.image || null;
   const flipped = Boolean(uploadedArtwork && assets.flipped[story.assetKey]);
@@ -239,7 +331,10 @@ export default function WrappedPage() {
   const [error, setError] = useState<string | null>(null);
   const [started, setStarted] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [completedVideoStoryId, setCompletedVideoStoryId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const introAudioRef = useRef<HTMLAudioElement>(null);
+  const generalAudioRef = useRef<HTMLAudioElement>(null);
   const reducedMotion = useReducedMotion();
 
   useEffect(() => {
@@ -276,6 +371,7 @@ export default function WrappedPage() {
   }, [wrapped]);
 
   const totalSlides = stories.length + 1;
+  const media = useMemo(() => wrapped ? resolveWrappedAssets(wrapped.assets) : null, [wrapped]);
   const goTo = useCallback((nextIndex: number, behavior: ScrollBehavior = "smooth") => {
     const bounded = Math.max(0, Math.min(nextIndex, totalSlides - 1));
     setActiveIndex(bounded);
@@ -283,11 +379,64 @@ export default function WrappedPage() {
     if (viewport) viewport.scrollTo({ top: viewport.clientHeight * bounded, behavior });
   }, [totalSlides]);
 
+  const beginPlayback = useCallback(() => {
+    if (!started) {
+      setStarted(true);
+      const intro = introAudioRef.current;
+      if (intro) {
+        fadeAudio(intro, 0, 250);
+        window.setTimeout(() => {
+          intro.pause();
+          intro.currentTime = 0;
+        }, 260);
+      }
+      const general = generalAudioRef.current;
+      if (general) {
+        general.loop = true;
+        general.currentTime = 0;
+        general.volume = 1;
+        void general.play().catch(() => undefined);
+      }
+    }
+    goTo(1);
+  }, [goTo, started]);
+
+  useEffect(() => {
+    const intro = introAudioRef.current;
+    if (!intro || !media?.soundtrack.intro || started || reducedMotion) return;
+    intro.loop = true;
+    intro.volume = 0;
+    let cancelFade: (() => void) | undefined;
+    void intro.play().then(() => { cancelFade = fadeAudio(intro, 1, 1500); }).catch(() => undefined);
+    return () => {
+      cancelFade?.();
+      intro.pause();
+      intro.currentTime = 0;
+    };
+  }, [media?.soundtrack.intro, reducedMotion, started]);
+
+  useEffect(() => {
+    const general = generalAudioRef.current;
+    if (!general || !media?.soundtrack.general || !started) return;
+    general.loop = true;
+    void general.play().catch(() => undefined);
+    const activeStory = activeIndex > 0 ? stories[activeIndex - 1] : null;
+    const isVideoIntroduction = activeStory?.kind === "player" && Boolean(media.videos[activeStory.assetKey]);
+    const targetVolume = isVideoIntroduction && completedVideoStoryId !== activeStory?.id ? 1 : 0.5;
+    return fadeAudio(general, targetVolume, 240);
+  }, [activeIndex, completedVideoStoryId, media?.soundtrack.general, media?.videos, started, stories]);
+
+  useEffect(() => {
+    setCompletedVideoStoryId(null);
+  }, [activeIndex]);
+
   useEffect(() => {
     if (!started || reducedMotion || activeIndex >= totalSlides - 1) return;
-    const timeout = window.setTimeout(() => goTo(activeIndex + 1), STORY_DURATION_MS);
+    const activeStory = activeIndex > 0 ? stories[activeIndex - 1] : null;
+    const duration = activeStory?.kind === "player" ? CINEMATIC_STORY_DURATION_MS : STANDARD_STORY_DURATION_MS;
+    const timeout = window.setTimeout(() => goTo(activeIndex + 1), duration);
     return () => window.clearTimeout(timeout);
-  }, [activeIndex, goTo, reducedMotion, started, totalSlides]);
+  }, [activeIndex, goTo, reducedMotion, started, stories, totalSlides]);
 
   useEffect(() => {
     const viewport = scrollRef.current;
@@ -305,8 +454,7 @@ export default function WrappedPage() {
       if (event.key === "ArrowDown" || event.key === "ArrowRight" || event.key === " ") {
         event.preventDefault();
         if (!started) {
-          setStarted(true);
-          goTo(1);
+          beginPlayback();
         } else {
           goTo(activeIndex + 1);
         }
@@ -318,24 +466,26 @@ export default function WrappedPage() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [activeIndex, goTo, started]);
+  }, [activeIndex, beginPlayback, goTo, started]);
 
   if (loading) return <main className={styles.status}>Building the season story...</main>;
   if (error || !wrapped) return <main className={styles.status}><p>GOONGINGA WRAPPED</p><h1>{error || "No Wrapped found"}</h1></main>;
 
   return (
     <main className={styles.wrapped}>
+      {media?.soundtrack.intro && <audio ref={introAudioRef} src={media.soundtrack.intro} preload="auto" />}
+      {media?.soundtrack.general && <audio ref={generalAudioRef} src={media.soundtrack.general} preload="auto" />}
       <div className={styles.progress} aria-label={`Story ${activeIndex + 1} of ${totalSlides}`}>
         {Array.from({ length: totalSlides }).map((_, index) => <span key={index} className={index <= activeIndex ? styles.progressActive : ""} />)}
       </div>
       <div ref={scrollRef} className={styles.scrollTrack}>
-        <IntroSlide wrapped={wrapped} onStart={() => { setStarted(true); goTo(1); }} />
+        <IntroSlide wrapped={wrapped} onStart={beginPlayback} />
         {stories.map((story, index) => {
           const storyIndex = index + 1;
           const isActive = started && activeIndex === storyIndex;
           return (
             <div key={story.id} className={`${styles.storyViewport} ${isActive ? styles.storyActive : ""}`}>
-              {story.kind === "player" && <PlayerSlide story={story} wrapped={wrapped} />}
+              {story.kind === "player" && <PlayerSlide story={story} wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} onVideoFinished={setCompletedVideoStoryId} />}
               {story.kind === "map" && <MapSlide story={story} wrapped={wrapped} />}
               {story.kind === "finale" && <FinaleSlide wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} />}
             </div>
@@ -345,7 +495,7 @@ export default function WrappedPage() {
       <div className={styles.controls}>
         <button type="button" onClick={() => goTo(activeIndex - 1)} disabled={activeIndex === 0} aria-label="Previous story">↑</button>
         <span>{String(activeIndex + 1).padStart(2, "0")} / {String(totalSlides).padStart(2, "0")}</span>
-        <button type="button" onClick={() => { if (!started) setStarted(true); goTo(activeIndex === 0 ? 1 : activeIndex + 1); }} disabled={activeIndex === totalSlides - 1} aria-label="Next story">↓</button>
+        <button type="button" onClick={() => { if (!started) beginPlayback(); else goTo(activeIndex + 1); }} disabled={activeIndex === totalSlides - 1} aria-label="Next story">↓</button>
       </div>
     </main>
   );

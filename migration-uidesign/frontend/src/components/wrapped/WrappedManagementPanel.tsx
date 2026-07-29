@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { ImageUploadField } from "@/components/ui/ImageUploadField";
+import { MediaUploadField } from "@/components/ui/MediaUploadField";
 import { Select } from "@/components/ui/Select";
 import {
   freezeGoongingaWrapped,
@@ -61,7 +61,7 @@ function fieldsFor(wrapped: GoongingaWrapped): AssetField[] {
 
 export function WrappedManagementPanel({ token }: { token: string }) {
   const [wrapped, setWrapped] = useState<GoongingaWrapped | null>(null);
-  const [assets, setAssets] = useState<WrappedAssets>({ images: {}, flipped: {} });
+  const [assets, setAssets] = useState<WrappedAssets>({ images: {}, flipped: {}, videos: {}, storyAudios: {}, soundtrack: {} });
   const [loading, setLoading] = useState(true);
   const [freezing, setFreezing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -95,7 +95,7 @@ export function WrappedManagementPanel({ token }: { token: string }) {
   async function freezeSnapshot() {
     const action = wrapped ? "Refresh" : "Freeze";
     const message = wrapped
-      ? "Refresh the locked stats? Artwork is kept only for slides whose player or map remains unchanged."
+      ? "Refresh the locked stats? Media is kept only for slides whose player or map remains unchanged."
       : "Freeze the current finished-game stats for the public Wrapped?";
     if (!window.confirm(message)) return;
 
@@ -103,10 +103,10 @@ export function WrappedManagementPanel({ token }: { token: string }) {
     try {
       const data = await freezeGoongingaWrapped(token);
       const nextAssets = resolveWrappedAssets(data.assets);
-      const clearedCount = Object.keys(assets.images).length - Object.keys(nextAssets.images).length;
+      const clearedCount = (Object.keys(assets.videos).length + Object.keys(assets.storyAudios).length) - (Object.keys(nextAssets.videos).length + Object.keys(nextAssets.storyAudios).length);
       setWrapped(data);
       setAssets(nextAssets);
-      notify("success", `${action} complete.${clearedCount > 0 ? ` ${clearedCount} outdated artwork item(s) were cleared.` : ""}`);
+      notify("success", `${action} complete.${clearedCount > 0 ? ` ${clearedCount} outdated media item(s) were cleared.` : ""}`);
     } catch (error: any) {
       notify("error", error?.message || "Could not freeze the Wrapped snapshot.");
     } finally {
@@ -120,7 +120,7 @@ export function WrappedManagementPanel({ token }: { token: string }) {
       const data = await updateManageGoongingaWrappedAssets(token, assets);
       setWrapped(data);
       setAssets(resolveWrappedAssets(data.assets));
-      notify("success", "Wrapped artwork saved.");
+      notify("success", "Wrapped media saved.");
     } catch (error: any) {
       notify("error", error?.message || "Could not save Wrapped artwork.");
     } finally {
@@ -156,7 +156,7 @@ export function WrappedManagementPanel({ token }: { token: string }) {
             <div className="grid gap-4 rounded-lg border border-success/25 bg-success/5 p-4 text-sm md:grid-cols-[1fr_auto] md:items-center">
               <div>
                 <p className="font-semibold text-foreground">Frozen {new Date(wrapped.generatedAt).toLocaleString()} · {wrapped.snapshot.tournament.name}</p>
-                <p className="mt-1 text-muted">A refresh can change winners, and clears only the artwork attached to changed players or maps.</p>
+                <p className="mt-1 text-muted">A refresh can change winners, and clears only the media attached to changed players or maps.</p>
               </div>
               <div className="grid grid-cols-3 gap-2 text-center">
                 {[
@@ -180,12 +180,39 @@ export function WrappedManagementPanel({ token }: { token: string }) {
       {wrapped && (
         <Card variant="bordered">
           <CardHeader>
-            <CardTitle>Story backgrounds</CardTitle>
-            <p className="mt-1 text-sm text-muted">Upload the full background artwork for each story. Player profile photos stay separate beside the player name in the stream.</p>
+            <CardTitle>Wrapped soundtrack</CardTitle>
+            <p className="mt-1 text-sm text-muted">The intro track loops before Start with a 1.5 second fade-in. The general track begins when the replay starts and ducks to 50% after each story video.</p>
           </CardHeader>
           <CardContent>
             <div className="grid gap-5 lg:grid-cols-2">
-              {assetFields.map((field) => {
+              <MediaUploadField
+                label="Introductory loop"
+                type="audio"
+                value={assets.soundtrack.intro || ""}
+                onChange={(url) => setAssets((current) => ({ ...current, soundtrack: { ...current.soundtrack, intro: url } }))}
+                hint="Loops on the cover before Start."
+              />
+              <MediaUploadField
+                label="General Wrapped track"
+                type="audio"
+                value={assets.soundtrack.general || ""}
+                onChange={(url) => setAssets((current) => ({ ...current, soundtrack: { ...current.soundtrack, general: url } }))}
+                hint="Plays through the recap and is reduced while story audio cues play."
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {wrapped && (
+        <Card variant="bordered">
+          <CardHeader>
+            <CardTitle>Story video introductions</CardTitle>
+            <p className="mt-1 text-sm text-muted">Each of the first ten stories lasts 15 seconds. Its video plays first, then its final frame stays on screen while the statistic, title, zoom and audio cues play.</p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-5 lg:grid-cols-2">
+              {assetFields.slice(0, 10).map((field) => {
                 const subject = field.subject;
                 const subjectValue = isPlayer(subject)
                   ? `${formatNumber(subject.value, 2)}${field.valueSuffix || ""}`
@@ -208,20 +235,19 @@ export function WrappedManagementPanel({ token }: { token: string }) {
                         <p className="text-sm text-muted">{isPlayer(subject) ? subject.team || "No team" : subject ? `${subject.count} draft pick${subject.count === 1 ? "" : "s"}` : "Awaiting data"} · {subjectValue}</p>
                       </div>
                     </div>
-                    <ImageUploadField
-                      label={`Background artwork · ${field.title}`}
-                      type="image"
-                      value={assets.images[field.key] || ""}
+                    <MediaUploadField
+                      label={`Video introduction - ${field.title}`}
+                      type="video"
+                      value={assets.videos[field.key] || ""}
                       onChange={(url) => setAssets((current) => ({
                         ...current,
-                        images: { ...current.images, [field.key]: url },
+                        videos: { ...current.videos, [field.key]: url },
                       }))}
-                      previewAlt={`${field.title} Wrapped background artwork`}
-                      previewClassName="bg-surface-elevated"
-                      placeholder="Upload background art or paste its URL"
+                      placeholder="Upload a 15-second maximum video or paste its URL"
+                      hint="Use a clip shorter than 15 seconds so its final frame can hold and zoom."
                     />
                     <Select
-                      label="Invert horizontally"
+                      label="Mirror video horizontally"
                       value={assets.flipped[field.key] ? "yes" : "no"}
                       options={[
                         { value: "no", label: "No" },
@@ -232,11 +258,31 @@ export function WrappedManagementPanel({ token }: { token: string }) {
                         flipped: { ...current.flipped, [field.key]: event.target.value === "yes" },
                       }))}
                     />
+                    <div className="space-y-3 border-t border-border pt-3">
+                      <p className="text-sm font-medium text-foreground">Post-video audio cues <span className="text-muted">(maximum 3, played in order)</span></p>
+                      {[0, 1, 2].map((audioIndex) => {
+                        const sources = assets.storyAudios[field.key] || [];
+                        return (
+                          <MediaUploadField
+                            key={audioIndex}
+                            label={`Audio cue ${audioIndex + 1}`}
+                            type="audio"
+                            value={sources[audioIndex] || ""}
+                            onChange={(url) => setAssets((current) => {
+                              const nextSources = [...(current.storyAudios[field.key] || [])];
+                              nextSources[audioIndex] = url;
+                              while (nextSources.length && !nextSources[nextSources.length - 1]) nextSources.pop();
+                              return { ...current, storyAudios: { ...current.storyAudios, [field.key]: nextSources } };
+                            })}
+                          />
+                        );
+                      })}
+                    </div>
                   </section>
                 );
               })}
             </div>
-            <div className="mt-6 flex justify-end"><Button onClick={saveAssets} disabled={saving}>{saving ? "Saving artwork..." : "Save Wrapped artwork"}</Button></div>
+            <div className="mt-6 flex justify-end"><Button onClick={saveAssets} disabled={saving}>{saving ? "Saving media..." : "Save Wrapped media"}</Button></div>
           </CardContent>
         </Card>
       )}

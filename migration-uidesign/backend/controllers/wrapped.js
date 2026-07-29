@@ -137,7 +137,7 @@ function getSnapshotAssetSubject(snapshot, key) {
 
 function normalizeAssets(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return { images: {}, flipped: {} };
+    return { images: {}, flipped: {}, videos: {}, storyAudios: {}, soundtrack: {} };
   }
 
   const imageSource = value.images && typeof value.images === "object" && !Array.isArray(value.images)
@@ -145,6 +145,15 @@ function normalizeAssets(value) {
     : value;
   const flipSource = value.flipped && typeof value.flipped === "object" && !Array.isArray(value.flipped)
     ? value.flipped
+    : {};
+  const videoSource = value.videos && typeof value.videos === "object" && !Array.isArray(value.videos)
+    ? value.videos
+    : {};
+  const storyAudioSource = value.storyAudios && typeof value.storyAudios === "object" && !Array.isArray(value.storyAudios)
+    ? value.storyAudios
+    : {};
+  const soundtrackSource = value.soundtrack && typeof value.soundtrack === "object" && !Array.isArray(value.soundtrack)
+    ? value.soundtrack
     : {};
 
   return {
@@ -155,6 +164,22 @@ function normalizeAssets(value) {
     ),
     flipped: Object.fromEntries(
       Object.entries(flipSource).filter(([key, enabled]) => ASSET_KEYS.has(key) && enabled === true)
+    ),
+    videos: Object.fromEntries(
+      Object.entries(videoSource)
+        .filter(([key, url]) => ASSET_KEYS.has(key) && typeof url === "string" && url.trim())
+        .map(([key, url]) => [key, url.trim()])
+    ),
+    storyAudios: Object.fromEntries(
+      Object.entries(storyAudioSource)
+        .filter(([key, sources]) => ASSET_KEYS.has(key) && Array.isArray(sources))
+        .map(([key, sources]) => [key, sources.filter((source) => typeof source === "string" && source.trim()).map((source) => source.trim()).slice(0, 3)])
+        .filter(([, sources]) => sources.length)
+    ),
+    soundtrack: Object.fromEntries(
+      Object.entries(soundtrackSource)
+        .filter(([key, source]) => (key === "intro" || key === "general") && typeof source === "string" && source.trim())
+        .map(([key, source]) => [key, source.trim()])
     ),
   };
 }
@@ -170,8 +195,17 @@ function retainMatchingAssets(previousWrapped, nextSnapshot) {
   const flipped = Object.fromEntries(
     Object.entries(previousAssets.flipped).filter(([key]) => Object.prototype.hasOwnProperty.call(images, key))
   );
+  const videos = Object.fromEntries(
+    Object.entries(previousAssets.videos).filter(([key]) =>
+      getSnapshotAssetSubject(previousWrapped?.snapshot, key) &&
+      getSnapshotAssetSubject(previousWrapped?.snapshot, key) === getSnapshotAssetSubject(nextSnapshot, key)
+    )
+  );
+  const storyAudios = Object.fromEntries(
+    Object.entries(previousAssets.storyAudios).filter(([key]) => Object.prototype.hasOwnProperty.call(videos, key))
+  );
 
-  return { images, flipped };
+  return { images, flipped, videos, storyAudios, soundtrack: previousAssets.soundtrack };
 }
 
 async function buildSnapshot(tournament) {
@@ -382,11 +416,11 @@ async function generateWrapped(_req, res) {
 async function updateAssets(req, res) {
   try {
     const wrapped = await getLatestWrapped();
-    if (!wrapped) return res.status(404).json({ message: "Freeze the Wrapped before adding its images." });
+    if (!wrapped) return res.status(404).json({ message: "Freeze the Wrapped before adding its media." });
 
     const assets = req.body?.assets;
     if (!assets || typeof assets !== "object" || Array.isArray(assets)) {
-      return res.status(400).json({ message: "assets must contain image URLs and horizontal flip settings." });
+      return res.status(400).json({ message: "assets must contain Wrapped media settings." });
     }
 
     const cleanAssets = normalizeAssets(assets);
@@ -394,7 +428,7 @@ async function updateAssets(req, res) {
     cachedWrapped = updated;
     return res.json(updated);
   } catch (error) {
-    return res.status(400).json({ message: error?.message || "Failed to save Wrapped images." });
+    return res.status(400).json({ message: error?.message || "Failed to save Wrapped media." });
   }
 }
 

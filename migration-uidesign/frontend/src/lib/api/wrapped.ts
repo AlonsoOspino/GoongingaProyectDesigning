@@ -16,10 +16,19 @@ export type WrappedAssetKey =
 
 export type WrappedAssetUrls = Partial<Record<WrappedAssetKey, string>>;
 export type WrappedAssetFlips = Partial<Record<WrappedAssetKey, boolean>>;
+export type WrappedVideoUrls = Partial<Record<WrappedAssetKey, string>>;
+export type WrappedStoryAudio = Partial<Record<WrappedAssetKey, string[]>>;
+export type WrappedSoundtrack = {
+  intro?: string;
+  general?: string;
+};
 
 export type WrappedAssets = {
   images: WrappedAssetUrls;
   flipped: WrappedAssetFlips;
+  videos: WrappedVideoUrls;
+  storyAudios: WrappedStoryAudio;
+  soundtrack: WrappedSoundtrack;
 };
 
 type LegacyWrappedAssets = WrappedAssetUrls;
@@ -41,7 +50,7 @@ const wrappedAssetKeys = new Set<WrappedAssetKey>([
 
 /** Supports Wrapped records created before artwork preferences were introduced. */
 export function resolveWrappedAssets(value: unknown): WrappedAssets {
-  const empty: WrappedAssets = { images: {}, flipped: {} };
+  const empty: WrappedAssets = { images: {}, flipped: {}, videos: {}, storyAudios: {}, soundtrack: {} };
   if (!value || typeof value !== "object" || Array.isArray(value)) return empty;
 
   const raw = value as Record<string, unknown>;
@@ -51,6 +60,15 @@ export function resolveWrappedAssets(value: unknown): WrappedAssets {
   const flipSource = raw.flipped && typeof raw.flipped === "object" && !Array.isArray(raw.flipped)
     ? raw.flipped as Record<string, unknown>
     : {};
+  const videoSource = raw.videos && typeof raw.videos === "object" && !Array.isArray(raw.videos)
+    ? raw.videos as Record<string, unknown>
+    : {};
+  const storyAudioSource = raw.storyAudios && typeof raw.storyAudios === "object" && !Array.isArray(raw.storyAudios)
+    ? raw.storyAudios as Record<string, unknown>
+    : {};
+  const soundtrackSource = raw.soundtrack && typeof raw.soundtrack === "object" && !Array.isArray(raw.soundtrack)
+    ? raw.soundtrack as Record<string, unknown>
+    : {};
 
   const images = Object.fromEntries(
     Object.entries(imageSource).filter(([key, image]) => wrappedAssetKeys.has(key as WrappedAssetKey) && typeof image === "string" && image.trim())
@@ -58,8 +76,20 @@ export function resolveWrappedAssets(value: unknown): WrappedAssets {
   const flipped = Object.fromEntries(
     Object.entries(flipSource).filter(([key, enabled]) => wrappedAssetKeys.has(key as WrappedAssetKey) && enabled === true)
   ) as WrappedAssetFlips;
+  const videos = Object.fromEntries(
+    Object.entries(videoSource).filter(([key, video]) => wrappedAssetKeys.has(key as WrappedAssetKey) && typeof video === "string" && video.trim())
+  ) as WrappedVideoUrls;
+  const storyAudios = Object.fromEntries(
+    Object.entries(storyAudioSource)
+      .filter(([key, sources]) => wrappedAssetKeys.has(key as WrappedAssetKey) && Array.isArray(sources))
+      .map(([key, sources]) => [key, (sources as unknown[]).filter((source): source is string => typeof source === "string" && Boolean(source.trim())).slice(0, 3)])
+      .filter(([, sources]) => sources.length)
+  ) as WrappedStoryAudio;
+  const soundtrack = Object.fromEntries(
+    Object.entries(soundtrackSource).filter(([key, source]) => (key === "intro" || key === "general") && typeof source === "string" && source.trim())
+  ) as WrappedSoundtrack;
 
-  return { images, flipped };
+  return { images, flipped, videos, storyAudios, soundtrack };
 }
 
 export interface WrappedPlayerLeader {
