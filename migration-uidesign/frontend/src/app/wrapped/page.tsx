@@ -96,16 +96,12 @@ function useCountUp(target: number, active: boolean, reducedMotion: boolean, dec
   return value;
 }
 
-function useHighlightSequence(active: boolean, audioDurationMs: number, reducedMotion: boolean) {
+function useHighlightSequence(active: boolean, audioDurationMs: number) {
   const [stage, setStage] = useState(0);
 
   useEffect(() => {
     if (!active) {
       setStage(0);
-      return;
-    }
-    if (reducedMotion) {
-      setStage(7);
       return;
     }
     setStage(0);
@@ -120,7 +116,7 @@ function useHighlightSequence(active: boolean, audioDurationMs: number, reducedM
       identityPhase + (remainingPhase * (nextStage - 1)) / 6
     ));
     return () => timeouts.forEach((timeout) => window.clearTimeout(timeout));
-  }, [active, audioDurationMs, reducedMotion]);
+  }, [active, audioDurationMs]);
 
   return stage;
 }
@@ -365,14 +361,20 @@ function PlayerSlide({
   const artwork = assets.images[story.assetKey] || null;
   const flipped = assets.flipped[story.assetKey] === true;
   const [videoFinished, setVideoFinished] = useState(!introVideo);
+  const [freezeZoomDurationMs, setFreezeZoomDurationMs] = useState(FINAL_FRAME_DURATION_MS);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const highlightStartedAtRef = useRef<number | null>(null);
   const storyAudioSources = assets.storyAudios[story.assetKey] || EMPTY_AUDIO_SOURCES;
-  const revealStage = useHighlightSequence(active, audioDurationMs, reducedMotion);
+  const revealStage = useHighlightSequence(active, audioDurationMs);
 
   const finishVideo = useCallback(() => {
+    const elapsedMs = highlightStartedAtRef.current === null ? 0 : performance.now() - highlightStartedAtRef.current;
+    // The frame starts zooming the instant playback reaches the end, then
+    // keeps zooming for every remaining millisecond of the highlight.
+    setFreezeZoomDurationMs(Math.max(180, audioDurationMs + FINAL_FRAME_DURATION_MS - elapsedMs));
     setVideoFinished(true);
     onVideoFinished(story.id);
-  }, [onVideoFinished, story.id]);
+  }, [audioDurationMs, onVideoFinished, story.id]);
   const resumeBackgroundVideo = useCallback(() => {
     const video = videoRef.current;
     if (!video || !active || videoFinished || reducedMotion) return;
@@ -389,7 +391,7 @@ function PlayerSlide({
     // audio metadata is still resolving, it remains visibly slow; once the
     // real total is known this becomes the exact clip-duration/audio-duration
     // ratio (for example 5 s / 55 s = 0.09x).
-    const playbackRate = clamp(rate, 0.0625, 0.25);
+    const playbackRate = clamp(rate, 0.0625, 0.75);
     video.defaultPlaybackRate = playbackRate;
     video.playbackRate = playbackRate;
     void video.play().catch(() => undefined);
@@ -407,6 +409,11 @@ function PlayerSlide({
       finishVideo();
     }
   }, [finishVideo, videoFinished]);
+
+  useEffect(() => {
+    highlightStartedAtRef.current = active ? performance.now() : null;
+    if (active) setFreezeZoomDurationMs(FINAL_FRAME_DURATION_MS);
+  }, [active]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -455,11 +462,13 @@ function PlayerSlide({
             ref={videoRef}
             src={introVideo}
             className={`${flipped ? styles.artworkFlipped : ""} ${videoFinished ? styles.videoFrozen : ""}`}
+            style={videoFinished ? { animationDuration: `${freezeZoomDurationMs}ms` } : undefined}
             playsInline
             muted
             preload={active ? "auto" : "none"}
             onLoadedMetadata={resumeBackgroundVideo}
             onPlay={resumeBackgroundVideo}
+            onEnded={finishVideo}
           />
         ) : artwork && <img src={artwork} alt="" className={flipped ? styles.artworkFlipped : undefined} />}
       </div>
@@ -713,7 +722,7 @@ export default function WrappedPage() {
           const isActive = started && activeIndex === storyIndex;
           return (
             <div key={story.id} className={`${styles.storyViewport} ${isActive ? styles.storyActive : ""}`}>
-              {story.kind === "player" && <PlayerSlide story={story} wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} audioDurationMs={storyAudioDurations[story.assetKey] || DEFAULT_AUDIO_DURATION_MS} audioSequenceCompleted={completedAudioStoryId === story.id} seasonGames={seasonGames} onVideoFinished={setCompletedVideoStoryId} onStoryAudioPlaybackChange={setStoryAudioPlayback} onStoryAudioCompleted={setStoryAudioCompleted} />}
+              {story.kind === "player" && <PlayerSlide key={`${story.id}-${isActive ? "active" : "idle"}`} story={story} wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} audioDurationMs={storyAudioDurations[story.assetKey] || DEFAULT_AUDIO_DURATION_MS} audioSequenceCompleted={completedAudioStoryId === story.id} seasonGames={seasonGames} onVideoFinished={setCompletedVideoStoryId} onStoryAudioPlaybackChange={setStoryAudioPlayback} onStoryAudioCompleted={setStoryAudioCompleted} />}
               {story.kind === "map" && <MapSlide story={story} wrapped={wrapped} />}
               {story.kind === "finale" && <FinaleSlide wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} />}
             </div>

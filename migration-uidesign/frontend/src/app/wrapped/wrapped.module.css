@@ -97,7 +97,7 @@
 .artworkBackdrop img,.artworkBackdrop video { --art-mirror:1; width:100%; height:100%; object-fit:cover; object-position:center; opacity:.72; filter:saturate(1.16) contrast(1.1) brightness(.92); transform:scaleX(var(--art-mirror)) scale(1.04); }
 .artworkBackdrop video { opacity:.84; filter:saturate(1.2) contrast(1.08) brightness(1.03); }
 .artworkBackdrop .artworkFlipped { --art-mirror:-1; }
-.artworkBackdrop .videoFrozen { animation:freezeFrameZoom 2.5s cubic-bezier(.18,.75,.22,1) both; }
+.artworkBackdrop .videoFrozen { animation:freezeFrameZoom 1.5s cubic-bezier(.18,.75,.22,1) both; }
 .artworkBackdrop::after { position:absolute; inset:0; content:""; background:linear-gradient(90deg,rgba(3,6,10,1) 0%,rgba(3,6,10,.96) 42%,rgba(3,6,10,.58) 66%,rgba(3,6,10,.12) 100%),linear-gradient(0deg,rgba(3,6,10,.48),transparent 50%); }
 .storyWaiting { opacity:0; pointer-events:none; transform:translateY(3%) scale(.98); }
 .storyTimeline { opacity:1; transform:translateY(0) scale(1); }
@@ -183,7 +183,7 @@
 .status { display:grid; min-height:100dvh; place-content:center; padding:2rem; color:var(--ink); background:radial-gradient(circle at center,rgba(246,196,67,.13),transparent 30%),#05080d; text-align:center; }.status p { color:var(--cyan); font-size:.7rem; font-weight:900; letter-spacing:.2em; }.status h1 { max-width:16ch; margin:1rem 0 0; font-family:var(--font-league-gothic),Impact,sans-serif; font-size:clamp(4rem,8vw,8rem); font-weight:400; line-height:.8; text-transform:uppercase; }
 
 @keyframes artZoom { from { opacity:0; transform:scaleX(var(--art-mirror, 1)) scale(.88) translateY(7%); } 18% { opacity:1; } to { opacity:1; transform:scaleX(var(--art-mirror, 1)) scale(1.08) translateY(0); } }
-@keyframes freezeFrameZoom { from { transform:scaleX(var(--art-mirror, 1)) scale(1.04); } to { transform:scaleX(var(--art-mirror, 1)) scale(1.12); } }
+@keyframes freezeFrameZoom { from { transform:scaleX(var(--art-mirror, 1)) scale(1.04); } to { transform:scaleX(var(--art-mirror, 1)) scale(1.3); } }
 @keyframes copyZoom { from { opacity:0; transform:translateY(5%) scale(.94); } 18% { opacity:1; } to { opacity:1; transform:translateY(0) scale(1.035); } }
 @keyframes copyReveal { from { opacity:0; transform:translateY(4%) scale(.96); } to { opacity:1; transform:translateY(0) scale(1); } }
 @keyframes identityReveal { 0% { opacity:0; transform:translateX(var(--identity-offset)) skewX(var(--identity-skew)) scale(.9); filter:blur(10px); } 58% { opacity:1; filter:blur(0); } 100% { opacity:1; transform:translateX(0) skewX(0) scale(1); filter:blur(0); } }
