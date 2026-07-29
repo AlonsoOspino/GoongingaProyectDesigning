@@ -124,12 +124,13 @@ function useHighlightSequence(active: boolean, videoPhaseDurationMs: number, red
 }
 
 function fadeAudio(audio: HTMLAudioElement, targetVolume: number, durationMs: number) {
-  const initialVolume = audio.volume;
+  const initialVolume = clamp(audio.volume, 0, 1);
+  const finalVolume = clamp(targetVolume, 0, 1);
   const startedAt = performance.now();
   let frame = 0;
   const tick = (now: number) => {
     const progress = Math.min(1, (now - startedAt) / durationMs);
-    audio.volume = initialVolume + (targetVolume - initialVolume) * progress;
+    audio.volume = clamp(initialVolume + (finalVolume - initialVolume) * progress, 0, 1);
     if (progress < 1) frame = requestAnimationFrame(tick);
   };
   frame = requestAnimationFrame(tick);
