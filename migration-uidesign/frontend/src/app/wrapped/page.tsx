@@ -48,6 +48,7 @@ const MIN_VALID_AUDIO_DURATION_SECONDS = 0.25;
 const CUE_TARGET_RMS = 0.24;
 const CUE_MIN_GAIN = 1.3;
 const CUE_MAX_GAIN = 2.5;
+const BACKGROUND_VIDEO_PLAYBACK_RATE = 0.8;
 const audioGainCache = new Map<string, Promise<number>>();
 
 function formatNumber(value: number | null | undefined, decimals = 0) {
@@ -410,6 +411,7 @@ function PlayerSlide({
     const freezeOnLastFrame = () => {
       if (finished) return;
       finished = true;
+      video.loop = false;
       video.pause();
       const lastFrame = Number.isFinite(video.duration) && video.duration > 0 ? Math.max(0, video.duration - 0.04) : 0;
       if (lastFrame && Math.abs(video.currentTime - lastFrame) > 0.03) {
@@ -420,11 +422,11 @@ function PlayerSlide({
       }
     };
     const playVideo = () => {
-      const sourceDuration = Number.isFinite(video.duration) ? video.duration : 0;
-      const requestedRate = sourceDuration ? sourceDuration / Math.max(audioDurationMs / 1000, 0.1) : 0.86;
-      // Keep the background cinematic: it can slow down to meet the cue
-      // timeline, but never accelerates beyond normal speed.
-      video.playbackRate = clamp(requestedRate, 0.55, 0.92);
+      // Most authored clips are shorter than their cue sequence. Looping them
+      // at a restrained speed keeps the background alive for the entire audio
+      // phase; the real final frame is reserved for the last 2.5 seconds.
+      video.loop = true;
+      video.playbackRate = BACKGROUND_VIDEO_PLAYBACK_RATE;
       // Story audio is authored separately. Muting the background clip makes
       // video playback reliable in browsers and OBS's Chromium source.
       video.muted = true;
