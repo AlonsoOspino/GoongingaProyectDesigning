@@ -40,6 +40,7 @@ type Story = PlayerStory | MapStory | { id: "finale"; kind: "finale" };
 
 const CINEMATIC_STORY_DURATION_MS = 15_000;
 const STANDARD_STORY_DURATION_MS = 4000;
+const EMPTY_AUDIO_SOURCES: string[] = [];
 
 function formatNumber(value: number | null | undefined, decimals = 0) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "—";
@@ -87,6 +88,25 @@ function useCountUp(target: number, active: boolean, reducedMotion: boolean, dec
   }, [active, reducedMotion, target]);
 
   return value;
+}
+
+function useDelayedReveal(active: boolean, delayMs: number, reducedMotion: boolean) {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (!active) {
+      setVisible(false);
+      return;
+    }
+    if (reducedMotion) {
+      setVisible(true);
+      return;
+    }
+    const timeout = window.setTimeout(() => setVisible(true), delayMs);
+    return () => window.clearTimeout(timeout);
+  }, [active, delayMs, reducedMotion]);
+
+  return visible;
 }
 
 function fadeAudio(audio: HTMLAudioElement, targetVolume: number, durationMs: number) {
@@ -173,31 +193,44 @@ function PlayerProfile({ leader }: { leader: WrappedPlayerLeader | null }) {
   );
 }
 
-function StoryAudioSequence({ sources, active }: { sources: string[]; active: boolean }) {
+function StoryAudioSequence({ sources, active, onPlaybackChange }: { sources: string[]; active: boolean; onPlaybackChange: (playing: boolean) => void }) {
   useEffect(() => {
-    if (!active || !sources.length) return;
+    if (!active || !sources.length) {
+      onPlaybackChange(false);
+      return;
+    }
 
     let cancelled = false;
     let current: HTMLAudioElement | null = null;
     let index = 0;
-    const playNext = () => {
-      if (cancelled || index >= sources.length) return;
+    const playNext = async () => {
+      if (cancelled) return;
+      if (index >= sources.length) {
+        onPlaybackChange(false);
+        return;
+      }
       current = new Audio(sources[index]);
       index += 1;
       current.preload = "auto";
       current.onended = playNext;
-      void current.play().catch(() => undefined);
+      try {
+        await current.play();
+        if (!cancelled) onPlaybackChange(true);
+      } catch {
+        playNext();
+      }
     };
 
-    playNext();
+    void playNext();
     return () => {
       cancelled = true;
       if (current) {
         current.onended = null;
         current.pause();
       }
+      onPlaybackChange(false);
     };
-  }, [active, sources]);
+  }, [active, onPlaybackChange, sources]);
 
   return null;
 }
@@ -208,12 +241,14 @@ function PlayerSlide({
   active,
   reducedMotion,
   onVideoFinished,
+  onStoryAudioPlaybackChange,
 }: {
   story: PlayerStory;
   wrapped: GoongingaWrapped;
   active: boolean;
   reducedMotion: boolean;
   onVideoFinished: (storyId: string) => void;
+  onStoryAudioPlaybackChange: (storyId: string, playing: boolean) => void;
 }) {
   const leader = story.value;
   const assets = useMemo(() => resolveWrappedAssets(wrapped.assets), [wrapped.assets]);
@@ -222,6 +257,7 @@ function PlayerSlide({
   const flipped = assets.flipped[story.assetKey] === true;
   const [videoFinished, setVideoFinished] = useState(!introVideo);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const storyAudioSources = assets.storyAudios[story.assetKey] || EMPTY_AUDIO_SOURCES;
 
   useEffect(() => {
     const video = videoRef.current;
@@ -242,9 +278,13 @@ function PlayerSlide({
     setVideoFinished(true);
     onVideoFinished(story.id);
   }, [onVideoFinished, story.id]);
+  const handleStoryAudioPlaybackChange = useCallback((playing: boolean) => {
+    onStoryAudioPlaybackChange(story.id, playing);
+  }, [onStoryAudioPlaybackChange, story.id]);
 
   const revealed = active && (reducedMotion || !introVideo || videoFinished);
-  const displayedValue = useCountUp(leader?.value || 0, revealed, reducedMotion, story.decimals ?? 0);
+  const valueRevealed = useDelayedReveal(revealed, 850, reducedMotion);
+  const displayedValue = useCountUp(leader?.value || 0, valueRevealed, reducedMotion, story.decimals ?? 0);
   return (
     <section className={`${styles.slide} ${styles.playerSlide} ${styles[`layout${story.layout[0].toUpperCase()}${story.layout.slice(1)}`]}`} aria-label={story.title}>
       <div className={styles.artworkBackdrop} aria-hidden="true">
@@ -259,16 +299,18 @@ function PlayerSlide({
           />
         ) : artwork && <img src={artwork} alt="" className={flipped ? styles.artworkFlipped : undefined} />}
       </div>
+      <div className={`${styles.playerIdentity} ${active ? styles.playerIdentityVisible : ""}`}>
+        <PlayerProfile leader={leader} />
+      </div>
       <div className={`${styles.storyCopy} ${revealed ? styles.storyRevealed : styles.storyWaiting}`}>
         <p className={styles.eyebrow}>{story.eyebrow}</p>
         <h2>{story.title}</h2>
         <p className={styles.storyCaption}>{story.caption}</p>
         <div className={styles.valueBlock}>
           <strong>{formatNumber(displayedValue, story.decimals ?? 0)}<small>{story.suffix || ""}</small></strong>
-          <PlayerProfile leader={leader} />
         </div>
       </div>
-      <StoryAudioSequence sources={assets.storyAudios[story.assetKey] || []} active={revealed} />
+      <StoryAudioSequence sources={storyAudioSources} active={revealed} onPlaybackChange={handleStoryAudioPlaybackChange} />
     </section>
   );
 }
@@ -332,6 +374,7 @@ export default function WrappedPage() {
   const [started, setStarted] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [completedVideoStoryId, setCompletedVideoStoryId] = useState<string | null>(null);
+  const [storyAudioPlayingId, setStoryAudioPlayingId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const introAudioRef = useRef<HTMLAudioElement>(null);
   const generalAudioRef = useRef<HTMLAudioElement>(null);
@@ -401,6 +444,13 @@ export default function WrappedPage() {
     goTo(1);
   }, [goTo, started]);
 
+  const setStoryAudioPlayback = useCallback((storyId: string, playing: boolean) => {
+    setStoryAudioPlayingId((current) => {
+      if (playing) return storyId;
+      return current === storyId ? null : current;
+    });
+  }, []);
+
   useEffect(() => {
     const intro = introAudioRef.current;
     if (!intro || !media?.soundtrack.intro || started || reducedMotion) return;
@@ -422,12 +472,14 @@ export default function WrappedPage() {
     void general.play().catch(() => undefined);
     const activeStory = activeIndex > 0 ? stories[activeIndex - 1] : null;
     const isVideoIntroduction = activeStory?.kind === "player" && Boolean(media.videos[activeStory.assetKey]);
-    const targetVolume = isVideoIntroduction && completedVideoStoryId !== activeStory?.id ? 1 : 0.5;
-    return fadeAudio(general, targetVolume, 240);
-  }, [activeIndex, completedVideoStoryId, media?.soundtrack.general, media?.videos, started, stories]);
+    const isStoryAudioPlaying = activeStory?.kind === "player" && storyAudioPlayingId === activeStory.id;
+    const targetVolume = isStoryAudioPlaying ? 0 : isVideoIntroduction && completedVideoStoryId !== activeStory?.id ? 1 : 0.5;
+    return fadeAudio(general, targetVolume, isStoryAudioPlaying ? 420 : 650);
+  }, [activeIndex, completedVideoStoryId, media?.soundtrack.general, media?.videos, started, stories, storyAudioPlayingId]);
 
   useEffect(() => {
     setCompletedVideoStoryId(null);
+    setStoryAudioPlayingId(null);
   }, [activeIndex]);
 
   useEffect(() => {
@@ -485,7 +537,7 @@ export default function WrappedPage() {
           const isActive = started && activeIndex === storyIndex;
           return (
             <div key={story.id} className={`${styles.storyViewport} ${isActive ? styles.storyActive : ""}`}>
-              {story.kind === "player" && <PlayerSlide story={story} wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} onVideoFinished={setCompletedVideoStoryId} />}
+              {story.kind === "player" && <PlayerSlide story={story} wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} onVideoFinished={setCompletedVideoStoryId} onStoryAudioPlaybackChange={setStoryAudioPlayback} />}
               {story.kind === "map" && <MapSlide story={story} wrapped={wrapped} />}
               {story.kind === "finale" && <FinaleSlide wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} />}
             </div>
