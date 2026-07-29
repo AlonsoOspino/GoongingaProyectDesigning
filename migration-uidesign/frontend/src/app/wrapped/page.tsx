@@ -394,6 +394,16 @@ function PlayerSlide({
     setVideoFinished(true);
     onVideoFinished(story.id);
   }, [onVideoFinished, story.id]);
+  const resumeBackgroundVideo = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || !active || videoFinished || reducedMotion) return;
+    video.muted = true;
+    video.defaultMuted = true;
+    video.volume = 0;
+    video.loop = true;
+    video.playbackRate = BACKGROUND_VIDEO_PLAYBACK_RATE;
+    void video.play().catch(() => undefined);
+  }, [active, reducedMotion, videoFinished]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -425,15 +435,8 @@ function PlayerSlide({
       // Most authored clips are shorter than their cue sequence. Looping them
       // at a restrained speed keeps the background alive for the entire audio
       // phase; the real final frame is reserved for the last 2.5 seconds.
-      video.loop = true;
-      video.playbackRate = BACKGROUND_VIDEO_PLAYBACK_RATE;
-      // Story audio is authored separately. Muting the background clip makes
-      // video playback reliable in browsers and OBS's Chromium source.
-      video.muted = true;
-      video.defaultMuted = true;
-      video.volume = 0;
       video.currentTime = 0;
-      void video.play().catch(() => undefined);
+      resumeBackgroundVideo();
     };
 
     if (video.readyState >= 1) playVideo();
@@ -445,7 +448,7 @@ function PlayerSlide({
       video.removeEventListener("seeked", finishOnSeek);
       video.pause();
     };
-  }, [active, audioDurationMs, finishVideo, introVideo, onVideoFinished, reducedMotion, story.id]);
+  }, [active, audioDurationMs, finishVideo, introVideo, onVideoFinished, reducedMotion, resumeBackgroundVideo, story.id]);
   const handleStoryAudioPlaybackChange = useCallback((playing: boolean) => {
     onStoryAudioPlaybackChange(story.id, playing);
   }, [onStoryAudioPlaybackChange, story.id]);
@@ -462,7 +465,11 @@ function PlayerSlide({
             className={`${flipped ? styles.artworkFlipped : ""} ${videoFinished ? styles.videoFrozen : ""}`}
             playsInline
             muted
+            autoPlay={active && !videoFinished}
+            loop={active && !videoFinished}
             preload="auto"
+            onCanPlay={resumeBackgroundVideo}
+            onLoadedData={resumeBackgroundVideo}
           />
         ) : artwork && <img src={artwork} alt="" className={flipped ? styles.artworkFlipped : undefined} />}
       </div>
