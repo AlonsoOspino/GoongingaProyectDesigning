@@ -99,7 +99,7 @@ function useCountUp(target: number, active: boolean, reducedMotion: boolean, dec
   return value;
 }
 
-function useHighlightSequence(active: boolean, videoPhaseDurationMs: number, reducedMotion: boolean) {
+function useHighlightSequence(active: boolean, videoPhaseDurationMs: number, reducedMotion: boolean, forceComplete = false) {
   const [stage, setStage] = useState(0);
 
   useEffect(() => {
@@ -107,7 +107,7 @@ function useHighlightSequence(active: boolean, videoPhaseDurationMs: number, red
       setStage(0);
       return;
     }
-    if (reducedMotion) {
+    if (reducedMotion || forceComplete) {
       setStage(4);
       return;
     }
@@ -119,7 +119,7 @@ function useHighlightSequence(active: boolean, videoPhaseDurationMs: number, red
       identityPhase + (remainingPhase * nextStage) / 4
     ));
     return () => timeouts.forEach((timeout) => window.clearTimeout(timeout));
-  }, [active, reducedMotion, videoPhaseDurationMs]);
+  }, [active, forceComplete, reducedMotion, videoPhaseDurationMs]);
 
   return stage;
 }
@@ -279,10 +279,11 @@ function PlayerProfile({ leader }: { leader: WrappedPlayerLeader | null }) {
   );
 }
 
-function StoryAudioSequence({ sources, active, onPlaybackChange }: { sources: string[]; active: boolean; onPlaybackChange: (playing: boolean) => void }) {
+function StoryAudioSequence({ sources, active, onPlaybackChange, onComplete }: { sources: string[]; active: boolean; onPlaybackChange: (playing: boolean) => void; onComplete: () => void }) {
   useEffect(() => {
     if (!active || !sources.length) {
       onPlaybackChange(false);
+      if (active) onComplete();
       return;
     }
 
@@ -312,6 +313,7 @@ function StoryAudioSequence({ sources, active, onPlaybackChange }: { sources: st
       if (cancelled) return;
       if (index >= sources.length) {
         onPlaybackChange(false);
+        onComplete();
         return;
       }
       disconnectCurrent();
@@ -358,7 +360,7 @@ function StoryAudioSequence({ sources, active, onPlaybackChange }: { sources: st
       void context?.close();
       onPlaybackChange(false);
     };
-  }, [active, onPlaybackChange, sources]);
+  }, [active, onComplete, onPlaybackChange, sources]);
 
   return null;
 }
@@ -369,16 +371,20 @@ function PlayerSlide({
   active,
   reducedMotion,
   audioDurationMs,
+  audioSequenceCompleted,
   onVideoFinished,
   onStoryAudioPlaybackChange,
+  onStoryAudioCompleted,
 }: {
   story: PlayerStory;
   wrapped: GoongingaWrapped;
   active: boolean;
   reducedMotion: boolean;
   audioDurationMs: number;
+  audioSequenceCompleted: boolean;
   onVideoFinished: (storyId: string) => void;
   onStoryAudioPlaybackChange: (storyId: string, playing: boolean) => void;
+  onStoryAudioCompleted: (storyId: string) => void;
 }) {
   const leader = story.value;
   const assets = useMemo(() => resolveWrappedAssets(wrapped.assets), [wrapped.assets]);
@@ -388,7 +394,7 @@ function PlayerSlide({
   const [videoFinished, setVideoFinished] = useState(!introVideo);
   const videoRef = useRef<HTMLVideoElement>(null);
   const storyAudioSources = assets.storyAudios[story.assetKey] || EMPTY_AUDIO_SOURCES;
-  const revealStage = useHighlightSequence(active, audioDurationMs, reducedMotion);
+  const revealStage = useHighlightSequence(active, audioDurationMs, reducedMotion, audioSequenceCompleted);
 
   const finishVideo = useCallback(() => {
     setVideoFinished(true);
@@ -404,6 +410,19 @@ function PlayerSlide({
     video.playbackRate = BACKGROUND_VIDEO_PLAYBACK_RATE;
     void video.play().catch(() => undefined);
   }, [active, reducedMotion, videoFinished]);
+  const freezeVideoOnLastFrame = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || videoFinished) return;
+    video.loop = false;
+    video.pause();
+    const lastFrame = Number.isFinite(video.duration) && video.duration > 0 ? Math.max(0, video.duration - 0.04) : 0;
+    if (lastFrame && Math.abs(video.currentTime - lastFrame) > 0.03) {
+      video.addEventListener("seeked", finishVideo, { once: true });
+      video.currentTime = lastFrame;
+    } else {
+      finishVideo();
+    }
+  }, [finishVideo, videoFinished]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -415,22 +434,6 @@ function PlayerSlide({
 
     setVideoFinished(false);
     if (!active || !video) return;
-    let finishTimeout = 0;
-    let finished = false;
-    const finishOnSeek = () => finishVideo();
-    const freezeOnLastFrame = () => {
-      if (finished) return;
-      finished = true;
-      video.loop = false;
-      video.pause();
-      const lastFrame = Number.isFinite(video.duration) && video.duration > 0 ? Math.max(0, video.duration - 0.04) : 0;
-      if (lastFrame && Math.abs(video.currentTime - lastFrame) > 0.03) {
-        video.addEventListener("seeked", finishOnSeek, { once: true });
-        video.currentTime = lastFrame;
-      } else {
-        finishVideo();
-      }
-    };
     const playVideo = () => {
       // Most authored clips are shorter than their cue sequence. Looping them
       // at a restrained speed keeps the background alive for the entire audio
@@ -441,17 +444,22 @@ function PlayerSlide({
 
     if (video.readyState >= 1) playVideo();
     else video.addEventListener("loadedmetadata", playVideo, { once: true });
-    finishTimeout = window.setTimeout(freezeOnLastFrame, audioDurationMs);
     return () => {
-      window.clearTimeout(finishTimeout);
       video.removeEventListener("loadedmetadata", playVideo);
-      video.removeEventListener("seeked", finishOnSeek);
+      video.removeEventListener("seeked", finishVideo);
       video.pause();
     };
-  }, [active, audioDurationMs, finishVideo, introVideo, onVideoFinished, reducedMotion, resumeBackgroundVideo, story.id]);
+  }, [active, finishVideo, introVideo, onVideoFinished, reducedMotion, resumeBackgroundVideo, story.id]);
+
+  useEffect(() => {
+    if (active && audioSequenceCompleted && !reducedMotion) freezeVideoOnLastFrame();
+  }, [active, audioSequenceCompleted, freezeVideoOnLastFrame, reducedMotion]);
   const handleStoryAudioPlaybackChange = useCallback((playing: boolean) => {
     onStoryAudioPlaybackChange(story.id, playing);
   }, [onStoryAudioPlaybackChange, story.id]);
+  const handleStoryAudioComplete = useCallback(() => {
+    onStoryAudioCompleted(story.id);
+  }, [onStoryAudioCompleted, story.id]);
 
   const valueRevealed = revealStage >= 4;
   const displayedValue = useCountUp(leader?.value || 0, valueRevealed, reducedMotion, story.decimals ?? 0);
@@ -484,7 +492,7 @@ function PlayerSlide({
           <strong>{formatNumber(displayedValue, story.decimals ?? 0)}<small>{story.suffix || ""}</small></strong>
         </div>
       </div>
-      <StoryAudioSequence sources={storyAudioSources} active={active} onPlaybackChange={handleStoryAudioPlaybackChange} />
+      <StoryAudioSequence sources={storyAudioSources} active={active} onPlaybackChange={handleStoryAudioPlaybackChange} onComplete={handleStoryAudioComplete} />
     </section>
   );
 }
@@ -548,6 +556,7 @@ export default function WrappedPage() {
   const [started, setStarted] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [completedVideoStoryId, setCompletedVideoStoryId] = useState<string | null>(null);
+  const [completedAudioStoryId, setCompletedAudioStoryId] = useState<string | null>(null);
   const [storyAudioPlayingId, setStoryAudioPlayingId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const introAudioRef = useRef<HTMLAudioElement>(null);
@@ -625,6 +634,9 @@ export default function WrappedPage() {
       return current === storyId ? null : current;
     });
   }, []);
+  const setStoryAudioCompleted = useCallback((storyId: string) => {
+    setCompletedAudioStoryId(storyId);
+  }, []);
 
   useEffect(() => {
     const intro = introAudioRef.current;
@@ -656,18 +668,18 @@ export default function WrappedPage() {
 
   useEffect(() => {
     setCompletedVideoStoryId(null);
+    setCompletedAudioStoryId(null);
     setStoryAudioPlayingId(null);
   }, [activeIndex]);
 
   useEffect(() => {
     if (!started || reducedMotion || activeIndex >= totalSlides - 1) return;
     const activeStory = activeIndex > 0 ? stories[activeIndex - 1] : null;
-    const duration = activeStory?.kind === "player"
-      ? (storyAudioDurations[activeStory.assetKey] || DEFAULT_AUDIO_DURATION_MS) + FINAL_FRAME_DURATION_MS
-      : STANDARD_STORY_DURATION_MS;
+    if (activeStory?.kind === "player" && completedAudioStoryId !== activeStory.id) return;
+    const duration = activeStory?.kind === "player" ? FINAL_FRAME_DURATION_MS : STANDARD_STORY_DURATION_MS;
     const timeout = window.setTimeout(() => goTo(activeIndex + 1), duration);
     return () => window.clearTimeout(timeout);
-  }, [activeIndex, goTo, reducedMotion, started, stories, storyAudioDurations, totalSlides]);
+  }, [activeIndex, completedAudioStoryId, goTo, reducedMotion, started, stories, totalSlides]);
 
   useEffect(() => {
     const viewport = scrollRef.current;
@@ -716,7 +728,7 @@ export default function WrappedPage() {
           const isActive = started && activeIndex === storyIndex;
           return (
             <div key={story.id} className={`${styles.storyViewport} ${isActive ? styles.storyActive : ""}`}>
-              {story.kind === "player" && <PlayerSlide story={story} wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} audioDurationMs={storyAudioDurations[story.assetKey] || DEFAULT_AUDIO_DURATION_MS} onVideoFinished={setCompletedVideoStoryId} onStoryAudioPlaybackChange={setStoryAudioPlayback} />}
+              {story.kind === "player" && <PlayerSlide story={story} wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} audioDurationMs={storyAudioDurations[story.assetKey] || DEFAULT_AUDIO_DURATION_MS} audioSequenceCompleted={completedAudioStoryId === story.id} onVideoFinished={setCompletedVideoStoryId} onStoryAudioPlaybackChange={setStoryAudioPlayback} onStoryAudioCompleted={setStoryAudioCompleted} />}
               {story.kind === "map" && <MapSlide story={story} wrapped={wrapped} />}
               {story.kind === "finale" && <FinaleSlide wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} />}
             </div>
