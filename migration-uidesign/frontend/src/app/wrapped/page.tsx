@@ -44,6 +44,7 @@ const MUSIC_HIGHLIGHT_VOLUME = 0.38;
 const MUSIC_RESTING_VOLUME = 0.65;
 const DEFAULT_AUDIO_DURATION_MS = 12_500;
 const FINAL_FRAME_DURATION_MS = 2_500;
+const MIN_VALID_AUDIO_DURATION_SECONDS = 0.25;
 const CUE_TARGET_RMS = 0.24;
 const CUE_MIN_GAIN = 1.3;
 const CUE_MAX_GAIN = 2.5;
@@ -185,13 +186,14 @@ function useStoryAudioDurations(storyAudios: Partial<Record<WrappedAssetKey, str
       audio.preload = "metadata";
       audio.onloadedmetadata = () => {
         window.clearTimeout(timeout);
-        resolve(Number.isFinite(audio.duration) ? audio.duration : 0);
+        resolve(Number.isFinite(audio.duration) && audio.duration >= MIN_VALID_AUDIO_DURATION_SECONDS ? audio.duration : 0);
       };
       audio.onerror = () => {
         window.clearTimeout(timeout);
         resolve(0);
       };
       audio.src = source;
+      audio.load();
     });
 
     void Promise.all(entries.map(async ([key, sources]) => [key, (await Promise.all(sources.map(getDuration))).reduce((total, duration) => total + duration, 0)] as const))
@@ -422,6 +424,11 @@ function PlayerSlide({
       // Keep the background cinematic: it can slow down to meet the cue
       // timeline, but never accelerates beyond normal speed.
       video.playbackRate = clamp(requestedRate, 0.55, 0.92);
+      // Story audio is authored separately. Muting the background clip makes
+      // video playback reliable in browsers and OBS's Chromium source.
+      video.muted = true;
+      video.defaultMuted = true;
+      video.volume = 0;
       video.currentTime = 0;
       void video.play().catch(() => undefined);
     };
@@ -451,6 +458,7 @@ function PlayerSlide({
             src={introVideo}
             className={`${flipped ? styles.artworkFlipped : ""} ${videoFinished ? styles.videoFrozen : ""}`}
             playsInline
+            muted
             preload="auto"
           />
         ) : artwork && <img src={artwork} alt="" className={flipped ? styles.artworkFlipped : undefined} />}
