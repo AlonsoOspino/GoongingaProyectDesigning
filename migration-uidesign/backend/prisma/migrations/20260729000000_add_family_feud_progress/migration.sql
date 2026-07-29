@@ -1,0 +1,4 @@
+ALTER TABLE "FamilyFeudGame"
+ADD COLUMN "phase" TEXT NOT NULL DEFAULT 'notStarted',
+ADD COLUMN "round" INTEGER;
+

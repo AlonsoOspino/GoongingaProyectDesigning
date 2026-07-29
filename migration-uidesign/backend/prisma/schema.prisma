@@ -32,6 +32,8 @@ model FamilyFeudGame {
   roomId           String   @unique
   alphaInviteToken String   @unique
   betaInviteToken  String   @unique
+  phase            String   @default("notStarted")
+  round            Int?
   state            Json
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

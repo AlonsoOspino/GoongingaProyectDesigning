@@ -9,6 +9,7 @@ router.get("/invite/:inviteToken", authMiddleware, familyFeudController.getGameB
 router.get("/games/:roomId", familyFeudController.getGame);
 router.post("/games", familyFeudController.createGame);
 router.post("/games/:roomId/join", authMiddleware, familyFeudController.joinGameTeam);
+router.patch("/games/:roomId/team", authMiddleware, familyFeudController.updateGameTeam);
 router.put("/games/:roomId", familyFeudController.updateGame);
 router.delete("/games/:roomId", familyFeudController.deleteGame);
 

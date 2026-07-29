@@ -1,5 +1,20 @@
 const prisma = require("../config/prisma");
 
+const FAMILY_FEUD_PHASES = new Set([
+  "notStarted",
+  "teamLobby",
+  "choosingParticipant",
+  "playing",
+  "roundComplete",
+]);
+
+function normalizeProgress(state) {
+  const phase = FAMILY_FEUD_PHASES.has(state?.phase) ? state.phase : "notStarted";
+  const parsedRound = Number(state?.currentRound);
+  const round = Number.isInteger(parsedRound) && parsedRound > 0 ? parsedRound : null;
+  return { phase, round };
+}
+
 function getStateTokens(state) {
   const roomId = typeof state?.roomId === "string" ? state.roomId.trim() : "";
   const alphaInviteToken = typeof state?.teams?.alpha?.inviteToken === "string" ? state.teams.alpha.inviteToken.trim() : "";
@@ -31,12 +46,17 @@ function preserveStableLinks(record, nextState) {
 
 function toPayload(record) {
   if (!record) return null;
+  const state = record.state && typeof record.state === "object"
+    ? { ...record.state, phase: record.phase, currentRound: record.round }
+    : record.state;
   return {
     id: record.id,
     roomId: record.roomId,
     alphaInviteToken: record.alphaInviteToken,
     betaInviteToken: record.betaInviteToken,
-    state: record.state,
+    phase: record.phase,
+    round: record.round,
+    state,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   };
@@ -50,18 +70,19 @@ async function createGame(req, res) {
     }
 
     const { roomId, alphaInviteToken, betaInviteToken } = getStateTokens(state);
+    const progress = normalizeProgress(state);
     const existing = await prisma.familyFeudGame.findUnique({ where: { roomId } });
     if (existing) {
       const stableState = preserveStableLinks(existing, state);
       const updated = await prisma.familyFeudGame.update({
         where: { roomId },
-        data: { state: stableState },
+        data: { state: stableState, ...progress },
       });
       return res.json(toPayload(updated));
     }
 
     const game = await prisma.familyFeudGame.create({
-      data: { roomId, alphaInviteToken, betaInviteToken, state },
+      data: { roomId, alphaInviteToken, betaInviteToken, state, ...progress },
     });
     return res.status(201).json(toPayload(game));
   } catch (error) {
@@ -113,7 +134,9 @@ async function joinGameTeam(req, res) {
     const game = await prisma.familyFeudGame.findUnique({ where: { roomId } });
 
     if (!game) return res.status(404).json({ message: "Family Feud game not found." });
-    if (!game.state?.gameStarted) return res.status(409).json({ message: "The manager has not opened the player links yet." });
+    if (!game.state?.gameStarted || game.phase !== "teamLobby") {
+      return res.status(409).json({ message: "This team is not accepting players right now." });
+    }
 
     const teamId = game.alphaInviteToken === inviteToken
       ? "alpha"
@@ -179,6 +202,55 @@ async function joinGameTeam(req, res) {
   }
 }
 
+async function updateGameTeam(req, res) {
+  try {
+    const roomId = String(req.params.roomId || "").trim();
+    const inviteToken = String(req.body?.inviteToken || "").trim().toUpperCase();
+    const requestedName = typeof req.body?.name === "string" ? req.body.name.trim().slice(0, 48) : "";
+    const requestedLogoUrl = typeof req.body?.logoUrl === "string" ? req.body.logoUrl.trim().slice(0, 2048) : "";
+    const game = await prisma.familyFeudGame.findUnique({ where: { roomId } });
+
+    if (!game) return res.status(404).json({ message: "Family Feud game not found." });
+    if (game.phase !== "teamLobby") {
+      return res.status(409).json({ message: "Team customization is only available in the lobby." });
+    }
+
+    const teamId = game.alphaInviteToken === inviteToken
+      ? "alpha"
+      : game.betaInviteToken === inviteToken
+        ? "beta"
+        : null;
+    if (!teamId) return res.status(403).json({ message: "This player link does not belong to the game." });
+
+    const participantId = `member-${Number(req.user?.id)}`;
+    const state = preserveStableLinks(game, game.state);
+    const team = state.teams[teamId];
+    if (team.captainId !== participantId) {
+      return res.status(403).json({ message: "Only the team captain can customize the team." });
+    }
+
+    const nextState = {
+      ...state,
+      updatedAt: Date.now(),
+      teams: {
+        ...state.teams,
+        [teamId]: {
+          ...team,
+          name: requestedName || team.name,
+          logoUrl: requestedLogoUrl || null,
+        },
+      },
+    };
+    const updated = await prisma.familyFeudGame.update({
+      where: { roomId },
+      data: { state: nextState },
+    });
+    return res.json({ ...toPayload(updated), teamId });
+  } catch (error) {
+    return res.status(400).json({ message: error?.message || "Failed to customize the Family Feud team." });
+  }
+}
+
 async function updateGame(req, res) {
   try {
     const roomId = String(req.params.roomId || "").trim();
@@ -191,9 +263,10 @@ async function updateGame(req, res) {
     if (!existing) return res.status(404).json({ message: "Family Feud game not found." });
 
     const stableState = preserveStableLinks(existing, state);
+    const progress = normalizeProgress(state);
     const updated = await prisma.familyFeudGame.update({
       where: { roomId },
-      data: { state: stableState },
+      data: { state: stableState, ...progress },
     });
     return res.json(toPayload(updated));
   } catch (error) {
@@ -218,6 +291,7 @@ module.exports = {
   getGame,
   getGameByInvite,
   joinGameTeam,
+  updateGameTeam,
   updateGame,
   deleteGame,
 };
