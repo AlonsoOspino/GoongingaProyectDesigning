@@ -574,8 +574,6 @@
   animation: lineGrow .4s .2s cubic-bezier(.16, .84, .2, 1) both;
 }
 
-.storyCopy h2 span { display: block; }
-
 /* ─── Art frame ─── */
 .artFrame { 
   position: relative; 
@@ -1228,6 +1226,10 @@
   text-align: left;
   text-wrap: balance;
   filter: drop-shadow(0 0 18px color-mix(in srgb, var(--highlight-accent) 42%, transparent)) drop-shadow(0 5px 14px rgba(0, 0, 0, .48));
+}
+.titleWord {
+  display: inline-block;
+  white-space: nowrap;
 }
 .playerSlide .metricDescriptor,
 .playerSlide.layoutImpact .metricDescriptor,
