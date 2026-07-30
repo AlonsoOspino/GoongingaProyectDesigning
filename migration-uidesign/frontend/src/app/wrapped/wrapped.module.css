@@ -1216,23 +1216,32 @@
   inline-size: min(46vw, var(--title-width, 9.5ch));
   max-inline-size: 100%;
   margin: 0 0 .5rem;
+  position: relative;
+  color: transparent;
+  background: none;
+  -webkit-text-fill-color: transparent;
+  font-size: clamp(5.2rem, 8.4vw, 10.2rem);
+  line-height: .73;
+  text-align: left;
+  text-wrap: balance;
+  filter: drop-shadow(0 0 18px color-mix(in srgb, var(--highlight-accent) 42%, transparent)) drop-shadow(0 5px 14px rgba(0, 0, 0, .48));
+}
+.playerSlide .storyCopy h2::after {
+  position: absolute;
+  inset: 0;
+  display: block;
+  content: attr(data-title);
   color: var(--highlight-accent);
-  /* One background belongs to the whole heading box, so the top line starts
-     white and the last line ends in the accent without restarting per row. */
-  background-image: linear-gradient(180deg, var(--highlight-title-start) 0%, var(--highlight-accent) 100%);
+  background: linear-gradient(180deg, var(--highlight-title-start) 0%, var(--highlight-accent) 100%);
   background-position: center;
   background-repeat: no-repeat;
   background-size: 100% 100%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  -webkit-box-decoration-break: slice;
-  box-decoration-break: slice;
-  font-size: clamp(5.2rem, 8.4vw, 10.2rem);
-  line-height: .73;
-  text-align: left;
-  text-wrap: balance;
-  filter: drop-shadow(0 0 18px color-mix(in srgb, var(--highlight-accent) 42%, transparent)) drop-shadow(0 5px 14px rgba(0, 0, 0, .48));
+  text-align: inherit;
+  text-wrap: inherit;
+  pointer-events: none;
 }
 .titleWord {
   display: inline-block;

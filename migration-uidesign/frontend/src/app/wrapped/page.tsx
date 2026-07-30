@@ -237,6 +237,10 @@ function getStoryTitleStyle(title: string): CSSProperties {
   return { "--title-width": `${widthInCh}ch` } as CSSProperties;
 }
 
+function getStoryTitleMask(title: string) {
+  return title.replace(/-/g, "‑");
+}
+
 function StoryAudioSequence({ sources, active, onPlaybackChange, onComplete }: { sources: string[]; active: boolean; onPlaybackChange: (playing: boolean) => void; onComplete: () => void }) {
   useEffect(() => {
     if (!active || !sources.length) {
@@ -496,7 +500,16 @@ function PlayerSlide({
         <PlayerProfile leader={leader} />
       </div>
       <div className={`${styles.storyCopy} ${active ? styles.storyTimeline : styles.storyWaiting}`} data-sequence-stage={revealStage}>
-        {revealStage >= 1 && <h2 className={styles.sequenceTitle} style={getStoryTitleStyle(story.title)}><StoryTitle title={story.title} /></h2>}
+        {revealStage >= 1 && (
+          <h2
+            aria-label={story.title}
+            className={styles.sequenceTitle}
+            data-title={getStoryTitleMask(story.title)}
+            style={getStoryTitleStyle(story.title)}
+          >
+            <StoryTitle title={story.title} />
+          </h2>
+        )}
         {revealStage >= 2 && <p className={`${styles.metricDescriptor} ${styles.sequenceDescriptor}`}>{story.descriptor}</p>}
         {revealStage >= 3 && <p className={`${styles.eyebrow} ${styles.sequenceEyebrow}`}>{story.eyebrow}</p>}
         {revealStage >= 4 && <div className={styles.seasonFact}><span className={styles.sequenceFact}>Games played this season</span>{revealStage >= 5 && <strong className={styles.sequenceFact}>{formatNumber(seasonGames)}</strong>}</div>}
