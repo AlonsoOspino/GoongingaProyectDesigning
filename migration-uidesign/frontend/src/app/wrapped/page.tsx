@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   getGoongingaWrapped,
   resolveWrappedAssets,
@@ -228,7 +228,13 @@ function StoryTitle({ title }: { title: string }) {
     <span className={styles.titleWord} key={`${word}-${index}`}>
       {word}{index < words.length - 1 ? " " : ""}
     </span>
- ));
+  ));
+}
+
+function getStoryTitleStyle(title: string): CSSProperties {
+  const longestWord = Math.max(...title.trim().split(/\s+/).map((word) => word.length));
+  const widthInCh = Math.min(12, Math.max(9.5, longestWord));
+  return { "--title-width": `${widthInCh}ch` } as CSSProperties;
 }
 
 function StoryAudioSequence({ sources, active, onPlaybackChange, onComplete }: { sources: string[]; active: boolean; onPlaybackChange: (playing: boolean) => void; onComplete: () => void }) {
@@ -490,7 +496,7 @@ function PlayerSlide({
         <PlayerProfile leader={leader} />
       </div>
       <div className={`${styles.storyCopy} ${active ? styles.storyTimeline : styles.storyWaiting}`} data-sequence-stage={revealStage}>
-        {revealStage >= 1 && <h2 className={styles.sequenceTitle}><StoryTitle title={story.title} /></h2>}
+        {revealStage >= 1 && <h2 className={styles.sequenceTitle} style={getStoryTitleStyle(story.title)}><StoryTitle title={story.title} /></h2>}
         {revealStage >= 2 && <p className={`${styles.metricDescriptor} ${styles.sequenceDescriptor}`}>{story.descriptor}</p>}
         {revealStage >= 3 && <p className={`${styles.eyebrow} ${styles.sequenceEyebrow}`}>{story.eyebrow}</p>}
         {revealStage >= 4 && <div className={styles.seasonFact}><span className={styles.sequenceFact}>Games played this season</span>{revealStage >= 5 && <strong className={styles.sequenceFact}>{formatNumber(seasonGames)}</strong>}</div>}
