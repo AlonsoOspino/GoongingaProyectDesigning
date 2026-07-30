@@ -76,9 +76,8 @@
 .storyCopy h2, .mapCopy h2 { max-width:9ch; font-size:clamp(5.4rem, 9vw, 11.5rem); }
 .metricDescriptor { max-width:36rem; margin:0; color:var(--yellow); font-size:clamp(.64rem,.88vw,1rem); font-weight:900; letter-spacing:.14em; line-height:1.35; text-transform:uppercase; }
 .statMarker { margin:0; color:var(--yellow); font-size:clamp(.56rem,.68vw,.78rem); font-weight:900; letter-spacing:.18em; line-height:1.2; text-transform:uppercase; }
-.seasonFact { display:grid; gap:.55rem; margin-top:.05rem; }
-.seasonFact span { max-width:14ch; color:var(--cyan); font-family:var(--font-league-gothic),Impact,sans-serif; font-size:clamp(2.4rem,4vw,5rem); font-weight:400; letter-spacing:.03em; line-height:.7; text-transform:uppercase; }
-.seasonFact strong { color:var(--cyan); font-family:var(--font-league-gothic),Impact,sans-serif; font-size:clamp(2.4rem,4vw,5rem); font-weight:400; line-height:.65; text-shadow:0 0 22px rgba(87,230,242,.18); }
+.seasonFact { display:flex; align-items:baseline; gap:.7rem; margin-top:.05rem; }
+.seasonFact span,.seasonFact strong { color:var(--ink); font-family:Arial,sans-serif; font-size:clamp(.56rem,.68vw,.76rem); font-weight:900; letter-spacing:.14em; line-height:1.25; text-shadow:none; text-transform:uppercase; }
 .valueBlock { display:grid; gap:.38rem; margin-top:.7rem; }
 .valueBlock strong { color:var(--ink); font-family:var(--font-league-gothic), Impact, sans-serif; font-size:clamp(5.5rem, 10vw, 13rem); font-weight:400; line-height:.72; text-shadow: 0 0 32px rgba(87,230,242,.16); }
 .valueBlock strong small { margin-left:.25rem; color:var(--yellow); font-family:Arial,sans-serif; font-size:.18em; font-weight:900; letter-spacing:.04em; }
