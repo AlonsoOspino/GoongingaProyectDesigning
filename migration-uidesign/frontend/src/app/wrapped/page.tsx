@@ -51,6 +51,7 @@ const CUE_STABLE_GAIN = 1.5;
 const BACKGROUND_VIDEO_PLAYBACK_RATE = 0.75;
 const ASSUMED_VIDEO_DURATION_MS = 5_000;
 const VIDEO_PLAY_PHASE_MS = ASSUMED_VIDEO_DURATION_MS / BACKGROUND_VIDEO_PLAYBACK_RATE;
+const HIGHLIGHT_TEXT_SEQUENCE_MS = 10_000;
 
 function formatNumber(value: number | null | undefined, decimals = 0) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "—";
@@ -100,7 +101,7 @@ function useCountUp(target: number, active: boolean, reducedMotion: boolean, dec
   return value;
 }
 
-function useHighlightSequence(active: boolean, audioDurationMs: number) {
+function useHighlightSequence(active: boolean) {
   const [stage, setStage] = useState(0);
 
   useEffect(() => {
@@ -109,13 +110,11 @@ function useHighlightSequence(active: boolean, audioDurationMs: number) {
       return;
     }
     setStage(0);
-    // The player owns the first three seconds. The remaining objects then
-    // arrive one at a time through the audio; the final counter animation
-    // occupies the extra frozen-frame 1.5 seconds.
-    const identityPhase = Math.min(3_000, audioDurationMs);
-    const fullSequenceDuration = Math.max(identityPhase, audioDurationMs);
-    const remainingPhase = Math.max(0, fullSequenceDuration - identityPhase);
-    const laterStepDuration = Math.max(850, remainingPhase / 6);
+    // Text timing is intentionally independent of media metadata: three
+    // seconds for the player identity, then six evenly spaced entries in a
+    // fixed ten-second highlight sequence.
+    const identityPhase = 3_000;
+    const laterStepDuration = (HIGHLIGHT_TEXT_SEQUENCE_MS - identityPhase) / 6;
     let currentStage = 0;
     let timeout = 0;
     const advance = () => {
@@ -128,7 +127,7 @@ function useHighlightSequence(active: boolean, audioDurationMs: number) {
     // title look as if it appeared at once.
     timeout = window.setTimeout(advance, identityPhase);
     return () => window.clearTimeout(timeout);
-  }, [active, audioDurationMs]);
+  }, [active]);
 
   return stage;
 }
@@ -379,7 +378,7 @@ function PlayerSlide({
   const highlightStartedAtRef = useRef<number | null>(null);
   const audioDurationMsRef = useRef(audioDurationMs);
   const storyAudioSources = assets.storyAudios[story.assetKey] || EMPTY_AUDIO_SOURCES;
-  const revealStage = useHighlightSequence(active, audioDurationMs);
+  const revealStage = useHighlightSequence(active);
 
   useEffect(() => {
     audioDurationMsRef.current = audioDurationMs;
