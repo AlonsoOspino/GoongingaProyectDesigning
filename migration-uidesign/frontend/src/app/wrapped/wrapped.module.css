@@ -298,24 +298,26 @@
 
 /* Title with gradient and glow per layout */
 .storyCopy h2 {
-  background: linear-gradient(180deg, var(--ink) 0%, rgba(247, 242, 229, .82) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, .5));
+  color: var(--ink);
+  background: none;
+  -webkit-background-clip: border-box;
+  -webkit-text-fill-color: currentColor;
+  background-clip: border-box;
+  filter: none;
+  text-shadow: 0 4px 12px rgba(0, 0, 0, .5);
 }
 
 /* Each highlight gets its own luminous title treatment. */
-.layoutDiagonal .storyCopy h2 { background:linear-gradient(180deg,#f7f2e5 0%,#57e6f2 100%); filter:drop-shadow(0 0 14px rgba(87,230,242,.54)); }
-.layoutColumn .storyCopy h2 { background:linear-gradient(180deg,#f7f2e5 0%,#83f5b5 100%); filter:drop-shadow(0 0 14px rgba(131,245,181,.48)); }
-.layoutImpact .storyCopy h2 { background:linear-gradient(180deg,#fff3cf 0%,#ff9867 100%); filter:drop-shadow(0 0 16px rgba(255,152,103,.54)); }
-.layoutShield .storyCopy h2 { background:linear-gradient(180deg,#f7f2e5 0%,#64b9ff 100%); filter:drop-shadow(0 0 14px rgba(100,185,255,.52)); }
-.layoutNetwork .storyCopy h2 { background:linear-gradient(180deg,#f7f2e5 0%,#d88cff 100%); filter:drop-shadow(0 0 15px rgba(216,140,255,.54)); }
-.layoutSurvival .storyCopy h2 { background:linear-gradient(180deg,#f7f2e5 0%,#c8f07d 100%); filter:drop-shadow(0 0 14px rgba(200,240,125,.5)); }
-.layoutBurst .storyCopy h2 { background:linear-gradient(180deg,#fff1df 0%,#ff6f61 100%); filter:drop-shadow(0 0 16px rgba(255,111,97,.56)); }
-.layoutCascade .storyCopy h2 { background:linear-gradient(180deg,#f7f2e5 0%,#5ae0ff 100%); filter:drop-shadow(0 0 14px rgba(90,224,255,.52)); }
-.layoutFortress .storyCopy h2 { background:linear-gradient(180deg,#fff8d7 0%,#f6c443 100%); filter:drop-shadow(0 0 16px rgba(246,196,67,.56)); }
-.layoutSpotlight .storyCopy h2 { background:linear-gradient(180deg,#fff1f8 0%,#ff5ca8 100%); filter:drop-shadow(0 0 16px rgba(255,92,168,.58)); }
+.layoutDiagonal .storyCopy h2 { color:#57e6f2; text-shadow:0 0 14px rgba(87,230,242,.54),0 4px 12px rgba(0,0,0,.5); }
+.layoutColumn .storyCopy h2 { color:#83f5b5; text-shadow:0 0 14px rgba(131,245,181,.48),0 4px 12px rgba(0,0,0,.5); }
+.layoutImpact .storyCopy h2 { color:#ff9867; text-shadow:0 0 16px rgba(255,152,103,.54),0 4px 12px rgba(0,0,0,.5); }
+.layoutShield .storyCopy h2 { color:#64b9ff; text-shadow:0 0 14px rgba(100,185,255,.52),0 4px 12px rgba(0,0,0,.5); }
+.layoutNetwork .storyCopy h2 { color:#d88cff; text-shadow:0 0 15px rgba(216,140,255,.54),0 4px 12px rgba(0,0,0,.5); }
+.layoutSurvival .storyCopy h2 { color:#c8f07d; text-shadow:0 0 14px rgba(200,240,125,.5),0 4px 12px rgba(0,0,0,.5); }
+.layoutBurst .storyCopy h2 { color:#ff6f61; text-shadow:0 0 16px rgba(255,111,97,.56),0 4px 12px rgba(0,0,0,.5); }
+.layoutCascade .storyCopy h2 { color:#5ae0ff; text-shadow:0 0 14px rgba(90,224,255,.52),0 4px 12px rgba(0,0,0,.5); }
+.layoutFortress .storyCopy h2 { color:#f6c443; text-shadow:0 0 16px rgba(246,196,67,.56),0 4px 12px rgba(0,0,0,.5); }
+.layoutSpotlight .storyCopy h2 { color:#ff5ca8; text-shadow:0 0 16px rgba(255,92,168,.58),0 4px 12px rgba(0,0,0,.5); }
 
 /* Title word animation */
 .storyCopy h2 .word {
@@ -649,10 +651,11 @@
   text-shadow: 0 0 42px rgba(255,92,168,.35), 0 0 84px rgba(255,92,168,.15); 
 }
 .layoutSpotlight .storyCopy h2 {
-  background: linear-gradient(180deg, var(--ink) 0%, var(--pink) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #ff5ca8;
+  background: none;
+  -webkit-background-clip: border-box;
+  -webkit-text-fill-color: currentColor;
+  background-clip: border-box;
 }
 
 .layoutImpact .valueBlock, .layoutNetwork .valueBlock { justify-items: end; }
@@ -1117,6 +1120,151 @@
 .storyCopy h2 span:nth-child(2) .word-inner {
   animation-delay: .12s;
 }
+
+/* ─── Unified player-highlight composition ───────────────────────────────
+   Every player highlight shares one dependable broadcast layout.  The art
+   stays on the right; identity, copy, and stats always grow from the same
+   left-hand rail.  Layout variants only choose their accent color. */
+.playerSlide {
+  --highlight-accent: var(--cyan);
+  display: block;
+  padding: 0;
+  background: #03060a;
+}
+.playerSlide.layoutDiagonal { --highlight-accent: #57e6f2; }
+.playerSlide.layoutColumn { --highlight-accent: #83f5b5; }
+.playerSlide.layoutImpact { --highlight-accent: #ff9867; }
+.playerSlide.layoutShield { --highlight-accent: #64b9ff; }
+.playerSlide.layoutNetwork { --highlight-accent: #d88cff; }
+.playerSlide.layoutSurvival { --highlight-accent: #c8f07d; }
+.playerSlide.layoutBurst { --highlight-accent: #ff6f61; }
+.playerSlide.layoutCascade { --highlight-accent: #5ae0ff; }
+.playerSlide.layoutFortress { --highlight-accent: #f6c443; }
+.playerSlide.layoutSpotlight { --highlight-accent: #ff79b7; }
+
+.playerSlide .artworkBackdrop {
+  background: #03060a;
+}
+.playerSlide .artworkBackdrop img,
+.playerSlide .artworkBackdrop video {
+  object-position: center;
+  opacity: .82;
+  filter: saturate(1.14) contrast(1.06) brightness(.98);
+}
+.playerSlide .artworkBackdrop video {
+  opacity: .88;
+  filter: saturate(1.18) contrast(1.07) brightness(1.05);
+}
+.playerSlide .artworkBackdrop::after {
+  background:
+    linear-gradient(90deg, #03060a 0%, rgba(3, 6, 10, .985) 35%, rgba(3, 6, 10, .82) 49%, rgba(3, 6, 10, .31) 70%, rgba(3, 6, 10, .04) 100%),
+    linear-gradient(0deg, rgba(3, 6, 10, .42), transparent 48%);
+}
+
+.playerSlide .playerIdentity,
+.playerSlide.layoutImpact .playerIdentity,
+.playerSlide.layoutNetwork .playerIdentity {
+  --identity-offset: -5vw;
+  --identity-skew: -4deg;
+  top: clamp(3.5rem, 6.2vh, 5.5rem);
+  right: auto;
+  left: clamp(4.75rem, 6.2vw, 8rem);
+  max-width: min(52vw, 54rem);
+  text-align: left;
+}
+.playerSlide .playerIdentity::before,
+.playerSlide.layoutImpact .playerIdentity::before,
+.playerSlide.layoutNetwork .playerIdentity::before {
+  right: calc(100% + .8rem);
+  left: auto;
+  background: var(--highlight-accent);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--highlight-accent) 72%, transparent);
+  transform-origin: right;
+}
+.playerSlide .playerIdentity .playerProfile > img,
+.playerSlide .playerIdentity .playerProfile > span {
+  border-color: color-mix(in srgb, var(--highlight-accent) 88%, white);
+  color: var(--highlight-accent);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--highlight-accent) 12%, transparent);
+}
+.playerSlide .playerIdentity .playerProfile div small { color: var(--highlight-accent); }
+
+.playerSlide .storyCopy,
+.playerSlide.layoutImpact .storyCopy,
+.playerSlide.layoutNetwork .storyCopy,
+.playerSlide.layoutSurvival .storyCopy,
+.playerSlide.layoutFortress .storyCopy {
+  position: absolute;
+  z-index: 3;
+  top: clamp(10.25rem, 16.3vh, 12.75rem);
+  right: auto;
+  bottom: auto;
+  left: clamp(4.75rem, 6.2vw, 8rem);
+  display: grid;
+  width: min(51vw, 54rem);
+  max-width: none;
+  padding: 0;
+  gap: clamp(.55rem, .85vh, .9rem);
+  align-content: start;
+  text-align: left;
+}
+.playerSlide .storyCopy h2,
+.playerSlide.layoutImpact .storyCopy h2,
+.playerSlide.layoutNetwork .storyCopy h2 {
+  width: max-content;
+  max-width: none;
+  margin: 0 0 .5rem;
+  color: var(--highlight-accent);
+  font-size: clamp(5.2rem, 8.4vw, 10.2rem);
+  line-height: .73;
+  text-align: left;
+  text-shadow: 0 0 18px color-mix(in srgb, var(--highlight-accent) 42%, transparent), 0 5px 14px rgba(0, 0, 0, .48);
+}
+.playerSlide .storyCopy h2 span { white-space: nowrap; }
+.playerSlide .metricDescriptor,
+.playerSlide.layoutImpact .metricDescriptor,
+.playerSlide.layoutNetwork .metricDescriptor {
+  width: max-content;
+  max-width: min(51vw, 54rem);
+  margin: 0;
+  color: var(--yellow);
+  text-align: left;
+}
+.playerSlide .storyCopy .eyebrow {
+  color: var(--highlight-accent);
+  text-shadow: 0 0 14px color-mix(in srgb, var(--highlight-accent) 35%, transparent);
+}
+.playerSlide .seasonFact,
+.playerSlide.layoutImpact .seasonFact,
+.playerSlide.layoutNetwork .seasonFact {
+  justify-content: flex-start;
+  text-align: left;
+}
+.playerSlide .seasonFact span,
+.playerSlide .seasonFact strong {
+  color: var(--ink);
+}
+.playerSlide .valueBlock,
+.playerSlide.layoutImpact .valueBlock,
+.playerSlide.layoutNetwork .valueBlock {
+  justify-items: start;
+  margin-top: clamp(.45rem, .8vh, .8rem);
+}
+.playerSlide .valueBlock strong {
+  text-shadow: 0 0 30px color-mix(in srgb, var(--highlight-accent) 25%, transparent), 0 8px 18px rgba(0, 0, 0, .35);
+}
+.playerSlide .valueBlock strong small { color: var(--highlight-accent); }
+
+/* No variant may reintroduce a different rail or a coloured title block. */
+.playerSlide.layoutDiagonal .storyCopy,
+.playerSlide.layoutShield .storyCopy,
+.playerSlide.layoutBurst .storyCopy,
+.playerSlide.layoutCascade .storyCopy {
+  padding-top: 0;
+}
+.playerSlide.layoutColumn .storyCopy { align-self: auto; padding-top: 0; }
+.playerSlide.layoutNetwork .storyCopy { grid-column: auto; }
+.playerSlide.layoutCascade .storyCopy { padding-left: 0; background: none; }
 
 /* ═══════════════════════════════════════════════════════════════
    RESPONSIVE
