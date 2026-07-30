@@ -137,7 +137,7 @@ function getSnapshotAssetSubject(snapshot, key) {
 
 function normalizeAssets(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return { images: {}, flipped: {}, videos: {}, storyAudios: {}, soundtrack: {} };
+    return { images: {}, flipped: {}, videos: {}, videoPositions: {}, storyAudios: {}, soundtrack: {} };
   }
 
   const imageSource = value.images && typeof value.images === "object" && !Array.isArray(value.images)
@@ -148,6 +148,9 @@ function normalizeAssets(value) {
     : {};
   const videoSource = value.videos && typeof value.videos === "object" && !Array.isArray(value.videos)
     ? value.videos
+    : {};
+  const videoPositionSource = value.videoPositions && typeof value.videoPositions === "object" && !Array.isArray(value.videoPositions)
+    ? value.videoPositions
     : {};
   const storyAudioSource = value.storyAudios && typeof value.storyAudios === "object" && !Array.isArray(value.storyAudios)
     ? value.storyAudios
@@ -169,6 +172,18 @@ function normalizeAssets(value) {
       Object.entries(videoSource)
         .filter(([key, url]) => ASSET_KEYS.has(key) && typeof url === "string" && url.trim())
         .map(([key, url]) => [key, url.trim()])
+    ),
+    videoPositions: Object.fromEntries(
+      Object.entries(videoPositionSource)
+        .filter(([key, position]) => ASSET_KEYS.has(key) && position && typeof position === "object" && !Array.isArray(position))
+        .map(([key, position]) => {
+          const rawX = Number.isFinite(position.x) ? position.x : 50;
+          const rawY = Number.isFinite(position.y) ? position.y : 50;
+          return [key, {
+            x: Math.min(100, Math.max(0, rawX)),
+            y: Math.min(100, Math.max(0, rawY)),
+          }];
+        })
     ),
     storyAudios: Object.fromEntries(
       Object.entries(storyAudioSource)
@@ -204,8 +219,11 @@ function retainMatchingAssets(previousWrapped, nextSnapshot) {
   const storyAudios = Object.fromEntries(
     Object.entries(previousAssets.storyAudios).filter(([key]) => Object.prototype.hasOwnProperty.call(videos, key))
   );
+  const videoPositions = Object.fromEntries(
+    Object.entries(previousAssets.videoPositions).filter(([key]) => Object.prototype.hasOwnProperty.call(videos, key))
+  );
 
-  return { images, flipped, videos, storyAudios, soundtrack: previousAssets.soundtrack };
+  return { images, flipped, videos, videoPositions, storyAudios, soundtrack: previousAssets.soundtrack };
 }
 
 async function buildSnapshot(tournament) {

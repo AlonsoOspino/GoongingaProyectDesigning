@@ -61,7 +61,7 @@ function fieldsFor(wrapped: GoongingaWrapped): AssetField[] {
 
 export function WrappedManagementPanel({ token }: { token: string }) {
   const [wrapped, setWrapped] = useState<GoongingaWrapped | null>(null);
-  const [assets, setAssets] = useState<WrappedAssets>({ images: {}, flipped: {}, videos: {}, storyAudios: {}, soundtrack: {} });
+  const [assets, setAssets] = useState<WrappedAssets>({ images: {}, flipped: {}, videos: {}, videoPositions: {}, storyAudios: {}, soundtrack: {} });
   const [loading, setLoading] = useState(true);
   const [freezing, setFreezing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -261,6 +261,58 @@ export function WrappedManagementPanel({ token }: { token: string }) {
                         flipped: { ...current.flipped, [field.key]: event.target.value === "yes" },
                       }))}
                     />
+                    <div className="space-y-3 rounded-md border border-border/70 bg-background/40 p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">Video framing</p>
+                          <p className="text-xs text-muted">Adjust the visible focal point after mirroring.</p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => setAssets((current) => ({
+                            ...current,
+                            videoPositions: { ...current.videoPositions, [field.key]: { x: 50, y: 50 } },
+                          }))}
+                        >
+                          Center
+                        </Button>
+                      </div>
+                      {(["x", "y"] as const).map((axis) => {
+                        const position = assets.videoPositions[field.key] || { x: 50, y: 50 };
+                        const label = axis === "x" ? "Horizontal" : "Vertical";
+                        return (
+                          <label key={axis} className="grid gap-2 text-sm text-foreground">
+                            <span className="flex items-center justify-between">
+                              <span>{label}</span>
+                              <strong>{Math.round(position[axis])}%</strong>
+                            </span>
+                            <input
+                              type="range"
+                              min="0"
+                              max="100"
+                              step="1"
+                              value={position[axis]}
+                              onChange={(event) => {
+                                const value = Number(event.target.value);
+                                setAssets((current) => {
+                                  const currentPosition = current.videoPositions[field.key] || { x: 50, y: 50 };
+                                  return {
+                                    ...current,
+                                    videoPositions: {
+                                      ...current.videoPositions,
+                                      [field.key]: { ...currentPosition, [axis]: value },
+                                    },
+                                  };
+                                });
+                              }}
+                              className="w-full accent-primary"
+                            />
+                          </label>
+                        );
+                      })}
+                    </div>
                     <div className="space-y-3 border-t border-border pt-3">
                       <p className="text-sm font-medium text-foreground">Post-video audio cues <span className="text-muted">(maximum 3, played in order)</span></p>
                       {[0, 1, 2].map((audioIndex) => {

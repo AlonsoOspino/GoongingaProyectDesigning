@@ -273,60 +273,9 @@
 }
 .coverFooter span:last-child { color: var(--muted); text-align: right; }
 
-/* ─── Player slide ─── */
-.playerSlide { 
-  display: grid; 
-  min-height: 100%; 
-  grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); 
-  align-items: center; 
-  gap: 3vw; 
-  padding: 7vh 9vw; 
-}
-
-.storyCopy { 
-  position: relative; 
-  z-index: 3; 
-  display: grid; 
-  align-content: center; 
-  gap: .8rem; 
-}
-
-.storyCopy h2, .mapCopy h2 { 
+.mapCopy h2 {
   max-width: 9ch; 
   font-size: clamp(5.4rem, 9vw, 11.5rem); 
-}
-
-/* Title with gradient and glow per layout */
-.storyCopy h2 {
-  color: var(--ink);
-  background: none;
-  -webkit-background-clip: border-box;
-  -webkit-text-fill-color: currentColor;
-  background-clip: border-box;
-  filter: none;
-  text-shadow: 0 4px 12px rgba(0, 0, 0, .5);
-}
-
-/* Each highlight gets its own luminous title treatment. */
-.layoutDiagonal .storyCopy h2 { color:#57e6f2; text-shadow:0 0 14px rgba(87,230,242,.54),0 4px 12px rgba(0,0,0,.5); }
-.layoutColumn .storyCopy h2 { color:#83f5b5; text-shadow:0 0 14px rgba(131,245,181,.48),0 4px 12px rgba(0,0,0,.5); }
-.layoutImpact .storyCopy h2 { color:#ff9867; text-shadow:0 0 16px rgba(255,152,103,.54),0 4px 12px rgba(0,0,0,.5); }
-.layoutShield .storyCopy h2 { color:#64b9ff; text-shadow:0 0 14px rgba(100,185,255,.52),0 4px 12px rgba(0,0,0,.5); }
-.layoutNetwork .storyCopy h2 { color:#d88cff; text-shadow:0 0 15px rgba(216,140,255,.54),0 4px 12px rgba(0,0,0,.5); }
-.layoutSurvival .storyCopy h2 { color:#c8f07d; text-shadow:0 0 14px rgba(200,240,125,.5),0 4px 12px rgba(0,0,0,.5); }
-.layoutBurst .storyCopy h2 { color:#ff6f61; text-shadow:0 0 16px rgba(255,111,97,.56),0 4px 12px rgba(0,0,0,.5); }
-.layoutCascade .storyCopy h2 { color:#5ae0ff; text-shadow:0 0 14px rgba(90,224,255,.52),0 4px 12px rgba(0,0,0,.5); }
-.layoutFortress .storyCopy h2 { color:#f6c443; text-shadow:0 0 16px rgba(246,196,67,.56),0 4px 12px rgba(0,0,0,.5); }
-.layoutSpotlight .storyCopy h2 { color:#ff5ca8; text-shadow:0 0 16px rgba(255,92,168,.58),0 4px 12px rgba(0,0,0,.5); }
-
-/* Title word animation */
-.storyCopy h2 .word {
-  display: inline-block;
-  overflow: hidden;
-}
-.storyCopy h2 .word-inner {
-  display: inline-block;
-  animation: wordSlideUp .75s cubic-bezier(.16, .84, .2, 1) both;
 }
 
 .metricDescriptor { 
@@ -381,11 +330,6 @@
   letter-spacing: .04em; 
 }
 
-/* Value animation with elastic pop */
-.sequenceValue {
-  animation: valueElasticPop .9s cubic-bezier(.34, 1.56, .64, 1) both;
-}
-
 .playerProfile { 
   display: flex; 
   max-width: 100%; 
@@ -434,146 +378,6 @@
   text-transform: uppercase; 
 }
 
-/* ─── Player identity (top-left profile) ─── */
-.playerIdentity { 
-  --identity-offset: -8vw; 
-  --identity-skew: -7deg; 
-  position: absolute; 
-  z-index: 4; 
-  top: 8vh; 
-  left: 9vw; 
-  max-width: min(43vw, 42rem); 
-  opacity: 0; 
-  pointer-events: none; 
-  transform: translateX(var(--identity-offset)) skewX(var(--identity-skew)); 
-}
-.playerIdentityVisible { 
-  animation: identityReveal 2.2s cubic-bezier(.16, .84, .2, 1) both; 
-}
-.playerIdentity::before { 
-  position: absolute; 
-  top: 50%; 
-  right: calc(100% + .8rem); 
-  width: 4.5rem; 
-  height: 2px; 
-  content: ""; 
-  background: var(--yellow); 
-  box-shadow: 0 0 16px rgba(246,196,67,.75); 
-  opacity: 0; 
-  transform: scaleX(0); 
-  transform-origin: right; 
-}
-.playerIdentityVisible::before { 
-  animation: identityLine .8s .12s cubic-bezier(.16, .84, .2, 1) both; 
-}
-.playerIdentity .playerProfile { 
-  margin: 0; 
-  padding: 0; 
-  border: 0; 
-  background: transparent; 
-}
-.playerIdentity .playerProfile > img, .playerIdentity .playerProfile > span { 
-  width: clamp(4.6rem, 6.4vw, 7.2rem); 
-  font-size: clamp(2.2rem, 3.5vw, 4rem); 
-}
-.playerIdentity .playerProfile div strong { 
-  font-family: var(--font-league-gothic), Impact, sans-serif; 
-  font-size: clamp(2.8rem, 5.2vw, 6.2rem); 
-  font-weight: 400; 
-  letter-spacing: .025em; 
-  line-height: .73; 
-  text-transform: uppercase; 
-}
-.playerIdentity .playerProfile div small { 
-  margin-top: .38rem; 
-  font-size: clamp(.62rem, .9vw, .92rem); 
-}
-
-/* ─── Artwork / backdrop ─── */
-.artworkBackdrop { 
-  position: absolute; 
-  inset: 0; 
-  z-index: 0; 
-  overflow: hidden; 
-  background: radial-gradient(ellipse 118% 126% at 50% 50%, transparent 0 43%, rgba(87,230,242,.322) 100%); 
-}
-.artworkBackdrop img, .artworkBackdrop video { 
-  --art-mirror: 1; 
-  width: 100%; 
-  height: 100%; 
-  object-fit: cover; 
-  object-position: center; 
-  opacity: .72; 
-  filter: saturate(1.16) contrast(1.1) brightness(.92); 
-  transform: scaleX(var(--art-mirror)) scale(var(--frozen-zoom-scale, 1.04)); 
-}
-.artworkBackdrop video { 
-  opacity: .84; 
-  filter: saturate(1.2) contrast(1.08) brightness(1.03); 
-}
-.artworkBackdrop video { 
-  transform-origin: 100% 0; 
-}
-.artworkBackdrop .artworkFlipped { 
-  --art-mirror: -1; 
-}
-.artworkBackdrop .videoFrozen { 
-  animation: none; 
-}
-.artworkBackdrop::after { 
-  position: absolute; 
-  inset: 0; 
-  content: ""; 
-  background: linear-gradient(90deg, rgba(3,6,10,1) 0%, rgba(3,6,10,.96) 42%, rgba(3,6,10,.58) 66%, rgba(3,6,10,.12) 100%), linear-gradient(0deg, rgba(3,6,10,.48), transparent 50%); 
-}
-
-/* ─── Story copy states ─── */
-.storyWaiting { 
-  opacity: 0; 
-  pointer-events: none; 
-  transform: translateY(3%) scale(.98); 
-}
-.storyTimeline { 
-  opacity: 1; 
-  transform: translateY(0) scale(1); 
-}
-
-/* ─── Sequence animations ─── */
-.sequenceHidden { 
-  opacity: 0; 
-  pointer-events: none; 
-  transform: translateY(1rem) scale(.97); 
-}
-
-.sequenceTitle { 
-  animation: titleClipReveal .85s cubic-bezier(.16, .84, .2, 1) both;
-}
-.sequenceDescriptor { 
-  animation: blurFadeIn .6s cubic-bezier(.16, .84, .2, 1) both; 
-}
-.sequenceCaption { 
-  animation: captionReveal .5s cubic-bezier(.16, .84, .2, 1) both; 
-}
-.sequenceFact { 
-  animation: slideFromLeft .55s cubic-bezier(.16, .84, .2, 1) both; 
-}
-
-/* Descriptor with left border accent */
-.sequenceDescriptor {
-  position: relative;
-  padding-left: 1rem;
-}
-.sequenceDescriptor::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 10%;
-  height: 80%;
-  width: 3px;
-  background: linear-gradient(180deg, var(--yellow), transparent);
-  animation: lineGrow .4s .2s cubic-bezier(.16, .84, .2, 1) both;
-}
-
 /* ─── Art frame ─── */
 .artFrame { 
   position: relative; 
@@ -606,64 +410,6 @@
   font-family: var(--font-league-gothic), Impact, sans-serif; 
   font-size: clamp(5rem, 12vw, 12rem); 
 }
-
-/* ─── Layout variants ─── */
-.layoutDiagonal { grid-template-columns: 1.1fr .9fr; }
-.layoutDiagonal .storyArt { align-items: start; transform: skewY(-3deg); }
-.layoutDiagonal .artFrame { justify-self: start; }
-.layoutDiagonal .storyCopy, .layoutShield .storyCopy, .layoutNetwork .storyCopy, .layoutBurst .storyCopy, .layoutCascade .storyCopy { padding-top: 14vh; }
-
-.layoutColumn { grid-template-columns: .75fr 1.25fr; }
-.layoutColumn .storyCopy { align-self: start; padding-top: 14vh; }
-.layoutColumn .storyArt { min-height: 88vh; background: linear-gradient(180deg, rgba(87,230,242,.15), transparent 60%); }
-
-.layoutImpact { grid-template-columns: 1fr; }
-.layoutImpact .storyCopy { position: absolute; right: 9vw; bottom: 10vh; max-width: 50%; text-align: right; }
-.layoutImpact .storyCopy h2, .layoutImpact .storyCaption, .layoutImpact .metricDescriptor { margin-left: auto; }
-.layoutImpact .artFrame { width: min(60vw, 850px); height: 88vh; }
-
-.layoutShield { grid-template-columns: 1.15fr .85fr; }
-.layoutShield .storyCopy { padding-left: 3vw; }
-
-.layoutNetwork .storyCopy { grid-column: 2; text-align: right; }
-.layoutNetwork .storyCopy h2, .layoutNetwork .storyCaption, .layoutNetwork .metricDescriptor { margin-left: auto; }
-
-.layoutSurvival { grid-template-columns: 1fr; align-items: end; }
-.layoutSurvival .storyCopy { position: absolute; left: 9vw; bottom: 8vh; }
-.layoutSurvival .artFrame { width: min(50vw, 660px); height: 72vh; transform: translateY(4vh); }
-
-.layoutBurst .storyCopy { order: 2; }
-
-.layoutCascade { grid-template-columns: .85fr 1.15fr; }
-.layoutCascade .storyCopy { padding-left: 7vw; background: linear-gradient(90deg, rgba(87,230,242,.08), transparent); }
-
-.layoutFortress { grid-template-columns: 1fr; }
-.layoutFortress .storyCopy { position: absolute; top: 23vh; left: 9vw; }
-.layoutFortress .artFrame { height: 66vh; }
-
-.layoutSpotlight { 
-  grid-template-columns: .9fr 1.1fr; 
-  background: radial-gradient(circle at 70% 42%, rgba(255,92,168,.18), transparent 26%), #080a11; 
-}
-.layoutSpotlight .valueBlock strong { 
-  text-shadow: 0 0 42px rgba(255,92,168,.35), 0 0 84px rgba(255,92,168,.15); 
-}
-.layoutSpotlight .storyCopy h2 {
-  color: #ff5ca8;
-  background: none;
-  -webkit-background-clip: border-box;
-  -webkit-text-fill-color: currentColor;
-  background-clip: border-box;
-}
-
-.layoutImpact .valueBlock, .layoutNetwork .valueBlock { justify-items: end; }
-.layoutImpact .seasonFact, .layoutNetwork .seasonFact { justify-content: flex-end; text-align: right; }
-.layoutImpact .playerProfile, .layoutNetwork .playerProfile { justify-content: flex-end; flex-direction: row-reverse; text-align: right; }
-.layoutImpact .playerIdentity, .layoutNetwork .playerIdentity { --identity-offset: 8vw; --identity-skew: 7deg; right: 9vw; left: auto; text-align: right; }
-.layoutImpact .playerIdentity::before, .layoutNetwork .playerIdentity::before { right: auto; left: calc(100% + .8rem); transform-origin: left; }
-.layoutImpact .artworkBackdrop, .layoutNetwork .artworkBackdrop { background: radial-gradient(ellipse 118% 126% at 50% 50%, transparent 0 43%, rgba(87,230,242,.322) 100%); }
-.layoutImpact .artworkBackdrop::after, .layoutNetwork .artworkBackdrop::after { background: linear-gradient(270deg, rgba(3,6,10,1) 0%, rgba(3,6,10,.96) 42%, rgba(3,6,10,.58) 66%, rgba(3,6,10,.12) 100%), linear-gradient(0deg, rgba(3,6,10,.48), transparent 50%); }
-.layoutImpact .artworkBackdrop video, .layoutNetwork .artworkBackdrop video { transform-origin: 0 0; }
 
 /* ─── Map slide ─── */
 .mapSlide { 
@@ -1106,225 +852,224 @@
   } 
 }
 
-/* Stagger delays for sequence elements */
-[data-sequence-stage="1"] .sequenceTitle .word-inner { animation-delay: 0ms; }
-[data-sequence-stage="2"] .sequenceDescriptor { animation-delay: 0ms; }
-[data-sequence-stage="3"] .sequenceEyebrow { animation-delay: 0ms; }
-[data-sequence-stage="4"] .sequenceFact { animation-delay: 0ms; }
-[data-sequence-stage="5"] .sequenceFact { animation-delay: 0ms; }
-[data-sequence-stage="6"] .sequenceValue { animation-delay: 0ms; }
-
-/* Second line of title delayed slightly */
-.storyCopy h2 span:nth-child(2) .word-inner {
-  animation-delay: .12s;
-}
-
-/* ─── Unified player-highlight composition ───────────────────────────────
-   Every player highlight shares one dependable broadcast layout.  The art
-   stays on the right; identity, copy, and stats always grow from the same
-   left-hand rail.  Layout variants only choose their accent color. */
+/* ─── Canonical player-highlight composition ──────────────────────────── */
 .playerSlide {
-  --highlight-accent: var(--cyan);
-  --highlight-title-start: var(--ink);
-  display: block;
-  padding: 0;
-  background: #03060a;
-}
-.playerSlide.layoutDiagonal { --highlight-accent: #57e6f2; }
-.playerSlide.layoutColumn { --highlight-accent: #83f5b5; }
-.playerSlide.layoutImpact { --highlight-accent: #ff9867; }
-.playerSlide.layoutShield { --highlight-accent: #64b9ff; }
-.playerSlide.layoutNetwork { --highlight-accent: #d88cff; }
-.playerSlide.layoutSurvival { --highlight-accent: #c8f07d; }
-.playerSlide.layoutBurst { --highlight-accent: #ff6f61; }
-.playerSlide.layoutCascade { --highlight-accent: #5ae0ff; }
-.playerSlide.layoutFortress { --highlight-accent: #f6c443; }
-.playerSlide.layoutSpotlight { --highlight-accent: #ff79b7; }
-
-.playerSlide .artworkBackdrop {
-  background: #03060a;
-}
-.playerSlide .artworkBackdrop img,
-.playerSlide .artworkBackdrop video {
-  object-position: center;
-  opacity: .82;
-  filter: saturate(1.14) contrast(1.06) brightness(.98);
-}
-.playerSlide .artworkBackdrop video {
-  opacity: .88;
-  filter: saturate(1.18) contrast(1.07) brightness(1.05);
-}
-.playerSlide .artworkBackdrop::after {
-  background:
-    linear-gradient(90deg, #03060a 0%, rgba(3, 6, 10, .985) 35%, rgba(3, 6, 10, .82) 49%, rgba(3, 6, 10, .31) 70%, rgba(3, 6, 10, .04) 100%),
-    linear-gradient(0deg, rgba(3, 6, 10, .42), transparent 48%);
-}
-
-.playerSlide .playerIdentity,
-.playerSlide.layoutImpact .playerIdentity,
-.playerSlide.layoutNetwork .playerIdentity {
-  --identity-offset: -5vw;
-  --identity-skew: -4deg;
-  top: clamp(3.5rem, 6.2vh, 5.5rem);
-  right: auto;
-  left: clamp(4.75rem, 6.2vw, 8rem);
-  max-width: min(52vw, 54rem);
-  text-align: left;
-}
-.playerSlide .playerIdentity::before,
-.playerSlide.layoutImpact .playerIdentity::before,
-.playerSlide.layoutNetwork .playerIdentity::before {
-  right: calc(100% + .8rem);
-  left: auto;
-  background: var(--highlight-accent);
-  box-shadow: 0 0 16px color-mix(in srgb, var(--highlight-accent) 72%, transparent);
-  transform-origin: right;
-}
-.playerSlide .playerIdentity .playerProfile > img,
-.playerSlide .playerIdentity .playerProfile > span {
-  border-color: color-mix(in srgb, var(--highlight-accent) 88%, white);
-  color: var(--highlight-accent);
-  box-shadow: 0 0 0 6px color-mix(in srgb, var(--highlight-accent) 12%, transparent);
-}
-.playerSlide .playerIdentity .playerProfile div small { color: var(--highlight-accent); }
-
-.playerSlide .storyCopy,
-.playerSlide.layoutImpact .storyCopy,
-.playerSlide.layoutNetwork .storyCopy,
-.playerSlide.layoutSurvival .storyCopy,
-.playerSlide.layoutFortress .storyCopy {
-  position: absolute;
-  z-index: 3;
-  top: clamp(10.25rem, 16.3vh, 12.75rem);
-  right: auto;
-  bottom: auto;
-  left: clamp(4.75rem, 6.2vw, 8rem);
   display: grid;
-  width: min(51vw, 54rem);
-  max-width: none;
-  padding: 0;
-  gap: clamp(.55rem, .85vh, .9rem);
-  align-content: start;
-  text-align: left;
+  min-height: 100%;
+  grid-template-columns: minmax(0, min(44vw, 52rem)) minmax(0, 1fr);
+  align-items: start;
+  overflow: hidden;
+  padding: clamp(4.25rem, 7vh, 6rem) clamp(2.25rem, 5vw, 6rem) clamp(3.5rem, 6vh, 5rem);
+  background: #03060a;
 }
-.playerSlide .storyCopy h2,
-.playerSlide.layoutImpact .storyCopy h2,
-.playerSlide.layoutNetwork .storyCopy h2 {
-  /* Keep a consistent left rail while letting the title take as many rows as
-     its words require. Subsequent grid rows then follow the title's real
-     height instead of a hard-coded two-line slot. */
-  inline-size: min(46vw, var(--title-width, 9.5ch));
-  max-inline-size: 100%;
-  margin: 0 0 .5rem;
-  position: relative;
-  color: transparent;
-  background: none;
-  -webkit-text-fill-color: transparent;
-  font-size: clamp(5.2rem, 8.4vw, 10.2rem);
-  line-height: .73;
-  text-align: left;
-  text-wrap: balance;
-  filter: drop-shadow(0 0 18px color-mix(in srgb, var(--highlight-accent) 42%, transparent)) drop-shadow(0 5px 14px rgba(0, 0, 0, .48));
-}
-.playerSlide .storyCopy h2::after {
+
+.artworkBackdrop {
   position: absolute;
   inset: 0;
-  display: block;
-  content: attr(data-title);
-  color: var(--highlight-accent);
-  background: linear-gradient(180deg, var(--highlight-title-start) 0%, var(--highlight-accent) 100%);
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-align: inherit;
-  text-wrap: inherit;
+  z-index: 0;
+  overflow: hidden;
+  background: #03060a;
+}
+.artworkBackdrop img,
+.artworkBackdrop video {
+  --art-mirror: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 1;
+  filter: none;
+  transform: scaleX(var(--art-mirror));
+}
+.artworkBackdrop .artworkFlipped { --art-mirror: -1; }
+.artworkBackdrop::after {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  content: "";
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(3, 6, 10, .90) 0%, rgba(3, 6, 10, .78) 32%, rgba(3, 6, 10, .40) 55%, rgba(3, 6, 10, .10) 100%),
+    linear-gradient(0deg, rgba(3, 6, 10, .34), transparent 48%);
+}
+
+.highlightContent {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-column: 1;
+  min-width: 0;
+  width: 100%;
+  max-width: min(44vw, 52rem);
+  align-content: start;
+  gap: clamp(.75rem, 1.4vh, 1.25rem);
+}
+
+.playerIdentity {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+  max-width: 100%;
+  opacity: 0;
   pointer-events: none;
 }
-.titleWord {
-  display: inline-block;
-  white-space: nowrap;
+.playerIdentityVisible {
+  animation: highlightEnter .55s cubic-bezier(.2, .75, .25, 1) both;
 }
-.playerSlide .metricDescriptor,
-.playerSlide.layoutImpact .metricDescriptor,
-.playerSlide.layoutNetwork .metricDescriptor {
-  width: max-content;
-  max-width: min(51vw, 54rem);
+.playerIdentity::before {
+  position: absolute;
+  top: 50%;
+  right: calc(100% + .75rem);
+  width: clamp(2.5rem, 4vw, 4.5rem);
+  height: 2px;
+  content: "";
+  background: var(--yellow);
+  box-shadow: 0 0 14px rgba(246, 196, 67, .55);
+}
+.playerIdentity .playerProfile {
   margin: 0;
+}
+.playerIdentity .playerProfile > img,
+.playerIdentity .playerProfile > span {
+  width: clamp(4rem, 5.5vw, 6.5rem);
+  border-color: rgba(246, 196, 67, .9);
   color: var(--yellow);
+  font-size: clamp(2rem, 3vw, 3.5rem);
+  box-shadow: 0 0 0 5px rgba(246, 196, 67, .08);
+}
+.playerIdentity .playerProfile div strong {
+  font-family: var(--font-league-gothic), Impact, sans-serif;
+  font-size: clamp(2.65rem, 4.2vw, 5.2rem);
+  font-weight: 400;
+  letter-spacing: .025em;
+  line-height: .78;
+  text-transform: uppercase;
+}
+.playerIdentity .playerProfile div small {
+  margin-top: .3rem;
+  color: var(--cyan);
+  font-size: clamp(.6rem, .8vw, .82rem);
+}
+
+.playerSlide .storyCopy {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  min-width: 0;
+  width: 100%;
+  align-content: start;
+  gap: clamp(.45rem, .8vh, .8rem);
+  padding: 0;
   text-align: left;
 }
-.playerSlide .storyCopy .eyebrow {
-  color: var(--highlight-accent);
-  text-shadow: 0 0 14px color-mix(in srgb, var(--highlight-accent) 35%, transparent);
+.playerSlide .storyCopy h2 {
+  display: block;
+  max-width: 100%;
+  margin: 0 0 clamp(.15rem, .6vh, .45rem);
+  color: var(--ink);
+  background: linear-gradient(180deg, var(--ink) 0%, var(--title-color) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-size: clamp(4rem, min(7.2vw, 12.2vh), 9rem);
+  line-height: .84;
+  letter-spacing: -.018em;
+  text-align: left;
+  white-space: pre-line;
+  filter: none;
+  text-shadow: none;
 }
-.playerSlide .seasonFact,
-.playerSlide.layoutImpact .seasonFact,
-.playerSlide.layoutNetwork .seasonFact {
+.storyWaiting {
+  opacity: 0;
+  pointer-events: none;
+}
+.storyTimeline { opacity: 1; }
+.sequenceTitle,
+.sequenceDescriptor,
+.sequenceEyebrow,
+.sequenceFact,
+.sequenceValue {
+  animation: highlightEnter .5s cubic-bezier(.2, .75, .25, 1) both;
+}
+.sequenceDescriptor {
+  position: relative;
+  padding-left: .85rem;
+}
+.sequenceDescriptor::before {
+  position: absolute;
+  top: 10%;
+  bottom: 10%;
+  left: 0;
+  width: 2px;
+  content: "";
+  background: var(--yellow);
+}
+.playerSlide .metricDescriptor {
+  max-width: 100%;
+  margin: 0;
+  color: var(--yellow);
+  white-space: normal;
+}
+.playerSlide .storyCopy .eyebrow {
+  color: var(--cyan);
+  text-shadow: none;
+}
+.playerSlide .seasonFact {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
   justify-content: flex-start;
+  gap: clamp(.45rem, .8vw, .75rem);
+  margin: 0;
   text-align: left;
 }
 .playerSlide .seasonFact span,
 .playerSlide .seasonFact strong {
   color: var(--ink);
+  font-size: clamp(1.25rem, 1.75vw, 2rem);
+  white-space: nowrap;
 }
-.playerSlide .valueBlock,
-.playerSlide.layoutImpact .valueBlock,
-.playerSlide.layoutNetwork .valueBlock {
+.playerSlide .valueBlock {
   justify-items: start;
-  margin-top: clamp(.45rem, .8vh, .8rem);
+  margin-top: clamp(.3rem, .7vh, .65rem);
 }
 .playerSlide .valueBlock strong {
-  text-shadow: 0 0 30px color-mix(in srgb, var(--highlight-accent) 25%, transparent), 0 8px 18px rgba(0, 0, 0, .35);
+  font-size: clamp(5rem, min(9vw, 15vh), 11rem);
+  line-height: .74;
+  text-shadow: 0 8px 18px rgba(0, 0, 0, .35);
 }
-.playerSlide .valueBlock strong small { color: var(--highlight-accent); }
+.playerSlide .valueBlock strong small { color: var(--cyan); }
 
-/* No variant may reintroduce a different rail or a coloured title block. */
-.playerSlide.layoutDiagonal .storyCopy,
-.playerSlide.layoutShield .storyCopy,
-.playerSlide.layoutBurst .storyCopy,
-.playerSlide.layoutCascade .storyCopy {
-  padding-top: 0;
+@keyframes highlightEnter {
+  from { opacity: 0; transform: translateY(.65rem); }
+  to { opacity: 1; transform: translateY(0); }
 }
-.playerSlide.layoutColumn .storyCopy { align-self: auto; padding-top: 0; }
-.playerSlide.layoutNetwork .storyCopy { grid-column: auto; }
-.playerSlide.layoutCascade .storyCopy { padding-left: 0; background: none; }
 
 /* ═══════════════════════════════════════════════════════════════
    RESPONSIVE
    ═══════════════════════════════════════════════════════════════ */
 @media (max-width: 980px) {
-  .introSlide, .playerSlide, .layoutPanorama, .layoutFragment { 
+  .introSlide, .layoutPanorama, .layoutFragment {
     grid-template-columns: 1fr; 
     gap: 1rem; 
     padding: 10vh 7vw 8vh; 
+  }
+  .playerSlide {
+    grid-template-columns: minmax(0, 1fr);
+    padding: clamp(4.25rem, 7vh, 5.25rem) 7vw clamp(3.5rem, 6vh, 4.5rem);
+  }
+  .highlightContent {
+    width: min(72vw, 40rem);
+    max-width: 100%;
   }
   .coverVisual { width: min(75vw, 560px); min-height: 48vh; }
   .introCopy h1 { font-size: clamp(5rem, 14vw, 8rem); }
   .storyCopy h2, .mapCopy h2 { font-size: clamp(4.2rem, 11vw, 7rem); }
   .artFrame { height: 42vh; }
-  .layoutImpact .storyCopy, .layoutSurvival .storyCopy, .layoutFortress .storyCopy { 
-    position: relative; 
-    top: auto; 
-    right: auto; 
-    bottom: auto; 
-    left: auto; 
-    max-width: none; 
-    text-align: left; 
-  }
-  .layoutImpact .storyCopy h2, .layoutImpact .storyCaption, .layoutNetwork .storyCopy h2, .layoutNetwork .storyCaption { margin-left: 0; }
-  .layoutImpact .artFrame, .layoutSurvival .artFrame, .layoutFortress .artFrame { width: 100%; height: 42vh; }
-  .layoutNetwork .storyCopy { grid-column: auto; grid-row: auto; text-align: left; }
-  .layoutImpact .valueBlock, .layoutNetwork .valueBlock { justify-items: start; }
-  .layoutImpact .playerProfile, .layoutNetwork .playerProfile { justify-content: flex-start; flex-direction: row; text-align: left; }
-  .layoutCascade .storyCopy, .layoutFragment .mapCopy { padding-left: 0; }
+  .layoutFragment .mapCopy { padding-left: 0; }
   .mapImageWrap { order: initial !important; height: 38vh !important; }
   .counterGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .counter { min-height: 8rem; }
   .progress { grid-template-columns: repeat(14, 1fr); }
-  .layoutDiagonal .storyCopy, .layoutShield .storyCopy, .layoutNetwork .storyCopy, .layoutBurst .storyCopy, .layoutCascade .storyCopy { padding-top: 12vh; }
 }
 
 @media (max-width: 620px) {
@@ -1337,16 +1082,46 @@
   .progress { top: 1rem; right: 1rem; left: 1rem; }
   .storyCopy h2, .mapCopy h2 { font-size: clamp(3.7rem, 16vw, 5.2rem); }
   .valueBlock strong { font-size: clamp(4.8rem, 19vw, 6.5rem); }
+  .playerSlide {
+    padding: 4.1rem 1.25rem 3.75rem;
+  }
+  .highlightContent {
+    width: 100%;
+    max-width: 100%;
+    gap: clamp(.55rem, 1.1vh, .85rem);
+  }
+  .playerIdentity .playerProfile > img,
+  .playerIdentity .playerProfile > span {
+    width: clamp(3.4rem, 13vw, 4.5rem);
+  }
+  .playerIdentity .playerProfile div strong {
+    font-size: clamp(2.35rem, 10vw, 3.8rem);
+  }
+  .playerSlide .storyCopy h2 {
+    font-size: clamp(3.15rem, min(14.5vw, 10.5vh), 5.4rem);
+  }
+  .playerSlide .seasonFact {
+    display: grid;
+    gap: .25rem;
+  }
+  .playerSlide .seasonFact span,
+  .playerSlide .seasonFact strong {
+    font-size: clamp(1rem, 4.3vw, 1.35rem);
+    white-space: normal;
+  }
+  .playerSlide .valueBlock strong {
+    font-size: clamp(4.4rem, min(19vw, 12.5vh), 7rem);
+  }
   .finaleHeading h2 { font-size: clamp(4.4rem, 16vw, 6rem); }
   .finaleSlide { padding-inline: 1.25rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .scrollTrack { scroll-behavior: auto; }
-  .sequenceEyebrow, .sequenceTitle, .sequenceDescriptor, .sequenceCaption, .sequenceFact, .sequenceValue, 
+  .sequenceEyebrow, .sequenceTitle, .sequenceDescriptor, .sequenceCaption, .sequenceFact, .sequenceValue,
   .playerIdentityVisible, .playerIdentity::before, .storyActive .mapCopy, .storyActive .finaleHeading, 
-  .storyActive .artFrame, .storyActive .artworkBackdrop img, .artworkBackdrop .videoFrozen, 
-  .storyActive .counter, .introCopy h1 .char, .storyCopy h2 .word-inner {
+  .storyActive .artFrame, .storyActive .artworkBackdrop img,
+  .storyActive .counter, .introCopy h1 .char {
     animation: none;
   }
   .playerIdentityVisible { opacity: 1; transform: none; filter: none; }

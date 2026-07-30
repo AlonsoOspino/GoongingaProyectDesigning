@@ -15,9 +15,9 @@ import styles from "./wrapped.module.css";
 type PlayerStory = {
   id: string;
   kind: "player";
-  layout: "diagonal" | "column" | "impact" | "shield" | "network" | "survival" | "burst" | "cascade" | "fortress" | "spotlight";
   eyebrow: string;
-  title: string;
+  titleLines: readonly string[];
+  titleColor: string;
   descriptor: string;
   caption: string;
   value: WrappedPlayerLeader | null;
@@ -43,16 +43,11 @@ const STANDARD_STORY_DURATION_MS = 4000;
 const EMPTY_AUDIO_SOURCES: string[] = [];
 const MUSIC_HIGHLIGHT_VOLUME = 0.38;
 const MUSIC_RESTING_VOLUME = 0.65;
-const DEFAULT_AUDIO_DURATION_MS = 12_500;
-const FALLBACK_NARRATED_HIGHLIGHT_DURATION_MS = 55_000;
-const FINAL_FRAME_DURATION_MS = 1_500;
+const POST_COUNT_HOLD_MS = 1_500;
 const CUE_STABLE_GAIN = 1.5;
-const BACKGROUND_VIDEO_PLAYBACK_RATE = 0.75;
-const ASSUMED_VIDEO_DURATION_MS = 5_000;
-const VIDEO_PLAY_PHASE_MS = ASSUMED_VIDEO_DURATION_MS / BACKGROUND_VIDEO_PLAYBACK_RATE;
 const HIGHLIGHT_TEXT_SEQUENCE_MS = 10_000;
 const COUNT_UP_DURATION_MS = 2_500;
-const MIN_PLAYER_HIGHLIGHT_DURATION_MS = HIGHLIGHT_TEXT_SEQUENCE_MS + COUNT_UP_DURATION_MS + FINAL_FRAME_DURATION_MS;
+const MIN_PLAYER_HIGHLIGHT_DURATION_MS = HIGHLIGHT_TEXT_SEQUENCE_MS + COUNT_UP_DURATION_MS + POST_COUNT_HOLD_MS;
 
 function formatNumber(value: number | null | undefined, decimals = 0) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "—";
@@ -222,25 +217,6 @@ function PlayerProfile({ leader }: { leader: WrappedPlayerLeader | null }) {
   );
 }
 
-function StoryTitle({ title }: { title: string }) {
-  const words = title.trim().split(/\s+/);
-  return words.map((word, index) => (
-    <span className={styles.titleWord} key={`${word}-${index}`}>
-      {word}{index < words.length - 1 ? " " : ""}
-    </span>
-  ));
-}
-
-function getStoryTitleStyle(title: string): CSSProperties {
-  const longestWord = Math.max(...title.trim().split(/\s+/).map((word) => word.length));
-  const widthInCh = Math.min(12, Math.max(9.5, longestWord));
-  return { "--title-width": `${widthInCh}ch` } as CSSProperties;
-}
-
-function getStoryTitleMask(title: string) {
-  return title.replace(/-/g, "‑");
-}
-
 function StoryAudioSequence({ sources, active, onPlaybackChange, onComplete }: { sources: string[]; active: boolean; onPlaybackChange: (playing: boolean) => void; onComplete: () => void }) {
   useEffect(() => {
     if (!active || !sources.length) {
@@ -331,10 +307,7 @@ function PlayerSlide({
   wrapped,
   active,
   reducedMotion,
-  audioDurationMs,
-  audioSequenceCompleted,
   seasonGames,
-  onVideoFinished,
   onStoryAudioPlaybackChange,
   onStoryAudioCompleted,
 }: {
@@ -342,10 +315,7 @@ function PlayerSlide({
   wrapped: GoongingaWrapped;
   active: boolean;
   reducedMotion: boolean;
-  audioDurationMs: number;
-  audioSequenceCompleted: boolean;
   seasonGames: number;
-  onVideoFinished: (storyId: string) => void;
   onStoryAudioPlaybackChange: (storyId: string, playing: boolean) => void;
   onStoryAudioCompleted: (storyId: string) => void;
 }) {
@@ -354,122 +324,53 @@ function PlayerSlide({
   const introVideo = assets.videos[story.assetKey] || null;
   const artwork = assets.images[story.assetKey] || null;
   const flipped = assets.flipped[story.assetKey] === true;
-  const [videoFinished, setVideoFinished] = useState(!introVideo);
-  const [videoPlaybackStarted, setVideoPlaybackStarted] = useState(false);
-  const [freezeZoomDurationMs, setFreezeZoomDurationMs] = useState(FINAL_FRAME_DURATION_MS);
+  const framing = assets.videoPositions[story.assetKey] || { x: 50, y: 50 };
+  const visualX = flipped ? 100 - framing.x : framing.x;
+  const [videoUnavailable, setVideoUnavailable] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const highlightStartedAtRef = useRef<number | null>(null);
-  const audioDurationMsRef = useRef(audioDurationMs);
   const storyAudioSources = assets.storyAudios[story.assetKey] || EMPTY_AUDIO_SOURCES;
   const revealStage = useHighlightSequence(active);
 
   useEffect(() => {
-    audioDurationMsRef.current = audioDurationMs;
-  }, [audioDurationMs]);
+    const video = videoRef.current;
+    if (!video) return;
 
-  const finishVideo = useCallback(() => {
-    const elapsedMs = highlightStartedAtRef.current === null ? 0 : performance.now() - highlightStartedAtRef.current;
-    // The frame starts zooming the instant playback reaches the end, then
-    // keeps zooming for every remaining millisecond of the highlight.
-    const narratedDuration = Math.max(audioDurationMsRef.current, FALLBACK_NARRATED_HIGHLIGHT_DURATION_MS);
-    setFreezeZoomDurationMs(Math.max(180, narratedDuration + FINAL_FRAME_DURATION_MS - elapsedMs));
-    setVideoFinished(true);
-    onVideoFinished(story.id);
-  }, [onVideoFinished, story.id]);
-  const resumeBackgroundVideo = useCallback(() => {
+    video.muted = true;
+    video.defaultMuted = true;
+    video.volume = 0;
+    video.loop = true;
+    video.defaultPlaybackRate = 1;
+    video.playbackRate = 1;
+
+    if (!active || reducedMotion) {
+      video.pause();
+      if (reducedMotion) {
+        try {
+          video.currentTime = 0;
+        } catch {
+          // Remote media can reject seeking until its metadata is available.
+        }
+      }
+      return;
+    }
+
+    void video.play().catch(() => setVideoUnavailable(true));
+    return () => video.pause();
+  }, [active, introVideo, reducedMotion]);
+
+  useEffect(() => {
+    setVideoUnavailable(false);
+  }, [introVideo]);
+
+  const playActiveVideo = useCallback(() => {
     const video = videoRef.current;
     if (!video || !active || reducedMotion) return;
     video.muted = true;
     video.defaultMuted = true;
     video.volume = 0;
-    video.loop = false;
-    // Every highlight clip plays once at the agreed fixed speed. Once its last
-    // frame is reached, the remaining highlight time belongs to the zoom.
-    video.defaultPlaybackRate = BACKGROUND_VIDEO_PLAYBACK_RATE;
-    video.playbackRate = BACKGROUND_VIDEO_PLAYBACK_RATE;
-    void video.play().catch(() => undefined);
+    video.loop = true;
+    void video.play().catch(() => setVideoUnavailable(true));
   }, [active, reducedMotion]);
-  const freezeVideoOnLastFrame = useCallback(() => {
-    const video = videoRef.current;
-    if (!video || videoFinished) return;
-    video.loop = false;
-    video.pause();
-    const lastFrame = Number.isFinite(video.duration) && video.duration > 0 ? Math.max(0, video.duration - 0.04) : 0;
-    if (lastFrame && Math.abs(video.currentTime - lastFrame) > 0.03) {
-      video.addEventListener("seeked", finishVideo, { once: true });
-      video.currentTime = lastFrame;
-    } else {
-      finishVideo();
-    }
-  }, [finishVideo, videoFinished]);
-
-  useEffect(() => {
-    highlightStartedAtRef.current = active ? performance.now() : null;
-    if (active) {
-      setFreezeZoomDurationMs(FINAL_FRAME_DURATION_MS);
-      setVideoPlaybackStarted(false);
-    }
-  }, [active]);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!introVideo || reducedMotion) {
-      setVideoFinished(true);
-      if (active) onVideoFinished(story.id);
-      return;
-    }
-
-    setVideoFinished(false);
-    if (!active || !video) return;
-    const playVideo = () => {
-      // The video is deliberately stretched across the cue phase and only its
-      // last frame is reserved for the final 1.5 seconds.
-      video.currentTime = 0;
-      resumeBackgroundVideo();
-    };
-
-    if (video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) playVideo();
-    else video.addEventListener("canplay", playVideo, { once: true });
-    return () => {
-      video.removeEventListener("canplay", playVideo);
-      video.removeEventListener("seeked", finishVideo);
-      video.pause();
-    };
-  }, [active, finishVideo, introVideo, onVideoFinished, reducedMotion, resumeBackgroundVideo, story.id]);
-
-  useEffect(() => {
-    if (active && audioSequenceCompleted && !reducedMotion) freezeVideoOnLastFrame();
-  }, [active, audioSequenceCompleted, freezeVideoOnLastFrame, reducedMotion]);
-
-  useEffect(() => {
-    if (!active || !introVideo || !videoPlaybackStarted || reducedMotion) return;
-    // Every supplied highlight is authored as a five-second clip. Freeze it at
-    // the known 0.75x playback endpoint rather than trusting delayed media
-    // metadata/events, then reserve everything after that moment for the zoom.
-    const timeout = window.setTimeout(freezeVideoOnLastFrame, VIDEO_PLAY_PHASE_MS);
-    return () => window.clearTimeout(timeout);
-  }, [active, freezeVideoOnLastFrame, introVideo, reducedMotion, videoPlaybackStarted]);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video || !active || !videoFinished || reducedMotion) return;
-    const duration = Math.max(180, freezeZoomDurationMs);
-    const startedAt = performance.now();
-    let frame = 0;
-    const zoom = (now: number) => {
-      const progress = Math.min(1, (now - startedAt) / duration);
-      // Ease in gently, then make the final part of the zoom noticeable.
-      const eased = 1 - Math.pow(1 - progress, 2.15);
-      const scale = 1.04 + (1.3 - 1.04) * eased;
-      // Write the composed transform directly to the video element. This
-      // avoids a CSS animation/compositing race when a media frame has just
-      // frozen, which previously made the zoom jump to its final value.
-      video.style.transform = `scaleX(${flipped ? -1 : 1}) scale(${scale})`;
-      if (progress < 1) frame = requestAnimationFrame(zoom);
-    };
-    frame = requestAnimationFrame(zoom);
-    return () => cancelAnimationFrame(frame);
-  }, [active, flipped, freezeZoomDurationMs, reducedMotion, videoFinished]);
   const handleStoryAudioPlaybackChange = useCallback((playing: boolean) => {
     onStoryAudioPlaybackChange(story.id, playing);
   }, [onStoryAudioPlaybackChange, story.id]);
@@ -479,43 +380,50 @@ function PlayerSlide({
 
   const valueRevealed = revealStage >= 6;
   const displayedValue = useCountUp(leader?.value || 0, valueRevealed, reducedMotion, story.decimals ?? 0);
+  const title = story.titleLines.join("\n");
   return (
-    <section className={`${styles.slide} ${styles.playerSlide} ${styles[`layout${story.layout[0].toUpperCase()}${story.layout.slice(1)}`]}`} aria-label={story.title}>
+    <section className={`${styles.slide} ${styles.playerSlide}`} aria-label={title.replace(/\n/g, " ")}>
       <div className={styles.artworkBackdrop} aria-hidden="true">
-        {active && (introVideo ? (
+        {active && introVideo && !videoUnavailable ? (
           <video
             ref={videoRef}
             src={introVideo}
-            className={`${flipped ? styles.artworkFlipped : ""} ${videoFinished ? styles.videoFrozen : ""}`}
-            style={videoFinished ? { animationDuration: `${freezeZoomDurationMs}ms` } : undefined}
+            className={flipped ? styles.artworkFlipped : undefined}
+            style={{ objectPosition: `${visualX}% ${framing.y}%` }}
+            autoPlay={!reducedMotion}
             playsInline
             muted
+            loop
             disablePictureInPicture
-            preload="auto"
-            onPlaying={() => setVideoPlaybackStarted(true)}
+            preload="metadata"
+            onCanPlay={playActiveVideo}
+            onError={() => setVideoUnavailable(true)}
           />
-        ) : artwork && <img src={artwork} alt="" className={flipped ? styles.artworkFlipped : undefined} />)}
+        ) : active && artwork ? (
+          <img src={artwork} alt="" className={flipped ? styles.artworkFlipped : undefined} />
+        ) : null}
       </div>
-      <div className={`${styles.playerIdentity} ${active ? styles.playerIdentityVisible : ""}`}>
-        <PlayerProfile leader={leader} />
-      </div>
-      <div className={`${styles.storyCopy} ${active ? styles.storyTimeline : styles.storyWaiting}`} data-sequence-stage={revealStage}>
-        {revealStage >= 1 && (
-          <h2
-            aria-label={story.title}
-            className={styles.sequenceTitle}
-            data-title={getStoryTitleMask(story.title)}
-            style={getStoryTitleStyle(story.title)}
-          >
-            <StoryTitle title={story.title} />
-          </h2>
-        )}
-        {revealStage >= 2 && <p className={`${styles.metricDescriptor} ${styles.sequenceDescriptor}`}>{story.descriptor}</p>}
-        {revealStage >= 3 && <p className={`${styles.eyebrow} ${styles.sequenceEyebrow}`}>{story.eyebrow}</p>}
-        {revealStage >= 4 && <div className={styles.seasonFact}><span className={styles.sequenceFact}>Games played this season</span>{revealStage >= 5 && <strong className={styles.sequenceFact}>{formatNumber(seasonGames)}</strong>}</div>}
-        {revealStage >= 6 && <div className={`${styles.valueBlock} ${styles.sequenceValue}`}>
-          <strong>{formatNumber(displayedValue, story.decimals ?? 0)}<small>{story.suffix || ""}</small></strong>
-        </div>}
+      <div className={styles.highlightContent}>
+        <div className={`${styles.playerIdentity} ${active ? styles.playerIdentityVisible : ""}`}>
+          <PlayerProfile leader={leader} />
+        </div>
+        <div className={`${styles.storyCopy} ${active ? styles.storyTimeline : styles.storyWaiting}`} data-sequence-stage={revealStage}>
+          {revealStage >= 1 && (
+            <h2
+              aria-label={title.replace(/\n/g, " ")}
+              className={styles.sequenceTitle}
+              style={{ "--title-color": story.titleColor } as CSSProperties}
+            >
+              {title}
+            </h2>
+          )}
+          {revealStage >= 2 && <p className={`${styles.metricDescriptor} ${styles.sequenceDescriptor}`}>{story.descriptor}</p>}
+          {revealStage >= 3 && <p className={`${styles.eyebrow} ${styles.sequenceEyebrow}`}>{story.eyebrow}</p>}
+          {revealStage >= 4 && <div className={styles.seasonFact}><span className={styles.sequenceFact}>Games played this season</span>{revealStage >= 5 && <strong className={styles.sequenceFact}>{formatNumber(seasonGames)}</strong>}</div>}
+          {revealStage >= 6 && <div className={`${styles.valueBlock} ${styles.sequenceValue}`}>
+            <strong>{formatNumber(displayedValue, story.decimals ?? 0)}<small>{story.suffix || ""}</small></strong>
+          </div>}
+        </div>
       </div>
       <StoryAudioSequence sources={storyAudioSources} active={active} onPlaybackChange={handleStoryAudioPlaybackChange} onComplete={handleStoryAudioComplete} />
     </section>
@@ -580,7 +488,6 @@ export default function WrappedPage() {
   const [error, setError] = useState<string | null>(null);
   const [started, setStarted] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [completedVideoStoryId, setCompletedVideoStoryId] = useState<string | null>(null);
   const [completedAudioStoryId, setCompletedAudioStoryId] = useState<string | null>(null);
   const [storyAudioPlayingId, setStoryAudioPlayingId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -606,16 +513,16 @@ export default function WrappedPage() {
     if (!wrapped) return [];
     const { averagesPer10, totals, performance, maps } = resolveWrappedSnapshot(wrapped.snapshot);
     return [
-      { id: "averageKills", kind: "player", layout: "diagonal", eyebrow: "BEST AVERAGES · PER 10", title: "Cold-blooded finisher", descriptor: "Highest average kills per 10 minutes of the season.", caption: "The season's sharpest elimination pace.", value: averagesPer10.kills, assetKey: "averageKills", decimals: 2, suffix: " / 10" },
-      { id: "averageHealing", kind: "player", layout: "column", eyebrow: "BEST AVERAGES · PER 10", title: "Lifeline on call", descriptor: "Highest average healing per 10 minutes of the season.", caption: "Keeping every fight alive when it mattered.", value: averagesPer10.healing, assetKey: "averageHealing", decimals: 2, suffix: " / 10" },
-      { id: "averageDamage", kind: "player", layout: "impact", eyebrow: "BEST AVERAGES · PER 10", title: "Pressure, unbroken", descriptor: "Highest average damage output per 10 minutes of the season.", caption: "Damage that never gave the lobby room to breathe.", value: averagesPer10.damage, assetKey: "averageDamage", decimals: 2, suffix: " / 10" },
-      { id: "averageMitigation", kind: "player", layout: "shield", eyebrow: "BEST AVERAGES · PER 10", title: "The wall that held", descriptor: "Highest average mitigation per 10 minutes of the season.", caption: "Pressure absorbed, space protected, fights saved.", value: averagesPer10.mitigation, assetKey: "averageMitigation", decimals: 2, suffix: " / 10" },
-      { id: "averageAssists", kind: "player", layout: "network", eyebrow: "BEST AVERAGES · PER 10", title: "The fight conductor", descriptor: "Highest average assists per 10 minutes of the season.", caption: "Every teamfight had another hand behind it.", value: averagesPer10.assists, assetKey: "averageAssists", decimals: 2, suffix: " / 10" },
-      { id: "averageSurvival", kind: "player", layout: "survival", eyebrow: "BEST AVERAGES · PER 10", title: "Refused to fall", descriptor: "Lowest average deaths per 10 minutes of the season.", caption: "The lowest death rate on the road to victory.", value: averagesPer10.lowestDeaths, assetKey: "averageSurvival", decimals: 2, suffix: " / 10" },
-      { id: "totalDamage", kind: "player", layout: "burst", eyebrow: "SEASON SUMS", title: "A season of impact", descriptor: "Highest total damage dealt across the full season.", caption: "The heaviest damage total in the record.", value: totals.damage, assetKey: "totalDamage" },
-      { id: "totalHealing", kind: "player", layout: "cascade", eyebrow: "SEASON SUMS", title: "Lifebar architect", descriptor: "Highest total healing delivered across the full season.", caption: "The deepest reserve of healing all season.", value: totals.healing, assetKey: "totalHealing" },
-      { id: "totalMitigation", kind: "player", layout: "fortress", eyebrow: "SEASON SUMS", title: "Frontline fortress", descriptor: "Highest total mitigation recorded across the full season.", caption: "A season spent holding the line.", value: totals.mitigation, assetKey: "totalMitigation" },
-      { id: "bestKd", kind: "player", layout: "spotlight", eyebrow: "GREAT PERFORMANCE", title: "The cleanest finish", descriptor: "Highest kill-to-death performance of the season.", caption: "The strongest K/D performance in the season.", value: performance.kd, assetKey: "bestKd", decimals: 2, suffix: " K/D" },
+      { id: "averageKills", kind: "player", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["COLD-BLOODED", "FINISHER"], titleColor: "#57E6F2", descriptor: "Highest average kills per 10 minutes of the season.", caption: "The season's sharpest elimination pace.", value: averagesPer10.kills, assetKey: "averageKills", decimals: 2, suffix: " / 10" },
+      { id: "averageHealing", kind: "player", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["LIFELINE ON", "CALL"], titleColor: "#83F5B5", descriptor: "Highest average healing per 10 minutes of the season.", caption: "Keeping every fight alive when it mattered.", value: averagesPer10.healing, assetKey: "averageHealing", decimals: 2, suffix: " / 10" },
+      { id: "averageDamage", kind: "player", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["PRESSURE,", "UNBROKEN"], titleColor: "#FF9867", descriptor: "Highest average damage output per 10 minutes of the season.", caption: "Damage that never gave the lobby room to breathe.", value: averagesPer10.damage, assetKey: "averageDamage", decimals: 2, suffix: " / 10" },
+      { id: "averageMitigation", kind: "player", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["THE WALL", "THAT HELD"], titleColor: "#64B9FF", descriptor: "Highest average mitigation per 10 minutes of the season.", caption: "Pressure absorbed, space protected, fights saved.", value: averagesPer10.mitigation, assetKey: "averageMitigation", decimals: 2, suffix: " / 10" },
+      { id: "averageAssists", kind: "player", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["THE FIGHT", "CONDUCTOR"], titleColor: "#D88CFF", descriptor: "Highest average assists per 10 minutes of the season.", caption: "Every teamfight had another hand behind it.", value: averagesPer10.assists, assetKey: "averageAssists", decimals: 2, suffix: " / 10" },
+      { id: "averageSurvival", kind: "player", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["REFUSED", "TO FALL"], titleColor: "#C8F07D", descriptor: "Lowest average deaths per 10 minutes of the season.", caption: "The lowest death rate on the road to victory.", value: averagesPer10.lowestDeaths, assetKey: "averageSurvival", decimals: 2, suffix: " / 10" },
+      { id: "totalDamage", kind: "player", eyebrow: "SEASON SUMS", titleLines: ["A SEASON", "OF IMPACT"], titleColor: "#FF6F61", descriptor: "Highest total damage dealt across the full season.", caption: "The heaviest damage total in the record.", value: totals.damage, assetKey: "totalDamage" },
+      { id: "totalHealing", kind: "player", eyebrow: "SEASON SUMS", titleLines: ["LIFEBAR", "ARCHITECT"], titleColor: "#49E0C5", descriptor: "Highest total healing delivered across the full season.", caption: "The deepest reserve of healing all season.", value: totals.healing, assetKey: "totalHealing" },
+      { id: "totalMitigation", kind: "player", eyebrow: "SEASON SUMS", titleLines: ["FRONTLINE", "FORTRESS"], titleColor: "#F6C443", descriptor: "Highest total mitigation recorded across the full season.", caption: "A season spent holding the line.", value: totals.mitigation, assetKey: "totalMitigation" },
+      { id: "bestKd", kind: "player", eyebrow: "GREAT PERFORMANCE", titleLines: ["THE", "CLEANEST", "FINISH"], titleColor: "#FF79B7", descriptor: "Highest kill-to-death performance of the season.", caption: "The strongest K/D performance in the season.", value: performance.kd, assetKey: "bestKd", decimals: 2, suffix: " K/D" },
       { id: "mostPickedMap", kind: "map", layout: "panorama", eyebrow: "MAP POOL", title: "Home field", caption: "The battleground that kept calling the season back.", value: maps.mostPicked, assetKey: "mostPickedMap" },
       { id: "leastPickedMap", kind: "map", layout: "fragment", eyebrow: "MAP POOL", title: "The road untaken", caption: "The quietest corner of the draft, zeros included.", value: maps.leastPicked, assetKey: "leastPickedMap" },
       { id: "finale", kind: "finale" },
@@ -710,14 +617,13 @@ export default function WrappedPage() {
     const activeStory = activeIndex > 0 ? stories[activeIndex - 1] : null;
     const isPlayerHighlight = activeStory?.kind === "player";
     const isStoryAudioPlaying = activeStory?.kind === "player" && storyAudioPlayingId === activeStory.id;
-    const targetVolume = isStoryAudioPlaying || (isPlayerHighlight && completedVideoStoryId !== activeStory.id)
+    const targetVolume = isStoryAudioPlaying || isPlayerHighlight
       ? MUSIC_HIGHLIGHT_VOLUME
       : MUSIC_RESTING_VOLUME;
     return fadeAudio(general, targetVolume, isStoryAudioPlaying ? 360 : 650);
-  }, [activeIndex, completedVideoStoryId, media?.soundtrack.general, started, stories, storyAudioPlayingId]);
+  }, [activeIndex, media?.soundtrack.general, started, stories, storyAudioPlayingId]);
 
   useEffect(() => {
-    setCompletedVideoStoryId(null);
     setCompletedAudioStoryId(null);
     setStoryAudioPlayingId(null);
     playerHighlightStartedAtRef.current = started && activeIndex > 0 ? performance.now() : null;
@@ -729,7 +635,7 @@ export default function WrappedPage() {
     if (activeStory?.kind === "player" && completedAudioStoryId !== activeStory.id) return;
     const elapsed = playerHighlightStartedAtRef.current === null ? 0 : performance.now() - playerHighlightStartedAtRef.current;
     const duration = activeStory?.kind === "player"
-      ? Math.max(FINAL_FRAME_DURATION_MS, MIN_PLAYER_HIGHLIGHT_DURATION_MS - elapsed)
+      ? Math.max(POST_COUNT_HOLD_MS, MIN_PLAYER_HIGHLIGHT_DURATION_MS - elapsed)
       : STANDARD_STORY_DURATION_MS;
     const timeout = window.setTimeout(() => goTo(activeIndex + 1), duration);
     return () => window.clearTimeout(timeout);
@@ -782,7 +688,7 @@ export default function WrappedPage() {
           const isActive = started && activeIndex === storyIndex;
           return (
             <div key={story.id} className={`${styles.storyViewport} ${isActive ? styles.storyActive : ""}`}>
-              {story.kind === "player" && <PlayerSlide key={`${story.id}-${isActive ? "active" : "idle"}`} story={story} wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} audioDurationMs={media?.storyAudios[story.assetKey]?.length ? FALLBACK_NARRATED_HIGHLIGHT_DURATION_MS : DEFAULT_AUDIO_DURATION_MS} audioSequenceCompleted={completedAudioStoryId === story.id} seasonGames={seasonGames} onVideoFinished={setCompletedVideoStoryId} onStoryAudioPlaybackChange={setStoryAudioPlayback} onStoryAudioCompleted={setStoryAudioCompleted} />}
+              {story.kind === "player" && <PlayerSlide story={story} wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} seasonGames={seasonGames} onStoryAudioPlaybackChange={setStoryAudioPlayback} onStoryAudioCompleted={setStoryAudioCompleted} />}
               {story.kind === "map" && <MapSlide story={story} wrapped={wrapped} />}
               {story.kind === "finale" && <FinaleSlide wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} />}
             </div>
