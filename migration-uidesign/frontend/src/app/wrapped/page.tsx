@@ -15,6 +15,7 @@ import styles from "./wrapped.module.css";
 type PlayerStory = {
   id: string;
   kind: "player";
+  contentSide: "left" | "right";
   eyebrow: string;
   titleLines: readonly string[];
   titleColor: string;
@@ -326,7 +327,8 @@ function PlayerSlide({
   const flipped = assets.flipped[story.assetKey] === true;
   const framing = assets.videoPositions[story.assetKey] || { x: 50, y: 50 };
   const visualX = flipped ? 100 - framing.x : framing.x;
-  const [videoUnavailable, setVideoUnavailable] = useState(false);
+  const [videoFailed, setVideoFailed] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const storyAudioSources = assets.storyAudios[story.assetKey] || EMPTY_AUDIO_SOURCES;
   const revealStage = useHighlightSequence(active);
@@ -354,13 +356,16 @@ function PlayerSlide({
       return;
     }
 
-    void video.play().catch(() => setVideoUnavailable(true));
+    video.load();
+    void video.play().catch(() => undefined);
     return () => video.pause();
   }, [active, introVideo, reducedMotion]);
 
   useEffect(() => {
-    setVideoUnavailable(false);
-  }, [introVideo]);
+    if (!active) return;
+    setVideoFailed(false);
+    setVideoReady(false);
+  }, [active, introVideo]);
 
   const playActiveVideo = useCallback(() => {
     const video = videoRef.current;
@@ -369,7 +374,7 @@ function PlayerSlide({
     video.defaultMuted = true;
     video.volume = 0;
     video.loop = true;
-    void video.play().catch(() => setVideoUnavailable(true));
+    void video.play().catch(() => undefined);
   }, [active, reducedMotion]);
   const handleStoryAudioPlaybackChange = useCallback((playing: boolean) => {
     onStoryAudioPlaybackChange(story.id, playing);
@@ -382,26 +387,34 @@ function PlayerSlide({
   const displayedValue = useCountUp(leader?.value || 0, valueRevealed, reducedMotion, story.decimals ?? 0);
   const title = story.titleLines.join("\n");
   return (
-    <section className={`${styles.slide} ${styles.playerSlide}`} aria-label={title.replace(/\n/g, " ")}>
+    <section className={`${styles.slide} ${styles.playerSlide}`} data-side={story.contentSide} aria-label={title.replace(/\n/g, " ")}>
       <div className={styles.artworkBackdrop} aria-hidden="true">
-        {active && introVideo && !videoUnavailable ? (
+        {active && artwork && (
+          <img src={artwork} alt="" className={flipped ? styles.artworkFlipped : undefined} />
+        )}
+        {active && introVideo && !videoFailed && (
           <video
+            key={introVideo}
             ref={videoRef}
             src={introVideo}
-            className={flipped ? styles.artworkFlipped : undefined}
+            className={`${flipped ? styles.artworkFlipped : ""} ${videoReady ? styles.videoReady : ""}`}
             style={{ objectPosition: `${visualX}% ${framing.y}%` }}
             autoPlay={!reducedMotion}
             playsInline
             muted
             loop
             disablePictureInPicture
-            preload="metadata"
-            onCanPlay={playActiveVideo}
-            onError={() => setVideoUnavailable(true)}
+            preload="auto"
+            onLoadStart={() => setVideoReady(false)}
+            onLoadedData={() => setVideoReady(true)}
+            onCanPlay={() => {
+              setVideoReady(true);
+              playActiveVideo();
+            }}
+            onPlaying={() => setVideoReady(true)}
+            onError={() => setVideoFailed(true)}
           />
-        ) : active && artwork ? (
-          <img src={artwork} alt="" className={flipped ? styles.artworkFlipped : undefined} />
-        ) : null}
+        )}
       </div>
       <div className={styles.highlightContent}>
         <div className={`${styles.playerIdentity} ${active ? styles.playerIdentityVisible : ""}`}>
@@ -417,8 +430,8 @@ function PlayerSlide({
               {title}
             </h2>
           )}
-          {revealStage >= 2 && <p className={`${styles.metricDescriptor} ${styles.sequenceDescriptor}`}>{story.descriptor}</p>}
-          {revealStage >= 3 && <p className={`${styles.eyebrow} ${styles.sequenceEyebrow}`}>{story.eyebrow}</p>}
+          {revealStage >= 2 && <p className={`${styles.eyebrow} ${styles.sequenceEyebrow}`}>{story.eyebrow}</p>}
+          {revealStage >= 3 && <p className={`${styles.metricDescriptor} ${styles.sequenceDescriptor}`}>{story.descriptor}</p>}
           {revealStage >= 4 && <div className={styles.seasonFact}><span className={styles.sequenceFact}>Games played this season</span>{revealStage >= 5 && <strong className={styles.sequenceFact}>{formatNumber(seasonGames)}</strong>}</div>}
           {revealStage >= 6 && <div className={`${styles.valueBlock} ${styles.sequenceValue}`}>
             <strong>{formatNumber(displayedValue, story.decimals ?? 0)}<small>{story.suffix || ""}</small></strong>
@@ -513,16 +526,16 @@ export default function WrappedPage() {
     if (!wrapped) return [];
     const { averagesPer10, totals, performance, maps } = resolveWrappedSnapshot(wrapped.snapshot);
     return [
-      { id: "averageKills", kind: "player", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["COLD-BLOODED", "FINISHER"], titleColor: "#57E6F2", descriptor: "Highest average kills per 10 minutes of the season.", caption: "The season's sharpest elimination pace.", value: averagesPer10.kills, assetKey: "averageKills", decimals: 2, suffix: " / 10" },
-      { id: "averageHealing", kind: "player", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["LIFELINE ON", "CALL"], titleColor: "#83F5B5", descriptor: "Highest average healing per 10 minutes of the season.", caption: "Keeping every fight alive when it mattered.", value: averagesPer10.healing, assetKey: "averageHealing", decimals: 2, suffix: " / 10" },
-      { id: "averageDamage", kind: "player", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["PRESSURE,", "UNBROKEN"], titleColor: "#FF9867", descriptor: "Highest average damage output per 10 minutes of the season.", caption: "Damage that never gave the lobby room to breathe.", value: averagesPer10.damage, assetKey: "averageDamage", decimals: 2, suffix: " / 10" },
-      { id: "averageMitigation", kind: "player", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["THE WALL", "THAT HELD"], titleColor: "#64B9FF", descriptor: "Highest average mitigation per 10 minutes of the season.", caption: "Pressure absorbed, space protected, fights saved.", value: averagesPer10.mitigation, assetKey: "averageMitigation", decimals: 2, suffix: " / 10" },
-      { id: "averageAssists", kind: "player", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["THE FIGHT", "CONDUCTOR"], titleColor: "#D88CFF", descriptor: "Highest average assists per 10 minutes of the season.", caption: "Every teamfight had another hand behind it.", value: averagesPer10.assists, assetKey: "averageAssists", decimals: 2, suffix: " / 10" },
-      { id: "averageSurvival", kind: "player", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["REFUSED", "TO FALL"], titleColor: "#C8F07D", descriptor: "Lowest average deaths per 10 minutes of the season.", caption: "The lowest death rate on the road to victory.", value: averagesPer10.lowestDeaths, assetKey: "averageSurvival", decimals: 2, suffix: " / 10" },
-      { id: "totalDamage", kind: "player", eyebrow: "SEASON SUMS", titleLines: ["A SEASON", "OF IMPACT"], titleColor: "#FF6F61", descriptor: "Highest total damage dealt across the full season.", caption: "The heaviest damage total in the record.", value: totals.damage, assetKey: "totalDamage" },
-      { id: "totalHealing", kind: "player", eyebrow: "SEASON SUMS", titleLines: ["LIFEBAR", "ARCHITECT"], titleColor: "#49E0C5", descriptor: "Highest total healing delivered across the full season.", caption: "The deepest reserve of healing all season.", value: totals.healing, assetKey: "totalHealing" },
-      { id: "totalMitigation", kind: "player", eyebrow: "SEASON SUMS", titleLines: ["FRONTLINE", "FORTRESS"], titleColor: "#F6C443", descriptor: "Highest total mitigation recorded across the full season.", caption: "A season spent holding the line.", value: totals.mitigation, assetKey: "totalMitigation" },
-      { id: "bestKd", kind: "player", eyebrow: "GREAT PERFORMANCE", titleLines: ["THE", "CLEANEST", "FINISH"], titleColor: "#FF79B7", descriptor: "Highest kill-to-death performance of the season.", caption: "The strongest K/D performance in the season.", value: performance.kd, assetKey: "bestKd", decimals: 2, suffix: " K/D" },
+      { id: "averageKills", kind: "player", contentSide: "left", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["COLD-BLOODED", "FINISHER"], titleColor: "#57E6F2", descriptor: "Highest average kills per 10 minutes of the season.", caption: "The season's sharpest elimination pace.", value: averagesPer10.kills, assetKey: "averageKills", decimals: 2, suffix: " / 10" },
+      { id: "averageHealing", kind: "player", contentSide: "right", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["LIFELINE ON", "CALL"], titleColor: "#83F5B5", descriptor: "Highest average healing per 10 minutes of the season.", caption: "Keeping every fight alive when it mattered.", value: averagesPer10.healing, assetKey: "averageHealing", decimals: 2, suffix: " / 10" },
+      { id: "averageDamage", kind: "player", contentSide: "left", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["PRESSURE,", "UNBROKEN"], titleColor: "#FF9867", descriptor: "Highest average damage output per 10 minutes of the season.", caption: "Damage that never gave the lobby room to breathe.", value: averagesPer10.damage, assetKey: "averageDamage", decimals: 2, suffix: " / 10" },
+      { id: "averageMitigation", kind: "player", contentSide: "right", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["THE WALL", "THAT HELD"], titleColor: "#64B9FF", descriptor: "Highest average mitigation per 10 minutes of the season.", caption: "Pressure absorbed, space protected, fights saved.", value: averagesPer10.mitigation, assetKey: "averageMitigation", decimals: 2, suffix: " / 10" },
+      { id: "averageAssists", kind: "player", contentSide: "left", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["THE FIGHT", "CONDUCTOR"], titleColor: "#D88CFF", descriptor: "Highest average assists per 10 minutes of the season.", caption: "Every teamfight had another hand behind it.", value: averagesPer10.assists, assetKey: "averageAssists", decimals: 2, suffix: " / 10" },
+      { id: "averageSurvival", kind: "player", contentSide: "right", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["REFUSED", "TO FALL"], titleColor: "#C8F07D", descriptor: "Lowest average deaths per 10 minutes of the season.", caption: "The lowest death rate on the road to victory.", value: averagesPer10.lowestDeaths, assetKey: "averageSurvival", decimals: 2, suffix: " / 10" },
+      { id: "totalDamage", kind: "player", contentSide: "left", eyebrow: "SEASON SUMS", titleLines: ["A SEASON", "OF IMPACT"], titleColor: "#FF6F61", descriptor: "Highest total damage dealt across the full season.", caption: "The heaviest damage total in the record.", value: totals.damage, assetKey: "totalDamage" },
+      { id: "totalHealing", kind: "player", contentSide: "right", eyebrow: "SEASON SUMS", titleLines: ["LIFEBAR", "ARCHITECT"], titleColor: "#49E0C5", descriptor: "Highest total healing delivered across the full season.", caption: "The deepest reserve of healing all season.", value: totals.healing, assetKey: "totalHealing" },
+      { id: "totalMitigation", kind: "player", contentSide: "left", eyebrow: "SEASON SUMS", titleLines: ["FRONTLINE", "FORTRESS"], titleColor: "#F6C443", descriptor: "Highest total mitigation recorded across the full season.", caption: "A season spent holding the line.", value: totals.mitigation, assetKey: "totalMitigation" },
+      { id: "bestKd", kind: "player", contentSide: "right", eyebrow: "GREAT PERFORMANCE", titleLines: ["THE", "CLEANEST", "FINISH"], titleColor: "#FF79B7", descriptor: "Highest kill-to-death performance of the season.", caption: "The strongest K/D performance in the season.", value: performance.kd, assetKey: "bestKd", decimals: 2, suffix: " K/D" },
       { id: "mostPickedMap", kind: "map", layout: "panorama", eyebrow: "MAP POOL", title: "Home field", caption: "The battleground that kept calling the season back.", value: maps.mostPicked, assetKey: "mostPickedMap" },
       { id: "leastPickedMap", kind: "map", layout: "fragment", eyebrow: "MAP POOL", title: "The road untaken", caption: "The quietest corner of the draft, zeros included.", value: maps.leastPicked, assetKey: "leastPickedMap" },
       { id: "finale", kind: "finale" },
@@ -554,13 +567,16 @@ export default function WrappedPage() {
 
   useEffect(() => {
     if (!nextVideoToPreload) return;
-    const preload = document.createElement("link");
-    preload.rel = "preload";
-    preload.as = "video";
-    preload.href = nextVideoToPreload;
-    preload.crossOrigin = "anonymous";
-    document.head.appendChild(preload);
-    return () => preload.remove();
+    const preload = document.createElement("video");
+    preload.preload = "auto";
+    preload.muted = true;
+    preload.src = nextVideoToPreload;
+    preload.load();
+    return () => {
+      preload.pause();
+      preload.removeAttribute("src");
+      preload.load();
+    };
   }, [nextVideoToPreload]);
 
   const beginPlayback = useCallback(() => {
