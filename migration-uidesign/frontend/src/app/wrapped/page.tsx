@@ -44,6 +44,7 @@ const EMPTY_AUDIO_SOURCES: string[] = [];
 const MUSIC_HIGHLIGHT_VOLUME = 0.38;
 const MUSIC_RESTING_VOLUME = 0.65;
 const DEFAULT_AUDIO_DURATION_MS = 12_500;
+const FALLBACK_NARRATED_HIGHLIGHT_DURATION_MS = 55_000;
 const FINAL_FRAME_DURATION_MS = 1_500;
 const MIN_VALID_AUDIO_DURATION_SECONDS = 0.25;
 const CUE_STABLE_GAIN = 1.5;
@@ -162,6 +163,7 @@ function useStoryAudioDurations(storyAudios: Partial<Record<WrappedAssetKey, str
     const getDuration = (source: string) => new Promise<number>((resolve) => {
       const audio = new Audio();
       const timeout = window.setTimeout(() => resolve(0), 8_000);
+      audio.crossOrigin = "anonymous";
       audio.preload = "metadata";
       audio.onloadedmetadata = () => {
         window.clearTimeout(timeout);
@@ -373,17 +375,22 @@ function PlayerSlide({
   const [freezeZoomDurationMs, setFreezeZoomDurationMs] = useState(FINAL_FRAME_DURATION_MS);
   const videoRef = useRef<HTMLVideoElement>(null);
   const highlightStartedAtRef = useRef<number | null>(null);
+  const audioDurationMsRef = useRef(audioDurationMs);
   const storyAudioSources = assets.storyAudios[story.assetKey] || EMPTY_AUDIO_SOURCES;
   const revealStage = useHighlightSequence(active, audioDurationMs);
+
+  useEffect(() => {
+    audioDurationMsRef.current = audioDurationMs;
+  }, [audioDurationMs]);
 
   const finishVideo = useCallback(() => {
     const elapsedMs = highlightStartedAtRef.current === null ? 0 : performance.now() - highlightStartedAtRef.current;
     // The frame starts zooming the instant playback reaches the end, then
     // keeps zooming for every remaining millisecond of the highlight.
-    setFreezeZoomDurationMs(Math.max(180, audioDurationMs + FINAL_FRAME_DURATION_MS - elapsedMs));
+    setFreezeZoomDurationMs(Math.max(180, audioDurationMsRef.current + FINAL_FRAME_DURATION_MS - elapsedMs));
     setVideoFinished(true);
     onVideoFinished(story.id);
-  }, [audioDurationMs, onVideoFinished, story.id]);
+  }, [onVideoFinished, story.id]);
   const resumeBackgroundVideo = useCallback(() => {
     const video = videoRef.current;
     if (!video || !active || reducedMotion) return;
@@ -456,12 +463,16 @@ function PlayerSlide({
       const progress = Math.min(1, (now - startedAt) / duration);
       // Ease in gently, then make the final part of the zoom noticeable.
       const eased = 1 - Math.pow(1 - progress, 2.15);
-      video.style.setProperty("--frozen-zoom-scale", String(1.04 + (1.3 - 1.04) * eased));
+      const scale = 1.04 + (1.3 - 1.04) * eased;
+      // Write the composed transform directly to the video element. This
+      // avoids a CSS animation/compositing race when a media frame has just
+      // frozen, which previously made the zoom jump to its final value.
+      video.style.transform = `scaleX(${flipped ? -1 : 1}) scale(${scale})`;
       if (progress < 1) frame = requestAnimationFrame(zoom);
     };
     frame = requestAnimationFrame(zoom);
     return () => cancelAnimationFrame(frame);
-  }, [active, freezeZoomDurationMs, reducedMotion, videoFinished]);
+  }, [active, flipped, freezeZoomDurationMs, reducedMotion, videoFinished]);
   const handleStoryAudioPlaybackChange = useCallback((playing: boolean) => {
     onStoryAudioPlaybackChange(story.id, playing);
   }, [onStoryAudioPlaybackChange, story.id]);
@@ -739,7 +750,7 @@ export default function WrappedPage() {
           const isActive = started && activeIndex === storyIndex;
           return (
             <div key={story.id} className={`${styles.storyViewport} ${isActive ? styles.storyActive : ""}`}>
-              {story.kind === "player" && <PlayerSlide key={`${story.id}-${isActive ? "active" : "idle"}`} story={story} wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} audioDurationMs={storyAudioDurations[story.assetKey] || DEFAULT_AUDIO_DURATION_MS} audioSequenceCompleted={completedAudioStoryId === story.id} seasonGames={seasonGames} onVideoFinished={setCompletedVideoStoryId} onStoryAudioPlaybackChange={setStoryAudioPlayback} onStoryAudioCompleted={setStoryAudioCompleted} />}
+              {story.kind === "player" && <PlayerSlide key={`${story.id}-${isActive ? "active" : "idle"}`} story={story} wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} audioDurationMs={storyAudioDurations[story.assetKey] || (media?.storyAudios[story.assetKey]?.length ? FALLBACK_NARRATED_HIGHLIGHT_DURATION_MS : DEFAULT_AUDIO_DURATION_MS)} audioSequenceCompleted={completedAudioStoryId === story.id} seasonGames={seasonGames} onVideoFinished={setCompletedVideoStoryId} onStoryAudioPlaybackChange={setStoryAudioPlayback} onStoryAudioCompleted={setStoryAudioCompleted} />}
               {story.kind === "map" && <MapSlide story={story} wrapped={wrapped} />}
               {story.kind === "finale" && <FinaleSlide wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} />}
             </div>

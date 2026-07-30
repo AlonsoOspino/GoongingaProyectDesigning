@@ -96,6 +96,7 @@
 .artworkBackdrop { position:absolute; inset:0; z-index:0; overflow:hidden; background:radial-gradient(ellipse 118% 126% at 50% 50%,transparent 0 43%,rgba(87,230,242,.322) 100%); }
 .artworkBackdrop img,.artworkBackdrop video { --art-mirror:1; width:100%; height:100%; object-fit:cover; object-position:center; opacity:.72; filter:saturate(1.16) contrast(1.1) brightness(.92); transform:scaleX(var(--art-mirror)) scale(var(--frozen-zoom-scale, 1.04)); }
 .artworkBackdrop video { opacity:.84; filter:saturate(1.2) contrast(1.08) brightness(1.03); }
+.artworkBackdrop video { transform-origin:100% 0; }
 .artworkBackdrop .artworkFlipped { --art-mirror:-1; }
 .artworkBackdrop .videoFrozen { animation:none; }
 .artworkBackdrop::after { position:absolute; inset:0; content:""; background:linear-gradient(90deg,rgba(3,6,10,1) 0%,rgba(3,6,10,.96) 42%,rgba(3,6,10,.58) 66%,rgba(3,6,10,.12) 100%),linear-gradient(0deg,rgba(3,6,10,.48),transparent 50%); }
@@ -147,6 +148,7 @@
 .layoutImpact .playerIdentity::before, .layoutNetwork .playerIdentity::before { right:auto; left:calc(100% + .8rem); transform-origin:left; }
 .layoutImpact .artworkBackdrop, .layoutNetwork .artworkBackdrop { background:radial-gradient(ellipse 118% 126% at 50% 50%,transparent 0 43%,rgba(87,230,242,.322) 100%); }
 .layoutImpact .artworkBackdrop::after, .layoutNetwork .artworkBackdrop::after { background:linear-gradient(270deg,rgba(3,6,10,1) 0%,rgba(3,6,10,.96) 42%,rgba(3,6,10,.58) 66%,rgba(3,6,10,.12) 100%),linear-gradient(0deg,rgba(3,6,10,.48),transparent 50%); }
+.layoutImpact .artworkBackdrop video, .layoutNetwork .artworkBackdrop video { transform-origin:0 0; }
 
 .mapSlide { display:grid; min-height:100%; align-items:center; padding:7vh 9vw; }
 .mapImageWrap { position:relative; overflow:hidden; }
