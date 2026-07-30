@@ -52,6 +52,7 @@ const BACKGROUND_VIDEO_PLAYBACK_RATE = 0.75;
 const ASSUMED_VIDEO_DURATION_MS = 5_000;
 const VIDEO_PLAY_PHASE_MS = ASSUMED_VIDEO_DURATION_MS / BACKGROUND_VIDEO_PLAYBACK_RATE;
 const HIGHLIGHT_TEXT_SEQUENCE_MS = 10_000;
+const MIN_PLAYER_HIGHLIGHT_DURATION_MS = HIGHLIGHT_TEXT_SEQUENCE_MS + FINAL_FRAME_DURATION_MS;
 
 function formatNumber(value: number | null | undefined, decimals = 0) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "—";
@@ -514,9 +515,9 @@ function PlayerSlide({
         <PlayerProfile leader={leader} />
       </div>
       <div className={`${styles.storyCopy} ${active ? styles.storyTimeline : styles.storyWaiting}`} data-sequence-stage={revealStage}>
-        {revealStage >= 1 && <p className={`${styles.eyebrow} ${styles.sequenceEyebrow}`}>{story.eyebrow}</p>}
-        {revealStage >= 2 && <h2 className={styles.sequenceTitle}>{story.title}</h2>}
-        {revealStage >= 3 && <p className={`${styles.metricDescriptor} ${styles.sequenceDescriptor}`}>{story.descriptor}</p>}
+        {revealStage >= 1 && <h2 className={styles.sequenceTitle}>{story.title}</h2>}
+        {revealStage >= 2 && <p className={`${styles.metricDescriptor} ${styles.sequenceDescriptor}`}>{story.descriptor}</p>}
+        {revealStage >= 3 && <p className={`${styles.eyebrow} ${styles.sequenceEyebrow}`}>{story.eyebrow}</p>}
         {revealStage >= 4 && <div className={styles.seasonFact}><span className={styles.sequenceFact}>Games played during the season</span>{revealStage >= 5 && <strong className={styles.sequenceFact}>{formatNumber(seasonGames)}</strong>}</div>}
         {revealStage >= 6 && <p className={`${styles.statMarker} ${styles.sequenceDescriptor}`}>{valueLabel}</p>}
         {revealStage >= 7 && <div className={`${styles.valueBlock} ${styles.sequenceValue}`}>
@@ -592,6 +593,7 @@ export default function WrappedPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const introAudioRef = useRef<HTMLAudioElement>(null);
   const generalAudioRef = useRef<HTMLAudioElement>(null);
+  const playerHighlightStartedAtRef = useRef<number | null>(null);
   const reducedMotion = useReducedMotion();
 
   useEffect(() => {
@@ -702,13 +704,17 @@ export default function WrappedPage() {
     setCompletedVideoStoryId(null);
     setCompletedAudioStoryId(null);
     setStoryAudioPlayingId(null);
-  }, [activeIndex]);
+    playerHighlightStartedAtRef.current = started && activeIndex > 0 ? performance.now() : null;
+  }, [activeIndex, started]);
 
   useEffect(() => {
     if (!started || reducedMotion || activeIndex >= totalSlides - 1) return;
     const activeStory = activeIndex > 0 ? stories[activeIndex - 1] : null;
     if (activeStory?.kind === "player" && completedAudioStoryId !== activeStory.id) return;
-    const duration = activeStory?.kind === "player" ? FINAL_FRAME_DURATION_MS : STANDARD_STORY_DURATION_MS;
+    const elapsed = playerHighlightStartedAtRef.current === null ? 0 : performance.now() - playerHighlightStartedAtRef.current;
+    const duration = activeStory?.kind === "player"
+      ? Math.max(FINAL_FRAME_DURATION_MS, MIN_PLAYER_HIGHLIGHT_DURATION_MS - elapsed)
+      : STANDARD_STORY_DURATION_MS;
     const timeout = window.setTimeout(() => goTo(activeIndex + 1), duration);
     return () => window.clearTimeout(timeout);
   }, [activeIndex, completedAudioStoryId, goTo, reducedMotion, started, stories, totalSlides]);
