@@ -1023,20 +1023,29 @@
   text-align: right;
 }
 .playerSlide .storyCopy h2.typingTitle {
+  position: relative;
   color: transparent;
   background: none;
   -webkit-text-fill-color: initial;
 }
-.typingCharacter {
-  display: inline;
+.typingMeasure,
+.typingVisible {
+  display: block;
+  width: 100%;
+  white-space: pre-line;
+}
+.typingMeasure {
+  visibility: hidden;
+}
+.typingVisible {
+  position: absolute;
+  inset: 0;
   color: transparent;
   background: linear-gradient(180deg, var(--ink) 0%, var(--title-color) 100%);
   background-repeat: no-repeat;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  opacity: 0;
-  animation: typingReveal .01s steps(1, end) forwards;
 }
 .storyWaiting {
   opacity: 0;
@@ -1162,9 +1171,6 @@
   from { opacity: 0; transform: translateY(.65rem); }
   to { opacity: 1; transform: translateY(0); }
 }
-@keyframes typingReveal {
-  to { opacity: 1; }
-}
 @keyframes identityAppear {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -1288,5 +1294,4 @@
   }
   .playerIdentityVisible { opacity: 1; transform: none; filter: none; }
   .playerIdentityVisible::before { opacity: 1; transform: scaleX(1); }
-  .typingCharacter { opacity: 1; animation: none; }
 }

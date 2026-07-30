@@ -338,6 +338,29 @@ function PlayerSlide({
   const videoRef = useRef<HTMLVideoElement>(null);
   const storyAudioSources = assets.storyAudios[story.assetKey] || EMPTY_AUDIO_SOURCES;
   const revealStage = useHighlightSequence(active);
+  const title = story.titleLines.join("\n");
+  const titleRevealed = revealStage >= 1;
+  const [typedTitleLength, setTypedTitleLength] = useState(0);
+
+  useEffect(() => {
+    if (!active || !titleRevealed) {
+      setTypedTitleLength(0);
+      return;
+    }
+    if (reducedMotion) {
+      setTypedTitleLength(title.length);
+      return;
+    }
+
+    let nextLength = 1;
+    setTypedTitleLength(nextLength);
+    const interval = window.setInterval(() => {
+      nextLength += 1;
+      setTypedTitleLength(Math.min(nextLength, title.length));
+      if (nextLength >= title.length) window.clearInterval(interval);
+    }, 55);
+    return () => window.clearInterval(interval);
+  }, [active, reducedMotion, title, titleRevealed]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -391,8 +414,6 @@ function PlayerSlide({
 
   const valueRevealed = revealStage >= 6;
   const displayedValue = useCountUp(leader?.value || 0, valueRevealed, reducedMotion, story.decimals ?? 0);
-  const title = story.titleLines.join("\n");
-  const titleCharacters = Array.from(title);
   return (
     <section
       className={`${styles.slide} ${styles.playerSlide}`}
@@ -440,27 +461,12 @@ function PlayerSlide({
             >
               {reducedMotion
                 ? title
-                : titleCharacters.map((character, index) => {
-                  if (character === "\n") return <br key={`line-${index}`} />;
-                  const lineIndex = title.slice(0, index).split("\n").length - 1;
-                  const gradientPosition = story.titleLines.length === 1
-                    ? 0
-                    : (lineIndex / (story.titleLines.length - 1)) * 100;
-                  return (
-                    <span
-                      key={`${character}-${index}`}
-                      className={styles.typingCharacter}
-                      style={{
-                        animationDelay: `${index * 55}ms`,
-                        backgroundSize: `100% ${story.titleLines.length * 100}%`,
-                        backgroundPosition: `center ${gradientPosition}%`,
-                      }}
-                      aria-hidden="true"
-                    >
-                      {character}
-                    </span>
-                  );
-                })}
+                : (
+                  <>
+                    <span className={styles.typingMeasure} aria-hidden="true">{title}</span>
+                    <span className={styles.typingVisible} aria-hidden="true">{title.slice(0, typedTitleLength)}</span>
+                  </>
+                )}
             </h2>
           )}
           {revealStage >= 2 && <p className={`${styles.metricDescriptor} ${styles.sequenceDescriptor}`}>{story.descriptor}</p>}
