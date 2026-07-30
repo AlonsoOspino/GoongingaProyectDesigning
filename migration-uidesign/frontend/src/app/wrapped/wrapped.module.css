@@ -945,6 +945,12 @@
   right: auto;
   left: calc(100% + .75rem);
 }
+.playerSlide[data-side="right"] .playerIdentity {
+  text-align: right;
+}
+.playerSlide[data-side="right"] .playerIdentity .playerProfile {
+  justify-content: flex-end;
+}
 .playerIdentity .playerProfile {
   margin: 0;
 }
@@ -989,6 +995,13 @@
   min-width: 0;
   width: 100%;
 }
+.playerSlide[data-side="right"] .storyCopy {
+  justify-items: end;
+  text-align: right;
+}
+.playerSlide[data-side="right"] .storyCopy > * {
+  justify-self: end;
+}
 .playerSlide .storyCopy h2 {
   display: block;
   max-width: 100%;
@@ -1005,6 +1018,9 @@
   white-space: pre-line;
   filter: none;
   text-shadow: none;
+}
+.playerSlide[data-side="right"] .storyCopy h2 {
+  text-align: right;
 }
 .storyWaiting {
   opacity: 0;
@@ -1031,10 +1047,24 @@
   content: "";
   background: var(--yellow);
 }
+.playerSlide[data-side="right"] .sequenceDescriptor {
+  padding-right: .85rem;
+  padding-left: 0;
+}
+.playerSlide[data-side="right"] .sequenceDescriptor::before {
+  right: 0;
+  left: auto;
+}
 .playerSlide .metricDescriptor {
-  max-width: 100%;
+  max-width: min(100%, 31ch);
   margin: 0;
   color: var(--yellow);
+  font-family: var(--font-overlay-display), "Arial Narrow", sans-serif;
+  font-size: clamp(1.6rem, 2.25vw, 2.75rem);
+  font-weight: 400;
+  letter-spacing: .075em;
+  line-height: 1.05;
+  text-transform: uppercase;
   white-space: normal;
 }
 .playerSlide .storyCopy .eyebrow {
@@ -1046,12 +1076,22 @@
   text-shadow: none;
 }
 .playerSlide .seasonFact {
+  position: absolute;
+  z-index: 2;
+  right: clamp(2.5rem, 4vw, 5.625rem);
+  bottom: clamp(5.5rem, 10vh, 7rem);
   display: flex;
-  min-width: 0;
+  max-width: min(42vw, 35rem);
   align-items: baseline;
-  justify-content: flex-start;
+  justify-content: flex-end;
   gap: clamp(.45rem, .8vw, .75rem);
   margin: 0;
+  text-align: right;
+}
+.playerSlide[data-side="right"] .seasonFact {
+  right: auto;
+  left: clamp(2.5rem, 4vw, 5.625rem);
+  justify-content: flex-start;
   text-align: left;
 }
 .playerSlide .seasonFact span,
@@ -1063,6 +1103,9 @@
 .playerSlide .valueBlock {
   justify-items: start;
   margin-top: clamp(.55rem, 1.25vh, 1rem);
+}
+.playerSlide[data-side="right"] .valueBlock {
+  justify-items: end;
 }
 .playerSlide .valueBlock strong {
   font-size: clamp(6.5rem, min(10vw, 17vh), 13rem);
@@ -1093,15 +1136,18 @@
     justify-content: flex-start;
     padding: clamp(4.25rem, 7vh, 5.25rem) 7vw clamp(3.5rem, 6vh, 4.5rem);
   }
-  .playerSlide[data-side="right"] { justify-content: flex-start; }
-  .playerSlide[data-side="right"] .playerIdentity::before {
-    right: calc(100% + .75rem);
+  .playerSlide[data-side="right"] { justify-content: flex-end; }
+  .playerSlide .seasonFact {
+    right: 7vw;
     left: auto;
+    justify-content: flex-end;
+    text-align: right;
   }
-  .playerSlide[data-side="right"] .artworkBackdrop::after {
-    background:
-      linear-gradient(90deg, rgba(2, 5, 10, .94) 0%, rgba(2, 5, 10, .78) 42%, rgba(2, 5, 10, .28) 76%, rgba(2, 5, 10, .06) 100%),
-      linear-gradient(180deg, rgba(0, 0, 0, .20), transparent 25%, transparent 70%, rgba(0, 0, 0, .35));
+  .playerSlide[data-side="right"] .seasonFact {
+    right: auto;
+    left: 7vw;
+    justify-content: flex-start;
+    text-align: left;
   }
   .highlightContent {
     width: min(78vw, 42rem);
@@ -1159,8 +1205,17 @@
     font-size: clamp(3.55rem, min(17vw, 11.6vh), 6.2rem);
   }
   .playerSlide .seasonFact {
+    right: 1.25rem;
+    bottom: 4.75rem;
     display: grid;
+    max-width: calc(100vw - 2.5rem);
     gap: .25rem;
+  }
+  .playerSlide[data-side="right"] .seasonFact {
+    right: auto;
+    left: 1.25rem;
+    justify-content: flex-start;
+    text-align: left;
   }
   .playerSlide .seasonFact span,
   .playerSlide .seasonFact strong {

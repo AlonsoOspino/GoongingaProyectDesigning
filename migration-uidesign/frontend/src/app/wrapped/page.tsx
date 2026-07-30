@@ -430,14 +430,19 @@ function PlayerSlide({
               {title}
             </h2>
           )}
-          {revealStage >= 2 && <p className={`${styles.eyebrow} ${styles.sequenceEyebrow}`}>{story.eyebrow}</p>}
-          {revealStage >= 3 && <p className={`${styles.metricDescriptor} ${styles.sequenceDescriptor}`}>{story.descriptor}</p>}
-          {revealStage >= 4 && <div className={styles.seasonFact}><span className={styles.sequenceFact}>Maps played this season</span>{revealStage >= 5 && <strong className={styles.sequenceFact}>{formatNumber(seasonMapsPlayed)}</strong>}</div>}
+          {revealStage >= 2 && <p className={`${styles.metricDescriptor} ${styles.sequenceDescriptor}`}>{story.descriptor}</p>}
+          {revealStage >= 3 && <p className={`${styles.eyebrow} ${styles.sequenceEyebrow}`}>{story.eyebrow}</p>}
           {revealStage >= 6 && <div className={`${styles.valueBlock} ${styles.sequenceValue}`}>
             <strong>{formatNumber(displayedValue, story.decimals ?? 0)}<small>{story.suffix || ""}</small></strong>
           </div>}
         </div>
       </div>
+      {revealStage >= 4 && (
+        <div className={`${styles.seasonFact} ${styles.sequenceFact}`}>
+          <span>Maps played this season</span>
+          {revealStage >= 5 && <strong>{formatNumber(seasonMapsPlayed)}</strong>}
+        </div>
+      )}
       <StoryAudioSequence sources={storyAudioSources} active={active} onPlaybackChange={handleStoryAudioPlaybackChange} onComplete={handleStoryAudioComplete} />
     </section>
   );
@@ -526,12 +531,12 @@ export default function WrappedPage() {
     if (!wrapped) return [];
     const { averagesPer10, totals, performance, maps } = resolveWrappedSnapshot(wrapped.snapshot);
     return [
-      { id: "averageKills", kind: "player", contentSide: "left", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["COLD-BLOODED", "FINISHER"], titleColor: "#57E6F2", descriptor: "Highest average kills per 10 minutes of the season.", caption: "The season's sharpest elimination pace.", value: averagesPer10.kills, assetKey: "averageKills", decimals: 2, suffix: " / 10" },
-      { id: "averageHealing", kind: "player", contentSide: "left", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["LIFELINE ON", "CALL"], titleColor: "#83F5B5", descriptor: "Highest average healing per 10 minutes of the season.", caption: "Keeping every fight alive when it mattered.", value: averagesPer10.healing, assetKey: "averageHealing", decimals: 2, suffix: " / 10" },
-      { id: "averageDamage", kind: "player", contentSide: "right", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["PRESSURE,", "UNBROKEN"], titleColor: "#FF9867", descriptor: "Highest average damage output per 10 minutes of the season.", caption: "Damage that never gave the lobby room to breathe.", value: averagesPer10.damage, assetKey: "averageDamage", decimals: 2, suffix: " / 10" },
-      { id: "averageMitigation", kind: "player", contentSide: "left", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["THE WALL", "THAT HELD"], titleColor: "#64B9FF", descriptor: "Highest average mitigation per 10 minutes of the season.", caption: "Pressure absorbed, space protected, fights saved.", value: averagesPer10.mitigation, assetKey: "averageMitigation", decimals: 2, suffix: " / 10" },
-      { id: "averageAssists", kind: "player", contentSide: "right", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["THE FIGHT", "CONDUCTOR"], titleColor: "#D88CFF", descriptor: "Highest average assists per 10 minutes of the season.", caption: "Every teamfight had another hand behind it.", value: averagesPer10.assists, assetKey: "averageAssists", decimals: 2, suffix: " / 10" },
-      { id: "averageSurvival", kind: "player", contentSide: "left", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["REFUSED", "TO FALL"], titleColor: "#C8F07D", descriptor: "Lowest average deaths per 10 minutes of the season.", caption: "The lowest death rate on the road to victory.", value: averagesPer10.lowestDeaths, assetKey: "averageSurvival", decimals: 2, suffix: " / 10" },
+      { id: "averageKills", kind: "player", contentSide: "left", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["COLD-BLOODED", "FINISHER"], titleColor: "#57E6F2", descriptor: "Highest average kills of the season.", caption: "The season's sharpest elimination pace.", value: averagesPer10.kills, assetKey: "averageKills", decimals: 2, suffix: " / 10" },
+      { id: "averageHealing", kind: "player", contentSide: "left", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["LIFELINE", "ON CALL"], titleColor: "#83F5B5", descriptor: "Highest average healing of the season.", caption: "Keeping every fight alive when it mattered.", value: averagesPer10.healing, assetKey: "averageHealing", decimals: 2, suffix: " / 10" },
+      { id: "averageDamage", kind: "player", contentSide: "right", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["PRESSURE,", "UNBROKEN"], titleColor: "#FF9867", descriptor: "Highest average damage of the season.", caption: "Damage that never gave the lobby room to breathe.", value: averagesPer10.damage, assetKey: "averageDamage", decimals: 2, suffix: " / 10" },
+      { id: "averageMitigation", kind: "player", contentSide: "left", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["THE WALL", "THAT HELD"], titleColor: "#64B9FF", descriptor: "Highest average mitigation of the season.", caption: "Pressure absorbed, space protected, fights saved.", value: averagesPer10.mitigation, assetKey: "averageMitigation", decimals: 2, suffix: " / 10" },
+      { id: "averageAssists", kind: "player", contentSide: "right", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["THE FIGHT", "CONDUCTOR"], titleColor: "#D88CFF", descriptor: "Highest average assists of the season.", caption: "Every teamfight had another hand behind it.", value: averagesPer10.assists, assetKey: "averageAssists", decimals: 2, suffix: " / 10" },
+      { id: "averageSurvival", kind: "player", contentSide: "left", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["REFUSED", "TO FALL"], titleColor: "#C8F07D", descriptor: "Lowest average deaths of the season.", caption: "The lowest death rate on the road to victory.", value: averagesPer10.lowestDeaths, assetKey: "averageSurvival", decimals: 2, suffix: " / 10" },
       { id: "totalDamage", kind: "player", contentSide: "left", eyebrow: "SEASON SUMS", titleLines: ["A SEASON", "OF IMPACT"], titleColor: "#FF6F61", descriptor: "Highest total damage dealt across the full season.", caption: "The heaviest damage total in the record.", value: totals.damage, assetKey: "totalDamage" },
       { id: "totalHealing", kind: "player", contentSide: "left", eyebrow: "SEASON SUMS", titleLines: ["LIFEBAR", "ARCHITECT"], titleColor: "#49E0C5", descriptor: "Highest total healing delivered across the full season.", caption: "The deepest reserve of healing all season.", value: totals.healing, assetKey: "totalHealing" },
       { id: "totalMitigation", kind: "player", contentSide: "left", eyebrow: "SEASON SUMS", titleLines: ["FRONTLINE", "FORTRESS"], titleColor: "#F6C443", descriptor: "Highest total mitigation recorded across the full season.", caption: "A season spent holding the line.", value: totals.mitigation, assetKey: "totalMitigation" },
