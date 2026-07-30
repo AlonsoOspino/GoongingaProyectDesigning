@@ -343,7 +343,6 @@ function PlayerSlide({
   const flipped = assets.flipped[story.assetKey] === true;
   const [videoFinished, setVideoFinished] = useState(!introVideo);
   const [videoPlaybackStarted, setVideoPlaybackStarted] = useState(false);
-  const [videoUnavailable, setVideoUnavailable] = useState(false);
   const [freezeZoomDurationMs, setFreezeZoomDurationMs] = useState(FINAL_FRAME_DURATION_MS);
   const videoRef = useRef<HTMLVideoElement>(null);
   const highlightStartedAtRef = useRef<number | null>(null);
@@ -364,11 +363,6 @@ function PlayerSlide({
     setVideoFinished(true);
     onVideoFinished(story.id);
   }, [onVideoFinished, story.id]);
-  const handleVideoError = useCallback(() => {
-    setVideoUnavailable(true);
-    setVideoPlaybackStarted(false);
-    finishVideo();
-  }, [finishVideo]);
   const resumeBackgroundVideo = useCallback(() => {
     const video = videoRef.current;
     if (!video || !active || reducedMotion) return;
@@ -401,13 +395,12 @@ function PlayerSlide({
     if (active) {
       setFreezeZoomDurationMs(FINAL_FRAME_DURATION_MS);
       setVideoPlaybackStarted(false);
-      setVideoUnavailable(false);
     }
   }, [active]);
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!introVideo || reducedMotion || videoUnavailable) {
+    if (!introVideo || reducedMotion) {
       setVideoFinished(true);
       if (active) onVideoFinished(story.id);
       return;
@@ -429,20 +422,20 @@ function PlayerSlide({
       video.removeEventListener("seeked", finishVideo);
       video.pause();
     };
-  }, [active, finishVideo, introVideo, onVideoFinished, reducedMotion, resumeBackgroundVideo, story.id, videoUnavailable]);
+  }, [active, finishVideo, introVideo, onVideoFinished, reducedMotion, resumeBackgroundVideo, story.id]);
 
   useEffect(() => {
     if (active && audioSequenceCompleted && !reducedMotion) freezeVideoOnLastFrame();
   }, [active, audioSequenceCompleted, freezeVideoOnLastFrame, reducedMotion]);
 
   useEffect(() => {
-    if (!active || !introVideo || !videoPlaybackStarted || videoUnavailable || reducedMotion) return;
+    if (!active || !introVideo || !videoPlaybackStarted || reducedMotion) return;
     // Every supplied highlight is authored as a five-second clip. Freeze it at
     // the known 0.75x playback endpoint rather than trusting delayed media
     // metadata/events, then reserve everything after that moment for the zoom.
     const timeout = window.setTimeout(freezeVideoOnLastFrame, VIDEO_PLAY_PHASE_MS);
     return () => window.clearTimeout(timeout);
-  }, [active, freezeVideoOnLastFrame, introVideo, reducedMotion, videoPlaybackStarted, videoUnavailable]);
+  }, [active, freezeVideoOnLastFrame, introVideo, reducedMotion, videoPlaybackStarted]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -476,20 +469,17 @@ function PlayerSlide({
   return (
     <section className={`${styles.slide} ${styles.playerSlide} ${styles[`layout${story.layout[0].toUpperCase()}${story.layout.slice(1)}`]}`} aria-label={story.title}>
       <div className={styles.artworkBackdrop} aria-hidden="true">
-        {active && (introVideo && !videoUnavailable ? (
+        {active && (introVideo ? (
           <video
             ref={videoRef}
             src={introVideo}
-            poster={artwork || undefined}
             className={`${flipped ? styles.artworkFlipped : ""} ${videoFinished ? styles.videoFrozen : ""}`}
             style={videoFinished ? { animationDuration: `${freezeZoomDurationMs}ms` } : undefined}
             playsInline
             muted
-            crossOrigin="anonymous"
             disablePictureInPicture
             preload="auto"
             onPlaying={() => setVideoPlaybackStarted(true)}
-            onError={handleVideoError}
           />
         ) : artwork && <img src={artwork} alt="" className={flipped ? styles.artworkFlipped : undefined} />)}
       </div>
