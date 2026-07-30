@@ -49,6 +49,8 @@ const FINAL_FRAME_DURATION_MS = 1_500;
 const MIN_VALID_AUDIO_DURATION_SECONDS = 0.25;
 const CUE_STABLE_GAIN = 1.5;
 const BACKGROUND_VIDEO_PLAYBACK_RATE = 0.75;
+const ASSUMED_VIDEO_DURATION_MS = 5_000;
+const VIDEO_PLAY_PHASE_MS = ASSUMED_VIDEO_DURATION_MS / BACKGROUND_VIDEO_PLAYBACK_RATE;
 
 function formatNumber(value: number | null | undefined, decimals = 0) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "—";
@@ -387,7 +389,8 @@ function PlayerSlide({
     const elapsedMs = highlightStartedAtRef.current === null ? 0 : performance.now() - highlightStartedAtRef.current;
     // The frame starts zooming the instant playback reaches the end, then
     // keeps zooming for every remaining millisecond of the highlight.
-    setFreezeZoomDurationMs(Math.max(180, audioDurationMsRef.current + FINAL_FRAME_DURATION_MS - elapsedMs));
+    const narratedDuration = Math.max(audioDurationMsRef.current, FALLBACK_NARRATED_HIGHLIGHT_DURATION_MS);
+    setFreezeZoomDurationMs(Math.max(180, narratedDuration + FINAL_FRAME_DURATION_MS - elapsedMs));
     setVideoFinished(true);
     onVideoFinished(story.id);
   }, [onVideoFinished, story.id]);
@@ -454,6 +457,15 @@ function PlayerSlide({
   }, [active, audioSequenceCompleted, freezeVideoOnLastFrame, reducedMotion]);
 
   useEffect(() => {
+    if (!active || !introVideo || reducedMotion) return;
+    // Every supplied highlight is authored as a five-second clip. Freeze it at
+    // the known 0.75x playback endpoint rather than trusting delayed media
+    // metadata/events, then reserve everything after that moment for the zoom.
+    const timeout = window.setTimeout(freezeVideoOnLastFrame, VIDEO_PLAY_PHASE_MS);
+    return () => window.clearTimeout(timeout);
+  }, [active, freezeVideoOnLastFrame, introVideo, reducedMotion]);
+
+  useEffect(() => {
     const video = videoRef.current;
     if (!video || !active || !videoFinished || reducedMotion) return;
     const duration = Math.max(180, freezeZoomDurationMs);
@@ -496,7 +508,6 @@ function PlayerSlide({
             muted
             preload={active ? "auto" : "none"}
             onLoadedMetadata={resumeBackgroundVideo}
-            onEnded={finishVideo}
           />
         ) : artwork && <img src={artwork} alt="" className={flipped ? styles.artworkFlipped : undefined} />}
       </div>
@@ -750,7 +761,7 @@ export default function WrappedPage() {
           const isActive = started && activeIndex === storyIndex;
           return (
             <div key={story.id} className={`${styles.storyViewport} ${isActive ? styles.storyActive : ""}`}>
-              {story.kind === "player" && <PlayerSlide key={`${story.id}-${isActive ? "active" : "idle"}`} story={story} wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} audioDurationMs={storyAudioDurations[story.assetKey] || (media?.storyAudios[story.assetKey]?.length ? FALLBACK_NARRATED_HIGHLIGHT_DURATION_MS : DEFAULT_AUDIO_DURATION_MS)} audioSequenceCompleted={completedAudioStoryId === story.id} seasonGames={seasonGames} onVideoFinished={setCompletedVideoStoryId} onStoryAudioPlaybackChange={setStoryAudioPlayback} onStoryAudioCompleted={setStoryAudioCompleted} />}
+              {story.kind === "player" && <PlayerSlide key={`${story.id}-${isActive ? "active" : "idle"}`} story={story} wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} audioDurationMs={media?.storyAudios[story.assetKey]?.length ? Math.max(storyAudioDurations[story.assetKey] || 0, FALLBACK_NARRATED_HIGHLIGHT_DURATION_MS) : DEFAULT_AUDIO_DURATION_MS} audioSequenceCompleted={completedAudioStoryId === story.id} seasonGames={seasonGames} onVideoFinished={setCompletedVideoStoryId} onStoryAudioPlaybackChange={setStoryAudioPlayback} onStoryAudioCompleted={setStoryAudioCompleted} />}
               {story.kind === "map" && <MapSlide story={story} wrapped={wrapped} />}
               {story.kind === "finale" && <FinaleSlide wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} />}
             </div>
