@@ -46,7 +46,6 @@ const MUSIC_RESTING_VOLUME = 0.65;
 const DEFAULT_AUDIO_DURATION_MS = 12_500;
 const FALLBACK_NARRATED_HIGHLIGHT_DURATION_MS = 55_000;
 const FINAL_FRAME_DURATION_MS = 1_500;
-const MIN_VALID_AUDIO_DURATION_SECONDS = 0.25;
 const CUE_STABLE_GAIN = 1.5;
 const BACKGROUND_VIDEO_PLAYBACK_RATE = 0.75;
 const ASSUMED_VIDEO_DURATION_MS = 5_000;
@@ -150,44 +149,6 @@ function fadeAudio(audio: HTMLAudioElement, targetVolume: number, durationMs: nu
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
-}
-
-function useStoryAudioDurations(storyAudios: Partial<Record<WrappedAssetKey, string[]>> | undefined) {
-  const [durations, setDurations] = useState<Partial<Record<WrappedAssetKey, number>>>({});
-  const sourcesKey = useMemo(() => JSON.stringify(storyAudios || {}), [storyAudios]);
-
-  useEffect(() => {
-    const entries = Object.entries(storyAudios || {}) as Array<[WrappedAssetKey, string[]]>;
-    if (!entries.length) {
-      setDurations({});
-      return;
-    }
-    let cancelled = false;
-    const getDuration = (source: string) => new Promise<number>((resolve) => {
-      const audio = new Audio();
-      const timeout = window.setTimeout(() => resolve(0), 8_000);
-      audio.crossOrigin = "anonymous";
-      audio.preload = "metadata";
-      audio.onloadedmetadata = () => {
-        window.clearTimeout(timeout);
-        resolve(Number.isFinite(audio.duration) && audio.duration >= MIN_VALID_AUDIO_DURATION_SECONDS ? audio.duration : 0);
-      };
-      audio.onerror = () => {
-        window.clearTimeout(timeout);
-        resolve(0);
-      };
-      audio.src = source;
-      audio.load();
-    });
-
-    void Promise.all(entries.map(async ([key, sources]) => [key, (await Promise.all(sources.map(getDuration))).reduce((total, duration) => total + duration, 0)] as const))
-      .then((nextEntries) => {
-        if (!cancelled) setDurations(Object.fromEntries(nextEntries));
-      });
-    return () => { cancelled = true; };
-  }, [sourcesKey, storyAudios]);
-
-  return durations;
 }
 
 function TeamTile({ team, index }: { team: GoongingaWrapped["snapshot"]["overview"]["teams"][number]; index: number }) {
@@ -504,7 +465,7 @@ function PlayerSlide({
   return (
     <section className={`${styles.slide} ${styles.playerSlide} ${styles[`layout${story.layout[0].toUpperCase()}${story.layout.slice(1)}`]}`} aria-label={story.title}>
       <div className={styles.artworkBackdrop} aria-hidden="true">
-        {introVideo ? (
+        {active && (introVideo ? (
           <video
             ref={videoRef}
             src={introVideo}
@@ -512,10 +473,10 @@ function PlayerSlide({
             style={videoFinished ? { animationDuration: `${freezeZoomDurationMs}ms` } : undefined}
             playsInline
             muted
-            preload={active ? "auto" : "none"}
+            preload="auto"
             onLoadedMetadata={resumeBackgroundVideo}
           />
-        ) : artwork && <img src={artwork} alt="" className={flipped ? styles.artworkFlipped : undefined} />}
+        ) : artwork && <img src={artwork} alt="" className={flipped ? styles.artworkFlipped : undefined} />)}
       </div>
       <div className={`${styles.playerIdentity} ${active ? styles.playerIdentityVisible : ""}`}>
         <PlayerProfile leader={leader} />
@@ -637,13 +598,36 @@ export default function WrappedPage() {
   const totalSlides = stories.length + 1;
   const media = useMemo(() => wrapped ? resolveWrappedAssets(wrapped.assets) : null, [wrapped]);
   const seasonGames = useMemo(() => wrapped ? resolveWrappedSnapshot(wrapped.snapshot).overview.games : 0, [wrapped]);
-  const storyAudioDurations = useStoryAudioDurations(media?.storyAudios);
+  const nextVideoToPreload = useMemo(() => {
+    if (!started || !media) return null;
+    // activeIndex includes the intro, so the following story begins at its
+    // matching index in `stories`. Preload only one upcoming clip.
+    for (let index = activeIndex; index < stories.length; index += 1) {
+      const story = stories[index];
+      if (story?.kind === "player") {
+        const source = media.videos[story.assetKey];
+        if (source) return source;
+      }
+    }
+    return null;
+  }, [activeIndex, media, started, stories]);
   const goTo = useCallback((nextIndex: number, behavior: ScrollBehavior = "smooth") => {
     const bounded = Math.max(0, Math.min(nextIndex, totalSlides - 1));
     setActiveIndex(bounded);
     const viewport = scrollRef.current;
     if (viewport) viewport.scrollTo({ top: viewport.clientHeight * bounded, behavior });
   }, [totalSlides]);
+
+  useEffect(() => {
+    if (!nextVideoToPreload) return;
+    const preload = document.createElement("link");
+    preload.rel = "preload";
+    preload.as = "video";
+    preload.href = nextVideoToPreload;
+    preload.crossOrigin = "anonymous";
+    document.head.appendChild(preload);
+    return () => preload.remove();
+  }, [nextVideoToPreload]);
 
   const beginPlayback = useCallback(() => {
     if (!started) {
@@ -771,7 +755,7 @@ export default function WrappedPage() {
           const isActive = started && activeIndex === storyIndex;
           return (
             <div key={story.id} className={`${styles.storyViewport} ${isActive ? styles.storyActive : ""}`}>
-              {story.kind === "player" && <PlayerSlide key={`${story.id}-${isActive ? "active" : "idle"}`} story={story} wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} audioDurationMs={media?.storyAudios[story.assetKey]?.length ? Math.max(storyAudioDurations[story.assetKey] || 0, FALLBACK_NARRATED_HIGHLIGHT_DURATION_MS) : DEFAULT_AUDIO_DURATION_MS} audioSequenceCompleted={completedAudioStoryId === story.id} seasonGames={seasonGames} onVideoFinished={setCompletedVideoStoryId} onStoryAudioPlaybackChange={setStoryAudioPlayback} onStoryAudioCompleted={setStoryAudioCompleted} />}
+              {story.kind === "player" && <PlayerSlide key={`${story.id}-${isActive ? "active" : "idle"}`} story={story} wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} audioDurationMs={media?.storyAudios[story.assetKey]?.length ? FALLBACK_NARRATED_HIGHLIGHT_DURATION_MS : DEFAULT_AUDIO_DURATION_MS} audioSequenceCompleted={completedAudioStoryId === story.id} seasonGames={seasonGames} onVideoFinished={setCompletedVideoStoryId} onStoryAudioPlaybackChange={setStoryAudioPlayback} onStoryAudioCompleted={setStoryAudioCompleted} />}
               {story.kind === "map" && <MapSlide story={story} wrapped={wrapped} />}
               {story.kind === "finale" && <FinaleSlide wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} />}
             </div>
