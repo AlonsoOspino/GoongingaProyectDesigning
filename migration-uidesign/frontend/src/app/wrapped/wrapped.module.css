@@ -305,6 +305,18 @@
   filter: drop-shadow(0 4px 12px rgba(0, 0, 0, .5));
 }
 
+/* Each highlight gets its own luminous title treatment. */
+.layoutDiagonal .storyCopy h2 { background:linear-gradient(180deg,#f7f2e5 0%,#57e6f2 100%); filter:drop-shadow(0 0 14px rgba(87,230,242,.54)); }
+.layoutColumn .storyCopy h2 { background:linear-gradient(180deg,#f7f2e5 0%,#83f5b5 100%); filter:drop-shadow(0 0 14px rgba(131,245,181,.48)); }
+.layoutImpact .storyCopy h2 { background:linear-gradient(180deg,#fff3cf 0%,#ff9867 100%); filter:drop-shadow(0 0 16px rgba(255,152,103,.54)); }
+.layoutShield .storyCopy h2 { background:linear-gradient(180deg,#f7f2e5 0%,#64b9ff 100%); filter:drop-shadow(0 0 14px rgba(100,185,255,.52)); }
+.layoutNetwork .storyCopy h2 { background:linear-gradient(180deg,#f7f2e5 0%,#d88cff 100%); filter:drop-shadow(0 0 15px rgba(216,140,255,.54)); }
+.layoutSurvival .storyCopy h2 { background:linear-gradient(180deg,#f7f2e5 0%,#c8f07d 100%); filter:drop-shadow(0 0 14px rgba(200,240,125,.5)); }
+.layoutBurst .storyCopy h2 { background:linear-gradient(180deg,#fff1df 0%,#ff6f61 100%); filter:drop-shadow(0 0 16px rgba(255,111,97,.56)); }
+.layoutCascade .storyCopy h2 { background:linear-gradient(180deg,#f7f2e5 0%,#5ae0ff 100%); filter:drop-shadow(0 0 14px rgba(90,224,255,.52)); }
+.layoutFortress .storyCopy h2 { background:linear-gradient(180deg,#fff8d7 0%,#f6c443 100%); filter:drop-shadow(0 0 16px rgba(246,196,67,.56)); }
+.layoutSpotlight .storyCopy h2 { background:linear-gradient(180deg,#fff1f8 0%,#ff5ca8 100%); filter:drop-shadow(0 0 16px rgba(255,92,168,.58)); }
+
 /* Title word animation */
 .storyCopy h2 .word {
   display: inline-block;

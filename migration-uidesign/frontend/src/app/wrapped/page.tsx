@@ -342,6 +342,8 @@ function PlayerSlide({
   const artwork = assets.images[story.assetKey] || null;
   const flipped = assets.flipped[story.assetKey] === true;
   const [videoFinished, setVideoFinished] = useState(!introVideo);
+  const [videoPlaybackStarted, setVideoPlaybackStarted] = useState(false);
+  const [videoUnavailable, setVideoUnavailable] = useState(false);
   const [freezeZoomDurationMs, setFreezeZoomDurationMs] = useState(FINAL_FRAME_DURATION_MS);
   const videoRef = useRef<HTMLVideoElement>(null);
   const highlightStartedAtRef = useRef<number | null>(null);
@@ -362,6 +364,11 @@ function PlayerSlide({
     setVideoFinished(true);
     onVideoFinished(story.id);
   }, [onVideoFinished, story.id]);
+  const handleVideoError = useCallback(() => {
+    setVideoUnavailable(true);
+    setVideoPlaybackStarted(false);
+    finishVideo();
+  }, [finishVideo]);
   const resumeBackgroundVideo = useCallback(() => {
     const video = videoRef.current;
     if (!video || !active || reducedMotion) return;
@@ -391,12 +398,16 @@ function PlayerSlide({
 
   useEffect(() => {
     highlightStartedAtRef.current = active ? performance.now() : null;
-    if (active) setFreezeZoomDurationMs(FINAL_FRAME_DURATION_MS);
+    if (active) {
+      setFreezeZoomDurationMs(FINAL_FRAME_DURATION_MS);
+      setVideoPlaybackStarted(false);
+      setVideoUnavailable(false);
+    }
   }, [active]);
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!introVideo || reducedMotion) {
+    if (!introVideo || reducedMotion || videoUnavailable) {
       setVideoFinished(true);
       if (active) onVideoFinished(story.id);
       return;
@@ -411,27 +422,27 @@ function PlayerSlide({
       resumeBackgroundVideo();
     };
 
-    if (video.readyState >= 1) playVideo();
-    else video.addEventListener("loadedmetadata", playVideo, { once: true });
+    if (video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) playVideo();
+    else video.addEventListener("canplay", playVideo, { once: true });
     return () => {
-      video.removeEventListener("loadedmetadata", playVideo);
+      video.removeEventListener("canplay", playVideo);
       video.removeEventListener("seeked", finishVideo);
       video.pause();
     };
-  }, [active, finishVideo, introVideo, onVideoFinished, reducedMotion, resumeBackgroundVideo, story.id]);
+  }, [active, finishVideo, introVideo, onVideoFinished, reducedMotion, resumeBackgroundVideo, story.id, videoUnavailable]);
 
   useEffect(() => {
     if (active && audioSequenceCompleted && !reducedMotion) freezeVideoOnLastFrame();
   }, [active, audioSequenceCompleted, freezeVideoOnLastFrame, reducedMotion]);
 
   useEffect(() => {
-    if (!active || !introVideo || reducedMotion) return;
+    if (!active || !introVideo || !videoPlaybackStarted || videoUnavailable || reducedMotion) return;
     // Every supplied highlight is authored as a five-second clip. Freeze it at
     // the known 0.75x playback endpoint rather than trusting delayed media
     // metadata/events, then reserve everything after that moment for the zoom.
     const timeout = window.setTimeout(freezeVideoOnLastFrame, VIDEO_PLAY_PHASE_MS);
     return () => window.clearTimeout(timeout);
-  }, [active, freezeVideoOnLastFrame, introVideo, reducedMotion]);
+  }, [active, freezeVideoOnLastFrame, introVideo, reducedMotion, videoPlaybackStarted, videoUnavailable]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -465,16 +476,20 @@ function PlayerSlide({
   return (
     <section className={`${styles.slide} ${styles.playerSlide} ${styles[`layout${story.layout[0].toUpperCase()}${story.layout.slice(1)}`]}`} aria-label={story.title}>
       <div className={styles.artworkBackdrop} aria-hidden="true">
-        {active && (introVideo ? (
+        {active && (introVideo && !videoUnavailable ? (
           <video
             ref={videoRef}
             src={introVideo}
+            poster={artwork || undefined}
             className={`${flipped ? styles.artworkFlipped : ""} ${videoFinished ? styles.videoFrozen : ""}`}
             style={videoFinished ? { animationDuration: `${freezeZoomDurationMs}ms` } : undefined}
             playsInline
             muted
+            crossOrigin="anonymous"
+            disablePictureInPicture
             preload="auto"
-            onLoadedMetadata={resumeBackgroundVideo}
+            onPlaying={() => setVideoPlaybackStarted(true)}
+            onError={handleVideoError}
           />
         ) : artwork && <img src={artwork} alt="" className={flipped ? styles.artworkFlipped : undefined} />)}
       </div>
@@ -588,7 +603,7 @@ export default function WrappedPage() {
       { id: "totalDamage", kind: "player", layout: "burst", eyebrow: "SEASON SUMS", title: "A season of impact", descriptor: "Highest total damage dealt across the full season.", caption: "The heaviest damage total in the record.", value: totals.damage, assetKey: "totalDamage" },
       { id: "totalHealing", kind: "player", layout: "cascade", eyebrow: "SEASON SUMS", title: "Lifebar architect", descriptor: "Highest total healing delivered across the full season.", caption: "The deepest reserve of healing all season.", value: totals.healing, assetKey: "totalHealing" },
       { id: "totalMitigation", kind: "player", layout: "fortress", eyebrow: "SEASON SUMS", title: "Frontline fortress", descriptor: "Highest total mitigation recorded across the full season.", caption: "A season spent holding the line.", value: totals.mitigation, assetKey: "totalMitigation" },
-      { id: "bestKd", kind: "player", layout: "spotlight", eyebrow: "BEST PERFORMANCE", title: "The cleanest finish", descriptor: "Highest kill-to-death performance of the season.", caption: "The strongest K/D performance in the season.", value: performance.kd, assetKey: "bestKd", decimals: 2, suffix: " K/D" },
+      { id: "bestKd", kind: "player", layout: "spotlight", eyebrow: "GREAT PERFORMANCE", title: "The cleanest finish", descriptor: "Highest kill-to-death performance of the season.", caption: "The strongest K/D performance in the season.", value: performance.kd, assetKey: "bestKd", decimals: 2, suffix: " K/D" },
       { id: "mostPickedMap", kind: "map", layout: "panorama", eyebrow: "MAP POOL", title: "Home field", caption: "The battleground that kept calling the season back.", value: maps.mostPicked, assetKey: "mostPickedMap" },
       { id: "leastPickedMap", kind: "map", layout: "fragment", eyebrow: "MAP POOL", title: "The road untaken", caption: "The quietest corner of the draft, zeros included.", value: maps.leastPicked, assetKey: "leastPickedMap" },
       { id: "finale", kind: "finale" },
