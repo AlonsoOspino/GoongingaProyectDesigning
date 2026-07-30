@@ -40,6 +40,7 @@
 }
 
 .eyebrow { margin: 0; color: var(--cyan); font-size: clamp(.62rem, .77vw, .9rem); font-weight: 800; letter-spacing: .24em; text-transform: uppercase; }
+.storyCopy .eyebrow { font-size:clamp(1.24rem,1.54vw,1.8rem); line-height:1; white-space:nowrap; }
 .storyCaption, .introDescription { margin: 0; max-width: 31rem; color: var(--muted); font-size: clamp(.92rem, 1.25vw, 1.4rem); font-weight: 600; line-height: 1.45; }
 
 .introSlide { display: grid; grid-template-columns: minmax(0, 1fr) minmax(420px, .9fr); align-items: center; gap: 4vw; padding: 7vh 8vw; }
@@ -74,10 +75,9 @@
 .playerSlide { display:grid; min-height:100%; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); align-items:center; gap:3vw; padding: 7vh 9vw; }
 .storyCopy { position:relative; z-index:3; display:grid; align-content:center; gap:.8rem; }
 .storyCopy h2, .mapCopy h2 { max-width:9ch; font-size:clamp(5.4rem, 9vw, 11.5rem); }
-.metricDescriptor { max-width:36rem; margin:0; color:var(--yellow); font-size:clamp(.64rem,.88vw,1rem); font-weight:900; letter-spacing:.14em; line-height:1.35; text-transform:uppercase; }
-.statMarker { margin:0; color:var(--yellow); font-size:clamp(.56rem,.68vw,.78rem); font-weight:900; letter-spacing:.18em; line-height:1.2; text-transform:uppercase; }
+.metricDescriptor { max-width:none; margin:0; color:var(--yellow); font-size:clamp(.55rem,.72vw,.86rem); font-weight:900; letter-spacing:.1em; line-height:1.2; text-transform:uppercase; white-space:nowrap; }
 .seasonFact { display:flex; align-items:baseline; gap:.7rem; margin-top:.05rem; }
-.seasonFact span,.seasonFact strong { color:var(--ink); font-family:Arial,sans-serif; font-size:clamp(.56rem,.68vw,.76rem); font-weight:900; letter-spacing:.14em; line-height:1.25; text-shadow:none; text-transform:uppercase; }
+.seasonFact span,.seasonFact strong { color:var(--ink); font-family:Arial,sans-serif; font-size:clamp(1.68rem,2.04vw,2.28rem); font-weight:900; letter-spacing:.09em; line-height:1; text-shadow:none; text-transform:uppercase; white-space:nowrap; }
 .valueBlock { display:grid; gap:.38rem; margin-top:.7rem; }
 .valueBlock strong { color:var(--ink); font-family:var(--font-league-gothic), Impact, sans-serif; font-size:clamp(5.5rem, 10vw, 13rem); font-weight:400; line-height:.72; text-shadow: 0 0 32px rgba(87,230,242,.16); }
 .valueBlock strong small { margin-left:.25rem; color:var(--yellow); font-family:Arial,sans-serif; font-size:.18em; font-weight:900; letter-spacing:.04em; }
@@ -108,6 +108,7 @@
 .sequenceCaption { animation:captionReveal .5s cubic-bezier(.16,.84,.2,1) both; }
 .sequenceFact { animation:valueReveal .62s cubic-bezier(.16,.84,.2,1) both; }
 .sequenceValue { animation:valueReveal .72s cubic-bezier(.16,.84,.2,1) both; }
+.storyCopy h2 span { display:block; }
 .artFrame { position:relative; z-index:1; display:grid; width:min(100%, 680px); height:min(70vh, 720px); place-items:end center; overflow:hidden; }
 .artImage { width:100%; height:100%; object-fit:contain; object-position:bottom center; filter:drop-shadow(0 28px 38px rgba(0,0,0,.5)) drop-shadow(0 0 30px rgba(246,196,67,.18)); }
 .artImage.artworkFlipped { transform:scaleX(-1); }
@@ -122,12 +123,12 @@
 .layoutColumn .storyArt { min-height:88vh; background:linear-gradient(180deg, rgba(87,230,242,.15), transparent 60%); }
 .layoutImpact { grid-template-columns: 1fr; }
 .layoutImpact .storyCopy { position:absolute; right:9vw; bottom:10vh; max-width:50%; text-align:right; }
-.layoutImpact .storyCopy h2, .layoutImpact .storyCaption, .layoutImpact .metricDescriptor, .layoutImpact .statMarker { margin-left:auto; }
+.layoutImpact .storyCopy h2, .layoutImpact .storyCaption, .layoutImpact .metricDescriptor { margin-left:auto; }
 .layoutImpact .artFrame { width:min(60vw, 850px); height:88vh; }
 .layoutShield { grid-template-columns: 1.15fr .85fr; }
 .layoutShield .storyCopy { padding-left:3vw; }
 .layoutNetwork .storyCopy { grid-column:2; text-align:right; }
-.layoutNetwork .storyCopy h2, .layoutNetwork .storyCaption, .layoutNetwork .metricDescriptor, .layoutNetwork .statMarker { margin-left:auto; }
+.layoutNetwork .storyCopy h2, .layoutNetwork .storyCaption, .layoutNetwork .metricDescriptor { margin-left:auto; }
 .layoutSurvival { grid-template-columns:1fr; align-items:end; }
 .layoutSurvival .storyCopy { position:absolute; left:9vw; bottom:8vh; }
 .layoutSurvival .artFrame { width:min(50vw, 660px); height:72vh; transform:translateY(4vh); }

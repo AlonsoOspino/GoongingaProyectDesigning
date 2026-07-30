@@ -116,13 +116,13 @@ function useHighlightSequence(active: boolean) {
     // seconds for the player identity, then six evenly spaced entries in a
     // fixed ten-second highlight sequence.
     const identityPhase = 3_000;
-    const laterStepDuration = (HIGHLIGHT_TEXT_SEQUENCE_MS - identityPhase) / 6;
+    const laterStepDuration = (HIGHLIGHT_TEXT_SEQUENCE_MS - identityPhase) / 5;
     let currentStage = 0;
     let timeout = 0;
     const advance = () => {
       currentStage += 1;
       setStage(currentStage);
-      if (currentStage < 7) timeout = window.setTimeout(advance, laterStepDuration);
+      if (currentStage < 6) timeout = window.setTimeout(advance, laterStepDuration);
     };
     // Deliberately chain the timeouts. A high-bitrate video can delay the
     // event loop; independent timers would then flush together and make every
@@ -259,6 +259,12 @@ function PlayerProfile({ leader }: { leader: WrappedPlayerLeader | null }) {
       </div>
     </div>
   );
+}
+
+function TwoLineTitle({ title }: { title: string }) {
+  const words = title.trim().split(/\s+/);
+  const splitAt = Math.max(1, Math.ceil(words.length / 2));
+  return <><span>{words.slice(0, splitAt).join(" ")}</span><span>{words.slice(splitAt).join(" ")}</span></>;
 }
 
 function StoryAudioSequence({ sources, active, onPlaybackChange, onComplete }: { sources: string[]; active: boolean; onPlaybackChange: (playing: boolean) => void; onComplete: () => void }) {
@@ -493,8 +499,7 @@ function PlayerSlide({
     onStoryAudioCompleted(story.id);
   }, [onStoryAudioCompleted, story.id]);
 
-  const valueRevealed = revealStage >= 7;
-  const valueLabel = story.suffix?.includes("/ 10") ? "Season average per 10 minutes" : story.suffix?.includes("K/D") ? "Season K/D record" : "Season total";
+  const valueRevealed = revealStage >= 6;
   const displayedValue = useCountUp(leader?.value || 0, valueRevealed, reducedMotion, story.decimals ?? 0);
   return (
     <section className={`${styles.slide} ${styles.playerSlide} ${styles[`layout${story.layout[0].toUpperCase()}${story.layout.slice(1)}`]}`} aria-label={story.title}>
@@ -516,12 +521,11 @@ function PlayerSlide({
         <PlayerProfile leader={leader} />
       </div>
       <div className={`${styles.storyCopy} ${active ? styles.storyTimeline : styles.storyWaiting}`} data-sequence-stage={revealStage}>
-        {revealStage >= 1 && <h2 className={styles.sequenceTitle}>{story.title}</h2>}
+        {revealStage >= 1 && <h2 className={styles.sequenceTitle}><TwoLineTitle title={story.title} /></h2>}
         {revealStage >= 2 && <p className={`${styles.metricDescriptor} ${styles.sequenceDescriptor}`}>{story.descriptor}</p>}
         {revealStage >= 3 && <p className={`${styles.eyebrow} ${styles.sequenceEyebrow}`}>{story.eyebrow}</p>}
-        {revealStage >= 4 && <div className={styles.seasonFact}><span className={styles.sequenceFact}>Games played during the season</span>{revealStage >= 5 && <strong className={styles.sequenceFact}>{formatNumber(seasonGames)}</strong>}</div>}
-        {revealStage >= 6 && <p className={`${styles.statMarker} ${styles.sequenceDescriptor}`}>{valueLabel}</p>}
-        {revealStage >= 7 && <div className={`${styles.valueBlock} ${styles.sequenceValue}`}>
+        {revealStage >= 4 && <div className={styles.seasonFact}><span className={styles.sequenceFact}>Games played this season</span>{revealStage >= 5 && <strong className={styles.sequenceFact}>{formatNumber(seasonGames)}</strong>}</div>}
+        {revealStage >= 6 && <div className={`${styles.valueBlock} ${styles.sequenceValue}`}>
           <strong>{formatNumber(displayedValue, story.decimals ?? 0)}<small>{story.suffix || ""}</small></strong>
         </div>}
       </div>
