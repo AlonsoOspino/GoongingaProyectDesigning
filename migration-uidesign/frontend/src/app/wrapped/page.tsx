@@ -52,7 +52,8 @@ const BACKGROUND_VIDEO_PLAYBACK_RATE = 0.75;
 const ASSUMED_VIDEO_DURATION_MS = 5_000;
 const VIDEO_PLAY_PHASE_MS = ASSUMED_VIDEO_DURATION_MS / BACKGROUND_VIDEO_PLAYBACK_RATE;
 const HIGHLIGHT_TEXT_SEQUENCE_MS = 10_000;
-const MIN_PLAYER_HIGHLIGHT_DURATION_MS = HIGHLIGHT_TEXT_SEQUENCE_MS + FINAL_FRAME_DURATION_MS;
+const COUNT_UP_DURATION_MS = 2_500;
+const MIN_PLAYER_HIGHLIGHT_DURATION_MS = HIGHLIGHT_TEXT_SEQUENCE_MS + COUNT_UP_DURATION_MS + FINAL_FRAME_DURATION_MS;
 
 function formatNumber(value: number | null | undefined, decimals = 0) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "—";
@@ -87,7 +88,7 @@ function useCountUp(target: number, active: boolean, reducedMotion: boolean, dec
     }
 
     let frame = 0;
-    const duration = 2500;
+    const duration = COUNT_UP_DURATION_MS;
     const startedAt = performance.now();
     const tick = (now: number) => {
       const progress = Math.min(1, (now - startedAt) / duration);
