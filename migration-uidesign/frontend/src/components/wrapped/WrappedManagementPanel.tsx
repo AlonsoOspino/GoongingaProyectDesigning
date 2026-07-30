@@ -160,7 +160,7 @@ export function WrappedManagementPanel({ token }: { token: string }) {
               </div>
               <div className="grid grid-cols-3 gap-2 text-center">
                 {[
-                  ["Games", snapshot?.overview.games || 0],
+                  ["Maps played", snapshot?.overview.games || 0],
                   ["Players", snapshot?.overview.players || 0],
                   ["Teams", snapshot?.overview.teams.length || 0],
                 ].map(([label, value]) => (

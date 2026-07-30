@@ -174,7 +174,7 @@ function IntroSlide({ wrapped, onStart }: { wrapped: GoongingaWrapped; onStart: 
         <h1><span>Season</span> in review</h1>
         <p className={styles.introDescription}>A complete record of the players, battles and moments that defined this Goonginga season.</p>
         <div className={styles.introNumbers}>
-          <div><strong>{snapshot.overview.games}</strong><span>Battles logged</span></div>
+          <div><strong>{snapshot.overview.games}</strong><span>Maps played</span></div>
           <div><strong>{snapshot.overview.players}</strong><span>Names in record</span></div>
           <div><strong>{teams.length}</strong><span>Teams assembled</span></div>
         </div>
@@ -308,7 +308,7 @@ function PlayerSlide({
   wrapped,
   active,
   reducedMotion,
-  seasonGames,
+  seasonMapsPlayed,
   onStoryAudioPlaybackChange,
   onStoryAudioCompleted,
 }: {
@@ -316,7 +316,7 @@ function PlayerSlide({
   wrapped: GoongingaWrapped;
   active: boolean;
   reducedMotion: boolean;
-  seasonGames: number;
+  seasonMapsPlayed: number;
   onStoryAudioPlaybackChange: (storyId: string, playing: boolean) => void;
   onStoryAudioCompleted: (storyId: string) => void;
 }) {
@@ -432,7 +432,7 @@ function PlayerSlide({
           )}
           {revealStage >= 2 && <p className={`${styles.eyebrow} ${styles.sequenceEyebrow}`}>{story.eyebrow}</p>}
           {revealStage >= 3 && <p className={`${styles.metricDescriptor} ${styles.sequenceDescriptor}`}>{story.descriptor}</p>}
-          {revealStage >= 4 && <div className={styles.seasonFact}><span className={styles.sequenceFact}>Games played this season</span>{revealStage >= 5 && <strong className={styles.sequenceFact}>{formatNumber(seasonGames)}</strong>}</div>}
+          {revealStage >= 4 && <div className={styles.seasonFact}><span className={styles.sequenceFact}>Maps played this season</span>{revealStage >= 5 && <strong className={styles.sequenceFact}>{formatNumber(seasonMapsPlayed)}</strong>}</div>}
           {revealStage >= 6 && <div className={`${styles.valueBlock} ${styles.sequenceValue}`}>
             <strong>{formatNumber(displayedValue, story.decimals ?? 0)}<small>{story.suffix || ""}</small></strong>
           </div>}
@@ -466,12 +466,12 @@ function MapSlide({ story, wrapped }: { story: MapStory; wrapped: GoongingaWrapp
 }
 
 function FinaleSlide({ wrapped, active, reducedMotion }: { wrapped: GoongingaWrapped; active: boolean; reducedMotion: boolean }) {
-  const { totals, games, players } = resolveWrappedSnapshot(wrapped.snapshot).overview;
+  const { totals, games: mapsPlayed, players } = resolveWrappedSnapshot(wrapped.snapshot).overview;
   const counters = [
     { label: "Damage done", value: useCountUp(totals.damage, active, reducedMotion), tone: "damage" },
     { label: "Healing done", value: useCountUp(totals.healing, active, reducedMotion), tone: "healing" },
     { label: "Mitigation done", value: useCountUp(totals.mitigation, active, reducedMotion), tone: "mitigation" },
-    { label: "Games played", value: useCountUp(games, active, reducedMotion), tone: "games" },
+    { label: "Maps played", value: useCountUp(mapsPlayed, active, reducedMotion), tone: "games" },
     { label: "Players recorded", value: useCountUp(players, active, reducedMotion), tone: "players" },
   ];
 
@@ -544,7 +544,7 @@ export default function WrappedPage() {
 
   const totalSlides = stories.length + 1;
   const media = useMemo(() => wrapped ? resolveWrappedAssets(wrapped.assets) : null, [wrapped]);
-  const seasonGames = useMemo(() => wrapped ? resolveWrappedSnapshot(wrapped.snapshot).overview.games : 0, [wrapped]);
+  const seasonMapsPlayed = useMemo(() => wrapped ? resolveWrappedSnapshot(wrapped.snapshot).overview.games : 0, [wrapped]);
   const nextVideoToPreload = useMemo(() => {
     if (!started || !media) return null;
     // activeIndex includes the intro, so the following story begins at its
@@ -704,7 +704,7 @@ export default function WrappedPage() {
           const isActive = started && activeIndex === storyIndex;
           return (
             <div key={story.id} className={`${styles.storyViewport} ${isActive ? styles.storyActive : ""}`}>
-              {story.kind === "player" && <PlayerSlide story={story} wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} seasonGames={seasonGames} onStoryAudioPlaybackChange={setStoryAudioPlayback} onStoryAudioCompleted={setStoryAudioCompleted} />}
+              {story.kind === "player" && <PlayerSlide story={story} wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} seasonMapsPlayed={seasonMapsPlayed} onStoryAudioPlaybackChange={setStoryAudioPlayback} onStoryAudioCompleted={setStoryAudioCompleted} />}
               {story.kind === "map" && <MapSlide story={story} wrapped={wrapped} />}
               {story.kind === "finale" && <FinaleSlide wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} />}
             </div>

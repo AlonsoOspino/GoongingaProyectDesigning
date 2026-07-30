@@ -103,6 +103,21 @@ test("buildLeaderboardAverages matches the Player Stats running average formula"
   assert.equal(rows[0].killsPer10, 3);
 });
 
+test("buildSnapshot counts maps played by distinct match and gameNumber, not by player rows", async (t) => {
+  const original = savePrismaMethods();
+  t.after(() => restorePrismaMethods(original));
+  const seasonStats = [
+    stat({ userId: 1, nickname: "Alpha", duration: 100, damage: 100, kills: 10, deaths: 2, matchId: 7, gameNumber: 1 }),
+    stat({ userId: 2, nickname: "Bravo", duration: 100, damage: 100, kills: 8, deaths: 3, matchId: 7, gameNumber: 1 }),
+    stat({ userId: 1, nickname: "Alpha", duration: 100, damage: 100, kills: 9, deaths: 2, matchId: 7, gameNumber: 2 }),
+  ];
+  mockSnapshotQueries(seasonStats);
+
+  const snapshot = await wrappedController.buildSnapshot(tournament);
+
+  assert.equal(snapshot.overview.games, 2);
+});
+
 test("refresh retains matching artwork and its horizontal flip setting", () => {
   const previous = {
     assets: {

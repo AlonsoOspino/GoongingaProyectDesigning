@@ -881,7 +881,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  filter: brightness(.88);
+  filter: brightness(.75);
   transform: scaleX(var(--art-mirror));
 }
 .artworkBackdrop img { opacity: 1; }
@@ -898,25 +898,25 @@
   content: "";
   pointer-events: none;
   background:
-    linear-gradient(90deg, rgba(2, 5, 10, .94) 0%, rgba(2, 5, 10, .82) 20%, rgba(2, 5, 10, .42) 42%, rgba(2, 5, 10, .10) 65%, rgba(2, 5, 10, 0) 80%),
+    linear-gradient(90deg, rgba(2, 5, 10, .96) 0%, rgba(2, 5, 10, .88) 22%, rgba(2, 5, 10, .50) 45%, rgba(2, 5, 10, .14) 68%, rgba(2, 5, 10, 0) 82%),
     linear-gradient(180deg, rgba(0, 0, 0, .20), transparent 25%, transparent 70%, rgba(0, 0, 0, .35));
 }
 .playerSlide[data-side="right"] .artworkBackdrop::after {
   background:
-    linear-gradient(270deg, rgba(2, 5, 10, .94) 0%, rgba(2, 5, 10, .82) 20%, rgba(2, 5, 10, .42) 42%, rgba(2, 5, 10, .10) 65%, rgba(2, 5, 10, 0) 80%),
+    linear-gradient(270deg, rgba(2, 5, 10, .96) 0%, rgba(2, 5, 10, .88) 22%, rgba(2, 5, 10, .50) 45%, rgba(2, 5, 10, .14) 68%, rgba(2, 5, 10, 0) 82%),
     linear-gradient(180deg, rgba(0, 0, 0, .20), transparent 25%, transparent 70%, rgba(0, 0, 0, .35));
 }
 
 .highlightContent {
   position: relative;
   z-index: 2;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
   width: min(46vw, 47.5rem);
   min-height: min(76svh, 48.75rem);
   max-height: calc(100svh - clamp(8.25rem, 13vh, 11rem));
-  justify-content: center;
+  align-content: start;
   gap: clamp(1.25rem, 2.4vh, 1.75rem);
 }
 
@@ -929,7 +929,7 @@
   pointer-events: none;
 }
 .playerIdentityVisible {
-  animation: highlightEnter .55s cubic-bezier(.2, .75, .25, 1) both;
+  animation: identityAppear .35s ease-out both;
 }
 .playerIdentity::before {
   position: absolute;
@@ -940,6 +940,10 @@
   content: "";
   background: var(--yellow);
   box-shadow: 0 0 14px rgba(246, 196, 67, .55);
+}
+.playerSlide[data-side="right"] .playerIdentity::before {
+  right: auto;
+  left: calc(100% + .75rem);
 }
 .playerIdentity .playerProfile {
   margin: 0;
@@ -1071,6 +1075,10 @@
   from { opacity: 0; transform: translateY(.65rem); }
   to { opacity: 1; transform: translateY(0); }
 }
+@keyframes identityAppear {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 
 /* ═══════════════════════════════════════════════════════════════
    RESPONSIVE
@@ -1086,6 +1094,10 @@
     padding: clamp(4.25rem, 7vh, 5.25rem) 7vw clamp(3.5rem, 6vh, 4.5rem);
   }
   .playerSlide[data-side="right"] { justify-content: flex-start; }
+  .playerSlide[data-side="right"] .playerIdentity::before {
+    right: calc(100% + .75rem);
+    left: auto;
+  }
   .playerSlide[data-side="right"] .artworkBackdrop::after {
     background:
       linear-gradient(90deg, rgba(2, 5, 10, .94) 0%, rgba(2, 5, 10, .78) 42%, rgba(2, 5, 10, .28) 76%, rgba(2, 5, 10, .06) 100%),
