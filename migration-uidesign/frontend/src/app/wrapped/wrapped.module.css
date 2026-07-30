@@ -963,19 +963,21 @@
 .playerIdentity .playerProfile div small {
   margin-top: .3rem;
   color: var(--cyan);
+  font-family: var(--font-overlay-display), "Arial Narrow", sans-serif;
   font-size: clamp(.6rem, .8vw, .82rem);
+  font-weight: 400;
 }
 
 .playerSlide .storyCopy {
   position: relative;
   z-index: 2;
   display: grid;
-  flex: 1;
+  flex: none;
   min-width: 0;
   width: 100%;
-  min-height: min(55svh, 36rem);
-  align-content: space-between;
-  gap: clamp(.625rem, 1.15vh, .875rem);
+  min-height: 0;
+  align-content: start;
+  gap: clamp(.5rem, .9vh, .75rem);
   padding: 0;
   text-align: left;
 }
@@ -992,7 +994,7 @@
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  font-size: clamp(4rem, 6.5vw, 7.375rem);
+  font-size: clamp(4.5rem, 7.5vw, 8.75rem);
   line-height: .82;
   letter-spacing: -.035em;
   text-align: left;
@@ -1033,6 +1035,10 @@
 }
 .playerSlide .storyCopy .eyebrow {
   color: var(--cyan);
+  font-family: var(--font-overlay-display), "Arial Narrow", sans-serif;
+  font-size: clamp(.95rem, 1.15vw, 1.35rem);
+  font-weight: 400;
+  letter-spacing: .16em;
   text-shadow: none;
 }
 .playerSlide .seasonFact {
@@ -1138,7 +1144,7 @@
     font-size: clamp(2.35rem, 10vw, 3.8rem);
   }
   .playerSlide .storyCopy h2 {
-    font-size: clamp(3.35rem, min(15.5vw, 10.8vh), 5.6rem);
+    font-size: clamp(3.55rem, min(17vw, 11.6vh), 6.2rem);
   }
   .playerSlide .seasonFact {
     display: grid;
