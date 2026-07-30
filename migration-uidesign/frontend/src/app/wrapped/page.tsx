@@ -112,7 +112,7 @@ function useHighlightSequence(active: boolean, audioDurationMs: number) {
     const identityPhase = Math.min(3_000, audioDurationMs);
     const fullSequenceDuration = Math.max(identityPhase, audioDurationMs);
     const remainingPhase = Math.max(0, fullSequenceDuration - identityPhase);
-    const laterStepDuration = remainingPhase / 6;
+    const laterStepDuration = Math.max(850, remainingPhase / 6);
     let currentStage = 0;
     let timeout = 0;
     const advance = () => {
@@ -445,6 +445,23 @@ function PlayerSlide({
   useEffect(() => {
     if (active && audioSequenceCompleted && !reducedMotion) freezeVideoOnLastFrame();
   }, [active, audioSequenceCompleted, freezeVideoOnLastFrame, reducedMotion]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !active || !videoFinished || reducedMotion) return;
+    const duration = Math.max(180, freezeZoomDurationMs);
+    const startedAt = performance.now();
+    let frame = 0;
+    const zoom = (now: number) => {
+      const progress = Math.min(1, (now - startedAt) / duration);
+      // Ease in gently, then make the final part of the zoom noticeable.
+      const eased = 1 - Math.pow(1 - progress, 2.15);
+      video.style.setProperty("--frozen-zoom-scale", String(1.04 + (1.3 - 1.04) * eased));
+      if (progress < 1) frame = requestAnimationFrame(zoom);
+    };
+    frame = requestAnimationFrame(zoom);
+    return () => cancelAnimationFrame(frame);
+  }, [active, freezeZoomDurationMs, reducedMotion, videoFinished]);
   const handleStoryAudioPlaybackChange = useCallback((playing: boolean) => {
     onStoryAudioPlaybackChange(story.id, playing);
   }, [onStoryAudioPlaybackChange, story.id]);
@@ -475,7 +492,7 @@ function PlayerSlide({
       <div className={`${styles.playerIdentity} ${active ? styles.playerIdentityVisible : ""}`}>
         <PlayerProfile leader={leader} />
       </div>
-      <div className={`${styles.storyCopy} ${active ? styles.storyTimeline : styles.storyWaiting}`}>
+      <div className={`${styles.storyCopy} ${active ? styles.storyTimeline : styles.storyWaiting}`} data-sequence-stage={revealStage}>
         {revealStage >= 1 && <p className={`${styles.eyebrow} ${styles.sequenceEyebrow}`}>{story.eyebrow}</p>}
         {revealStage >= 2 && <h2 className={styles.sequenceTitle}>{story.title}</h2>}
         {revealStage >= 3 && <p className={`${styles.metricDescriptor} ${styles.sequenceDescriptor}`}>{story.descriptor}</p>}
