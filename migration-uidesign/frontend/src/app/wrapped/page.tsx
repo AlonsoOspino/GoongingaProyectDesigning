@@ -222,12 +222,6 @@ function PlayerProfile({ leader }: { leader: WrappedPlayerLeader | null }) {
   );
 }
 
-function TwoLineTitle({ title }: { title: string }) {
-  const words = title.trim().split(/\s+/);
-  const splitAt = Math.max(1, Math.ceil(words.length / 2));
-  return <><span>{words.slice(0, splitAt).join(" ")}</span><span>{words.slice(splitAt).join(" ")}</span></>;
-}
-
 function StoryAudioSequence({ sources, active, onPlaybackChange, onComplete }: { sources: string[]; active: boolean; onPlaybackChange: (playing: boolean) => void; onComplete: () => void }) {
   useEffect(() => {
     if (!active || !sources.length) {
@@ -487,7 +481,7 @@ function PlayerSlide({
         <PlayerProfile leader={leader} />
       </div>
       <div className={`${styles.storyCopy} ${active ? styles.storyTimeline : styles.storyWaiting}`} data-sequence-stage={revealStage}>
-        {revealStage >= 1 && <h2 className={styles.sequenceTitle}><TwoLineTitle title={story.title} /></h2>}
+        {revealStage >= 1 && <h2 className={styles.sequenceTitle}>{story.title}</h2>}
         {revealStage >= 2 && <p className={`${styles.metricDescriptor} ${styles.sequenceDescriptor}`}>{story.descriptor}</p>}
         {revealStage >= 3 && <p className={`${styles.eyebrow} ${styles.sequenceEyebrow}`}>{story.eyebrow}</p>}
         {revealStage >= 4 && <div className={styles.seasonFact}><span className={styles.sequenceFact}>Games played this season</span>{revealStage >= 5 && <strong className={styles.sequenceFact}>{formatNumber(seasonGames)}</strong>}</div>}

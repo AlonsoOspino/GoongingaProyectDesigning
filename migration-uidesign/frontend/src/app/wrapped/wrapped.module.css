@@ -1127,20 +1127,21 @@
    left-hand rail.  Layout variants only choose their accent color. */
 .playerSlide {
   --highlight-accent: var(--cyan);
+  --highlight-title-start: #edfffb;
   display: block;
   padding: 0;
   background: #03060a;
 }
-.playerSlide.layoutDiagonal { --highlight-accent: #57e6f2; }
-.playerSlide.layoutColumn { --highlight-accent: #83f5b5; }
-.playerSlide.layoutImpact { --highlight-accent: #ff9867; }
-.playerSlide.layoutShield { --highlight-accent: #64b9ff; }
-.playerSlide.layoutNetwork { --highlight-accent: #d88cff; }
-.playerSlide.layoutSurvival { --highlight-accent: #c8f07d; }
-.playerSlide.layoutBurst { --highlight-accent: #ff6f61; }
-.playerSlide.layoutCascade { --highlight-accent: #5ae0ff; }
-.playerSlide.layoutFortress { --highlight-accent: #f6c443; }
-.playerSlide.layoutSpotlight { --highlight-accent: #ff79b7; }
+.playerSlide.layoutDiagonal { --highlight-accent: #57e6f2; --highlight-title-start: #eaffff; }
+.playerSlide.layoutColumn { --highlight-accent: #83f5b5; --highlight-title-start: #ecfff4; }
+.playerSlide.layoutImpact { --highlight-accent: #ff9867; --highlight-title-start: #fff2db; }
+.playerSlide.layoutShield { --highlight-accent: #64b9ff; --highlight-title-start: #edf7ff; }
+.playerSlide.layoutNetwork { --highlight-accent: #d88cff; --highlight-title-start: #faefff; }
+.playerSlide.layoutSurvival { --highlight-accent: #c8f07d; --highlight-title-start: #f8ffe7; }
+.playerSlide.layoutBurst { --highlight-accent: #ff6f61; --highlight-title-start: #fff0e8; }
+.playerSlide.layoutCascade { --highlight-accent: #5ae0ff; --highlight-title-start: #e9fbff; }
+.playerSlide.layoutFortress { --highlight-accent: #f6c443; --highlight-title-start: #fff8d9; }
+.playerSlide.layoutSpotlight { --highlight-accent: #ff79b7; --highlight-title-start: #fff0f8; }
 
 .playerSlide .artworkBackdrop {
   background: #03060a;
@@ -1211,16 +1212,23 @@
 .playerSlide .storyCopy h2,
 .playerSlide.layoutImpact .storyCopy h2,
 .playerSlide.layoutNetwork .storyCopy h2 {
-  width: max-content;
-  max-width: none;
+  /* Keep a consistent left rail while letting the title take as many rows as
+     its words require. Subsequent grid rows then follow the title's real
+     height instead of a hard-coded two-line slot. */
+  inline-size: min(46vw, 9.5ch);
+  max-inline-size: 100%;
   margin: 0 0 .5rem;
   color: var(--highlight-accent);
+  background: linear-gradient(180deg, var(--highlight-title-start) 0%, var(--highlight-accent) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   font-size: clamp(5.2rem, 8.4vw, 10.2rem);
   line-height: .73;
   text-align: left;
-  text-shadow: 0 0 18px color-mix(in srgb, var(--highlight-accent) 42%, transparent), 0 5px 14px rgba(0, 0, 0, .48);
+  text-wrap: balance;
+  filter: drop-shadow(0 0 18px color-mix(in srgb, var(--highlight-accent) 42%, transparent)) drop-shadow(0 5px 14px rgba(0, 0, 0, .48));
 }
-.playerSlide .storyCopy h2 span { white-space: nowrap; }
 .playerSlide .metricDescriptor,
 .playerSlide.layoutImpact .metricDescriptor,
 .playerSlide.layoutNetwork .metricDescriptor {
