@@ -98,9 +98,11 @@ test("buildSnapshot mirrors the Player Stats per-game averages, total sums, and 
 test("buildLeaderboardAverages matches the Player Stats running average formula", () => {
   const rows = wrappedController.__testables.buildLeaderboardAverages([
     stat({ userId: 1, nickname: "Alpha", duration: 1, damage: 1, kills: 1, deaths: 1, rates: { killsPer10: 2 } }),
-    stat({ userId: 1, nickname: "Alpha", duration: 1, damage: 1, kills: 1, deaths: 1, rates: { killsPer10: 4 } }),
+    stat({ userId: 1, nickname: "Alpha", duration: 1, damage: 1, kills: 1, deaths: 1, matchId: 2, rates: { killsPer10: 4 } }),
+    stat({ userId: 1, nickname: "Alpha", duration: 1, damage: 1, kills: 1, deaths: 1, matchId: 2, rates: { killsPer10: 3 } }),
   ]);
   assert.equal(rows[0].killsPer10, 3);
+  assert.equal(rows[0].mapsPlayed, 2);
 });
 
 test("buildSnapshot counts maps played by distinct match and gameNumber, not by player rows", async (t) => {
@@ -116,6 +118,38 @@ test("buildSnapshot counts maps played by distinct match and gameNumber, not by 
   const snapshot = await wrappedController.buildSnapshot(tournament);
 
   assert.equal(snapshot.overview.games, 2);
+  assert.equal(snapshot.averagesPer10.kills.mapsPlayed, 2);
+  assert.equal(snapshot.totals.damage.mapsPlayed, 2);
+});
+
+test("current profile pictures hydrate every repeated snapshot leader without changing frozen stats", () => {
+  const wrapped = {
+    id: 1,
+    snapshot: {
+      averagesPer10: {
+        kills: { userId: 7, player: "Alpha", profilePic: "/old.png", team: "One", mapsPlayed: 4, value: 12 },
+        healing: { userId: 8, player: "Bravo", profilePic: "/bravo.png", team: "Two", mapsPlayed: 3, value: 900 },
+      },
+      totals: {
+        damage: { userId: 7, player: "Alpha", profilePic: "/old.png", team: "One", mapsPlayed: 4, value: 1000 },
+      },
+      performance: {
+        kd: { userId: 7, player: "Alpha", profilePic: "/old.png", team: "One", mapsPlayed: 4, value: 5 },
+      },
+    },
+  };
+
+  const hydrated = wrappedController.__testables.hydrateCurrentProfilePictures(wrapped, [
+    { id: 7, profilePic: "/current.png" },
+    { id: 8, profilePic: null },
+  ]);
+
+  assert.equal(hydrated.snapshot.averagesPer10.kills.profilePic, "/current.png");
+  assert.equal(hydrated.snapshot.totals.damage.profilePic, "/current.png");
+  assert.equal(hydrated.snapshot.performance.kd.profilePic, "/current.png");
+  assert.equal(hydrated.snapshot.averagesPer10.healing.profilePic, null);
+  assert.equal(hydrated.snapshot.averagesPer10.kills.value, 12);
+  assert.equal(wrapped.snapshot.averagesPer10.kills.profilePic, "/old.png");
 });
 
 test("refresh retains matching artwork and its horizontal flip setting", () => {

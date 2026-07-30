@@ -113,6 +113,8 @@ export interface WrappedPlayerLeader {
   player: string;
   profilePic: string | null;
   team: string | null;
+  /** Added to refreshed snapshots; older frozen records may not include it. */
+  mapsPlayed?: number;
   value: number;
 }
 

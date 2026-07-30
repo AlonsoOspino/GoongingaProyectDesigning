@@ -53,11 +53,17 @@ function pickBest(items, getValue, { lowerIsBetter = false, getTieLabel = () => 
 
 function toPlayerLeader(player, value, precision = 0) {
   if (!player || !Number.isFinite(value)) return null;
+  const mapsPlayed = Number.isFinite(player.mapsPlayed)
+    ? player.mapsPlayed
+    : player.mapKeys instanceof Set
+      ? player.mapKeys.size
+      : 0;
   return {
     userId: player.userId,
     player: player.user.nickname,
     profilePic: player.user.profilePic || null,
     team: player.user.team?.name || null,
+    mapsPlayed,
     value: Number(value.toFixed(precision)),
   };
 }
@@ -88,6 +94,7 @@ function buildLeaderboardAverages(stats) {
       userId: stat.userId,
       user: stat.user,
       games: 0,
+      mapKeys: new Set(),
       ...Object.fromEntries(metrics.map((metric) => [metric, 0])),
     };
     const n = current.games;
@@ -96,13 +103,74 @@ function buildLeaderboardAverages(stats) {
     for (const metric of metrics) {
       current[metric] = (current[metric] * n + Number(stat[metric] || 0)) / (n + 1);
     }
+    if (stat.matchId !== undefined && stat.gameNumber !== undefined) {
+      current.mapKeys.add(`${stat.matchId}:${stat.gameNumber}`);
+    }
     byUser.set(stat.userId, current);
   }
 
-  return [...byUser.values()].map((player) => ({
-    ...player,
-    ...Object.fromEntries(metrics.map((metric) => [metric, round2(player[metric])])),
-  }));
+  return [...byUser.values()].map((player) => {
+    const { mapKeys, ...snapshotPlayer } = player;
+    return {
+      ...snapshotPlayer,
+      mapsPlayed: mapKeys.size,
+      ...Object.fromEntries(metrics.map((metric) => [metric, round2(player[metric])])),
+    };
+  });
+}
+
+function hydrateCurrentProfilePictures(wrapped, members) {
+  if (!wrapped?.snapshot) return wrapped;
+  const profileByUserId = new Map(members.map((member) => [member.id, member.profilePic || null]));
+  const withCurrentProfile = (leader) => {
+    if (!leader || !profileByUserId.has(leader.userId)) return leader;
+    return { ...leader, profilePic: profileByUserId.get(leader.userId) };
+  };
+  const snapshot = wrapped.snapshot;
+
+  return {
+    ...wrapped,
+    snapshot: {
+      ...snapshot,
+      averagesPer10: snapshot.averagesPer10 ? {
+        ...snapshot.averagesPer10,
+        kills: withCurrentProfile(snapshot.averagesPer10.kills),
+        healing: withCurrentProfile(snapshot.averagesPer10.healing),
+        damage: withCurrentProfile(snapshot.averagesPer10.damage),
+        mitigation: withCurrentProfile(snapshot.averagesPer10.mitigation),
+        assists: withCurrentProfile(snapshot.averagesPer10.assists),
+        lowestDeaths: withCurrentProfile(snapshot.averagesPer10.lowestDeaths),
+      } : snapshot.averagesPer10,
+      totals: snapshot.totals ? {
+        ...snapshot.totals,
+        damage: withCurrentProfile(snapshot.totals.damage),
+        healing: withCurrentProfile(snapshot.totals.healing),
+        mitigation: withCurrentProfile(snapshot.totals.mitigation),
+      } : snapshot.totals,
+      performance: snapshot.performance ? {
+        ...snapshot.performance,
+        kd: withCurrentProfile(snapshot.performance.kd),
+        kda: withCurrentProfile(snapshot.performance.kda),
+      } : snapshot.performance,
+    },
+  };
+}
+
+async function withCurrentProfilePictures(wrapped) {
+  const snapshot = wrapped?.snapshot;
+  if (!snapshot) return wrapped;
+  const leaders = [
+    ...Object.values(snapshot.averagesPer10 || {}),
+    ...Object.values(snapshot.totals || {}),
+    ...Object.values(snapshot.performance || {}),
+  ];
+  const userIds = [...new Set(leaders.map((leader) => leader?.userId).filter(Number.isInteger))];
+  if (!userIds.length) return wrapped;
+  const members = await prisma.member.findMany({
+    where: { id: { in: userIds } },
+    select: { id: true, profilePic: true },
+  });
+  return hydrateCurrentProfilePictures(wrapped, members);
 }
 
 function pickLeaderboardLeader(players, metric, lowerIsBetter = false) {
@@ -254,8 +322,11 @@ async function buildSnapshot(tournament) {
     prisma.playerStat.findMany({
       // Same source and ordering as GET /playerStat/public, which powers the
       // Player Stats leaderboard shown to managers and viewers.
+      where: { match: { tournamentId: tournament.id, status: "FINISHED" } },
       select: {
         userId: true,
+        matchId: true,
+        gameNumber: true,
         damagePer10: true,
         healingPer10: true,
         mitigationPer10: true,
@@ -311,6 +382,7 @@ async function buildSnapshot(tournament) {
       healing: 0,
       mitigation: 0,
       validDuration: 0,
+      mapKeys: new Set(),
     };
     current.kills += stat.kills;
     current.assists += stat.assists;
@@ -319,6 +391,7 @@ async function buildSnapshot(tournament) {
     current.healing += stat.healing;
     current.mitigation += stat.mitigation;
     if (Number(stat.gameDuration) > 0) current.validDuration += Number(stat.gameDuration);
+    current.mapKeys.add(`${stat.matchId}:${stat.gameNumber}`);
     totalsByPlayer.set(stat.userId, current);
 
     globalTotals.damage += stat.damage;
@@ -393,8 +466,9 @@ async function getCurrentWrapped(_req, res) {
   try {
     const wrapped = await getLatestWrapped();
     if (!wrapped) return res.status(404).json({ message: "Goonginga Wrapped has not been generated yet." });
-    res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=300");
-    return res.json(wrapped);
+    const hydratedWrapped = await withCurrentProfilePictures(wrapped);
+    res.set("Cache-Control", "no-store");
+    return res.json(hydratedWrapped);
   } catch (error) {
     return res.status(500).json({ message: error?.message || "Failed to load Goonginga Wrapped." });
   }
@@ -459,5 +533,5 @@ module.exports = {
   generateWrapped,
   updateAssets,
   invalidateWrappedCache,
-  __testables: { buildLeaderboardAverages, pickBest, normalizeAssets, retainMatchingAssets },
+  __testables: { buildLeaderboardAverages, pickBest, normalizeAssets, retainMatchingAssets, hydrateCurrentProfilePictures },
 };

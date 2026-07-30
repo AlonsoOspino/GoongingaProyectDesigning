@@ -1022,6 +1022,22 @@
 .playerSlide[data-side="right"] .storyCopy h2 {
   text-align: right;
 }
+.playerSlide .storyCopy h2.typingTitle {
+  color: transparent;
+  background: none;
+  -webkit-text-fill-color: initial;
+}
+.typingCharacter {
+  display: inline;
+  color: transparent;
+  background: linear-gradient(180deg, var(--ink) 0%, var(--title-color) 100%);
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  opacity: 0;
+  animation: typingReveal .01s steps(1, end) forwards;
+}
 .storyWaiting {
   opacity: 0;
   pointer-events: none;
@@ -1079,26 +1095,54 @@
   position: absolute;
   z-index: 2;
   right: clamp(2.5rem, 4vw, 5.625rem);
-  bottom: clamp(5.5rem, 10vh, 7rem);
+  bottom: clamp(5.25rem, 9vh, 6.5rem);
   display: flex;
-  max-width: min(42vw, 35rem);
-  align-items: baseline;
+  max-width: min(42vw, 28rem);
+  align-items: center;
   justify-content: flex-end;
-  gap: clamp(.45rem, .8vw, .75rem);
+  gap: clamp(.7rem, 1vw, 1rem);
   margin: 0;
+  padding: clamp(.65rem, 1vh, .85rem) clamp(.8rem, 1.2vw, 1.15rem);
+  border-top: 2px solid var(--title-color);
+  border-right: 1px solid color-mix(in srgb, var(--title-color) 45%, transparent);
+  background: linear-gradient(135deg, rgba(3, 6, 10, .88), rgba(3, 6, 10, .58));
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .24);
   text-align: right;
 }
 .playerSlide[data-side="right"] .seasonFact {
   right: auto;
   left: clamp(2.5rem, 4vw, 5.625rem);
   justify-content: flex-start;
+  border-right: 0;
+  border-left: 1px solid color-mix(in srgb, var(--title-color) 45%, transparent);
   text-align: left;
 }
-.playerSlide .seasonFact span,
 .playerSlide .seasonFact strong {
-  color: var(--ink);
-  font-size: clamp(1.25rem, 1.75vw, 2rem);
+  color: var(--title-color);
+  font-family: var(--font-league-gothic), Impact, sans-serif;
+  font-size: clamp(3.25rem, 4.5vw, 5.25rem);
+  font-weight: 400;
+  letter-spacing: -.025em;
+  line-height: .72;
+  text-shadow: 0 6px 20px rgba(0, 0, 0, .35);
   white-space: nowrap;
+}
+.playerSlide .seasonFact span {
+  display: grid;
+  color: var(--ink);
+  font-family: var(--font-overlay-display), "Arial Narrow", sans-serif;
+  font-size: clamp(.9rem, 1.15vw, 1.2rem);
+  font-weight: 400;
+  letter-spacing: .12em;
+  line-height: .9;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.playerSlide .seasonFact span small {
+  margin-top: .35rem;
+  color: var(--title-color);
+  font-size: .62em;
+  letter-spacing: .2em;
 }
 .playerSlide .valueBlock {
   justify-items: start;
@@ -1117,6 +1161,9 @@
 @keyframes highlightEnter {
   from { opacity: 0; transform: translateY(.65rem); }
   to { opacity: 1; transform: translateY(0); }
+}
+@keyframes typingReveal {
+  to { opacity: 1; }
 }
 @keyframes identityAppear {
   from { opacity: 0; }
@@ -1207,9 +1254,9 @@
   .playerSlide .seasonFact {
     right: 1.25rem;
     bottom: 4.75rem;
-    display: grid;
     max-width: calc(100vw - 2.5rem);
-    gap: .25rem;
+    gap: .6rem;
+    padding: .55rem .7rem;
   }
   .playerSlide[data-side="right"] .seasonFact {
     right: auto;
@@ -1217,10 +1264,11 @@
     justify-content: flex-start;
     text-align: left;
   }
-  .playerSlide .seasonFact span,
   .playerSlide .seasonFact strong {
-    font-size: clamp(1rem, 4.3vw, 1.35rem);
-    white-space: normal;
+    font-size: clamp(2.75rem, 12vw, 3.75rem);
+  }
+  .playerSlide .seasonFact span {
+    font-size: clamp(.72rem, 3.4vw, .9rem);
   }
   .playerSlide .valueBlock strong {
     font-size: clamp(5.2rem, min(21vw, 14vh), 7.75rem);
@@ -1240,4 +1288,5 @@
   }
   .playerIdentityVisible { opacity: 1; transform: none; filter: none; }
   .playerIdentityVisible::before { opacity: 1; transform: scaleX(1); }
+  .typingCharacter { opacity: 1; animation: none; }
 }

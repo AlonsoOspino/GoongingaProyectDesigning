@@ -207,9 +207,17 @@ function Art({ src, alt, fallback, flipped = false }: { src?: string | null; alt
 
 function PlayerProfile({ leader }: { leader: WrappedPlayerLeader | null }) {
   const initials = leader?.player?.slice(0, 2).toUpperCase() || "GG";
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [leader?.profilePic]);
+
   return (
     <div className={styles.playerProfile}>
-      {leader?.profilePic ? <img src={leader.profilePic} alt={leader.player} /> : <span>{initials}</span>}
+      {leader?.profilePic && !imageFailed
+        ? <img src={leader.profilePic} alt={leader.player} onError={() => setImageFailed(true)} />
+        : <span>{initials}</span>}
       <div>
         <strong>{leader?.player || "No eligible player"}</strong>
         <small>{leader?.team || "No team"}</small>
@@ -308,7 +316,6 @@ function PlayerSlide({
   wrapped,
   active,
   reducedMotion,
-  seasonMapsPlayed,
   onStoryAudioPlaybackChange,
   onStoryAudioCompleted,
 }: {
@@ -316,7 +323,6 @@ function PlayerSlide({
   wrapped: GoongingaWrapped;
   active: boolean;
   reducedMotion: boolean;
-  seasonMapsPlayed: number;
   onStoryAudioPlaybackChange: (storyId: string, playing: boolean) => void;
   onStoryAudioCompleted: (storyId: string) => void;
 }) {
@@ -386,8 +392,14 @@ function PlayerSlide({
   const valueRevealed = revealStage >= 6;
   const displayedValue = useCountUp(leader?.value || 0, valueRevealed, reducedMotion, story.decimals ?? 0);
   const title = story.titleLines.join("\n");
+  const titleCharacters = Array.from(title);
   return (
-    <section className={`${styles.slide} ${styles.playerSlide}`} data-side={story.contentSide} aria-label={title.replace(/\n/g, " ")}>
+    <section
+      className={`${styles.slide} ${styles.playerSlide}`}
+      data-side={story.contentSide}
+      aria-label={title.replace(/\n/g, " ")}
+      style={{ "--title-color": story.titleColor } as CSSProperties}
+    >
       <div className={styles.artworkBackdrop} aria-hidden="true">
         {active && artwork && (
           <img src={artwork} alt="" className={flipped ? styles.artworkFlipped : undefined} />
@@ -424,10 +436,31 @@ function PlayerSlide({
           {revealStage >= 1 && (
             <h2
               aria-label={title.replace(/\n/g, " ")}
-              className={styles.sequenceTitle}
-              style={{ "--title-color": story.titleColor } as CSSProperties}
+              className={`${styles.sequenceTitle} ${reducedMotion ? "" : styles.typingTitle}`}
             >
-              {title}
+              {reducedMotion
+                ? title
+                : titleCharacters.map((character, index) => {
+                  if (character === "\n") return <br key={`line-${index}`} />;
+                  const lineIndex = title.slice(0, index).split("\n").length - 1;
+                  const gradientPosition = story.titleLines.length === 1
+                    ? 0
+                    : (lineIndex / (story.titleLines.length - 1)) * 100;
+                  return (
+                    <span
+                      key={`${character}-${index}`}
+                      className={styles.typingCharacter}
+                      style={{
+                        animationDelay: `${index * 55}ms`,
+                        backgroundSize: `100% ${story.titleLines.length * 100}%`,
+                        backgroundPosition: `center ${gradientPosition}%`,
+                      }}
+                      aria-hidden="true"
+                    >
+                      {character}
+                    </span>
+                  );
+                })}
             </h2>
           )}
           {revealStage >= 2 && <p className={`${styles.metricDescriptor} ${styles.sequenceDescriptor}`}>{story.descriptor}</p>}
@@ -438,9 +471,12 @@ function PlayerSlide({
         </div>
       </div>
       {revealStage >= 4 && (
-        <div className={`${styles.seasonFact} ${styles.sequenceFact}`}>
-          <span>Maps played this season</span>
-          {revealStage >= 5 && <strong>{formatNumber(seasonMapsPlayed)}</strong>}
+        <div
+          className={`${styles.seasonFact} ${styles.sequenceFact}`}
+          aria-label={`${formatNumber(leader?.mapsPlayed)} maps played by ${leader?.player || "this player"} this season`}
+        >
+          <strong>{revealStage >= 5 ? formatNumber(leader?.mapsPlayed) : "—"}</strong>
+          <span>Maps played<small>This season</small></span>
         </div>
       )}
       <StoryAudioSequence sources={storyAudioSources} active={active} onPlaybackChange={handleStoryAudioPlaybackChange} onComplete={handleStoryAudioComplete} />
@@ -549,7 +585,6 @@ export default function WrappedPage() {
 
   const totalSlides = stories.length + 1;
   const media = useMemo(() => wrapped ? resolveWrappedAssets(wrapped.assets) : null, [wrapped]);
-  const seasonMapsPlayed = useMemo(() => wrapped ? resolveWrappedSnapshot(wrapped.snapshot).overview.games : 0, [wrapped]);
   const nextVideoToPreload = useMemo(() => {
     if (!started || !media) return null;
     // activeIndex includes the intro, so the following story begins at its
@@ -709,7 +744,7 @@ export default function WrappedPage() {
           const isActive = started && activeIndex === storyIndex;
           return (
             <div key={story.id} className={`${styles.storyViewport} ${isActive ? styles.storyActive : ""}`}>
-              {story.kind === "player" && <PlayerSlide story={story} wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} seasonMapsPlayed={seasonMapsPlayed} onStoryAudioPlaybackChange={setStoryAudioPlayback} onStoryAudioCompleted={setStoryAudioCompleted} />}
+              {story.kind === "player" && <PlayerSlide story={story} wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} onStoryAudioPlaybackChange={setStoryAudioPlayback} onStoryAudioCompleted={setStoryAudioCompleted} />}
               {story.kind === "map" && <MapSlide story={story} wrapped={wrapped} />}
               {story.kind === "finale" && <FinaleSlide wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} />}
             </div>
