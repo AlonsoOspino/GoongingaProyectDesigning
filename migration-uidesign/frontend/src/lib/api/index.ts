@@ -1,5 +1,6 @@
 export * from "@/lib/api/admin";
 export * from "@/lib/api/auth";
+export * from "@/lib/api/networkMember";
 export * from "@/lib/api/client";
 export * from "@/lib/api/draft";
 export * from "@/lib/api/match";

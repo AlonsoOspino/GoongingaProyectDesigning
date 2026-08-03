@@ -38,6 +38,24 @@ export interface LoginResponse {
   user: AuthUser;
 }
 
+export type NetworkMemberRole =
+  | "MEMBER"
+  | "ADMIN"
+  | "CASTER"
+  | "DEVELOPER"
+  | "SEASON_PLAYER"
+  | "MODERATOR"
+  | "COMMUNITY_MANAGER"
+  | "CONTENT_CREATOR";
+
+export interface NetworkMember {
+  id: number;
+  username: string;
+  avatarUrl: string | null;
+  roles: NetworkMemberRole[];
+  createdAt: string;
+}
+
 export interface Team {
   id: number;
   name: string;

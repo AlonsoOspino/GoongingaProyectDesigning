@@ -18,6 +18,8 @@ const systemDbRoutes = require("./routes/systemDb");
 const leaderboardOverlayAssetRoutes = require("./routes/leaderboardOverlayAsset");
 const wrappedRoutes = require("./routes/wrapped");
 const familyFeudRoutes = require("./routes/familyFeud");
+const networkAuthRoutes = require("./routes/networkAuth");
+const networkMemberRoutes = require("./routes/networkMember");
 const { ensureAdminUser } = require("./utils/ensureAdminUser");
 const cors = require("cors");
 const app = express();
@@ -74,6 +76,8 @@ app.use("/system-db", systemDbRoutes);
 app.use("/overlay-assets", leaderboardOverlayAssetRoutes);
 app.use("/wrapped", wrappedRoutes);
 app.use("/family-feud", familyFeudRoutes);
+app.use("/network-auth", networkAuthRoutes);
+app.use("/network-members", networkMemberRoutes);
 
 const startServer = async () => {
   if (!process.env.DATABASE_URL) {

@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "@/features/session/SessionProvider";
 import { login } from "@/lib/api/auth";
+import { getDiscordLoginUrl } from "@/lib/api/networkMember";
+import { saveNetworkToken } from "@/features/networkSession/storage";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -17,8 +19,29 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [networkMessage, setNetworkMessage] = useState<string | null>(null);
+  const [networkError, setNetworkError] = useState<string | null>(null);
   const requestedNextPath = searchParams.get("next") || "/my-team";
   const nextPath = requestedNextPath.startsWith("/") && !requestedNextPath.startsWith("//") ? requestedNextPath : "/my-team";
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const token = new URLSearchParams(url.hash.slice(1)).get("network_token");
+    const discordError = url.searchParams.get("discord_error");
+
+    if (token) {
+      saveNetworkToken(token);
+      url.hash = "";
+      window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+      setNetworkMessage("Discord connected. Welcome to the Goonginga network!");
+    }
+
+    if (discordError) {
+      url.searchParams.delete("discord_error");
+      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+      setNetworkError(discordError);
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +57,10 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const startDiscordLogin = () => {
+    window.location.assign(getDiscordLoginUrl());
   };
 
   return (
@@ -99,13 +126,44 @@ export default function LoginPage() {
               </Button>
 
               <p className="text-sm text-center text-muted">
-                Don&apos;t have an account?{" "}
-                <Link href="https://discord.gg/QMukTWr32f" className="text-primary hover:underline">
-                  Register
-                </Link>
+                GGL season accounts keep using this login.
               </p>
             </CardFooter>
           </form>
+
+          <section className="relative border-t border-primary/30 bg-primary/5 px-4 py-5">
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary to-transparent" />
+            <p className="text-xs font-bold tracking-[0.18em] text-primary text-center">GOONGINGA NETWORK</p>
+            <h2 className="mt-2 text-center text-xl font-bold text-foreground">WE ARE MOVING TO DISCORD!</h2>
+            <p className="mt-2 text-center text-sm leading-6 text-muted">
+              Register or log in in one step with Discord. You must be a member of the GGL server.
+            </p>
+
+            {networkMessage && (
+              <div className="mt-4 rounded-lg border border-success/30 bg-success/10 p-3 text-center text-sm text-success">
+                {networkMessage}
+              </div>
+            )}
+            {networkError && (
+              <div className="mt-4 rounded-lg border border-danger/30 bg-danger/10 p-3 text-center text-sm text-danger">
+                {networkError}
+              </div>
+            )}
+
+            <Button type="button" className="mt-4 w-full bg-[#5865F2] hover:bg-[#4752C4]" onClick={startDiscordLogin}>
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M20.32 4.37A19.8 19.8 0 0015.45 3c-.21.37-.45.87-.62 1.26a18.2 18.2 0 00-5.66 0A12.6 12.6 0 008.54 3 19.73 19.73 0 003.67 4.38C.58 9.04-.26 13.59.16 18.08A19.9 19.9 0 006.13 21c.48-.65.9-1.34 1.27-2.06a12.5 12.5 0 01-2-.96c.17-.12.33-.25.49-.38 3.87 1.8 8.08 1.8 11.9 0 .16.13.32.26.49.38-.64.38-1.31.7-2 .96.37.72.8 1.41 1.27 2.06a19.83 19.83 0 005.97-2.92c.5-5.2-.85-9.7-3.2-13.7zM8.02 15.35c-1.16 0-2.11-1.07-2.11-2.39s.93-2.39 2.11-2.39c1.19 0 2.13 1.07 2.11 2.39 0 1.32-.93 2.39-2.11 2.39zm7.96 0c-1.16 0-2.11-1.07-2.11-2.39s.93-2.39 2.11-2.39c1.19 0 2.13 1.07 2.11 2.39 0 1.32-.92 2.39-2.11 2.39z" />
+              </svg>
+              Register / Log in with Discord
+            </Button>
+
+            <p className="mt-3 text-center text-xs text-muted">
+              Not in GGL yet?{" "}
+              <Link href="https://discord.gg/QMukTWr32f" className="text-primary hover:underline">
+                Join the Discord server
+              </Link>
+            </p>
+          </section>
         </Card>
 
         {/* Back to Home */}

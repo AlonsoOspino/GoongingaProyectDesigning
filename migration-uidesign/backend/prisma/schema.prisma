@@ -15,6 +15,7 @@ model Tournament {
   matches   Match[]
   teams     Team[]
   wrapped   Wrapped?
+  seasonPlayers SeasonPlayer[]
 }
 
 model Wrapped {
@@ -53,6 +54,43 @@ model Member {
   obsWebsocketPassword String?
   team                 Team?        @relation(fields: [teamId], references: [id])
   playerStats          PlayerStat[]
+}
+
+/// Identidad de la red Goonginga. La tabla legacy `Member` se mantiene intacta
+/// durante la temporada actual de GGL; no deben mezclarse ambas entidades.
+/// La pertenencia al Discord de GGL se verifica antes de crear este registro y
+/// se conserva la fecha de la última validación para poder revalidarla después.
+model NetworkMember {
+  id                    Int                 @id @default(autoincrement())
+  discordUserId         String              @unique
+  username              String
+  avatarUrl             String?
+  roles                 NetworkMemberRole[] @default([MEMBER])
+  status                NetworkMemberStatus @default(ACTIVE)
+  discordJoinedGglAt    DateTime?
+  discordLastVerifiedAt DateTime?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  seasonPlayers         SeasonPlayer[]
+
+  @@index([status])
+}
+
+/// Participación de un miembro de la red en una temporada o torneo.
+/// Por ahora solo representa el vínculo; equipo, posición y estado competitivo
+/// se agregarán cuando se defina el flujo de Season Player.
+model SeasonPlayer {
+  id           Int           @id @default(autoincrement())
+  memberId     Int
+  tournamentId Int
+  joinedAt     DateTime      @default(now())
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  member       NetworkMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  tournament   Tournament    @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, tournamentId])
+  @@index([tournamentId])
 }
 
 model Team {
@@ -219,6 +257,22 @@ enum MemberRole {
   CAPTAIN
   EDITOR
   DEFAULT
+}
+
+enum NetworkMemberRole {
+  MEMBER
+  ADMIN
+  CASTER
+  DEVELOPER
+  SEASON_PLAYER
+  MODERATOR
+  COMMUNITY_MANAGER
+  CONTENT_CREATOR
+}
+
+enum NetworkMemberStatus {
+  ACTIVE
+  SUSPENDED
 }
 
 enum TeamState {

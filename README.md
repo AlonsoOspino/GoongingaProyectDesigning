@@ -359,6 +359,15 @@ Backend expects:
 - `DRAFT_TABLE_MANAGER_KEY`: read-only draft/overlay access key.
 - Optional Google Vision credentials/API key depending on OCR deployment.
 
+Discord network sign-in additionally expects:
+
+- `DISCORD_CLIENT_ID`: Discord application ID.
+- `DISCORD_CLIENT_SECRET`: Discord OAuth2 client secret.
+- `DISCORD_GUILD_ID`: server that a user must belong to (`987039120004104232` for GGL).
+- `DISCORD_REDIRECT_URI`: backend OAuth callback, e.g. `https://api.example.com/network-auth/discord/callback`.
+- `NETWORK_FRONTEND_URL`: public frontend origin, e.g. `https://goonginga.example.com`. Discord returns there at `/login` after a successful sign-in.
+- `NETWORK_JWT_SECRET`: independent signing secret for NetworkMember sessions.
+
 Frontend expects:
 
 - `NEXT_PUBLIC_API_BASE_URL`: backend API base URL.
@@ -430,4 +439,3 @@ flowchart TD
   Schema --> Database["PostgreSQL"]
   Launcher["Electron launcher"] --> Overlays["OBS overlay pages"]
 ```
-

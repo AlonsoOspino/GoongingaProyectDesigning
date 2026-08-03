@@ -3,14 +3,16 @@ import Image from "next/image";
 import { getMatches, getSoonestMatch, getActiveMatches } from "@/lib/api/match";
 import { getLeaderboard } from "@/lib/api/team";
 import { getNews } from "@/lib/api/news";
+import { getRecentNetworkMembers } from "@/lib/api/networkMember";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { Avatar } from "@/components/ui/Avatar";
 import { MatchCard } from "@/components/matches/MatchCard";
 import { TeamCard } from "@/components/teams/TeamCard";
 import { NewsCard } from "@/components/news/NewsCard";
 import { RosterCarousel } from "@/components/teams/RosterCarousel";
-import type { Match, Team, NewsItem } from "@/lib/api/types";
+import type { Match, Team, NewsItem, NetworkMemberRole } from "@/lib/api/types";
 
 // Revalidate every 60 seconds. This makes the page semi-dynamic, so when you
 // delete matches from the admin dashboard and refresh, they disappear within
@@ -20,10 +22,11 @@ export const revalidate = 60;
 
 async function getHomeData() {
   try {
-    const [matches, teams, news] = await Promise.all([
+    const [matches, teams, news, recentNetworkMembers] = await Promise.all([
       getMatches().catch(() => [] as Match[]),
       getLeaderboard().catch(() => [] as Team[]),
       getNews().catch(() => [] as NewsItem[]),
+      getRecentNetworkMembers().catch(() => []),
     ]);
 
     // Get active matches
@@ -63,6 +66,7 @@ async function getHomeData() {
       topTeams,
       teamsById,
       recentNews,
+      recentNetworkMembers,
     };
   } catch (error) {
     console.error("Failed to fetch home data:", error);
@@ -74,8 +78,24 @@ async function getHomeData() {
       topTeams: [],
       teamsById: new Map(),
       recentNews: [],
+      recentNetworkMembers: [],
     };
   }
+}
+
+const networkRankLabels: Record<NetworkMemberRole, string> = {
+  MEMBER: "Member",
+  ADMIN: "Admin",
+  CASTER: "Caster",
+  DEVELOPER: "Developer",
+  SEASON_PLAYER: "Season Player",
+  MODERATOR: "Moderator",
+  COMMUNITY_MANAGER: "Community Manager",
+  CONTENT_CREATOR: "Content Creator",
+};
+
+function getNetworkMemberRank(roles: NetworkMemberRole[]) {
+  return networkRankLabels[roles[0] || "MEMBER"];
 }
 
 function resolveRosterSrc(roster?: string | null) {
@@ -254,6 +274,45 @@ export default async function HomePage() {
 
             {/* Sidebar */}
             <div className="space-y-8">
+              {/* Latest Network Members */}
+              <Card variant="featured">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>New Members</CardTitle>
+                    <p className="mt-0.5 text-xs text-muted">Goonginga Network</p>
+                  </div>
+                  <Badge variant="primary">Discord</Badge>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {data.recentNetworkMembers.length > 0 ? (
+                    data.recentNetworkMembers.map((member) => (
+                      <div
+                        key={member.id}
+                        className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-surface-elevated"
+                      >
+                        <Avatar
+                          src={member.avatarUrl || undefined}
+                          alt={`${member.username}'s Discord profile`}
+                          fallback={member.username}
+                          size="md"
+                        />
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-foreground">{member.username}</p>
+                          <p className="text-xs text-primary">{getNetworkMemberRank(member.roles)}</p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="py-3 text-center text-sm text-muted">
+                      <p>No new members yet.</p>
+                      <Link href="/login" className="mt-1 inline-block text-primary hover:underline">
+                        Join through Discord
+                      </Link>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
               {/* Standings Preview */}
               <Card variant="featured">
                 <CardHeader className="flex flex-row items-center justify-between">

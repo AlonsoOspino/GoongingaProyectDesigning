@@ -13,6 +13,10 @@ export function setApiBase(url: string) {
   API_BASE = url.replace(/\/$/, "");
 }
 
+export function getApiBase() {
+  return API_BASE;
+}
+
 export class ApiError extends Error {
   status: number;
   data: unknown;
