@@ -20,6 +20,8 @@ services:
       dockerfile: backend/Dockerfile
     env_file:
       - backend/.env
+    volumes:
+      - ./media:/app/uploads
     environment:
       PORT: 3000
     depends_on:
@@ -39,6 +41,8 @@ services:
       - backend
     env_file:
       - frontend/.env
+    volumes:
+      - ./media:/app/uploads
     restart: unless-stopped
     ports:
       - "${GOON_FRONTEND_BIND_ADDRESS:-0.0.0.0}:${GOON_FRONTEND_PORT:-3001}:3001"

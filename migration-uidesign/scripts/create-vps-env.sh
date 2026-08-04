@@ -14,6 +14,8 @@ for env_file in .env backend/.env frontend/.env; do
   fi
 done
 
+mkdir -p media
+
 if ! command -v openssl >/dev/null 2>&1; then
   echo "openssl is required to generate secure secrets." >&2
   exit 1
@@ -43,12 +45,12 @@ JWT_SECRET=${jwt_secret}
 DRAFT_TABLE_MANAGER_KEY=${draft_key}
 ADMIN_BOOTSTRAP_PASSWORD=${admin_bootstrap_password}
 CORS_ORIGIN=http://${public_host}:3001
+MEDIA_DIR=/app/uploads
 EOF
 
 cat > frontend/.env <<EOF
 NEXT_PUBLIC_API_BASE_URL=http://${public_host}:3000
-# Add a newly created Vercel Blob token here before enabling new image uploads.
-# BLOB_READ_WRITE_TOKEN=
+MEDIA_DIR=/app/uploads
 EOF
 
 chmod 600 .env backend/.env frontend/.env

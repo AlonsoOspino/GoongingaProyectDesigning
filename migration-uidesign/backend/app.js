@@ -24,6 +24,7 @@ const { ensureAdminUser } = require("./utils/ensureAdminUser");
 const cors = require("cors");
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
+const MEDIA_DIR = path.resolve(process.env.MEDIA_DIR || path.join(__dirname, "uploads"));
 const corsOrigins = (process.env.CORS_ORIGIN || "")
   .split(",")
   .map((origin) => origin.trim())
@@ -65,6 +66,7 @@ app.get("/health/db", async (_req, res) => {
 
 app.use("/assets/heroes", express.static(path.join(__dirname, "../frontend/HeroImages")));
 app.use("/assets/maps", express.static(path.join(__dirname, "../frontend/MapImages")));
+app.use("/uploads", express.static(MEDIA_DIR, { maxAge: "1y", immutable: true }));
 
 app.use("/member", memberRoutes);
 app.use("/tournament", tournamentRoutes);

@@ -1,218 +1,139 @@
-import { put, del } from '@vercel/blob'
-import { handleUpload, type HandleUploadBody } from '@vercel/blob/client'
-import { type NextRequest, NextResponse } from 'next/server'
-import sharp from 'sharp'
+import { randomUUID } from "node:crypto";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { type NextRequest, NextResponse } from "next/server";
+import sharp from "sharp";
 
-const BLOB_HOST_SUFFIX = '.public.blob.vercel-storage.com'
 const API_BASE = (
   process.env.NEXT_PUBLIC_API_BASE_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
   process.env.API_BASE_URL ||
   "http://localhost:3000"
-).replace(/\/$/, "")
+).replace(/\/$/, "");
+const MEDIA_DIR = process.env.MEDIA_DIR || path.join(process.cwd(), "uploads");
 
-type MediaType = "video" | "audio"
-type MediaRule = { allowedContentTypes: string[]; maximumSizeInBytes: number }
-
-const MEDIA_RULES: Record<MediaType, MediaRule> = {
-  video: {
-    allowedContentTypes: ["video/mp4", "video/webm", "video/quicktime"],
-    maximumSizeInBytes: 100 * 1024 * 1024,
-  },
-  audio: {
-    allowedContentTypes: ["audio/mpeg", "audio/mp4", "audio/wav", "audio/x-wav", "audio/ogg", "audio/webm", "audio/aac"],
-    maximumSizeInBytes: 25 * 1024 * 1024,
-  },
-}
-
-function isVercelBlobUrl(value: string) {
-  try {
-    return new URL(value).hostname.endsWith(BLOB_HOST_SUFFIX)
-  } catch {
-    return false
-  }
-}
+type MediaType = "video" | "audio";
 
 function sanitizeSegment(value: string) {
   return value
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48) || 'image'
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48) || "image";
+}
+
+function isManagedUploadUrl(value: string) {
+  try {
+    const url = new URL(value);
+    const apiUrl = new URL(API_BASE);
+    return url.origin === apiUrl.origin && url.pathname.startsWith("/uploads/");
+  } catch {
+    return false;
+  }
+}
+
+function storedFileName(urlValue: string) {
+  if (!isManagedUploadUrl(urlValue)) return null;
+  const fileName = path.basename(new URL(urlValue).pathname);
+  return fileName && fileName === path.basename(fileName) ? fileName : null;
 }
 
 async function normalizeLogoFile(file: File) {
-  const inputBuffer = Buffer.from(await file.arrayBuffer())
-  const outputBuffer = await sharp(inputBuffer, { failOn: 'none' })
-    .resize({
-      width: 1024,
-      height: 1024,
-      fit: 'cover',
-      position: 'centre',
-      withoutEnlargement: false,
-    })
+  const inputBuffer = Buffer.from(await file.arrayBuffer());
+  const outputBuffer = await sharp(inputBuffer, { failOn: "none" })
+    .resize({ width: 1024, height: 1024, fit: "cover", position: "centre" })
     .webp({ quality: 92 })
-    .toBuffer()
+    .toBuffer();
 
-  const baseName = file.name.replace(/\.[^.]+$/, '') || 'logo'
-  return new File([outputBuffer], `${baseName}.webp`, { type: 'image/webp' })
+  const baseName = file.name.replace(/\.[^.]+$/, "") || "logo";
+  return new File([outputBuffer], `${baseName}.webp`, { type: "image/webp" });
 }
 
-function getMediaType(clientPayload: string | null): MediaType {
+function allowedFileTypes(type: string) {
+  if (type === "video") return ["video/mp4", "video/webm", "video/quicktime"];
+  if (type === "audio") return ["audio/mpeg", "audio/mp4", "audio/wav", "audio/x-wav", "audio/ogg", "audio/webm", "audio/aac"];
+  return ["image/jpeg", "image/png", "image/gif", "image/webp"];
+}
+
+function maxFileSize(type: string) {
+  if (type === "video") return 100 * 1024 * 1024;
+  if (type === "audio") return 25 * 1024 * 1024;
+  return 5 * 1024 * 1024;
+}
+
+function extensionFor(file: File) {
+  const extension = path.extname(file.name).replace(/[^a-z0-9.]/gi, "").toLowerCase();
+  if (extension) return extension.slice(0, 12);
+  const fallback = file.type.split("/")[1]?.replace(/[^a-z0-9]/gi, "") || "bin";
+  return `.${fallback.slice(0, 10)}`;
+}
+
+async function deleteStoredFile(urlValue: string) {
+  const fileName = storedFileName(urlValue);
+  if (!fileName) return false;
+
   try {
-    const payload = JSON.parse(clientPayload || "{}") as { type?: unknown }
-    if (payload.type === "video" || payload.type === "audio") return payload.type
-  } catch {
-    // The generic error below avoids exposing token-generation details.
+    await unlink(path.join(MEDIA_DIR, fileName));
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw error;
   }
-  throw new Error("Unsupported media upload.")
-}
-
-async function requireWrappedManager(request: NextRequest) {
-  const authorization = request.headers.get("authorization")
-  if (!authorization) {
-    return NextResponse.json({ error: "Sign in as a manager or admin to upload media." }, { status: 401 })
-  }
-
-  const response = await fetch(`${API_BASE}/wrapped/manage`, {
-    headers: { Authorization: authorization },
-    cache: "no-store",
-  })
-  if (response.ok) return null
-
-  return NextResponse.json(
-    { error: response.status === 403 ? "Managers and admins only." : "Your session is no longer valid." },
-    { status: response.status === 403 ? 403 : 401 }
-  )
-}
-
-async function handleDirectMediaUpload(request: NextRequest) {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    return NextResponse.json({ error: "Missing BLOB_READ_WRITE_TOKEN. Restart the server after setting it." }, { status: 500 })
-  }
-
-  const body = await request.json() as HandleUploadBody
-  if (body.type === "blob.generate-client-token") {
-    const denied = await requireWrappedManager(request)
-    if (denied) return denied
-  }
-
-  const response = await handleUpload({
-    body,
-    request,
-    onBeforeGenerateToken: async (pathname, clientPayload) => {
-      const type = getMediaType(clientPayload)
-      if (!pathname.startsWith(`wrapped/${type}/`)) {
-        throw new Error("Invalid media upload path.")
-      }
-
-      return { ...MEDIA_RULES[type], addRandomSuffix: true }
-    },
-  })
-
-  return NextResponse.json(response)
 }
 
 export async function POST(request: NextRequest) {
   try {
-    // Videos/audio use the Blob client protocol. Its small JSON request gets a
-    // signed upload token; the large file never traverses this Next.js route.
-    if (request.headers.get("content-type")?.includes("application/json")) {
-      return await handleDirectMediaUpload(request)
+    if (!request.headers.get("content-type")?.includes("multipart/form-data")) {
+      return NextResponse.json({ error: "Upload files as multipart form data." }, { status: 400 });
     }
 
-    if (!process.env.BLOB_READ_WRITE_TOKEN) {
-      return NextResponse.json(
-        { error: 'Missing BLOB_READ_WRITE_TOKEN. Restart the dev server after setting .env.local.' },
-        { status: 500 }
-      )
+    const formData = await request.formData();
+    const submittedFile = formData.get("file");
+    const type = String(formData.get("type") || "image");
+    const previousUrl = String(formData.get("previousUrl") || "");
+
+    if (!(submittedFile instanceof File)) {
+      return NextResponse.json({ error: "No file provided." }, { status: 400 });
     }
 
-    const formData = await request.formData()
-    const file = formData.get('file') as File
-    const type = String(formData.get('type') || 'image')
-    const previousUrl = String(formData.get('previousUrl') || '')
-
-    if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+    if (!allowedFileTypes(type).includes(submittedFile.type)) {
+      return NextResponse.json({ error: "Unsupported file type." }, { status: 400 });
     }
 
-    const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-    const allowedVideoTypes = ['video/mp4', 'video/webm', 'video/quicktime']
-    const allowedAudioTypes = ['audio/mpeg', 'audio/mp4', 'audio/wav', 'audio/x-wav', 'audio/ogg', 'audio/webm', 'audio/aac']
-    const isVideo = type === 'video'
-    const isAudio = type === 'audio'
-    const allowedTypes = isVideo ? allowedVideoTypes : isAudio ? allowedAudioTypes : allowedImageTypes
-
-    if (!allowedTypes.includes(file.type)) {
-      const expected = isVideo
-        ? 'MP4, WebM, and MOV videos'
-        : isAudio
-        ? 'MP3, M4A, WAV, OGG, AAC, and WebM audio'
-        : 'JPEG, PNG, GIF, and WebP images'
-      return NextResponse.json(
-        { error: `Invalid file type. Only ${expected} are allowed.` },
-        { status: 400 }
-      )
+    if (submittedFile.size > maxFileSize(type)) {
+      return NextResponse.json({ error: "File exceeds the permitted size for this media type." }, { status: 400 });
     }
 
-    const maxSize = isVideo ? 100 * 1024 * 1024 : isAudio ? 25 * 1024 * 1024 : 5 * 1024 * 1024
-    if (file.size > maxSize) {
-      const limit = isVideo ? '100MB' : isAudio ? '25MB' : '5MB'
-      return NextResponse.json({ error: `File size exceeds ${limit} limit.` }, { status: 400 })
+    const uploadFile = type === "logo" ? await normalizeLogoFile(submittedFile) : submittedFile;
+    const fileName = `${sanitizeSegment(type)}-${Date.now()}-${randomUUID()}${extensionFor(uploadFile)}`;
+
+    await mkdir(MEDIA_DIR, { recursive: true });
+    await writeFile(path.join(MEDIA_DIR, fileName), Buffer.from(await uploadFile.arrayBuffer()));
+
+    const url = `${API_BASE}/uploads/${encodeURIComponent(fileName)}`;
+    if (previousUrl && previousUrl !== url) {
+      await deleteStoredFile(previousUrl).catch((error) => console.warn("Old local upload delete failed:", error));
     }
 
-    const uploadFile = type === 'logo' ? await normalizeLogoFile(file) : file
-
-    // Generate a unique filename with type prefix
-    const timestamp = Date.now()
-    const extension = uploadFile.name.split('.').pop() || 'bin'
-    const filename = `${sanitizeSegment(type)}-${timestamp}.${extension}`
-
-    // Upload to Vercel Blob (public access for team logos and rosters)
-    const blob = await put(filename, uploadFile, {
-      access: 'public',
-    })
-
-    if (previousUrl && previousUrl !== blob.url && isVercelBlobUrl(previousUrl)) {
-      await del(previousUrl).catch((error) => {
-        console.warn('Old blob delete failed after replacement upload:', error)
-      })
-    }
-
-    return NextResponse.json({ url: blob.url })
+    return NextResponse.json({ url });
   } catch (error) {
-    console.error('Upload error:', error)
-    const message = error instanceof Error ? error.message : 'Upload failed'
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.error("Upload error:", error);
+    const message = error instanceof Error ? error.message : "Upload failed";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
-    if (!process.env.BLOB_READ_WRITE_TOKEN) {
-      return NextResponse.json(
-        { error: 'Missing BLOB_READ_WRITE_TOKEN. Restart the dev server after setting .env.local.' },
-        { status: 500 }
-      )
+    const { url } = await request.json();
+    if (!url || typeof url !== "string") {
+      return NextResponse.json({ error: "No URL provided." }, { status: 400 });
     }
 
-    const { url } = await request.json()
-
-    if (!url || typeof url !== 'string') {
-      return NextResponse.json({ error: 'No URL provided' }, { status: 400 })
-    }
-
-    if (!isVercelBlobUrl(url)) {
-      return NextResponse.json({ success: true, skipped: true })
-    }
-
-    await del(url)
-
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, deleted: await deleteStoredFile(url) });
   } catch (error) {
-    console.error('Delete error:', error)
-    const message = error instanceof Error ? error.message : 'Delete failed'
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.error("Upload delete error:", error);
+    const message = error instanceof Error ? error.message : "Delete failed";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

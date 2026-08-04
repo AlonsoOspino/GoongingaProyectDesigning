@@ -347,7 +347,7 @@ Overlay pages are designed for OBS browser sources and include:
   from `frontend/MapImages`.
 - Public frontend assets live in `frontend/public`.
 - Image upload helpers support content images, team branding, overlay
-  backgrounds, and migration to Vercel Blob.
+  backgrounds, and persistent media storage on the VPS.
 
 ## Environment
 

@@ -14,9 +14,11 @@ bash scripts/create-vps-env.sh YOUR_SERVER_IP
 ```
 
 El script se niega a sobrescribir archivos de entorno existentes y crea los
-archivos con permiso `600`. Las claves de Vercel Blob, Google Vision y Discord
-son integraciones independientes: cree claves nuevas en cada proveedor y
-agréguelas al archivo correspondiente solo cuando quiera activar esa función.
+archivos con permiso `600`. Google Vision y Discord son integraciones
+independientes: cree claves nuevas en cada proveedor y agréguelas al archivo
+correspondiente solo cuando quiera activar esa función. Los archivos subidos por
+la aplicación se guardan en el volumen local `media/`; consulte
+`BLOB_MIGRATION.md` para migrar los existentes.
 
 ## Migrar los datos existentes
 
