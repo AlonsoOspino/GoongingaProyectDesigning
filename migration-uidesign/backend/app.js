@@ -24,7 +24,12 @@ const { ensureAdminUser } = require("./utils/ensureAdminUser");
 const cors = require("cors");
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
-app.use(cors()); 
+const corsOrigins = (process.env.CORS_ORIGIN || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+app.use(cors(corsOrigins.length > 0 ? { origin: corsOrigins } : undefined));
 app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 app.use((req, res, next) => {

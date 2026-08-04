@@ -1,0 +1,26 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file:
+      - backend/.env
+    environment:
+      PORT: 3000
+    restart: unless-stopped
+    ports:
+      - "${GOON_API_BIND_ADDRESS:-0.0.0.0}:${GOON_API_PORT:-3000}:3000"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?Set NEXT_PUBLIC_API_BASE_URL in .env}
+    depends_on:
+      - backend
+    env_file:
+      - frontend/.env
+    restart: unless-stopped
+    ports:
+      - "${GOON_FRONTEND_BIND_ADDRESS:-0.0.0.0}:${GOON_FRONTEND_PORT:-3001}:3001"

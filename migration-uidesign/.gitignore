@@ -89,6 +89,10 @@ backend/.env.*
 frontend/.env
 frontend/.env.*
 
+# Deployment templates are safe to version; runtime environment files are not.
+!backend/.env.example
+!frontend/.env.example
+
 # Local databases and dumps (can contain sensitive runtime data)
 backend/dev.db
 backend/dev.db-journal
