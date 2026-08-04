@@ -69,6 +69,10 @@ package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
+# The Minigames Docker image uses npm ci, so its reproducible dependency lock
+# must travel with the source to the VPS.
+!minigames-frontend/package-lock.json
+
 # Ignore Mac system files
 *.DS_Store
 
