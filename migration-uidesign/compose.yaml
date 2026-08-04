@@ -24,6 +24,7 @@ services:
       - ./media:/app/uploads
     environment:
       PORT: 3000
+      MEDIA_DIR: /app/uploads
     depends_on:
       database:
         condition: service_healthy

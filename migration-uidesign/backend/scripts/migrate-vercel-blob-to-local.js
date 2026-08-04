@@ -4,10 +4,12 @@ const fs = require("node:fs/promises");
 const path = require("node:path");
 const prisma = require("../config/prisma");
 
-const BLOB_HOST_SUFFIX = ".public.blob.vercel-storage.com";
-const BLOB_URL_PATTERN = /https:\/\/[a-z0-9][a-z0-9-]*\.public\.blob\.vercel-storage\.com\/[^\s"'<>]+/gi;
+const BLOB_HOST_SUFFIX = ".blob.vercel-storage.com";
+const BLOB_URL_PATTERN = /https:\/\/[a-z0-9][a-z0-9-]*\.(?:public|private)\.blob\.vercel-storage\.com\/[^\s"'<>]+/gi;
 const MAX_BLOB_BYTES = 150 * 1024 * 1024;
 const MEDIA_DIR = path.resolve(process.env.MEDIA_DIR || path.join(__dirname, "../uploads"));
+// Pass this only to the one-off migration process; do not persist an old Vercel credential.
+const VERCEL_BLOB_READ_WRITE_TOKEN = process.env.VERCEL_BLOB_READ_WRITE_TOKEN || "";
 const args = new Set(process.argv.slice(2));
 const shouldWrite = args.has("--write");
 const publicBaseArgument = process.argv.find((arg) => arg.startsWith("--public-api-base="));
@@ -92,8 +94,13 @@ async function copyBlob(sourceUrl) {
     throw new Error("Set ASSET_PUBLIC_BASE_URL or pass --public-api-base=http://YOUR_SERVER_IP:3000.");
   }
 
+  const headers = { "user-agent": "GoongingaBlobToVpsMigration/1.0" };
+  if (VERCEL_BLOB_READ_WRITE_TOKEN) {
+    headers.authorization = `Bearer ${VERCEL_BLOB_READ_WRITE_TOKEN}`;
+  }
+
   const response = await fetch(sourceUrl, {
-    headers: { "user-agent": "GoongingaBlobToVpsMigration/1.0" },
+    headers,
     redirect: "follow",
   });
   if (!response.ok) throw new Error(`download failed with HTTP ${response.status}`);
@@ -197,6 +204,7 @@ async function main() {
   }
 
   console.log(shouldWrite ? "Migrating referenced Vercel Blob files to local VPS storage." : "Dry run: no files or database values will change.");
+  if (shouldWrite) await fs.mkdir(MEDIA_DIR, { recursive: true });
   for (const collection of collections) await migrateCollection(collection);
 
   summary.blobUrlsFound = foundUrls.size;
