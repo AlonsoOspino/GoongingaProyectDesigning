@@ -46,7 +46,8 @@ export type NetworkMemberRole =
   | "SEASON_PLAYER"
   | "MODERATOR"
   | "COMMUNITY_MANAGER"
-  | "CONTENT_CREATOR";
+  | "CONTENT_CREATOR"
+  | "SOCIAL_MEDIA";
 
 export interface NetworkMember {
   id: number;
@@ -54,6 +55,8 @@ export interface NetworkMember {
   avatarUrl: string | null;
   roles: NetworkMemberRole[];
   createdAt: string;
+  status?: "ACTIVE" | "SUSPENDED";
+  updatedAt?: string;
 }
 
 export interface Team {

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/features/session/SessionProvider";
+import { readNetworkSessionToken, readNetworkSessionUser, type NetworkSessionUser } from "@/features/networkSession/storage";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -28,9 +29,13 @@ import {
 } from "@/lib/api/admin";
 import { convertToISODateTime, formatDateEST, formatForDateInput, formatForDateTimeInput } from "@/lib/dateUtils";
 import { getLeaderboard, getMatches, getTeams, type Match, type Team } from "@/lib/api";
-import type { Tournament } from "@/lib/api/types";
+import { getCurrentNetworkMember, getNetworkMembersForAdmin, updateNetworkMemberRoles } from "@/lib/api/networkMember";
+import type { NetworkMember, NetworkMemberRole, Tournament } from "@/lib/api/types";
 
-type ActiveTab = "tournament" | "matches" | "weekMaps" | "teams" | "users" | "wrapped" | "database";
+type ActiveTab = "networkUsers" | "tournament" | "matches" | "weekMaps" | "teams" | "users" | "wrapped" | "database";
+type NetworkAdminIdentity = Pick<NetworkMember, "id" | "username" | "avatarUrl" | "roles">;
+
+const NETWORK_DASHBOARD_ROLES: NetworkMemberRole[] = ["ADMIN", "DEVELOPER"];
 
 const ALL_MATCH_TYPES: Match["type"][] = [
   "ROUNDROBIN",
@@ -78,16 +83,43 @@ const mergeDateTime = (date: string, time: string) => {
 export default function AdminDashboardPage() {
   const router = useRouter();
   const { user, token, isAuthenticated, isHydrated } = useSession();
-  const [activeTab, setActiveTab] = useState<ActiveTab>("tournament");
+  const [activeTab, setActiveTab] = useState<ActiveTab>("networkUsers");
+  const [networkUser, setNetworkUser] = useState<NetworkAdminIdentity | null>(null);
+  const [networkToken, setNetworkToken] = useState<string | null>(null);
+  const [networkHydrated, setNetworkHydrated] = useState(false);
+  const legacyAdmin = isAuthenticated && user?.role === "ADMIN";
+  const networkDashboardAccess = Boolean(networkUser?.roles.some((role) => NETWORK_DASHBOARD_ROLES.includes(role)));
 
   useEffect(() => {
-    if (isHydrated && (!isAuthenticated || user?.role !== "ADMIN")) router.push("/login");
-  }, [isHydrated, isAuthenticated, user, router]);
+    let active = true;
+    const refreshNetworkSession = () => {
+      const storedUser = readNetworkSessionUser();
+      const storedToken = readNetworkSessionToken();
+      if (!active) return;
+      setNetworkUser(storedUser as NetworkSessionUser | null);
+      setNetworkToken(storedToken);
+      setNetworkHydrated(true);
 
-  if (!isHydrated) {
+      if (storedToken) {
+        void getCurrentNetworkMember(storedToken)
+          .then((member) => { if (active) setNetworkUser(member); })
+          .catch(() => undefined);
+      }
+    };
+
+    refreshNetworkSession();
+    window.addEventListener("network-session-changed", refreshNetworkSession);
+    return () => { active = false; window.removeEventListener("network-session-changed", refreshNetworkSession); };
+  }, []);
+
+  useEffect(() => {
+    if (isHydrated && networkHydrated && !legacyAdmin && !networkDashboardAccess) router.push("/login?next=/admin-dashboard");
+  }, [isHydrated, legacyAdmin, networkDashboardAccess, networkHydrated, router]);
+
+  if (!isHydrated || !networkHydrated) {
     return <div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-muted">Loading...</div></div>;
   }
-  if (!isAuthenticated || user?.role !== "ADMIN") return null;
+  if (!legacyAdmin && !networkDashboardAccess) return null;
 
   return (
     <main className="min-h-screen bg-background py-8">
@@ -95,36 +127,99 @@ export default function AdminDashboardPage() {
         <div className="mb-8 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
-            <p className="text-muted mt-1">Manage tournament, matches, teams, and users</p>
+            <p className="text-muted mt-1">Manage Network User roles and the current league administration</p>
           </div>
-          <Button
+          {legacyAdmin ? <Button
             variant="secondary"
             onClick={() => router.push("/admin-dashboard/overwatch-content")}
           >
             Add Overwatch content
-          </Button>
+          </Button> : null}
         </div>
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ActiveTab)}>
           <TabsList className="mb-6">
-            <TabsTrigger value="tournament">Tournament</TabsTrigger>
-            <TabsTrigger value="matches">Matches</TabsTrigger>
-            <TabsTrigger value="weekMaps">Week Maps</TabsTrigger>
-            <TabsTrigger value="teams">Teams</TabsTrigger>
-            <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="wrapped">Wrapped</TabsTrigger>
-            <TabsTrigger value="database">Database</TabsTrigger>
+            <TabsTrigger value="networkUsers">Network Users</TabsTrigger>
+            {legacyAdmin ? <>
+              <TabsTrigger value="tournament">Tournament</TabsTrigger>
+              <TabsTrigger value="matches">Matches</TabsTrigger>
+              <TabsTrigger value="weekMaps">Week Maps</TabsTrigger>
+              <TabsTrigger value="teams">Teams</TabsTrigger>
+              <TabsTrigger value="wrapped">Wrapped</TabsTrigger>
+              <TabsTrigger value="database">Database</TabsTrigger>
+            </> : null}
           </TabsList>
-          <TabsContent value="tournament"><TournamentSection token={token!} /></TabsContent>
-          <TabsContent value="matches"><MatchesSection token={token!} /></TabsContent>
-          <TabsContent value="weekMaps"><WeekMapsSection token={token!} /></TabsContent>
-          <TabsContent value="teams"><TeamsSection token={token!} /></TabsContent>
-          <TabsContent value="users"><UsersSection token={token!} /></TabsContent>
-          <TabsContent value="wrapped"><WrappedManagementPanel token={token!} /></TabsContent>
-          <TabsContent value="database"><DatabaseSection token={token!} /></TabsContent>
+          <TabsContent value="networkUsers"><NetworkUsersSection token={networkToken} legacyToken={legacyAdmin ? token : null} /></TabsContent>
+          {legacyAdmin ? <>
+            <TabsContent value="tournament"><TournamentSection token={token!} /></TabsContent>
+            <TabsContent value="matches"><MatchesSection token={token!} /></TabsContent>
+            <TabsContent value="weekMaps"><WeekMapsSection token={token!} /></TabsContent>
+            <TabsContent value="teams"><TeamsSection token={token!} /></TabsContent>
+            <TabsContent value="wrapped"><WrappedManagementPanel token={token!} /></TabsContent>
+            <TabsContent value="database"><DatabaseSection token={token!} /></TabsContent>
+          </> : null}
         </Tabs>
       </div>
     </main>
   );
+}
+
+// ==================== NETWORK USERS ====================
+const NETWORK_ROLE_OPTIONS: Array<{ value: NetworkMemberRole; label: string }> = [
+  { value: "ADMIN", label: "Universe Admin" },
+  { value: "DEVELOPER", label: "Developer" },
+  { value: "SOCIAL_MEDIA", label: "Social Media" },
+  { value: "CASTER", label: "Caster" },
+  { value: "SEASON_PLAYER", label: "Season Player" },
+  { value: "MODERATOR", label: "Moderator" },
+  { value: "COMMUNITY_MANAGER", label: "Community Manager" },
+  { value: "CONTENT_CREATOR", label: "Content Creator" },
+];
+
+function NetworkUsersSection({ token, legacyToken }: { token: string | null; legacyToken: string | null }) {
+  const [members, setMembers] = useState<NetworkMember[]>([]);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [updatingMemberId, setUpdatingMemberId] = useState<number | null>(null);
+  const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  useEffect(() => {
+    if (!token) { setLoading(false); return; }
+    let active = true;
+    const timer = window.setTimeout(() => {
+      void getNetworkMembersForAdmin(token, search)
+        .then((nextMembers) => { if (active) setMembers(nextMembers); })
+        .catch((error) => { if (active) setNotification({ type: "error", message: error instanceof Error ? error.message : "Could not load Network Users." }); })
+        .finally(() => { if (active) setLoading(false); });
+    }, search ? 250 : 0);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [search, token]);
+
+  async function toggleRole(member: NetworkMember, role: NetworkMemberRole) {
+    if (!token || role === "MEMBER") return;
+    setUpdatingMemberId(member.id); setNotification(null);
+    const hasRole = member.roles.includes(role);
+    const roles = hasRole ? member.roles.filter((currentRole) => currentRole !== role) : [...member.roles, role];
+    try {
+      const updated = await updateNetworkMemberRoles(token, member.id, roles);
+      setMembers((current) => current.map((item) => item.id === member.id ? updated : item));
+      setNotification({ type: "success", message: `${updated.username}'s roles were updated.` });
+    } catch (error) {
+      setNotification({ type: "error", message: error instanceof Error ? error.message : "Could not update roles." });
+    } finally { setUpdatingMemberId(null); }
+  }
+
+  if (!token) return <div className="space-y-6"><Card variant="bordered"><CardHeader><CardTitle>Network Users</CardTitle></CardHeader><CardContent><p className="text-muted">Connect a Discord Network Users account with the Universe Admin or Developer role to manage these roles.</p></CardContent></Card>{legacyToken ? <section className="space-y-3"><div><h2 className="text-xl font-semibold text-foreground">Legacy mapped users</h2><p className="text-sm text-muted">Kept below the new Network Users list for now. Nothing here has been deleted.</p></div><UsersSection token={legacyToken} /></section> : null}</div>;
+
+  return <div className="space-y-6">
+    {notification ? <div className={`p-4 rounded-lg border ${notification.type === "success" ? "bg-success/10 text-success border-success/30" : "bg-danger/10 text-danger border-danger/30"}`}>{notification.message}</div> : null}
+    <Card variant="bordered">
+      <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between"><div><CardTitle>Network Users</CardTitle><p className="mt-1 text-sm text-muted">Universe Admins and Developers can grant multiple Network roles. The base Member role is always kept.</p></div><div className="w-full md:w-72"><Input label="Search" value={search} onChange={(event) => { setLoading(true); setSearch(event.target.value); }} placeholder="Search Discord username" /></div></CardHeader>
+      <CardContent>
+        {loading ? <p className="py-6 text-center text-muted">Loading Network Users...</p> : members.length === 0 ? <p className="py-6 text-center text-muted">No Network Users match this search.</p> : <Table><TableHeader><TableRow><TableHead>User</TableHead><TableHead>Status</TableHead><TableHead>Roles</TableHead></TableRow></TableHeader><TableBody>{members.map((member) => <TableRow key={member.id}><TableCell><div className="flex items-center gap-3"><Avatar size="sm" src={member.avatarUrl ?? undefined} fallback={member.username} alt={member.username} /><div><p className="font-medium">{member.username}</p><p className="text-xs text-muted">Network ID {member.id}</p></div></div></TableCell><TableCell><Badge variant={member.status === "SUSPENDED" ? "danger" : "success"}>{member.status || "ACTIVE"}</Badge></TableCell><TableCell><div className="flex flex-wrap gap-2"><Badge variant="default">Member</Badge>{NETWORK_ROLE_OPTIONS.map((option) => { const assigned = member.roles.includes(option.value); return <button key={option.value} type="button" disabled={updatingMemberId === member.id} onClick={() => void toggleRole(member, option.value)} className={`rounded-md border px-2 py-1 text-xs font-medium transition-colors ${assigned ? "border-primary bg-primary/15 text-primary" : "border-border bg-surface text-muted hover:border-primary/60 hover:text-foreground"}`}>{assigned ? "✓ " : "+ "}{option.label}</button>; })}</div></TableCell></TableRow>)}</TableBody></Table>}
+      </CardContent>
+    </Card>
+    {legacyToken ? <section className="space-y-3"><div><h2 className="text-xl font-semibold text-foreground">Legacy mapped users</h2><p className="text-sm text-muted">Kept below the new Network Users list for now. Nothing here has been deleted.</p></div><UsersSection token={legacyToken} /></section> : <Card variant="bordered"><CardContent className="py-4"><p className="text-sm text-muted">Legacy mapped users remain unchanged. They are deliberately not removed by this Network role manager.</p></CardContent></Card>}
+  </div>;
 }
 
 // ==================== TOURNAMENT ====================
@@ -1480,7 +1575,7 @@ function UsersSection({ token }: { token: string }) {
       {notification && <div className={`p-4 rounded-lg border ${notification.type === "success" ? "bg-success/10 text-success border-success/30" : "bg-danger/10 text-danger border-danger/30"}`}>{notification.message}</div>}
       <Card variant="bordered">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Users ({members.length})</CardTitle>
+          <CardTitle>Legacy Users ({members.length})</CardTitle>
           <div className="flex gap-2">
             <Button variant="secondary" onClick={() => { setBulkScript(""); setBulkResult(null); setShowBulkModal(true); }}>Run Script (Bulk Import)</Button>
             <Button onClick={() => setShowCreateModal(true)}>Register User</Button>

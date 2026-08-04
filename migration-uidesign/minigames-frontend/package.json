@@ -1,0 +1,25 @@
+{
+  "name": "goonginga-minigames-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3001",
+    "build": "next build",
+    "start": "next start -p 3001"
+  },
+  "dependencies": {
+    "@tailwindcss/postcss": "^4.2.2",
+    "clsx": "^2.1.1",
+    "next": "^15.5.15",
+    "postcss": "^8.5.10",
+    "react": "19.2.5",
+    "react-dom": "19.2.5",
+    "sharp": "^0.34.5",
+    "tailwindcss": "^4.2.2"
+  },
+  "devDependencies": {
+    "@types/node": "22.14.1",
+    "@types/react": "19.0.12",
+    "typescript": "5.8.3"
+  }
+}

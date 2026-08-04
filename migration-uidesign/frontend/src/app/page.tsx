@@ -92,6 +92,7 @@ const networkRankLabels: Record<NetworkMemberRole, string> = {
   MODERATOR: "Moderator",
   COMMUNITY_MANAGER: "Community Manager",
   CONTENT_CREATOR: "Content Creator",
+  SOCIAL_MEDIA: "Social Media",
 };
 
 function getNetworkMemberRank(roles: NetworkMemberRole[]) {

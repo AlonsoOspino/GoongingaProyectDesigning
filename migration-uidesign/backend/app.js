@@ -20,6 +20,7 @@ const wrappedRoutes = require("./routes/wrapped");
 const familyFeudRoutes = require("./routes/familyFeud");
 const networkAuthRoutes = require("./routes/networkAuth");
 const networkMemberRoutes = require("./routes/networkMember");
+const minigameRoutes = require("./routes/minigame");
 const { ensureAdminUser } = require("./utils/ensureAdminUser");
 const cors = require("cors");
 const app = express();
@@ -85,6 +86,7 @@ app.use("/wrapped", wrappedRoutes);
 app.use("/family-feud", familyFeudRoutes);
 app.use("/network-auth", networkAuthRoutes);
 app.use("/network-members", networkMemberRoutes);
+app.use("/minigames", minigameRoutes);
 
 const startServer = async () => {
   if (!process.env.DATABASE_URL) {

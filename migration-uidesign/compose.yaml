@@ -50,13 +50,25 @@ services:
     ports:
       - "${GOON_FRONTEND_BIND_ADDRESS:-127.0.0.1}:${GOON_FRONTEND_PORT:-3001}:3001"
 
+  minigames:
+    build:
+      context: .
+      dockerfile: minigames-frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_MINIGAMES_API_BASE_URL:?Set NEXT_PUBLIC_MINIGAMES_API_BASE_URL in .env}
+    depends_on:
+      - backend
+    restart: unless-stopped
+
   caddy:
     image: caddy:2-alpine
     environment:
       GOON_DOMAIN: ${GOON_DOMAIN:?Set GOON_DOMAIN in .env}
+      GOON_GAMENIGHTS_DOMAIN: ${GOON_GAMENIGHTS_DOMAIN:?Set GOON_GAMENIGHTS_DOMAIN in .env}
     depends_on:
       - backend
       - frontend
+      - minigames
     ports:
       - "80:80"
       - "443:443"

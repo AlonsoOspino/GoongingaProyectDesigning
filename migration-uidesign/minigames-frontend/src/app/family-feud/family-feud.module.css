@@ -1,0 +1,602 @@
+.streamStage,
+.boardStage {
+  min-height: 100vh;
+  overflow: hidden;
+  background: #070b12;
+  color: #fff7dc;
+}
+
+.streamStage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  background-image: url("/family-feud-stage.png");
+  background-position: center;
+  background-size: cover;
+}
+
+.stageShade {
+  position: absolute;
+  inset: 0;
+  background: rgba(3, 7, 14, 0.48);
+}
+
+.streamCover::after,
+.duelStage::after,
+.resultStage::after {
+  position: absolute;
+  inset: 22px;
+  border: 2px solid rgba(255, 214, 128, 0.62);
+  box-shadow: inset 0 0 0 5px rgba(2, 8, 18, 0.72), 0 0 28px rgba(255, 196, 83, 0.32);
+  content: "";
+  pointer-events: none;
+}
+
+.coverContent,
+.resultContent {
+  position: relative;
+  z-index: 1;
+  width: min(1080px, calc(100vw - 64px));
+  text-align: center;
+}
+
+.showKicker {
+  color: #ffd37a;
+  font-size: clamp(0.75rem, 1.2vw, 1.1rem);
+  font-weight: 800;
+  letter-spacing: 0.26em;
+}
+
+.showTitle,
+.resultTitle {
+  margin-top: 12px;
+  font-family: var(--font-display);
+  font-size: clamp(4rem, 10vw, 9rem);
+  line-height: 0.84;
+  text-transform: uppercase;
+  text-shadow: 0 5px 0 #8d160f, 0 0 38px rgba(255, 206, 113, 0.58);
+}
+
+.showSubtitle {
+  margin-top: 26px;
+  color: #fff3cc;
+  font-size: clamp(1rem, 2vw, 1.6rem);
+}
+
+.lobbyTeams {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin: 52px auto 0;
+  width: min(760px, 100%);
+}
+
+.coverTeam {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border: 2px solid currentColor;
+  background: rgba(4, 10, 20, 0.88);
+  padding: 16px 20px;
+  text-align: left;
+}
+
+.coverTeam strong,
+.coverTeam span {
+  display: block;
+}
+
+.coverTeam strong {
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 3vw, 2.6rem);
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.coverTeam span {
+  margin-top: 6px;
+  color: #d5dbe5;
+  font-size: 0.8rem;
+}
+
+.redSide {
+  color: #ff5347;
+}
+
+.blueSide {
+  color: #55c7ff;
+}
+
+.roundBug {
+  position: absolute;
+  top: 44px;
+  z-index: 2;
+  border: 1px solid #ffd37a;
+  background: #071224;
+  padding: 9px 18px;
+  color: #ffd37a;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+}
+
+.duelQuestion {
+  position: absolute;
+  top: 105px;
+  z-index: 2;
+  width: min(1060px, calc(100vw - 80px));
+  color: #fff8df;
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 5vw, 5.5rem);
+  line-height: 0.95;
+  text-align: center;
+  text-shadow: 0 3px 0 #05080e, 0 0 25px #05080e;
+  text-transform: uppercase;
+}
+
+.duelGrid {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: min(16vw, 220px);
+  align-items: end;
+  width: min(1040px, calc(100vw - 80px));
+  margin-top: 180px;
+}
+
+.duelist {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  animation: contender-in 600ms cubic-bezier(0.2, 0.9, 0.25, 1) both;
+}
+
+.duelist:nth-child(2) {
+  animation-delay: 140ms;
+}
+
+.duelistAvatar {
+  display: grid;
+  width: clamp(150px, 19vw, 255px);
+  aspect-ratio: 1;
+  place-items: center;
+  border: 6px solid currentColor;
+  border-radius: 50%;
+  background: #071224;
+  box-shadow: 0 0 0 7px #f9d88a, 0 0 50px currentColor;
+  animation: podium-pulse 2.4s ease-in-out infinite;
+}
+
+.duelistAvatar > * {
+  width: calc(100% - 18px);
+  height: calc(100% - 18px);
+  border-radius: 50%;
+  font-size: 3rem;
+}
+
+.duelist span {
+  margin-top: 24px;
+  color: #ffd98d;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.duelist strong {
+  margin-top: 7px;
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: clamp(2.2rem, 4vw, 4.5rem);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.versus {
+  position: absolute;
+  left: 50%;
+  bottom: 22%;
+  translate: -50% 0;
+  color: #ffd06d;
+  font-family: var(--font-display);
+  font-size: clamp(4rem, 8vw, 8rem);
+  text-shadow: 0 4px 0 #a41a15, 0 0 24px rgba(255, 209, 112, 0.8);
+}
+
+.resultContent {
+  padding-top: 30px;
+}
+
+.resultTitle {
+  font-size: clamp(3.5rem, 8vw, 7.5rem);
+}
+
+.resultScores {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 32px;
+  margin: 54px auto 0;
+  width: min(800px, 100%);
+}
+
+.resultScores > div {
+  display: grid;
+  justify-items: center;
+  border: 2px solid currentColor;
+  background: rgba(5, 12, 24, 0.9);
+  padding: 24px;
+}
+
+.resultScores strong {
+  margin-top: 14px;
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: clamp(1.7rem, 3vw, 3rem);
+  text-transform: uppercase;
+}
+
+.resultScores span {
+  color: #ffd275;
+  font-family: var(--font-display);
+  font-size: clamp(3.5rem, 7vw, 7rem);
+  line-height: 0.9;
+}
+
+.boardStage {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 100vh;
+  background-color: #070a10;
+  background-image: url("/family-feud-stage.png");
+  background-position: center;
+  background-size: cover;
+}
+
+.scoreRibbon {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 230px) minmax(0, 1fr);
+  align-items: center;
+  border-bottom: 4px solid #f6c967;
+  background: rgba(3, 8, 16, 0.96);
+  min-height: 86px;
+}
+
+.scoreRibbon > div {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 13px;
+  padding: 12px 24px;
+}
+
+.scoreRibbon > div:last-child {
+  justify-content: flex-end;
+}
+
+.scoreRibbon strong {
+  overflow: hidden;
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 2.6vw, 2.6rem);
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.scoreRibbon span {
+  color: currentColor;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 4rem);
+}
+
+.scoreRibbon .roundPot {
+  display: grid;
+  align-self: stretch;
+  place-content: center;
+  border-right: 3px solid #f6c967;
+  border-left: 3px solid #f6c967;
+  background: #8f1712;
+  color: #fff3c9;
+  text-align: center;
+}
+
+.roundPot small {
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.roundPot strong {
+  color: #fff3c9;
+  font-size: 2.3rem;
+}
+
+.questionCurtain {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-content: center;
+  background: rgba(3, 7, 14, 0.7);
+  padding: 20px 4vw;
+}
+
+.questionCurtain h1 {
+  width: min(1180px, 92vw);
+  margin: 0 auto 16px;
+  color: #fff7dc;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 4rem);
+  line-height: 0.95;
+  text-align: center;
+  text-shadow: 0 3px 0 #080b10, 0 0 28px #080b10;
+  text-transform: uppercase;
+}
+
+.answerBoard {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  width: min(1120px, 92vw);
+  border: 8px solid #f2c25c;
+  background: #080d17;
+  box-shadow: 0 0 0 4px #7d160f, 0 0 38px rgba(255, 199, 83, 0.58);
+  padding: 14px;
+}
+
+.answerTile {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 72px;
+  align-items: center;
+  min-height: 68px;
+  border: 2px solid #d9ad52;
+  background: #0d2854;
+  box-shadow: inset 0 0 0 3px #07162e;
+  overflow: hidden;
+}
+
+.answerNumber {
+  display: grid;
+  align-self: stretch;
+  place-items: center;
+  border-right: 2px solid #d9ad52;
+  color: #ffdb8d;
+  font-family: var(--font-display);
+  font-size: 2rem;
+}
+
+.answerTile strong {
+  overflow: hidden;
+  padding: 0 16px;
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: clamp(1.3rem, 2.3vw, 2.4rem);
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.answerPoints {
+  display: grid;
+  align-self: stretch;
+  place-items: center;
+  border-left: 2px solid #d9ad52;
+  color: #ffdc8f;
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 2.5vw, 2.6rem);
+}
+
+.answerRevealed {
+  animation: reveal-answer 650ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  background: #176296;
+}
+
+.pendingPulse {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  translate: -50% 0;
+  border: 2px solid #ffe09a;
+  background: #921b13;
+  padding: 9px 20px;
+  color: #fff9e7;
+  font-size: 0.8rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  animation: received-pulse 900ms ease-in-out infinite alternate;
+}
+
+.strikeBar {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 4px solid #efc25e;
+  background: rgba(3, 8, 16, 0.96);
+}
+
+.strikeBar > div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 12px 20px;
+}
+
+.strikeBar > div:first-child {
+  border-right: 1px solid #2e3541;
+}
+
+.strikeBar span {
+  overflow: hidden;
+  max-width: 240px;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.strikeBar b {
+  display: inline-grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 2px solid #4b5360;
+  color: #4b5360;
+  font-size: 1.7rem;
+}
+
+.strikeBar .strikeOn {
+  border-color: #fff2cc;
+  background: #bc1e17;
+  color: #fff;
+  box-shadow: 0 0 16px rgba(255, 51, 38, 0.7);
+}
+
+@keyframes contender-in {
+  from {
+    opacity: 0;
+    transform: translateY(34px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes podium-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.025);
+  }
+}
+
+@keyframes reveal-answer {
+  from {
+    opacity: 0;
+    transform: rotateX(88deg);
+  }
+  to {
+    opacity: 1;
+    transform: rotateX(0deg);
+  }
+}
+
+@keyframes received-pulse {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.04);
+  }
+}
+
+@media (max-width: 720px) {
+  .streamCover::after,
+  .duelStage::after,
+  .resultStage::after {
+    inset: 10px;
+  }
+
+  .lobbyTeams,
+  .resultScores {
+    grid-template-columns: 1fr;
+  }
+
+  .lobbyTeams {
+    margin-top: 28px;
+  }
+
+  .duelGrid {
+    gap: 28px;
+    width: calc(100vw - 36px);
+  }
+
+  .duelQuestion {
+    top: 88px;
+    width: calc(100vw - 40px);
+  }
+
+  .scoreRibbon {
+    grid-template-columns: minmax(0, 1fr) 90px minmax(0, 1fr);
+  }
+
+  .scoreRibbon > div {
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .scoreRibbon strong {
+    font-size: 1.15rem;
+  }
+
+  .scoreRibbon span {
+    font-size: 1.7rem;
+  }
+
+  .scoreRibbon img {
+    display: none;
+  }
+
+  .roundPot small {
+    font-size: 0.52rem;
+  }
+
+  .roundPot strong {
+    font-size: 1.6rem;
+  }
+
+  .questionCurtain {
+    padding: 12px;
+  }
+
+  .answerBoard {
+    grid-template-columns: 1fr;
+    width: calc(100vw - 28px);
+    border-width: 5px;
+    padding: 8px;
+  }
+
+  .answerTile {
+    grid-template-columns: 38px minmax(0, 1fr) 58px;
+    min-height: 43px;
+  }
+
+  .answerNumber {
+    font-size: 1.4rem;
+  }
+
+  .answerTile strong {
+    font-size: 1.2rem;
+  }
+
+  .answerPoints {
+    font-size: 1.25rem;
+  }
+
+  .strikeBar > div {
+    display: grid;
+    gap: 5px;
+    padding: 8px;
+    text-align: center;
+  }
+
+  .strikeBar span {
+    max-width: 42vw;
+    font-size: 1.1rem;
+  }
+
+  .strikeBar b {
+    width: 31px;
+    height: 31px;
+    font-size: 1.2rem;
+  }
+}

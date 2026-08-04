@@ -1,0 +1,215 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "BigNoodleTitling";
+  src: url("/fonts/big_noodle_titling.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --color-background: #070a12;
+  --color-foreground: #f7f8fb;
+  --color-surface: #101625;
+  --color-surface-elevated: #151e31;
+  --color-border: #33405b;
+  --color-border-subtle: #253047;
+  --color-muted: #a4adc0;
+  --color-muted-foreground: #768096;
+  --color-primary: #a34cff;
+  --color-primary-hover: #8a35dc;
+  --color-primary-foreground: #ffffff;
+  --color-accent: #30d9ff;
+  --color-accent-hover: #14bcdf;
+  --color-accent-foreground: #ffffff;
+  --color-success: #28d17c;
+  --color-success-foreground: #ffffff;
+  --color-danger: #ee5b7e;
+  --color-danger-foreground: #ffffff;
+  --color-warning: #ffff00;
+  --color-warning-foreground: #000000;
+  --color-card: #101625;
+  --color-card-foreground: #f7f8fb;
+  --color-input: #080c16;
+  --color-input-border: #333b52;
+}
+
+:root {
+  --ink: #f7f8fb;
+  --muted: #a4adc0;
+  --page: #070a12;
+  --panel: #101625;
+  --line: rgba(255, 255, 255, 0.13);
+  --purple: #a34cff;
+  --pink: #ff4faf;
+  --cyan: #30d9ff;
+  --jeopardy-blue: #073763;
+  --jeopardy-yellow: #ffff00;
+  --font-display: "BigNoodleTitling", Impact, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html { background: var(--page); color: var(--ink); }
+body {
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(163, 76, 255, .20), transparent 32rem),
+    radial-gradient(circle at 94% 28%, rgba(48, 217, 255, .14), transparent 27rem),
+    var(--page);
+  color: var(--ink);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+button, input, textarea, select { font: inherit; }
+button { cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+main { min-height: calc(100vh - 73px); }
+.font-display { font-family: var(--font-display); letter-spacing: .03em; }
+
+.topbar {
+  position: sticky; top: 0; z-index: 30; height: 73px;
+  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+  padding: 0 5vw; border-bottom: 1px solid var(--line);
+  background: rgba(7, 10, 18, .86); backdrop-filter: blur(18px);
+}
+.brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+.brand-mark { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; background: linear-gradient(135deg, var(--pink), var(--purple)); box-shadow: 0 0 20px rgba(255, 79, 175, .45); }
+.brand span { color: var(--cyan); }
+.topnav { display: flex; align-items: center; gap: 7px; }
+.topnav a { padding: 9px 12px; border-radius: 8px; color: var(--muted); font-size: 13px; font-weight: 700; }
+.topnav a:hover { background: rgba(255,255,255,.08); color: #fff; }
+.account { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; font-weight: 700; }
+.avatar { width: 33px; height: 33px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(48, 217, 255, .65); }
+.avatar-fallback { display: grid; place-items: center; background: linear-gradient(135deg, #6625bc, #e83d9d); color: #fff; font-size: 12px; }
+.signin { border: 1px solid rgba(48,217,255,.65); color: #e9fcff !important; }
+.signin:hover { background: rgba(48,217,255,.12) !important; }
+
+.page-shell { width: min(1280px, 90vw); margin: 0 auto; padding: 50px 0 86px; }
+.eyebrow { margin: 0 0 9px; color: var(--cyan); font-size: 11px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; }
+.page-title { margin: 0; font-size: clamp(42px, 6.5vw, 88px); line-height: .81; text-transform: uppercase; }
+.page-lede { max-width: 590px; margin: 18px 0 0; color: var(--muted); line-height: 1.6; }
+.hero-grid { display: grid; grid-template-columns: 1.15fr .85fr; min-height: 390px; margin: 34px 0 46px; overflow: hidden; border: 1px solid var(--line); border-radius: 22px; background: #090b12; box-shadow: 0 30px 60px rgba(0,0,0,.28); }
+.hero-copy { position: relative; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; padding: 62px; overflow: hidden; }
+.hero-copy::before { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, #0b0d19 15%, rgba(11,13,25,.84) 57%, rgba(11,13,25,.14)); z-index: 1; }
+.hero-copy > * { position: relative; z-index: 2; }
+.hero-title { max-width: 550px; margin: 0; font-size: clamp(52px, 7vw, 105px); line-height: .76; text-transform: uppercase; }
+.hero-title .gradient { background: linear-gradient(100deg, #fff, #fe61b4 50%, #7feafe); -webkit-background-clip: text; color: transparent; }
+.hero-action, .primary-button, .secondary-button, .danger-button { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 43px; padding: 10px 16px; border: 0; border-radius: 9px; font-size: 13px; font-weight: 850; transition: transform .16s ease, filter .16s ease, background .16s ease; }
+.hero-action, .primary-button { background: linear-gradient(110deg, var(--pink), var(--purple)); color: white; box-shadow: 0 11px 24px rgba(163, 76, 255, .25); }
+.hero-action:hover, .primary-button:hover { transform: translateY(-2px); filter: brightness(1.12); }
+.secondary-button { background: rgba(255,255,255,.08); color: #fff; border: 1px solid var(--line); }
+.secondary-button:hover { background: rgba(255,255,255,.14); }
+.danger-button { background: #d9346c; color: #fff; }
+.hero-image { min-height: 350px; background: linear-gradient(90deg, rgba(7,10,18,.05), rgba(7,10,18,.03)), url("/dva-sombra-playing.jpg") center/cover; }
+
+.section-row { display: flex; align-items: end; justify-content: space-between; gap: 22px; margin: 38px 0 18px; }
+.section-title { margin: 0; font-size: 38px; line-height: .8; text-transform: uppercase; }
+.hint { color: var(--muted); font-size: 13px; }
+.game-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.game-card { position: relative; display: flex; min-height: 288px; overflow: hidden; flex-direction: column; justify-content: end; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); transition: transform .18s ease, border-color .18s ease; }
+.game-card:hover { transform: translateY(-5px); border-color: rgba(48,217,255,.7); }
+.game-cover { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 20%, rgba(4,6,12,.96) 93%), radial-gradient(circle at 65% 15%, rgba(163,76,255,.7), transparent 44%), #14182b; background-size: cover; background-position: center; }
+.game-cover.family { background-image: linear-gradient(180deg, transparent 12%, rgba(4,6,12,.98) 94%), url("/family-feud-stage.png"); }
+.game-card.under-development .game-cover { filter: grayscale(1) contrast(.85); }
+.game-card-content { position: relative; z-index: 1; padding: 22px; }
+.game-type { display: inline-block; margin-bottom: 8px; color: var(--cyan); font-size: 10px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; }
+.game-card h3 { margin: 0; font-size: 38px; line-height: .78; text-transform: uppercase; }
+.game-card p { margin: 13px 0 0; color: #c5cbda; font-size: 13px; line-height: 1.45; }
+.game-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 19px; }
+.game-state { color: var(--jeopardy-yellow); font-size: 11px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+.builder-chip { display: inline-flex; align-items: center; gap: 7px; color: #fff; font-size: 11px; font-weight: 700; }
+.builder-chip .avatar { width: 25px; height: 25px; }
+.empty-state { display: grid; min-height: 200px; place-items: center; padding: 32px; border: 1px dashed rgba(255,255,255,.22); border-radius: 16px; background: rgba(255,255,255,.025); text-align: center; }
+.empty-state h3 { margin: 0; font-size: 38px; line-height: .8; text-transform: uppercase; }
+.empty-state p { max-width: 450px; color: var(--muted); line-height: 1.5; }
+
+.panel { padding: 23px; border: 1px solid var(--line); border-radius: 15px; background: rgba(16,22,37,.86); }
+.panel h2, .panel h3 { margin: 0; }
+.panel-title { font-size: 35px; line-height: .8; text-transform: uppercase; }
+.dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(290px, .9fr); gap: 22px; margin-top: 28px; }
+.field { display: grid; gap: 7px; margin-bottom: 15px; }
+.field label { color: #d8ddec; font-size: 12px; font-weight: 800; }
+.field input, .field textarea, .field select { width: 100%; padding: 11px 12px; border: 1px solid #333b52; border-radius: 8px; outline: 0; background: #080c16; color: #fff; }
+.field input:focus, .field textarea:focus, .field select:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(48,217,255,.1); }
+.field textarea { min-height: 108px; resize: vertical; }
+.route-field { display: flex; align-items: center; overflow: hidden; border: 1px solid #333b52; border-radius: 8px; background: #080c16; }
+.route-field span { padding-left: 12px; color: var(--cyan); font-weight: 900; }
+.route-field input { border: 0; box-shadow: none !important; }
+.cover-upload { display: flex; align-items: center; gap: 14px; padding: 12px; border: 1px dashed #3b4966; border-radius: 9px; background: rgba(255,255,255,.025); }
+.cover-upload img { width: 75px; height: 52px; border-radius: 7px; object-fit: cover; }
+.cover-upload input { max-width: 230px; color: var(--muted); font-size: 12px; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 18px; }
+.feedback { margin: 14px 0 0; color: #ffb5d7; font-size: 13px; }
+.staff-only { width: min(650px, 90vw); margin: 100px auto; text-align: center; }
+.staff-only h1 { margin: 0; font-size: 58px; line-height: .8; text-transform: uppercase; }
+.staff-only p { color: var(--muted); line-height: 1.6; }
+
+.manager-head { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 25px; }
+.manager-head h1 { margin: 0; font-size: clamp(40px, 6vw, 75px); line-height: .8; text-transform: uppercase; }
+.question-import { min-height: 172px !important; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+.categories { display: grid; grid-template-columns: repeat(5, minmax(140px, 1fr)); gap: 10px; margin-top: 20px; overflow-x: auto; }
+.category-column { min-width: 140px; padding: 11px; border: 1px solid #333d59; border-radius: 9px; background: #080c16; }
+.category-column input { margin-bottom: 10px; padding: 7px; border: 0; border-bottom: 1px solid #4b5b7c; border-radius: 0; background: transparent; color: var(--cyan); font-size: 12px; font-weight: 900; }
+.question-mini { margin-top: 8px; padding: 9px; border-radius: 6px; background: #151d31; color: #d4dbea; font-size: 11px; line-height: 1.35; }
+.question-mini b { display: block; color: var(--jeopardy-yellow); font-size: 13px; }
+.turn-search { position: relative; }
+.search-results { position: absolute; z-index: 10; right: 0; left: 0; max-height: 220px; overflow-y: auto; border: 1px solid #33415d; border-radius: 8px; background: #0a1020; box-shadow: 0 12px 32px #000; }
+.member-result { display: flex; width: 100%; align-items: center; gap: 10px; padding: 9px; border: 0; border-bottom: 1px solid #273049; background: transparent; color: #fff; text-align: left; }
+.member-result:hover { background: rgba(48,217,255,.12); }
+.member-result .avatar { width: 30px; height: 30px; }
+.turn-banner { display: flex; align-items: center; gap: 11px; margin: 15px 0; padding: 12px; border: 1px solid rgba(48,217,255,.5); border-radius: 9px; background: rgba(48,217,255,.08); }
+.manager-board { display: grid; grid-template-columns: repeat(5, minmax(112px, 1fr)); gap: 7px; margin-top: 17px; overflow-x: auto; }
+.board-category { min-width: 112px; padding: 9px 6px; background: var(--jeopardy-blue); color: #fff; font-size: 13px; font-weight: 900; text-align: center; text-transform: uppercase; }
+.board-cell { min-width: 112px; min-height: 55px; border: 2px solid #000; background: #010101; color: var(--jeopardy-yellow); font-family: var(--font-display); font-size: 34px; line-height: 1; text-transform: uppercase; }
+.board-cell:hover:not(:disabled) { background: #182a45; }
+.board-cell:disabled { color: #62646a; cursor: not-allowed; }
+.board-cell.requested { animation: managerGlow .9s ease-in-out infinite alternate; }
+.board-cell.selected { box-shadow: inset 0 0 0 3px var(--cyan); }
+@keyframes managerGlow { from { box-shadow: 0 0 6px var(--pink); } to { box-shadow: 0 0 20px 6px var(--pink); } }
+.active-question { margin-top: 18px; padding: 17px; border: 1px solid rgba(255,255,0,.45); border-radius: 9px; background: #0b1425; }
+.active-question .answer { color: var(--jeopardy-yellow); }
+
+.game-page { width: min(1100px, 92vw); margin: 0 auto; padding: 47px 0 80px; }
+.game-landing { position: relative; overflow: hidden; margin-bottom: 22px; padding: 40px; border: 1px solid rgba(48,217,255,.4); border-radius: 18px; background: linear-gradient(105deg, rgba(4,11,27,.98) 32%, rgba(4,11,27,.7)), var(--game-cover) center/cover; }
+.game-landing h1 { max-width: 780px; margin: 0; font-size: clamp(52px, 7vw, 90px); line-height: .78; text-transform: uppercase; }
+.game-landing p { max-width: 610px; color: #c7cedf; line-height: 1.55; }
+.view-links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.player-turn { display: flex; align-items: center; gap: 13px; padding: 16px; border: 1px solid rgba(255,255,0,.55); border-radius: 11px; background: #111a2f; }
+.player-turn .avatar { width: 45px; height: 45px; }
+.player-turn strong { display: block; color: var(--jeopardy-yellow); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; }
+.player-turn span { color: #fff; font-weight: 800; }
+.user-board { margin-top: 21px; }
+.user-board .board-cell { min-height: 72px; font-size: 43px; }
+.user-board .board-cell.can-request { border-color: var(--cyan); color: #fff; }
+.question-for-player { margin-top: 20px; padding: 27px; border: 1px solid var(--jeopardy-yellow); border-radius: 12px; background: #0d1830; }
+.question-for-player h2 { margin: 0; color: var(--jeopardy-yellow); font-size: 17px; letter-spacing: .15em; text-transform: uppercase; }
+.question-for-player p { margin: 13px 0 0; font-size: clamp(21px, 3vw, 33px); font-weight: 750; line-height: 1.25; }
+.under-construction { display: grid; min-height: calc(100vh - 73px); place-items: center; padding: 44px; background: linear-gradient(rgba(7,7,10,.86), rgba(7,7,10,.96)), var(--game-cover) center/cover; filter: grayscale(1); text-align: center; }
+.under-construction .build-card { max-width: 560px; padding: 45px; border: 1px solid rgba(255,255,255,.45); background: rgba(0,0,0,.63); }
+.under-construction h1 { margin: 0; font-size: clamp(56px, 10vw, 130px); line-height: .72; text-transform: uppercase; }
+.developer-profile { display: inline-flex; align-items: center; gap: 11px; margin-top: 20px; color: #fff; font-weight: 800; }
+.developer-profile .avatar { width: 39px; height: 39px; border-color: #fff; }
+
+.stream-layout { display: grid; min-height: 100vh; place-items: center; padding: clamp(14px, 2vw, 40px); overflow: hidden; background: #000; }
+.stream-board { width: min(100%, 1920px); aspect-ratio: 16 / 9; display: grid; grid-template-rows: auto 1fr; padding: clamp(17px, 2.1vw, 41px); background: var(--jeopardy-blue); box-shadow: inset 0 0 0 6px #000; }
+.stream-title { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 0 1.4% 2.2%; color: #fff; }
+.stream-title h1 { margin: 0; color: var(--jeopardy-yellow); font-family: var(--font-display); font-size: clamp(40px, 6vw, 112px); line-height: .75; text-transform: uppercase; }
+.stream-title p { margin: 0; font-size: clamp(11px, 1.2vw, 24px); font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+.stream-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: clamp(3px, .35vw, 8px); min-height: 0; }
+.stream-category { display: grid; place-items: center; padding: 5%; background: var(--jeopardy-blue); color: #fff; font-size: clamp(15px, 1.6vw, 34px); font-weight: 900; line-height: 1.05; text-align: center; text-transform: uppercase; }
+.stream-value { display: grid; place-items: center; border: clamp(2px, .22vw, 5px) solid #000; background: #010101; color: var(--jeopardy-yellow); font-family: var(--font-display); font-size: clamp(42px, 7.5vw, 145px); line-height: .8; }
+.stream-value.used { color: #1e1e1e; }
+
+@media (max-width: 780px) {
+  .topbar { padding: 0 4vw; gap: 8px; }
+  .topnav { display: none; }
+  .account-name { display: none; }
+  .hero-grid { grid-template-columns: 1fr; }
+  .hero-copy { min-height: 365px; padding: 36px; }
+  .hero-image { display: none; }
+  .game-grid { grid-template-columns: 1fr; }
+  .dashboard-grid { grid-template-columns: 1fr; }
+  .manager-head, .section-row { align-items: flex-start; flex-direction: column; }
+  .game-landing { padding: 28px; }
+}

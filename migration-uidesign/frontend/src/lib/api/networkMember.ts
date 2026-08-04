@@ -5,6 +5,22 @@ export function getRecentNetworkMembers() {
   return apiRequest<NetworkMember[]>("/network-members/recent?limit=5");
 }
 
+export function getCurrentNetworkMember(token: string) {
+  return apiRequest<NetworkMember>("/network-members/me", { token, cache: "no-store" });
+}
+
+export function getNetworkMembersForAdmin(token: string, search = "") {
+  return apiRequest<NetworkMember[]>(`/network-members/admin/users?search=${encodeURIComponent(search)}`, { token, cache: "no-store" });
+}
+
+export function updateNetworkMemberRoles(token: string, memberId: number, roles: NetworkMember["roles"]) {
+  return apiRequest<NetworkMember>(`/network-members/admin/users/${memberId}/roles`, {
+    method: "PATCH",
+    token,
+    body: { roles },
+  });
+}
+
 export function getDiscordLoginUrl() {
   return `${getApiBase()}/network-auth/discord`;
 }

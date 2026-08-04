@@ -21,11 +21,12 @@ function getRequiredConfig() {
     guildId: process.env.DISCORD_GUILD_ID,
     redirectUri: process.env.DISCORD_REDIRECT_URI,
     frontendUrl: process.env.NETWORK_FRONTEND_URL,
+    minigamesFrontendUrl: process.env.NETWORK_MINIGAMES_FRONTEND_URL || "",
     jwtSecret: process.env.NETWORK_JWT_SECRET,
   };
 
   const missing = Object.entries(config)
-    .filter(([, value]) => !value)
+    .filter(([key, value]) => key !== "minigamesFrontendUrl" && !value)
     .map(([key]) => key);
 
   if (missing.length) {
@@ -33,6 +34,30 @@ function getRequiredConfig() {
   }
 
   return config;
+}
+
+function allowedFrontendUrls(config) {
+  return [config.frontendUrl, config.minigamesFrontendUrl]
+    .filter(Boolean)
+    .map((value) => {
+      const url = new URL(value);
+      return `${url.protocol}//${url.host}`;
+    });
+}
+
+function requestedFrontendUrl(req, config) {
+  const requested = typeof req.query.return_to === "string" ? req.query.return_to : "";
+  if (!requested) return config.frontendUrl;
+
+  try {
+    const candidate = new URL(requested);
+    const normalized = `${candidate.protocol}//${candidate.host}`;
+    if (allowedFrontendUrls(config).includes(normalized)) return normalized;
+  } catch {
+    // A malformed return URL simply falls back to the primary site.
+  }
+
+  return config.frontendUrl;
 }
 
 function readCookies(req) {
@@ -131,8 +156,9 @@ async function startDiscordAuth(req, res) {
   try {
     const config = getRequiredConfig();
     const state = crypto.randomBytes(32).toString("hex");
+    const frontendUrl = requestedFrontendUrl(req, config);
 
-    res.cookie(STATE_COOKIE_NAME, state, {
+    res.cookie(STATE_COOKIE_NAME, JSON.stringify({ state, frontendUrl }), {
       httpOnly: true,
       maxAge: OAUTH_STATE_TTL_MS,
       sameSite: "lax",
@@ -168,7 +194,19 @@ async function finishDiscordAuth(req, res) {
   }
 
   const providedState = typeof req.query.state === "string" ? req.query.state : "";
-  const expectedState = readCookies(req)[STATE_COOKIE_NAME] || "";
+  const rawState = readCookies(req)[STATE_COOKIE_NAME] || "";
+  let expectedState = "";
+  let frontendUrl = config.frontendUrl;
+  try {
+    const saved = JSON.parse(rawState);
+    expectedState = typeof saved?.state === "string" ? saved.state : "";
+    frontendUrl = typeof saved?.frontendUrl === "string" && allowedFrontendUrls(config).includes(saved.frontendUrl)
+      ? saved.frontendUrl
+      : config.frontendUrl;
+  } catch {
+    // Accept old state cookies during the transition to multi-frontend sign-in.
+    expectedState = rawState;
+  }
   clearStateCookie(res);
 
   if (
@@ -177,12 +215,12 @@ async function finishDiscordAuth(req, res) {
     providedState.length !== expectedState.length ||
     !crypto.timingSafeEqual(Buffer.from(providedState), Buffer.from(expectedState))
   ) {
-    return redirectWithError(res, config.frontendUrl, "Your Discord login expired. Please try again.");
+    return redirectWithError(res, frontendUrl, "Your Discord login expired. Please try again.");
   }
 
   const code = typeof req.query.code === "string" ? req.query.code : "";
   if (!code) {
-    return redirectWithError(res, config.frontendUrl, "Discord did not return an authorization code.");
+    return redirectWithError(res, frontendUrl, "Discord did not return an authorization code.");
   }
 
   try {
@@ -196,7 +234,7 @@ async function finishDiscordAuth(req, res) {
     if (guildMember?.pending) {
       return redirectWithError(
         res,
-        config.frontendUrl,
+        frontendUrl,
         "Complete Discord's membership screening for GGL, then try again.",
       );
     }
@@ -222,16 +260,16 @@ async function finishDiscordAuth(req, res) {
 
     // A fragment is never sent to the frontend server or its logs. The login
     // page saves this token locally and immediately removes it from the URL.
-    const callbackUrl = new URL("/login", config.frontendUrl);
+    const callbackUrl = new URL("/login", frontendUrl);
     callbackUrl.hash = new URLSearchParams({ network_token: token }).toString();
     return res.redirect(callbackUrl.toString());
   } catch (error) {
     if (error?.status === 401 || error?.status === 403 || error?.status === 404) {
-      return redirectWithError(res, config.frontendUrl, "Join the GGL Discord server before registering.");
+      return redirectWithError(res, frontendUrl, "Join the GGL Discord server before registering.");
     }
 
     console.error("[network-auth] Discord login failed:", error?.message || error);
-    return redirectWithError(res, config.frontendUrl, "We could not finish your Discord login. Please try again.");
+    return redirectWithError(res, frontendUrl, "We could not finish your Discord login. Please try again.");
   }
 }
 

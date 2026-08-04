@@ -68,6 +68,17 @@ export function readNetworkSessionUser() {
   }
 }
 
+export function readNetworkSessionToken() {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const token = window.localStorage.getItem(STORAGE_KEY);
+    return token && getUserFromToken(token) ? token : null;
+  } catch {
+    return null;
+  }
+}
+
 export function clearNetworkSession() {
   if (typeof window === "undefined") return;
 

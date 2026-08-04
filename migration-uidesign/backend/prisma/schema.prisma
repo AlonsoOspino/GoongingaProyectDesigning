@@ -72,8 +72,34 @@ model NetworkMember {
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
   seasonPlayers         SeasonPlayer[]
+  createdMiniGames      MiniGame[]          @relation("MiniGameCreator")
+  underDevelopmentGames MiniGame[]          @relation("MiniGameDeveloper")
 
   @@index([status])
+}
+
+/// Minijuegos publicados en Goonginga Minigames. `config` contiene la
+/// configuracion propia del tipo de juego y `state` solo el estado vivo de la
+/// partida, para poder actualizarlo sin sobrescribir el contenido editorial.
+model MiniGame {
+  id                   Int             @id @default(autoincrement())
+  slug                 String          @unique
+  title                String
+  description          String          @default("")
+  coverImageUrl        String?
+  gameType             MiniGameType    @default(JEOPARDY)
+  status               MiniGameStatus  @default(LIVE)
+  config               Json            @default("{}")
+  state                Json            @default("{}")
+  createdById          Int
+  underDevelopmentById Int?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  createdBy            NetworkMember   @relation("MiniGameCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  underDevelopmentBy   NetworkMember?  @relation("MiniGameDeveloper", fields: [underDevelopmentById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([createdById])
 }
 
 /// Participación de un miembro de la red en una temporada o torneo.
@@ -268,6 +294,18 @@ enum NetworkMemberRole {
   MODERATOR
   COMMUNITY_MANAGER
   CONTENT_CREATOR
+  SOCIAL_MEDIA
+}
+
+enum MiniGameType {
+  JEOPARDY
+  FAMILY_FEUD
+  CUSTOM
+}
+
+enum MiniGameStatus {
+  LIVE
+  UNDER_DEVELOPMENT
 }
 
 enum NetworkMemberStatus {

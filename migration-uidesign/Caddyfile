@@ -15,3 +15,13 @@
 		reverse_proxy frontend:3001
 	}
 }
+
+# Goonginga Minigames is intentionally a separate frontend, while it shares
+# the main API and Network Users database through the public backend URL.
+{$GOON_GAMENIGHTS_DOMAIN} {
+	encode zstd gzip
+
+	handle {
+		reverse_proxy minigames:3001
+	}
+}

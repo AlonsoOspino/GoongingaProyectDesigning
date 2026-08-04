@@ -1,0 +1,127 @@
+"use client";
+
+import { useEffect, type HTMLAttributes, type ReactNode } from "react";
+import { clsx } from "clsx";
+
+interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title?: string;
+  children: ReactNode;
+  className?: string;
+}
+
+export function Modal({ isOpen, onClose, title, children, className }: ModalProps) {
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+
+    if (isOpen) {
+      document.addEventListener("keydown", handleEscape);
+      document.body.style.overflow = "hidden";
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = "";
+    };
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-6 sm:items-center">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      {/* Modal */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? "modal-title" : undefined}
+        className={clsx(
+          "relative z-10 w-full max-w-lg bg-card border border-border rounded-xl shadow-2xl animate-fade-in max-h-[calc(100vh-3rem)] overflow-y-auto",
+          className
+        )}
+      >
+        {title && (
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+            <h2 id="modal-title" className="text-lg font-semibold text-foreground">
+              {title}
+            </h2>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1 rounded-md text-muted hover:text-foreground hover:bg-surface-elevated transition-colors"
+              aria-label="Close modal"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+        )}
+        {title ? <div className="p-6">{children}</div> : children}
+      </div>
+    </div>
+  );
+}
+
+interface ModalSectionProps extends HTMLAttributes<HTMLDivElement> {
+  children: ReactNode;
+}
+
+interface ModalTitleProps extends HTMLAttributes<HTMLHeadingElement> {
+  children: ReactNode;
+}
+
+export function ModalHeader({ children, className, ...props }: ModalSectionProps) {
+  return (
+    <div
+      className={clsx("flex items-center justify-between px-6 py-4 border-b border-border", className)}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function ModalTitle({ children, className, ...props }: ModalTitleProps) {
+  return (
+    <h2 className={clsx("text-lg font-semibold text-foreground", className)} {...props}>
+      {children}
+    </h2>
+  );
+}
+
+export function ModalContent({ children, className, ...props }: ModalSectionProps) {
+  return (
+    <div className={clsx("px-6 py-4", className)} {...props}>
+      {children}
+    </div>
+  );
+}
+
+export function ModalFooter({ children, className, ...props }: ModalSectionProps) {
+  return (
+    <div className={clsx("flex items-center justify-end gap-2 px-6 py-4 border-t border-border", className)} {...props}>
+      {children}
+    </div>
+  );
+}

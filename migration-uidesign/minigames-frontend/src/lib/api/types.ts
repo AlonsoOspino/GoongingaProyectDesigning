@@ -1,0 +1,266 @@
+export type MemberRole = "ADMIN" | "MANAGER" | "CAPTAIN" | "EDITOR" | "DEFAULT";
+
+export type MatchStatus = "SCHEDULED" | "ACTIVE" | "PENDINGREGISTERS" | "FINISHED";
+export type MatchType =
+  | "ROUNDROBIN"
+  | "PLAYINS"
+  | "PLAYOFFS"
+  | "SEMIFINALS"
+  | "FINALS"
+  | "PRACTICE";
+
+export type MapType = "CONTROL" | "HYBRID" | "PAYLOAD" | "PUSH" | "FLASHPOINT";
+export type HeroRole = "TANK" | "DPS" | "SUPPORT";
+
+export interface AuthUser {
+  id: number;
+  nickname: string;
+  role: MemberRole;
+  teamId: number | null;
+  profilePic?: string | null;
+}
+
+export interface MemberProfile {
+  id: number;
+  nickname: string;
+  user: string;
+  role: MemberRole;
+  profilePic?: string | null;
+  rank: number;
+  teamId: number | null;
+  heroVideoFolderPath?: string | null;
+  obsWebsocketUrl?: string | null;
+  obsWebsocketPassword?: string | null;
+}
+
+export interface LoginResponse {
+  token: string;
+  user: AuthUser;
+}
+
+export type NetworkMemberRole =
+  | "MEMBER"
+  | "ADMIN"
+  | "CASTER"
+  | "DEVELOPER"
+  | "SEASON_PLAYER"
+  | "MODERATOR"
+  | "COMMUNITY_MANAGER"
+  | "CONTENT_CREATOR"
+  | "SOCIAL_MEDIA";
+
+export interface NetworkMember {
+  id: number;
+  username: string;
+  avatarUrl: string | null;
+  roles: NetworkMemberRole[];
+  createdAt: string;
+}
+
+export interface Team {
+  id: number;
+  name: string;
+  logo?: string | null;
+  bannerLeft?: string | null;
+  bannerRight?: string | null;
+  roster?: string | null;
+  discordRoleId?: string | null;
+  victories: number;
+  defeats: number;
+  mapWins: number;
+  mapLoses: number;
+  tournamentId: number;
+  state?: "ACTIVE" | "ELIMINATED";
+  playoffSeed?: number | null;
+}
+
+export interface LeaderboardOverlaySettings {
+  weekNumber: number;
+  teamAbbreviations?: Record<string, string>;
+  title: {
+    color: string;
+    fontFamily: string;
+    fontSize: number;
+    offsetX: number;
+    offsetY: number;
+  };
+  leaderboard: {
+    color: string;
+    fontFamily: string;
+    fontSize: number;
+    columnGap: number;
+    rowGap: number;
+    scale: number;
+    statOffsetX?: number;
+    statOffsetY?: number;
+    offsetX: number;
+    offsetY: number;
+  };
+  matches: {
+    color: string;
+    fontFamily: string;
+    centerFontFamily?: string;
+    centerOffsetX?: number;
+    centerOffsetY?: number;
+    teamAOffsetX?: number;
+    teamAOffsetY?: number;
+    teamBOffsetX?: number;
+    teamBOffsetY?: number;
+    teamAColumnGap?: number;
+    teamBColumnGap?: number;
+    fontSize: number;
+    centerFontSize?: number;
+    columnGap: number;
+    rowGap: number;
+    logoSize: number;
+    logoGap: number;
+    scale: number;
+    offsetX: number;
+    offsetY: number;
+  };
+}
+
+export interface LeaderboardOverlayAsset {
+  id: number | null;
+  matchId: number;
+  backgroundImageUrl: string | null;
+  settings: LeaderboardOverlaySettings | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface Match {
+  id: number;
+  type: MatchType;
+  status: MatchStatus;
+  bestOf: number;
+  startDate: string;
+  tournamentId: number;
+  teamAId: number;
+  teamBId: number;
+  teamAready: number;
+  teamBready: number;
+  mapWinsTeamA: number;
+  mapWinsTeamB: number;
+  gameNumber: number;
+  semanas: number | null;
+  title?: string | null;
+  playoffRound?: number | null;
+  playoffSlot?: number | null;
+  mapsAllowedByRound?: Record<string, number[]> | null;
+  mapResults?: Array<{
+    gameNumber: number;
+    mapId: number | null;
+    winnerTeamId: number | null;
+    isDraw: boolean;
+  }> | null;
+  mapStartedAt?: string | null;
+  mapTimerPaused?: boolean;
+  mapTimerPausedAt?: string | null;
+  pauseRequestedBy?: number | null;
+  pauseRequestedAt?: string | null;
+}
+
+export interface DraftAction {
+  id: number;
+  draftId: number;
+  teamId: number;
+  action: "BAN" | "PICK" | "SKIP";
+  value: number | null;
+  gameNumber: number;
+  order: number;
+  createdAt: string;
+}
+
+export interface DraftState {
+  id: number;
+  matchId: number;
+  currentTurnTeamId: number | null;
+  phase: string;
+  phaseStartedAt: string;
+  // remainingSeconds is computed by the server to avoid trusting client clocks
+  remainingSeconds?: number;
+  actions: DraftAction[];
+  bannedHeroes: number[];
+  pickedMaps: number[];
+  currentMapId: number | null;
+  allowedMapTypes?: MapType[];
+  availableMaps?: GameMap[];
+  allMaps?: GameMap[];
+  heroes?: Hero[];
+  match: Match;
+}
+
+export interface DraftShareInfo {
+  matchId: number;
+  key: string;
+}
+
+export interface GameMap {
+  id: number;
+  type: MapType;
+  description: string;
+  imgPath: string;
+}
+
+export interface Hero {
+  id: number;
+  name: string;
+  role: HeroRole;
+  imgPath: string;
+  heroGift?: string | null;
+}
+
+export interface NewsItem {
+  id: number;
+  title: string;
+  content: string;
+  imageUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PlayerStat {
+  id: number;
+  userId: number;
+  damage: number;
+  healing: number;
+  mitigation: number;
+  kills: number;
+  assists: number;
+  deaths: number;
+  gameDuration: number;
+  damagePer10: number;
+  healingPer10: number;
+  mitigationPer10: number;
+  killsPer10: number;
+  assistsPer10: number;
+  deathsPer10: number;
+  mapType: MapType;
+  role: HeroRole;
+  matchId: number;
+  gameNumber: number;
+  createdAt: string;
+  user?: {
+    id: number;
+    nickname: string;
+    role?: MemberRole;
+    teamId?: number | null;
+  };
+}
+
+// Payload for adminGenerateRoundRobin API
+export interface GenerateRoundRobinPayload {
+  tournamentId: number;
+  bestOf: number;
+  confirmationText: string;
+}
+
+export interface Tournament {
+  id: number;
+  name: string;
+  startDate: string;
+  state: "SCHEDULED" | "ROUNDROBIN" | "PLAYOFFS" | "SEMIFINALS" | "FINALS" | "FINISHED";
+  teams?: Team[];
+  matches?: Match[];
+}

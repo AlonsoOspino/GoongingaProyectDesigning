@@ -5,6 +5,8 @@
     "dev": "cd migration-uidesign/frontend && npm run dev",
     "build": "cd migration-uidesign/frontend && npm run build",
     "start": "cd migration-uidesign/frontend && npm run start",
+    "minigames:dev": "cd migration-uidesign/minigames-frontend && npm run dev",
+    "minigames:build": "cd migration-uidesign/minigames-frontend && npm run build",
     "launcher:dev": "cd migration-uidesign/launcher && npm run dev",
     "launcher:build": "cd migration-uidesign/launcher && npm run build:win",
     "blob:migrate-existing-images": "node migration-uidesign/frontend/scripts/migrate-existing-image-links-to-blob.js"

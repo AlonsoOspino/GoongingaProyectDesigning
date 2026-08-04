@@ -38,6 +38,10 @@ export default function LoginPage() {
           ? `Discord connected as ${networkUser.username}. Welcome to the Goonginga network!`
           : "Discord connected. Welcome to the Goonginga network!",
       );
+      if (networkUser) {
+        router.replace(nextPath);
+        return;
+      }
     }
 
     if (discordError) {
@@ -45,7 +49,7 @@ export default function LoginPage() {
       window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
       setNetworkError(discordError);
     }
-  }, [searchParams]);
+  }, [nextPath, router, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
