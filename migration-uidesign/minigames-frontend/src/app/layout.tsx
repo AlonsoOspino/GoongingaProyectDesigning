@@ -5,8 +5,9 @@ import { SessionProvider } from "@/features/session/SessionProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "Goonginga Minigames", template: "%s | Goonginga Minigames" },
+  title: { default: "Goonginga Game Nights", template: "%s | Goonginga Game Nights" },
   description: "Live games, player experiences, and stream boards for Goonginga.",
+  icons: { icon: "/winton.jpg", shortcut: "/winton.jpg" },
 };
 
 export const viewport: Viewport = { themeColor: "#050d20", width: "device-width", initialScale: 1 };

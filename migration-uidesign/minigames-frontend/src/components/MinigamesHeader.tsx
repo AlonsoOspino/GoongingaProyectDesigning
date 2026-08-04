@@ -16,7 +16,7 @@ export function MinigamesHeader() {
   const developer = hasNetworkRole(user, "DEVELOPER", "ADMIN");
 
   return <header className="topbar">
-    <Link className="brand" href="/"><span className="brand-mark">G</span> Goonginga <span>Minigames</span></Link>
+    <Link className="brand" href="/"><img className="brand-mark" src="/winton.jpg" alt="Winton" /> Goonginga <span>Game Nights</span></Link>
     <nav className="topnav" aria-label="Minigames navigation">
       <Link href="/">Games</Link>
       {social ? <Link href="/social-media">Social Media</Link> : null}
