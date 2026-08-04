@@ -35,6 +35,22 @@ El manifiesto `media/blob-migration-manifest.json` conserva el mapeo entre cada
 URL antigua y su nueva URL local. Revise la web y OBS antes de borrar nada del
 Blob de Vercel.
 
+## Restaurar héroes y mapas desde archivos locales
+
+Si el Blob anterior ya no está disponible, copie las imágenes locales a
+`media/heroes/` y `media/maps/` de la VPS. Los héroes se emparejan con el
+nombre del archivo (por ejemplo, `Icon-Ana.png` o `Ana-Icon.png`) y los mapas
+con `Nombre_TIPO.ext` (por ejemplo, `Kings_Row_Hybrid.avif`). Primero simule:
+
+```bash
+docker compose --env-file .env exec backend \
+  node scripts/restore-core-images-from-local.js --public-api-base=http://YOUR_SERVER_IP:3000
+```
+
+El importador conserva los registros y relaciones existentes; solo actualiza
+`imgPath` para los elementos que se emparejen de forma inequívoca. Ejecute con
+`--write` únicamente después de revisar el resumen.
+
 ## Archivos sin referencia
 
 Los objetos de Vercel Blob que no aparecen en la base no pueden descubrirse sin
