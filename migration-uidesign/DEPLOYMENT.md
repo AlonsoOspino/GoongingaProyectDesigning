@@ -1,38 +1,47 @@
 # Despliegue de Goonginga en una VPS
 
-Este despliegue ejecuta el frontend Next.js en el puerto `3001` y la API Express
-en el `3000`. Está pensado para la primera verificación mediante una IP pública.
-Cuando se asigne un dominio, ponga ambos servicios detrás de un proxy HTTPS y
-actualice `NEXT_PUBLIC_API_BASE_URL` antes de reconstruir el frontend.
+El despliegue incluye tres contenedores: frontend Next.js (puerto `3001`), API
+Express (puerto `3000`) y PostgreSQL 18. La base no publica el puerto `5432` y
+sus datos se almacenan en el volumen persistente `goonginga_postgres_data`.
 
-## Variables necesarias
+## Crear credenciales nuevas
 
-1. Copie `backend/.env.example` a `backend/.env` y rellene las variables reales.
-   La forma más segura es transferir el `.env` que ya está funcionando, sin
-   imprimirlo ni añadirlo a Git.
-2. Copie el archivo local `frontend/.env.local` a `frontend/.env`. Es necesario
-   para las subidas a Vercel Blob; el valor público de API se configura en el
-   siguiente paso durante la compilación.
-3. Copie `deploy.env.example` a `.env` y reemplace `YOUR_SERVER_IP`.
-4. Establezca `CORS_ORIGIN` en `backend/.env` con la URL pública del frontend,
-   por ejemplo `http://51.79.86.24:3001`.
+En la raíz de `migration-uidesign`, genere todos los secretos y las credenciales
+de PostgreSQL nuevos con:
 
-## Arranque
+```bash
+bash scripts/create-vps-env.sh YOUR_SERVER_IP
+```
+
+El script se niega a sobrescribir archivos de entorno existentes y crea los
+archivos con permiso `600`. Las claves de Vercel Blob, Google Vision y Discord
+son integraciones independientes: cree claves nuevas en cada proveedor y
+agréguelas al archivo correspondiente solo cuando quiera activar esa función.
+
+## Migrar los datos existentes
+
+1. Arranque solo la nueva base: `docker compose --env-file .env up -d database`.
+2. Transfiera un respaldo PostgreSQL en formato custom (`.dump`) al directorio
+   `backups/`, sin transferir ningún `.env` antiguo.
+3. Restaure el respaldo antes de iniciar la API:
+
+```bash
+docker compose --env-file .env exec -T database \
+  pg_restore --clean --if-exists --no-owner --no-privileges \
+  -U goonginga -d goonginga < backups/goonginga-vps-migration.dump
+```
+
+## Arranque y verificación
 
 ```bash
 docker compose --env-file .env up --build -d
 docker compose ps
-curl http://127.0.0.1:3000/health
+curl http://127.0.0.1:3000/health/db
 ```
 
-Compruebe desde un navegador `http://YOUR_SERVER_IP:3001`. Para revisar el
-estado o los registros:
-
-```bash
-docker compose ps
-docker compose logs --tail=100 backend
-docker compose logs --tail=100 frontend
-```
+Compruebe desde un navegador `http://YOUR_SERVER_IP:3001`. Cuando se asigne un
+dominio, ponga los servicios detrás de un proxy HTTPS y actualice
+`NEXT_PUBLIC_API_BASE_URL` antes de reconstruir el frontend.
 
 ## Actualizar el proyecto
 
