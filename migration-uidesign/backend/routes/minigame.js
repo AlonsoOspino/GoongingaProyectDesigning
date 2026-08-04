@@ -9,6 +9,7 @@ const socialMedia = [networkAuthMiddleware, requireNetworkRole("SOCIAL_MEDIA", "
 const developer = [networkAuthMiddleware, requireNetworkRole("DEVELOPER", "ADMIN")];
 
 router.get("/games", minigameController.listGames);
+router.get("/system/family-feud", minigameController.getFamilyFeudStatus);
 router.get("/games/:slug/player", networkAuthMiddleware, minigameController.getPlayerGame);
 router.get("/games/:slug/manage", ...socialMedia, minigameController.getManageGame);
 router.get("/games/:slug", minigameController.getPublicGame);

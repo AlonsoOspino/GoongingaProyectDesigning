@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useState, type CSSProperties } from "react";
 import { getGame, getPlayerGame, requestQuestion, type MiniGame, type PlayerMiniGame } from "@/lib/minigames";
 import { getNetworkToken, useNetworkSession } from "@/lib/networkSession";
+import { UnderDevelopmentScreen } from "@/components/UnderDevelopmentScreen";
 
 function gameCoverStyle(game: MiniGame): CSSProperties {
   return { "--game-cover": game.coverImageUrl ? `url("${game.coverImageUrl}")` : "radial-gradient(circle at 70% 18%, #7039bf, #090d18 60%)" } as CSSProperties;
@@ -53,7 +54,7 @@ export default function GameLandingPage() {
   }
 
   if (!game) return <section className="staff-only"><p className="eyebrow">Goonginga Minigames</p><h1 className="font-display">Loading game…</h1><p>{feedback || "Getting the player experience ready."}</p></section>;
-  if (game.status === "UNDER_DEVELOPMENT") return <section className="under-construction" style={gameCoverStyle(game)}><div className="build-card"><p className="eyebrow">Goonginga Minigames</p><h1 className="font-display">Still<br />building it!</h1><p>This game is under development. It will be back in the library as soon as it is ready.</p>{game.underDevelopmentBy ? <span className="developer-profile"><Avatar name={game.underDevelopmentBy.username} url={game.underDevelopmentBy.avatarUrl} />Built by {game.underDevelopmentBy.username}</span> : null}<div className="toolbar" style={{ justifyContent: "center" }}><Link className="secondary-button" href="/">Back to library</Link></div></div></section>;
+  if (game.status === "UNDER_DEVELOPMENT") return <UnderDevelopmentScreen title={game.title} developer={game.underDevelopmentBy} coverImageUrl={game.coverImageUrl} />;
 
   const player = playerGame?.player;
   const canChoose = Boolean(player?.isTurn && !player?.currentQuestion);

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/features/session/SessionProvider";
-import { readNetworkSessionToken, readNetworkSessionUser, type NetworkSessionUser } from "@/features/networkSession/storage";
+import { readNetworkSessionToken } from "@/features/networkSession/storage";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -92,22 +92,29 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     let active = true;
-    const refreshNetworkSession = () => {
-      const storedUser = readNetworkSessionUser();
+    const refreshNetworkSession = async () => {
       const storedToken = readNetworkSessionToken();
       if (!active) return;
-      setNetworkUser(storedUser as NetworkSessionUser | null);
+      setNetworkHydrated(false);
+      setNetworkUser(null);
       setNetworkToken(storedToken);
-      setNetworkHydrated(true);
 
-      if (storedToken) {
-        void getCurrentNetworkMember(storedToken)
-          .then((member) => { if (active) setNetworkUser(member); })
-          .catch(() => undefined);
+      if (!storedToken) {
+        setNetworkHydrated(true);
+        return;
+      }
+
+      try {
+        const member = await getCurrentNetworkMember(storedToken);
+        if (active) setNetworkUser(member);
+      } catch {
+        if (active) setNetworkUser(null);
+      } finally {
+        if (active) setNetworkHydrated(true);
       }
     };
 
-    refreshNetworkSession();
+    void refreshNetworkSession();
     window.addEventListener("network-session-changed", refreshNetworkSession);
     return () => { active = false; window.removeEventListener("network-session-changed", refreshNetworkSession); };
   }, []);

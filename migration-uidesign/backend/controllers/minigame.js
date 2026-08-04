@@ -199,6 +199,27 @@ async function listGames(_req, res) {
   }
 }
 
+async function getFamilyFeudStatus(_req, res) {
+  try {
+    const developer = await prisma.networkMember.findFirst({
+      where: { status: "ACTIVE", roles: { has: "DEVELOPER" } },
+      select: memberSelect,
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    });
+
+    return res.json({
+      slug: "family-feud",
+      title: "Family Feud",
+      description: "The Goonginga Family Feud experience is getting its next big upgrade.",
+      coverImageUrl: "/family-feud-stage.png",
+      status: "UNDER_DEVELOPMENT",
+      underDevelopmentBy: developer,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error?.message || "Could not load Family Feud status." });
+  }
+}
+
 async function getPublicGame(req, res) {
   try {
     const game = await findGame(slugify(req.params.slug));
@@ -481,6 +502,7 @@ async function uploadCover(req, res) {
 
 module.exports = {
   listGames,
+  getFamilyFeudStatus,
   getPublicGame,
   getPlayerGame,
   getManageGame,

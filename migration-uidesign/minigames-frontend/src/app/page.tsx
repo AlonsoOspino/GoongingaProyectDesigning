@@ -2,7 +2,15 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getGames, type MiniGame } from "@/lib/minigames";
+import { getFamilyFeudStatus, getGames, type FamilyFeudStatus, type MiniGame, type MiniGameMember } from "@/lib/minigames";
+
+function BuilderChip({ developer }: { developer: MiniGameMember | null }) {
+  if (!developer) return <span className="builder-chip builder-speech"><span className="avatar avatar-fallback">GG</span><span><b>The workshop</b><em>Still building it!</em></span></span>;
+  return <span className="builder-chip builder-speech">
+    {developer.avatarUrl ? <img className="avatar" src={developer.avatarUrl} alt="" /> : <span className="avatar avatar-fallback">{developer.username.slice(0, 2)}</span>}
+    <span><b>{developer.username}</b><em>Still building it!</em></span>
+  </span>;
+}
 
 function GameCard({ game }: { game: MiniGame }) {
   const underDevelopment = game.status === "UNDER_DEVELOPMENT";
@@ -17,10 +25,7 @@ function GameCard({ game }: { game: MiniGame }) {
       <p>{underDevelopment ? "This game is being built for the next Goonginga session." : game.description || "A live Goonginga minigame."}</p>
       <div className="game-card-footer">
         <span className="game-state">{underDevelopment ? "STILL BUILDING IT!" : "Open game →"}</span>
-        {underDevelopment && game.underDevelopmentBy ? <span className="builder-chip">
-          {game.underDevelopmentBy.avatarUrl ? <img className="avatar" src={game.underDevelopmentBy.avatarUrl} alt="" /> : <span className="avatar avatar-fallback">{game.underDevelopmentBy.username.slice(0, 2)}</span>}
-          {game.underDevelopmentBy.username}
-        </span> : null}
+        {underDevelopment ? <BuilderChip developer={game.underDevelopmentBy} /> : null}
       </div>
     </div>
   </Link>;
@@ -28,15 +33,17 @@ function GameCard({ game }: { game: MiniGame }) {
 
 export default function MinigamesHome() {
   const [games, setGames] = useState<MiniGame[]>([]);
+  const [familyFeud, setFamilyFeud] = useState<FamilyFeudStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     void getGames().then(setGames).catch((reason) => setError(reason instanceof Error ? reason.message : "Could not load games."));
+    void getFamilyFeudStatus().then(setFamilyFeud).catch(() => undefined);
   }, []);
 
   return <div className="page-shell">
     <p className="eyebrow">Goonginga Network presents</p>
-    <h1 className="page-title font-display">Press Start<br />Together</h1>
+    <h1 className="page-title game-nights-title font-display">GOONGINGA GAME NIGHTS!!</h1>
     <p className="page-lede">Live games built for the community, their players, and the big screen. Pick a game and join the next Goonginga moment.</p>
 
     <section className="hero-grid" aria-label="Goonginga Minigames introduction">
@@ -55,13 +62,13 @@ export default function MinigamesHome() {
     </div>
 
     <div className="game-grid">
-      <Link href="/family-feud" className="game-card">
+      <Link href="/family-feud" className="game-card under-development">
         <div className="game-cover family" />
         <div className="game-card-content">
-          <span className="game-type">Built-in game</span>
-          <h3 className="font-display">Family Feud</h3>
-          <p>The existing Goonginga Family Feud experience, now rehomed in Minigames.</p>
-          <div className="game-card-footer"><span className="game-state">Open game →</span></div>
+          <span className="game-type">Under development</span>
+          <h3 className="font-display">{familyFeud?.title || "Family Feud"}</h3>
+          <p>{familyFeud?.description || "The Goonginga Family Feud experience is getting its next big upgrade."}</p>
+          <div className="game-card-footer"><span className="game-state">STILL BUILDING IT!</span><BuilderChip developer={familyFeud?.underDevelopmentBy || null} /></div>
         </div>
       </Link>
       {games.map((game) => <GameCard key={game.id} game={game} />)}

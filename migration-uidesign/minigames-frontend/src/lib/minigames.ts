@@ -4,6 +4,10 @@ export type MiniGameType = "JEOPARDY" | "FAMILY_FEUD" | "CUSTOM";
 export type MiniGameStatus = "LIVE" | "UNDER_DEVELOPMENT";
 
 export type MiniGameMember = { id: number; username: string; avatarUrl: string | null };
+export type FamilyFeudStatus = {
+  slug: "family-feud"; title: string; description: string; coverImageUrl: string | null;
+  status: "UNDER_DEVELOPMENT"; underDevelopmentBy: MiniGameMember | null;
+};
 export type JeopardyQuestion = { id: string; question: string; answer: string; reward: number };
 export type JeopardyCategory = { id: string; name: string; questions: JeopardyQuestion[] };
 export type BoardQuestion = { id: string; reward: number; used: boolean; selected: boolean; requested: boolean };
@@ -21,6 +25,7 @@ export type ManagedMiniGame = MiniGame & { config: { categories: JeopardyCategor
 export type PlayerMiniGame = MiniGame & { player: { isTurn: boolean; requestedQuestionId: string | null; currentQuestion: (JeopardyQuestion & { categoryName: string; revealed: boolean }) | null } };
 
 export function getGames() { return apiRequest<MiniGame[]>("/minigames/games", { cache: "no-store" }); }
+export function getFamilyFeudStatus() { return apiRequest<FamilyFeudStatus>("/minigames/system/family-feud", { cache: "no-store" }); }
 export function getGame(slug: string) { return apiRequest<MiniGame>(`/minigames/games/${encodeURIComponent(slug)}`, { cache: "no-store" }); }
 export function getPlayerGame(slug: string, token: string) { return apiRequest<PlayerMiniGame>(`/minigames/games/${encodeURIComponent(slug)}/player`, { token, cache: "no-store" }); }
 export function getManagedGame(slug: string, token: string) { return apiRequest<ManagedMiniGame>(`/minigames/games/${encodeURIComponent(slug)}/manage`, { token, cache: "no-store" }); }

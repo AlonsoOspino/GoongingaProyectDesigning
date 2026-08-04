@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { apiRequest } from "@/lib/api/client";
@@ -15,6 +15,8 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { ImageUploadField } from "@/components/ui/ImageUploadField";
 import { Input } from "@/components/ui/Input";
 import { clsx } from "clsx";
+import { getFamilyFeudStatus, type FamilyFeudStatus } from "@/lib/minigames";
+import { UnderDevelopmentScreen } from "@/components/UnderDevelopmentScreen";
 import styles from "./family-feud.module.css";
 
 type TeamId = "alpha" | "beta";
@@ -3108,6 +3110,23 @@ function MinigamesPage() {
 }
 
 export default function FamilyFeudPage() {
-  return <Suspense fallback={<main className="min-h-screen bg-[#070a10]" />}><MinigamesPage /></Suspense>;
+  const [status, setStatus] = useState<FamilyFeudStatus | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void getFamilyFeudStatus()
+      .then((nextStatus) => { if (active) setStatus(nextStatus); })
+      .catch(() => undefined)
+      .finally(() => { if (active) setLoaded(true); });
+    return () => { active = false; };
+  }, []);
+
+  if (!loaded) return <main className="min-h-screen bg-[#070a10]" />;
+  return <UnderDevelopmentScreen
+    title={status?.title || "Family Feud"}
+    developer={status?.underDevelopmentBy || null}
+    coverImageUrl={status?.coverImageUrl}
+  />;
 }
 
