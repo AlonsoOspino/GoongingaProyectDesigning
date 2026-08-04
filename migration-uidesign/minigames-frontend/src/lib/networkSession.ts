@@ -42,6 +42,12 @@ export function saveNetworkToken(token: string) {
   return user;
 }
 
+export function clearNetworkSession() {
+  if (typeof window === "undefined") return;
+  try { window.localStorage.removeItem(STORAGE_KEY); } catch { /* browser storage can be restricted */ }
+  window.dispatchEvent(new Event("network-session-changed"));
+}
+
 export function useNetworkSession() {
   const [user, setUser] = useState<NetworkSessionUser | null>(null);
   useEffect(() => {

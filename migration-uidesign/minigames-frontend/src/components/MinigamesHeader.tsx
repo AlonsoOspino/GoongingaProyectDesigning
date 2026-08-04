@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { hasNetworkRole, useNetworkSession } from "@/lib/networkSession";
+import { usePathname, useRouter } from "next/navigation";
+import { clearNetworkSession, hasNetworkRole, useNetworkSession } from "@/lib/networkSession";
 
 function ProfileAvatar({ name, url }: { name: string; url: string | null }) {
   return url ? <img className="avatar" src={url} alt="" /> : <span className="avatar avatar-fallback">{name.slice(0, 2).toUpperCase()}</span>;
@@ -10,6 +10,7 @@ function ProfileAvatar({ name, url }: { name: string; url: string | null }) {
 
 export function MinigamesHeader() {
   const pathname = usePathname();
+  const router = useRouter();
   const { user } = useNetworkSession();
   if (pathname?.endsWith("/stream")) return null;
   const social = hasNetworkRole(user, "SOCIAL_MEDIA", "ADMIN");
@@ -23,7 +24,7 @@ export function MinigamesHeader() {
       {developer ? <Link href="/developer">Developer</Link> : null}
     </nav>
     <div className="account">
-      {user ? <><ProfileAvatar name={user.username} url={user.avatarUrl} /><span className="account-name">{user.username}</span></> : <Link className="signin" href="/login">Sign in with Discord</Link>}
+      {user ? <><ProfileAvatar name={user.username} url={user.avatarUrl} /><span className="account-name">{user.username}</span><button className="network-switch" type="button" onClick={() => { clearNetworkSession(); router.push("/login"); }}>Re-login</button></> : <Link className="signin" href="/login">Sign in with Discord</Link>}
     </div>
   </header>;
 }

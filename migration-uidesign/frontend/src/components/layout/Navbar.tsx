@@ -130,6 +130,11 @@ export function Navbar() {
   };
 
   const dashboardLink = getDashboardLink();
+  const restartDiscordLogin = () => {
+    clearNetworkSession();
+    setNetworkUser(null);
+    window.location.assign("/login");
+  };
 
   if (isDraftTable && (isNavHidden || shouldHideForKeyAccess)) return null;
 
@@ -244,13 +249,10 @@ export function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  aria-label="Log out of Discord"
-                  onClick={() => {
-                    clearNetworkSession();
-                    setNetworkUser(null);
-                  }}
+                  aria-label="Log out and sign in to Discord again"
+                  onClick={restartDiscordLogin}
                 >
-                  Logout
+                  Re-login
                 </Button>
               </div>
             ) : (
@@ -383,12 +385,11 @@ export function Navbar() {
                     type="button"
                     className="text-sm font-medium text-danger"
                     onClick={() => {
-                      clearNetworkSession();
-                      setNetworkUser(null);
+                      restartDiscordLogin();
                       setIsMobileMenuOpen(false);
                     }}
                   >
-                    Logout
+                    Re-login
                   </button>
                 </div>
               ) : (
