@@ -201,7 +201,13 @@ async function finishDiscordAuth(req, res) {
     });
 
     const token = jwt.sign(
-      { id: member.id, accountType: "NETWORK_MEMBER", roles: member.roles },
+      {
+        id: member.id,
+        accountType: "NETWORK_MEMBER",
+        username: member.username,
+        avatarUrl: member.avatarUrl,
+        roles: member.roles,
+      },
       config.jwtSecret,
       { expiresIn: "7d" },
     );

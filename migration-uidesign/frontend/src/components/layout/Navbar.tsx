@@ -9,6 +9,11 @@ import { getNews } from "@/lib/api";
 import { getServerNow } from "@/lib/serverTime";
 import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
+import {
+  clearNetworkSession,
+  readNetworkSessionUser,
+  type NetworkSessionUser,
+} from "@/features/networkSession/storage";
 
 const publicNavLinks = [
   { href: "/", label: "Home" },
@@ -29,6 +34,7 @@ export function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isNavHidden, setIsNavHidden] = useState(false);
   const [hasRecentNews, setHasRecentNews] = useState(false);
+  const [networkUser, setNetworkUser] = useState<NetworkSessionUser | null>(null);
   const isDraftTable = pathname.startsWith("/draft-table");
   const NAVBAR_STORAGE_KEY = "draftTableHideNavbar";
   const hasDraftAccessKey = isDraftTable && Boolean(searchParams?.get("key"));
@@ -91,6 +97,18 @@ export function Navbar() {
 
     return () => {
       isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const refreshNetworkUser = () => setNetworkUser(readNetworkSessionUser());
+    refreshNetworkUser();
+    window.addEventListener("network-session-changed", refreshNetworkUser);
+    window.addEventListener("storage", refreshNetworkUser);
+
+    return () => {
+      window.removeEventListener("network-session-changed", refreshNetworkUser);
+      window.removeEventListener("storage", refreshNetworkUser);
     };
   }, []);
 
@@ -216,6 +234,25 @@ export function Navbar() {
                   Logout
                 </Button>
               </div>
+            ) : networkUser ? (
+              <div className="hidden md:flex items-center gap-2 rounded-md bg-surface px-2 py-1">
+                <Avatar size="sm" src={networkUser.avatarUrl || undefined} fallback={networkUser.username} />
+                <div className="flex flex-col leading-tight">
+                  <span className="max-w-28 truncate text-sm font-medium text-foreground">{networkUser.username}</span>
+                  <span className="text-xs text-primary">Discord member</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label="Log out of Discord"
+                  onClick={() => {
+                    clearNetworkSession();
+                    setNetworkUser(null);
+                  }}
+                >
+                  Logout
+                </Button>
+              </div>
             ) : (
               <div className="hidden md:flex items-center gap-2">
                 <Link href="/login">
@@ -333,6 +370,27 @@ export function Navbar() {
                     Logout
                   </button>
                 </>
+              ) : networkUser ? (
+                <div className="mt-2 flex items-center justify-between gap-2 border-t border-border px-3 py-2">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Avatar size="sm" src={networkUser.avatarUrl || undefined} fallback={networkUser.username} />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-foreground">{networkUser.username}</p>
+                      <p className="text-xs text-primary">Discord member</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="text-sm font-medium text-danger"
+                    onClick={() => {
+                      clearNetworkSession();
+                      setNetworkUser(null);
+                      setIsMobileMenuOpen(false);
+                    }}
+                  >
+                    Logout
+                  </button>
+                </div>
               ) : (
                 <div className="flex flex-col gap-2 pt-2 border-t border-border mt-2">
                   <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>

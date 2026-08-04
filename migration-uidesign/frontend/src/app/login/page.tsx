@@ -30,10 +30,14 @@ export default function LoginPage() {
     const discordError = url.searchParams.get("discord_error");
 
     if (token) {
-      saveNetworkToken(token);
+      const networkUser = saveNetworkToken(token);
       url.hash = "";
       window.history.replaceState({}, "", `${url.pathname}${url.search}`);
-      setNetworkMessage("Discord connected. Welcome to the Goonginga network!");
+      setNetworkMessage(
+        networkUser
+          ? `Discord connected as ${networkUser.username}. Welcome to the Goonginga network!`
+          : "Discord connected. Welcome to the Goonginga network!",
+      );
     }
 
     if (discordError) {
