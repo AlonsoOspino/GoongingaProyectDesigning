@@ -6,6 +6,14 @@ const DISCORD_API_BASE_URL = "https://discord.com/api/v10";
 const STATE_COOKIE_NAME = "goonginga_network_oauth_state";
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 
+function stateCookiePath() {
+  const configuredPrefix = String(process.env.NETWORK_AUTH_PUBLIC_PATH_PREFIX || "")
+    .trim()
+    .replace(/^\/?/, "/")
+    .replace(/\/+$/, "");
+  return `${configuredPrefix}/network-auth/discord`;
+}
+
 function getRequiredConfig() {
   const config = {
     clientId: process.env.DISCORD_CLIENT_ID,
@@ -46,7 +54,7 @@ function clearStateCookie(res) {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
-    path: "/network-auth/discord",
+    path: stateCookiePath(),
   });
 }
 
@@ -129,7 +137,7 @@ async function startDiscordAuth(req, res) {
       maxAge: OAUTH_STATE_TTL_MS,
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
-      path: "/network-auth/discord",
+      path: stateCookiePath(),
     });
 
     const authorizeUrl = new URL("https://discord.com/oauth2/authorize");

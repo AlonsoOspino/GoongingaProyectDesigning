@@ -47,6 +47,23 @@ de la VPS y abra los puertos TCP `80` y `443`. Caddy obtiene y renueva el
 certificado HTTPS automáticamente. Compruebe desde un navegador
 `https://YOUR_DOMAIN` y la API en `https://YOUR_DOMAIN/backend/health/db`.
 
+## Activar Discord Network
+
+En la aplicación de Discord registre exactamente esta URL de redirección OAuth:
+
+```text
+https://YOUR_DOMAIN/backend/network-auth/discord/callback
+```
+
+Después ejecute el asistente desde la raíz del proyecto. Solicita el Client ID,
+Client Secret y Guild ID sin mostrar el secreto, y genera `NETWORK_JWT_SECRET`
+en la VPS:
+
+```bash
+bash scripts/configure-discord-network.sh YOUR_DOMAIN
+docker compose --env-file .env up -d --force-recreate backend
+```
+
 ## Actualizar el proyecto
 
 ```bash

@@ -47,6 +47,7 @@ DRAFT_TABLE_MANAGER_KEY=${draft_key}
 ADMIN_BOOTSTRAP_PASSWORD=${admin_bootstrap_password}
 CORS_ORIGIN=https://${public_domain}
 MEDIA_DIR=/app/uploads
+NETWORK_AUTH_PUBLIC_PATH_PREFIX=/backend
 EOF
 
 cat > frontend/.env <<EOF
