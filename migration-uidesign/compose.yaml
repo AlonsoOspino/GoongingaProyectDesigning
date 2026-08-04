@@ -42,6 +42,8 @@ services:
       - backend
     env_file:
       - frontend/.env
+    environment:
+      MEDIA_DIR: /app/uploads
     volumes:
       - ./media:/app/uploads
     restart: unless-stopped
