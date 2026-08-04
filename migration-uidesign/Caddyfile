@@ -1,0 +1,17 @@
+# Caddy obtains and renews the public TLS certificate automatically when
+# GOON_DOMAIN resolves to this VPS and ports 80/443 are reachable.
+{$GOON_DOMAIN} {
+	encode zstd gzip
+
+	# A single temporary DuckDNS hostname serves both Next.js and Express.
+	handle /backend {
+		redir /backend/ permanent
+	}
+	handle_path /backend/* {
+		reverse_proxy backend:3000
+	}
+
+	handle {
+		reverse_proxy frontend:3001
+	}
+}

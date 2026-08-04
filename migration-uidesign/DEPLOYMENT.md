@@ -1,8 +1,9 @@
 # Despliegue de Goonginga en una VPS
 
-El despliegue incluye tres contenedores: frontend Next.js (puerto `3001`), API
-Express (puerto `3000`) y PostgreSQL 18. La base no publica el puerto `5432` y
-sus datos se almacenan en el volumen persistente `goonginga_postgres_data`.
+El despliegue incluye frontend Next.js, API Express, PostgreSQL 18 y Caddy.
+Caddy publica HTTPS (`443`) y redirige HTTP (`80`) a HTTPS; frontend y API
+quedan en puertos locales. La base no publica el puerto `5432` y sus datos se
+almacenan en el volumen persistente `goonginga_postgres_data`.
 
 ## Crear credenciales nuevas
 
@@ -10,7 +11,7 @@ En la raíz de `migration-uidesign`, genere todos los secretos y las credenciale
 de PostgreSQL nuevos con:
 
 ```bash
-bash scripts/create-vps-env.sh YOUR_SERVER_IP
+bash scripts/create-vps-env.sh YOUR_DOMAIN
 ```
 
 El script se niega a sobrescribir archivos de entorno existentes y crea los
@@ -41,9 +42,10 @@ docker compose ps
 curl http://127.0.0.1:3000/health/db
 ```
 
-Compruebe desde un navegador `http://YOUR_SERVER_IP:3001`. Cuando se asigne un
-dominio, ponga los servicios detrás de un proxy HTTPS y actualice
-`NEXT_PUBLIC_API_BASE_URL` antes de reconstruir el frontend.
+Antes de iniciar Caddy, haga que el registro A de `YOUR_DOMAIN` apunte a la IPv4
+de la VPS y abra los puertos TCP `80` y `443`. Caddy obtiene y renueva el
+certificado HTTPS automáticamente. Compruebe desde un navegador
+`https://YOUR_DOMAIN` y la API en `https://YOUR_DOMAIN/backend/health/db`.
 
 ## Actualizar el proyecto
 

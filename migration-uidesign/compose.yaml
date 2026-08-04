@@ -30,7 +30,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     ports:
-      - "${GOON_API_BIND_ADDRESS:-0.0.0.0}:${GOON_API_PORT:-3000}:3000"
+      - "${GOON_API_BIND_ADDRESS:-127.0.0.1}:${GOON_API_PORT:-3000}:3000"
 
   frontend:
     build:
@@ -48,7 +48,25 @@ services:
       - ./media:/app/uploads
     restart: unless-stopped
     ports:
-      - "${GOON_FRONTEND_BIND_ADDRESS:-0.0.0.0}:${GOON_FRONTEND_PORT:-3001}:3001"
+      - "${GOON_FRONTEND_BIND_ADDRESS:-127.0.0.1}:${GOON_FRONTEND_PORT:-3001}:3001"
+
+  caddy:
+    image: caddy:2-alpine
+    environment:
+      GOON_DOMAIN: ${GOON_DOMAIN:?Set GOON_DOMAIN in .env}
+    depends_on:
+      - backend
+      - frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - goonginga_caddy_data:/data
+      - goonginga_caddy_config:/config
+    restart: unless-stopped
 
 volumes:
   goonginga_postgres_data:
+  goonginga_caddy_data:
+  goonginga_caddy_config:
