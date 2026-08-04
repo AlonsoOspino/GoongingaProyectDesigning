@@ -43,7 +43,7 @@ En la raíz de `migration-uidesign`, genere todos los secretos y las credenciale
 de PostgreSQL nuevos con:
 
 ```bash
-bash scripts/create-vps-env.sh YOUR_DOMAIN
+bash scripts/create-vps-env.sh goongingaleague.duckdns.org goonginga-gamenights.duckdns.org
 ```
 
 El script se niega a sobrescribir archivos de entorno existentes y crea los
