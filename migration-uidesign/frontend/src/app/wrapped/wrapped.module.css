@@ -2262,3 +2262,141 @@
     font-size: .62rem;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   AUTHORITATIVE OPENING TYPE SCALE — V6
+   Intentionally last and highly specific so older opening experiments cannot
+   shrink these two screens again.
+   ═══════════════════════════════════════════════════════════════ */
+
+.typewriterText {
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+}
+
+.introSlide .productionLockup {
+  width: min(98vw, 1900px) !important;
+  max-width: none !important;
+  margin: 0 auto !important;
+  place-items: center !important;
+  text-align: center !important;
+}
+
+.introSlide .productionLockup h1 {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  color: #080808 !important;
+  font-family: var(--font-league-gothic), Impact, "Arial Narrow", sans-serif !important;
+  font-size: clamp(9rem, 16vw, 19rem) !important;
+  font-weight: 400 !important;
+  letter-spacing: .015em !important;
+  line-height: .68 !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+}
+
+.introSlide .productionSequence {
+  min-height: 8rem !important;
+  margin-top: clamp(1.3rem, 3vh, 2.5rem) !important;
+  gap: clamp(.75rem, 1.6vh, 1.25rem) !important;
+}
+
+.introSlide .productionSequence p {
+  font-size: clamp(1.35rem, 1.85vw, 2.15rem) !important;
+  font-weight: 800 !important;
+}
+
+.introSlide .productionSequence > span {
+  margin-top: 0 !important;
+  font-size: clamp(1.55rem, 2.1vw, 2.5rem) !important;
+  font-weight: 700 !important;
+}
+
+.thanksBeforeSlide .thanksBeforeHeader {
+  width: min(96vw, 116rem) !important;
+  max-width: none !important;
+  gap: clamp(.7rem, 1.35vh, 1.1rem) !important;
+}
+
+.thanksBeforeSlide .thanksBeforeHeader > p {
+  font-size: clamp(1.35rem, 1.8vw, 2.15rem) !important;
+  letter-spacing: .34em !important;
+  line-height: 1 !important;
+}
+
+.thanksBeforeSlide .thanksBeforeHeader > h2 {
+  width: 100% !important;
+  max-width: none !important;
+  min-height: 1.55em !important;
+  margin: 0 !important;
+  color: #fff9ed !important;
+  font-family: "Arial Black", Arial, sans-serif !important;
+  font-size: clamp(6rem, 9.2vw, 11rem) !important;
+  font-weight: 900 !important;
+  letter-spacing: -.045em !important;
+  line-height: .78 !important;
+  text-align: center !important;
+  text-shadow: 0 0 2.2rem rgba(246,196,67,.14), 0 1rem 3.8rem rgba(0,0,0,.46) !important;
+}
+
+.thanksBeforeSlide .thanksBeforeTypedTitle {
+  display: inline-block !important;
+  min-height: 1.55em !important;
+  font: inherit !important;
+  letter-spacing: inherit !important;
+  line-height: inherit !important;
+  white-space: pre-line !important;
+}
+
+.thanksBeforeSlide .thanksBeforeHeader > span {
+  max-width: 82rem !important;
+  min-height: 2.6em !important;
+  margin-top: .15rem !important;
+  font-family: Arial, sans-serif !important;
+  font-size: clamp(1.25rem, 1.65vw, 1.9rem) !important;
+  font-weight: 700 !important;
+  line-height: 1.35 !important;
+}
+
+@media (max-width: 980px) {
+  .introSlide .productionLockup h1 {
+    font-size: clamp(6.5rem, 15vw, 11rem) !important;
+  }
+
+  .thanksBeforeSlide .thanksBeforeHeader > h2,
+  .thanksBeforeSlide .thanksBeforeTypedTitle {
+    font-size: clamp(4.8rem, 11vw, 8rem) !important;
+  }
+}
+
+@media (max-width: 620px) {
+  .introSlide .productionLockup h1 {
+    font-size: clamp(4rem, 16vw, 6.5rem) !important;
+    white-space: normal !important;
+  }
+
+  .introSlide .productionSequence p {
+    font-size: clamp(1rem, 4.2vw, 1.3rem) !important;
+  }
+
+  .introSlide .productionSequence > span {
+    font-size: clamp(1.15rem, 4.8vw, 1.5rem) !important;
+  }
+
+  .thanksBeforeSlide .thanksBeforeHeader > p {
+    font-size: clamp(.95rem, 3.8vw, 1.2rem) !important;
+    letter-spacing: .25em !important;
+  }
+
+  .thanksBeforeSlide .thanksBeforeHeader > h2,
+  .thanksBeforeSlide .thanksBeforeTypedTitle {
+    font-size: clamp(3.4rem, 14vw, 5rem) !important;
+    letter-spacing: -.035em !important;
+  }
+
+  .thanksBeforeSlide .thanksBeforeHeader > span {
+    font-size: clamp(.9rem, 3.7vw, 1.05rem) !important;
+  }
+}

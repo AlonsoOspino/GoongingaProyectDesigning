@@ -278,15 +278,24 @@ function IntroSlide({ onStart, active, reducedMotion }: { onStart: () => void; a
   return (
     <section className={`${styles.slide} ${styles.introSlide} ${active ? styles.storyActive : ""}`} aria-label="Rat's Productions, with the help of the Social Teams, presents">
       <div className={styles.productionLockup}>
-        <h1 aria-label="RAT'S PRODUCTIONS">
-          <TypewriterText text="RAT'S PRODUCTIONS" active={active} reducedMotion={reducedMotion} speed={75} />
+        <h1
+          aria-label="RAT'S PRODUCTIONS"
+          style={{
+            fontSize: "clamp(9rem, 16vw, 19rem)",
+            lineHeight: 0.68,
+            letterSpacing: "0.015em",
+            textAlign: "center",
+            whiteSpace: "nowrap",
+          }}
+        >
+          <TypewriterText text="RAT'S PRODUCTIONS" active={active} reducedMotion={reducedMotion} speed={34} />
         </h1>
         <div className={styles.productionSequence}>
           <p aria-label="with the help of the Social Teams">
-            <TypewriterText text="with the help of the Social Teams" active={active} reducedMotion={reducedMotion} delay={2_300} speed={68} />
+            <TypewriterText text="with the help of the Social Teams" active={active} reducedMotion={reducedMotion} delay={850} speed={32} />
           </p>
           <span aria-label="presents">
-            <TypewriterText text="presents:" active={active} reducedMotion={reducedMotion} delay={5_150} speed={92} />
+            <TypewriterText text="presents:" active={active} reducedMotion={reducedMotion} delay={2_250} speed={48} />
           </span>
         </div>
       </div>
@@ -383,26 +392,50 @@ function ThanksBeforeSlide({ teams, active, reducedMotion }: { teams: FinalsTeam
   return (
     <section className={`${styles.slide} ${styles.thanksBeforeSlide}`} aria-label="Thanks before the recap">
       <div className={styles.thanksBeforeHeader}>
-        <p aria-label="BUT BEFORE">
-          <TypewriterText text="BUT BEFORE..." active={active} reducedMotion={reducedMotion} delay={180} speed={72} />
+        <p
+          aria-label="BUT BEFORE"
+          style={{
+            fontSize: "clamp(1.35rem, 1.8vw, 2.15rem)",
+            letterSpacing: "0.34em",
+            lineHeight: 1,
+          }}
+        >
+          <TypewriterText text="BUT BEFORE..." active={active} reducedMotion={reducedMotion} delay={120} speed={46} />
         </p>
-        <h2 aria-label="THANK YOU FOR SHOWING UP">
+        <h2
+          aria-label="THANK YOU FOR SHOWING UP"
+          style={{
+            fontFamily: '"Arial Black", Arial, sans-serif',
+            fontSize: "clamp(6rem, 9.2vw, 11rem)",
+            fontWeight: 900,
+            letterSpacing: "-0.045em",
+            lineHeight: 0.78,
+            textAlign: "center",
+          }}
+        >
           <TypewriterText
             text={"THANK YOU FOR\nSHOWING UP."}
             active={active}
             reducedMotion={reducedMotion}
-            delay={1_050}
-            speed={88}
+            delay={850}
+            speed={58}
             className={styles.thanksBeforeTypedTitle}
           />
         </h2>
-        <span aria-label="Thank you to every team for the commitment, the match nights, and the effort that carried this League through the season.">
+        <span
+          aria-label="Thank you to every team for the commitment, the match nights, and the effort that carried this League through the season."
+          style={{
+            fontSize: "clamp(1.25rem, 1.65vw, 1.9rem)",
+            fontWeight: 700,
+            lineHeight: 1.35,
+          }}
+        >
           <TypewriterText
             text="Thank you to every team for the commitment, the match nights, and the effort that carried this League through the season."
             active={active}
             reducedMotion={reducedMotion}
-            delay={3_650}
-            speed={34}
+            delay={2_650}
+            speed={26}
           />
         </span>
       </div>
@@ -1115,7 +1148,7 @@ export default function FinalsPage() {
     if (activeStory?.kind === "player" && completedAudioStoryId !== activeStory.id) return;
     const elapsed = playerHighlightStartedAtRef.current === null ? 0 : performance.now() - playerHighlightStartedAtRef.current;
     const duration = activeIndex === 0
-      ? 8_500
+      ? Math.min(4.5, Number(getStoryDuration("intro", 4.5))) * 1000
       : activeStory?.kind === "player"
       ? Math.max(POST_COUNT_HOLD_MS, MIN_PLAYER_HIGHLIGHT_DURATION_MS - elapsed)
       : activeStory?.kind === "finalists"
@@ -1138,7 +1171,7 @@ export default function FinalsPage() {
       window.clearTimeout(timeout);
       window.clearTimeout(exitTimeout);
     };
-  }, [activeIndex, completedAudioStoryId, finalsAutostart, goTo, reducedMotion, started, stories, totalSlides]);
+  }, [activeIndex, completedAudioStoryId, finalsAutostart, getStoryDuration, goTo, reducedMotion, started, stories, totalSlides]);
 
   useEffect(() => {
     if (!started || activeIndex !== totalSlides - 1) return;
