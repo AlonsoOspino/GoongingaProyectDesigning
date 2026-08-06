@@ -309,6 +309,59 @@ const managerUpdate = async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 };
+
+// Presentation-only clock for the Finals pre-show. This deliberately does
+// not use the schedule notification pipeline: managers can move the clock
+// while rehearsing without editing the official captain schedule or Discord.
+const managerUpdatePresentationTime = async (req, res) => {
+  try {
+    const matchId = Number(req.params.id);
+    const match = await matchService.getById(matchId);
+    if (!match) return res.status(404).json({ message: "Match not found" });
+    const isGrandFinal = match.type === "FINALS" || /grand\s*final/i.test(match.title || "");
+    if (!isGrandFinal) {
+      return res.status(400).json({ message: "Presentation timing is only available for Finals matches." });
+    }
+
+    const rawValue = req.body?.presentationStartDate;
+    let presentationStartDate = null;
+    if (rawValue !== null && rawValue !== undefined && rawValue !== "") {
+      presentationStartDate = new Date(rawValue);
+      if (Number.isNaN(presentationStartDate.getTime())) {
+        return res.status(400).json({ message: "Invalid presentationStartDate format." });
+      }
+    }
+
+    const updated = await matchService.update(matchId, { presentationStartDate });
+    return res.json(updated);
+  } catch (err) {
+    return res.status(400).json({ message: err.message });
+  }
+};
+
+// Resets only the Finals presentation rehearsal. Match results, draft actions,
+// uploaded media and the official Discord schedule remain untouched.
+const managerResetFinalsPresentation = async (req, res) => {
+  try {
+    const matchId = Number(req.params.id);
+    const match = await matchService.getById(matchId);
+    if (!match) return res.status(404).json({ message: "Match not found" });
+    const isGrandFinal = match.type === "FINALS" || /grand\s*final/i.test(match.title || "");
+    if (!isGrandFinal) {
+      return res.status(400).json({ message: "Presentation reset is only available for Finals matches." });
+    }
+
+    const updated = await matchService.update(matchId, {
+      presentationStartDate: null,
+      presentationVersion: { increment: 1 },
+      teamAready: 0,
+      teamBready: 0,
+    });
+    return res.json(updated);
+  } catch (err) {
+    return res.status(400).json({ message: err.message });
+  }
+};
 const findSoonest = async (req, res) => {
   try {
     const match = await matchService.findSoonest();
@@ -546,6 +599,8 @@ module.exports = {
   captainUpdate,
   undoLastResult,
   managerUpdate,
+  managerUpdatePresentationTime,
+  managerResetFinalsPresentation,
   findSoonest,
   getActiveMatches,
   submitResult,

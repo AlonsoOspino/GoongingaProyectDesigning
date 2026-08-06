@@ -78,6 +78,17 @@ function toMapRanking(map, count) {
   };
 }
 
+function toHeroRanking(hero, count) {
+  if (!hero) return null;
+  return {
+    heroId: hero.id,
+    name: hero.name || "Unknown hero",
+    image: hero.imgPath || null,
+    role: hero.role,
+    count,
+  };
+}
+
 function round2(value) {
   return Math.round(value * 100) / 100;
 }
@@ -226,6 +237,31 @@ function normalizeAssets(value) {
   const soundtrackSource = value.soundtrack && typeof value.soundtrack === "object" && !Array.isArray(value.soundtrack)
     ? value.soundtrack
     : {};
+  const storyDurationSource = value.storyDurations && typeof value.storyDurations === "object" && !Array.isArray(value.storyDurations)
+    ? value.storyDurations
+    : {};
+
+  const normalizeTrack = (track, legacyUrl = null) => {
+    const source = track && typeof track === "object" && !Array.isArray(track) ? track : {};
+    const rawUrl = typeof source.url === "string" ? source.url : legacyUrl;
+    if (typeof rawUrl !== "string" || !rawUrl.trim()) return null;
+    const rawDuration = Number(source.durationSeconds);
+    return {
+      url: rawUrl.trim(),
+      ...(Number.isFinite(rawDuration) && rawDuration > 0 ? { durationSeconds: Math.round(rawDuration * 1000) / 1000 } : {}),
+    };
+  };
+
+  // `general` was the old looping soundtrack. Preserve it as the new
+  // one-shot recap track until a manager replaces it; the intro loop is
+  // intentionally discarded.
+  const recapTrack = normalizeTrack(soundtrackSource.recap, typeof soundtrackSource.general === "string" ? soundtrackSource.general : null);
+  const countdownTrack = normalizeTrack(soundtrackSource.countdown);
+  const storyDurations = Object.fromEntries(
+    Object.entries(storyDurationSource)
+      .filter(([key, rawValue]) => ["intro", "finalists", "thanksBefore", "thanks", "community", "leaderboard"].includes(key) && typeof rawValue === "number" && Number.isFinite(rawValue) && rawValue > 0)
+      .map(([key, rawValue]) => [key, Math.round(Number(rawValue) * 1000) / 1000])
+  );
 
   return {
     images: Object.fromEntries(
@@ -259,11 +295,11 @@ function normalizeAssets(value) {
         .map(([key, sources]) => [key, sources.filter((source) => typeof source === "string" && source.trim()).map((source) => source.trim()).slice(0, 3)])
         .filter(([, sources]) => sources.length)
     ),
-    soundtrack: Object.fromEntries(
-      Object.entries(soundtrackSource)
-        .filter(([key, source]) => (key === "intro" || key === "general") && typeof source === "string" && source.trim())
-        .map(([key, source]) => [key, source.trim()])
-    ),
+    soundtrack: {
+      ...(recapTrack ? { recap: recapTrack } : {}),
+      ...(countdownTrack ? { countdown: countdownTrack } : {}),
+    },
+    ...(Object.keys(storyDurations).length ? { storyDurations } : {}),
   };
 }
 
@@ -291,11 +327,19 @@ function retainMatchingAssets(previousWrapped, nextSnapshot) {
     Object.entries(previousAssets.videoPositions).filter(([key]) => Object.prototype.hasOwnProperty.call(videos, key))
   );
 
-  return { images, flipped, videos, videoPositions, storyAudios, soundtrack: previousAssets.soundtrack };
+  return {
+    images,
+    flipped,
+    videos,
+    videoPositions,
+    storyAudios,
+    soundtrack: previousAssets.soundtrack,
+    ...(Object.keys(previousAssets.storyDurations || {}).length ? { storyDurations: previousAssets.storyDurations } : {}),
+  };
 }
 
 async function buildSnapshot(tournament) {
-  const [stats, leaderboardStats, actions, teams, maps] = await Promise.all([
+  const [stats, leaderboardStats, draftActions, teams, maps, heroes] = await Promise.all([
     prisma.playerStat.findMany({
       where: { match: { tournamentId: tournament.id, status: "FINISHED" } },
       select: {
@@ -345,11 +389,11 @@ async function buildSnapshot(tournament) {
     }),
     prisma.draftAction.findMany({
       where: {
-        action: "PICK",
+        action: { in: ["PICK", "BAN"] },
         value: { not: null },
         draft: { match: { tournamentId: tournament.id, status: "FINISHED" } },
       },
-      select: { value: true },
+      select: { action: true, value: true },
     }),
     prisma.team.findMany({
       where: { tournamentId: tournament.id },
@@ -359,6 +403,10 @@ async function buildSnapshot(tournament) {
     prisma.map.findMany({
       select: { id: true, description: true, imgPath: true },
       orderBy: { description: "asc" },
+    }),
+    prisma.hero.findMany({
+      select: { id: true, name: true, imgPath: true, role: true },
+      orderBy: { name: "asc" },
     }),
   ]);
 
@@ -411,14 +459,22 @@ async function buildSnapshot(tournament) {
     return winner ? toPlayerLeader(winner, winner[field]) : null;
   };
 
-  const mapCounts = new Map(actions.map((action) => [action.value, 0]));
-  for (const action of actions) mapCounts.set(action.value, (mapCounts.get(action.value) || 0) + 1);
+  const mapPicks = draftActions.filter((action) => action.action === "PICK");
+  const heroBans = draftActions.filter((action) => action.action === "BAN");
+  const mapCounts = new Map(mapPicks.map((action) => [action.value, 0]));
+  for (const action of mapPicks) mapCounts.set(action.value, (mapCounts.get(action.value) || 0) + 1);
   const mapOptions = { getTieLabel: (item) => item.map.description };
   const mapEntries = maps.map((map) => ({ map, count: mapCounts.get(map.id) || 0 }));
-  const mostPicked = actions.length
+  const mostPicked = mapPicks.length
     ? pickBest(mapEntries, (item) => item.count, mapOptions)
     : null;
   const leastPicked = pickBest(mapEntries, (item) => item.count, { ...mapOptions, lowerIsBetter: true });
+  const heroCounts = new Map();
+  for (const action of heroBans) heroCounts.set(action.value, (heroCounts.get(action.value) || 0) + 1);
+  const heroEntries = heroes.map((hero) => ({ hero, count: heroCounts.get(hero.id) || 0 }));
+  const heroOptions = { getTieLabel: (item) => item.hero.name || "" };
+  const mostBanned = heroBans.length ? pickBest(heroEntries, (item) => item.count, heroOptions) : null;
+  const leastBanned = pickBest(heroEntries, (item) => item.count, { ...heroOptions, lowerIsBetter: true });
 
   const generatedAt = new Date();
   const elapsedWeeks = Math.max(1, Math.ceil((generatedAt.getTime() - new Date(tournament.startDate).getTime()) / (7 * DAY_MS)));
@@ -458,6 +514,10 @@ async function buildSnapshot(tournament) {
     maps: {
       mostPicked: mostPicked ? toMapRanking(mostPicked.map, mostPicked.count) : null,
       leastPicked: leastPicked ? toMapRanking(leastPicked.map, leastPicked.count) : null,
+    },
+    heroes: {
+      mostBanned: mostBanned ? toHeroRanking(mostBanned.hero, mostBanned.count) : null,
+      leastBanned: leastBanned ? toHeroRanking(leastBanned.hero, leastBanned.count) : null,
     },
   };
 }

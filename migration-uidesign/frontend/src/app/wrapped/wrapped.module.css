@@ -73,6 +73,35 @@
 
 /* ─── Intro slide ─── */
 .introSlide { display: grid; grid-template-columns: minmax(0, 1fr) minmax(420px, .9fr); align-items: center; gap: 4vw; padding: 7vh 8vw; }
+.brandIntroSlide, .finalistsSlide, .thanksBeforeSlide, .leaderboardTeaseSlide { display: flex; align-items: center; justify-content: center; padding: 5vh 6vw; }
+.brandIntroContent, .finalistsHeader, .thanksBeforeHeader, .leaderboardTeaseSlide { text-align: center; }
+.brandIntroContent { display: grid; gap: 1rem; justify-items: center; max-width: 52rem; }
+.brandIntroEyebrow, .brandIntroSubtitle, .brandIntroPresents, .finalistsHeader p, .thanksBeforeHeader p, .leaderboardTeaseEyebrow { margin: 0; color: var(--cyan); font-size: clamp(.74rem, 1.2vw, 1rem); font-weight: 800; letter-spacing: .24em; text-transform: uppercase; }
+.brandIntroContent h2 { margin: 0; font-family: var(--font-league-gothic), Impact, sans-serif; font-size: clamp(4.4rem, 9vw, 8rem); line-height: .9; letter-spacing: .06em; text-transform: uppercase; color: #fff8df; text-shadow: 0 0 40px rgba(246,196,67,.25); }
+.brandIntroSubtitle { color: rgba(247,242,229,.76); font-size: clamp(1rem, 1.5vw, 1.4rem); letter-spacing: .12em; }
+.brandIntroPresents { margin-top: .3rem; color: var(--yellow); font-size: clamp(1.15rem, 1.8vw, 1.5rem); }
+.finalistsHeader h2 { margin: .6rem 0 0; font-family: var(--font-league-gothic), Impact, sans-serif; font-size: clamp(3rem, 5.4vw, 5rem); line-height: .95; text-transform: uppercase; color: #fef4bf; }
+.finalistsGrid { display: grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 2rem; width: min(900px, 100%); margin-top: 2rem; }
+.finalistCard { display: flex; align-items: center; gap: 1.2rem; padding: 1.3rem 1.6rem; border: 1px solid rgba(255,255,255,.16); border-radius: 1.75rem; background: linear-gradient(135deg, rgba(255,255,255,.08), rgba(255,255,255,.03)); box-shadow: 0 20px 50px rgba(0,0,0,.2); }
+.finalistAvatarWrap { display: grid; place-items: center; width: 5.8rem; height: 5.8rem; border-radius: 999px; overflow: hidden; border: 2px solid rgba(246,196,67,.55); background: rgba(8,14,20,.8); }
+.finalistAvatarWrap img { width: 100%; height: 100%; object-fit: cover; }
+.finalistAvatarWrap span { font-family: var(--font-league-gothic), Impact, sans-serif; font-size: 1.55rem; color: var(--ink); }
+.finalistMeta { display: grid; gap: .2rem; }
+.finalistMeta span { color: var(--cyan); font-size: .72rem; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; }
+.finalistMeta strong { font-size: clamp(1.2rem, 1.8vw, 1.55rem); color: var(--ink); }
+.thanksBeforeHeader h2 { margin: 1rem auto 0; max-width: 50rem; font-family: var(--font-league-gothic), Impact, sans-serif; font-size: clamp(2.4rem, 4.2vw, 3.4rem); line-height: 1.02; text-transform: uppercase; color: #fff9da; }
+.thanksBeforeRoster { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .9rem; width: min(980px, 100%); margin-top: 2rem; }
+.thanksBeforeTeam { display: grid; gap: .6rem; align-items: center; justify-items: center; padding: 1rem; border: 1px solid rgba(255,255,255,.14); border-radius: 1rem; background: rgba(255,255,255,.04); }
+.thanksBeforeTeam img, .thanksBeforeTeam span { width: 3rem; height: 3rem; border-radius: 999px; object-fit: cover; display: grid; place-items: center; background: rgba(87,230,242,.14); color: var(--ink); font-family: var(--font-league-gothic), Impact, sans-serif; }
+.thanksBeforeTeam strong { font-size: .9rem; color: var(--ink); text-align: center; }
+.communityThanks { display: grid; grid-template-columns: 1.1fr .9fr; align-items: center; gap: 2rem; padding: 6vh 7vw; }
+.communityThanksCopy h2 { margin: .6rem 0 0; font-family: var(--font-league-gothic), Impact, sans-serif; font-size: clamp(3.4rem, 6.2vw, 5.5rem); line-height: .95; text-transform: uppercase; color: #fff4c9; }
+.communityThanksEyebrow { margin: 0; color: var(--yellow); font-size: .74rem; font-weight: 800; letter-spacing: .24em; text-transform: uppercase; }
+.communityThanksNames { display: flex; flex-wrap: wrap; gap: .7rem; justify-content: flex-start; }
+.communityThanksName { display: inline-flex; align-items: center; padding: .55rem .8rem; border-radius: 999px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.05); color: var(--ink); font-size: .95rem; animation: floatIn .7s ease both; }
+.leaderboardTeaseSlide { display: grid; gap: 1rem; justify-items: center; text-align: center; }
+.leaderboardTeaseSlide h2 { margin: 0; max-width: 44rem; font-family: var(--font-league-gothic), Impact, sans-serif; font-size: clamp(3rem, 5vw, 4.2rem); line-height: 1; text-transform: uppercase; color: #fff0bb; }
+@keyframes floatIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 .introCopy { position: relative; z-index: 2; max-width: 48rem; }
 
 .introCopy h1, .storyCopy h2, .mapCopy h2, .finaleHeading h2 { 
@@ -535,6 +564,71 @@
   text-transform: uppercase; 
 }
 
+/* ─── Finals opening / bridge scenes ─── */
+.autoStartLabel { margin: 2rem 0 0; color: var(--yellow); font-size: .68rem; font-weight: 900; letter-spacing: .24em; }
+.openingTeams, .openingThanks, .heroBansSlide, .communityThanks, .finalsTransition {
+  position: relative;
+  display: grid;
+  min-height: 100%;
+  overflow: hidden;
+  padding: 7vh 7vw;
+  background: #03060a;
+}
+.openingTeams { grid-template-columns: .72fr 1.28fr; align-items: center; gap: 5vw; background: radial-gradient(circle at 72% 48%,rgba(87,230,242,.15),transparent 35%),linear-gradient(110deg,#020406,#0b151d); }
+.openingTeams::after { position: absolute; inset: 0; content: ""; opacity: .14; background-image: linear-gradient(rgba(255,255,255,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.08) 1px,transparent 1px); background-size: 76px 76px; mask-image: radial-gradient(circle at 70% 50%,black,transparent 70%); }
+.openingTeamCopy { position: relative; z-index: 2; }
+.openingTeamCopy p, .openingThanks > p, .communityThanks > p, .finalsTransition > p, .heroBansSlide header p { margin: 0 0 1rem; color: var(--yellow); font-size: clamp(.65rem,.8vw,.9rem); font-weight: 900; letter-spacing: .25em; text-transform: uppercase; }
+.openingTeamCopy h2, .openingThanks h2, .communityThanks h2, .finalsTransition h2, .heroBansSlide header h2 { margin: 0; color: var(--ink); font-family: var(--font-league-gothic),Impact,sans-serif; font-size: clamp(5.5rem,9vw,11rem); font-weight: 400; letter-spacing: .02em; line-height: .76; text-transform: uppercase; }
+.logoField { position: relative; z-index: 2; display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 1rem; align-content: center; }
+.seasonLogo { display: grid; min-width: 0; min-height: 9rem; place-items: center; gap: .6rem; border: 1px solid rgba(255,255,255,.12); padding: 1rem; background: linear-gradient(145deg,rgba(255,255,255,.07),rgba(5,10,14,.78)); opacity: 0; transform: translateY(3rem) scale(.82); }
+.storyActive .seasonLogo { animation: seasonLogoIn .7s calc(var(--logo-index) * 65ms) cubic-bezier(.16,.84,.2,1) both; }
+.seasonLogo img { width: 70%; height: 5rem; object-fit: contain; filter: drop-shadow(0 12px 16px rgba(0,0,0,.48)); }
+.seasonLogo > span { color: var(--yellow); font-family: var(--font-league-gothic),Impact,sans-serif; font-size: 3rem; }
+.seasonLogo small { overflow: hidden; max-width: 100%; color: rgba(247,242,229,.66); font-size: .55rem; font-weight: 900; letter-spacing: .1em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.openingThanks { place-content: center; padding-left: 10vw; background: radial-gradient(circle at 76% 48%,rgba(246,196,67,.18),transparent 30%),linear-gradient(115deg,#03060a 0 52%,#101a21); }
+.openingThanks::after { position: absolute; right: 6vw; width: 31vw; aspect-ratio: 1; border: 1px solid rgba(246,196,67,.24); border-radius: 50%; content: ""; box-shadow: 0 0 100px rgba(246,196,67,.1); }
+.openingThanks h2 { position: relative; z-index: 2; font-size: clamp(7rem,12vw,14rem); }
+.openingThanks > span, .communityThanks > span { position: relative; z-index: 2; display: block; max-width: 52rem; margin-top: 2rem; color: rgba(247,242,229,.7); font-size: clamp(1rem,1.35vw,1.55rem); font-weight: 600; line-height: 1.5; }
+.storyActive .openingTeamCopy, .storyActive .openingThanks > p, .storyActive .openingThanks h2, .storyActive .openingThanks > span { animation: openingCopyIn .9s cubic-bezier(.16,.84,.2,1) both; }
+.storyActive .openingThanks h2 { animation-delay: .15s; }
+.storyActive .openingThanks > span { animation-delay: .32s; }
+
+.heroBansSlide { align-content: center; background: radial-gradient(circle at 22% 62%,rgba(255,92,168,.15),transparent 27%),radial-gradient(circle at 78% 62%,rgba(87,230,242,.14),transparent 27%),#04070c; }
+.heroBansSlide header { position: relative; z-index: 2; text-align: center; }
+.heroBansSlide header h2 { font-size: clamp(4.8rem,8vw,9rem); }
+.heroBanGrid { position: relative; z-index: 2; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 2.5vw; width: min(82vw,1320px); margin: 4vh auto 0; }
+.heroBanCard { position: relative; display: grid; min-height: 43vh; grid-template-columns: .9fr 1.1fr; grid-template-rows: auto auto 1fr; align-items: end; overflow: hidden; border: 1px solid rgba(255,255,255,.15); padding: 2rem; background: linear-gradient(140deg,rgba(255,255,255,.07),rgba(5,8,13,.92)); }
+.heroBanCard > div { grid-row: 1 / -1; align-self: stretch; min-width: 0; }
+.heroBanCard img { width: 100%; height: 100%; object-fit: contain; object-position: bottom; filter: drop-shadow(0 24px 25px rgba(0,0,0,.55)); }
+.heroBanCard > div > span { display: grid; height: 100%; place-items: center; color: rgba(255,255,255,.2); font-family: var(--font-league-gothic),Impact,sans-serif; font-size: 9rem; }
+.heroBanCard p { margin: 0; color: var(--yellow); font-size: .65rem; font-weight: 900; letter-spacing: .2em; }
+.heroBanCard h3 { margin: .4rem 0; color: var(--ink); font-family: var(--font-league-gothic),Impact,sans-serif; font-size: clamp(3.5rem,5vw,6rem); font-weight: 400; line-height: .8; text-transform: uppercase; }
+.heroBanCard > strong { align-self: start; color: #ff79b7; font-family: var(--font-league-gothic),Impact,sans-serif; font-size: clamp(3rem,4vw,5rem); font-weight: 400; }
+.heroBanCard > strong small { font-family: Arial,sans-serif; font-size: .18em; letter-spacing: .12em; }
+.heroBanLeast > strong { color: var(--cyan); }
+.storyActive .heroBanMost { animation: heroCardIn .85s cubic-bezier(.16,.84,.2,1) both; }
+.storyActive .heroBanLeast { animation: heroCardIn .85s .18s cubic-bezier(.16,.84,.2,1) both; }
+
+.communityThanks { align-content: center; padding-left: 9vw; background: radial-gradient(circle at 85% 70%,rgba(87,230,242,.17),transparent 30%),linear-gradient(100deg,#020407,#101a23); }
+.communityThanks::before { position: absolute; right: 2vw; bottom: -8vh; content: "THANKS"; color: rgba(246,196,67,.045); font-family: var(--font-league-gothic),Impact,sans-serif; font-size: 32vw; line-height: .7; }
+.communityThanks h2 { position: relative; z-index: 2; max-width: 10ch; }
+.storyActive .communityThanks > * { animation: openingCopyIn .9s cubic-bezier(.16,.84,.2,1) both; }
+.storyActive .communityThanks h2 { animation-delay: .12s; }
+.storyActive .communityThanks span { animation-delay: .28s; }
+.finalsTransition { place-content: center; text-align: center; background: radial-gradient(circle,rgba(246,196,67,.19),transparent 27%),#020305; }
+.finalsTransition > div { position: absolute; inset: 50% auto auto 50%; color: rgba(246,196,67,.04); font-family: var(--font-league-gothic),Impact,sans-serif; font-size: 44vw; line-height: .6; transform: translate(-50%,-50%); }
+.finalsTransition h2 { position: relative; z-index: 2; color: var(--yellow); font-size: clamp(8rem,15vw,18rem); text-shadow: 0 0 60px rgba(246,196,67,.24); }
+.finalsTransition > p, .finalsTransition > span { position: relative; z-index: 2; }
+.finalsTransition > span { margin-top: 2rem; color: rgba(247,242,229,.67); font-size: .75rem; font-weight: 900; letter-spacing: .28em; }
+.storyActive .finalsTransition h2 { animation: finalTitleStrike 1.1s cubic-bezier(.16,.84,.2,1) both; }
+.storyActive .finalsTransition > div { animation: finalMarkExpand 4s ease-out both; }
+
+@keyframes seasonLogoIn { to { opacity: 1; transform: none; } }
+@keyframes openingCopyIn { from { opacity: 0; transform: translateY(2.5rem); filter: blur(8px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes heroCardIn { from { opacity: 0; transform: translateY(3rem) scale(.94); filter: blur(9px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes finalTitleStrike { from { opacity: 0; letter-spacing: .2em; transform: scale(1.35); filter: blur(18px); } to { opacity: 1; letter-spacing: .02em; transform: none; filter: none; } }
+@keyframes finalMarkExpand { from { opacity: 0; transform: translate(-50%,-50%) scale(.5); } 25% { opacity: 1; } to { opacity: 1; transform: translate(-50%,-50%) scale(1.2); } }
+
 /* ─── Active story animations ─── */
 .storyActive .mapCopy, .storyActive .finaleHeading { 
   animation: copyZoom 4s cubic-bezier(.18, .75, .22, 1) both; 
@@ -547,6 +641,51 @@
   animation-delay: calc(var(--counter-index, 0) * .12s); 
 }
 
+/* Finals motion language: copy settles from above, keeps drifting while the
+   scene is readable, then accelerates out. These transforms stay on the GPU
+   and do not add any media or server-side rendering work. */
+.storyActive:not(.storyLeaving) .highlightContent {
+  animation: finalsCopyDrift 18s linear both;
+}
+.storyActive:not(.storyLeaving) .artworkBackdrop video.videoReady {
+  animation: finalsVideoDrift 18s linear both;
+}
+.storyLeaving .highlightContent,
+.storyLeaving .seasonFact,
+.storyLeaving .mapCopy,
+.storyLeaving .mapImageWrap,
+.storyLeaving .heroBanGrid,
+.storyLeaving .finaleHeading,
+.storyLeaving .counterGrid,
+.storyLeaving .communityThanks > *,
+.storyLeaving .openingTeamCopy,
+.storyLeaving .openingThanks > *,
+.storyLeaving .finalsTransition > * {
+  animation: finalsCopyExit .85s cubic-bezier(.55, .05, .95, .45) both !important;
+}
+.storyLeaving .artworkBackdrop img,
+.storyLeaving .artworkBackdrop video.videoReady,
+.storyLeaving .artFrame {
+  animation: finalsVisualExit .85s cubic-bezier(.55, .05, .95, .45) both !important;
+}
+
+@keyframes finalsCopyDrift {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(0, 1.2rem, 0); }
+}
+@keyframes finalsVideoDrift {
+  from { transform: scaleX(var(--art-mirror)) scale(1.015) translate3d(0, -.2%, 0); }
+  to { transform: scaleX(var(--art-mirror)) scale(1.055) translate3d(0, 1.1%, 0); }
+}
+@keyframes finalsCopyExit {
+  from { opacity: 1; transform: translate3d(0, 1.2rem, 0); filter: blur(0); }
+  to { opacity: 0; transform: translate3d(0, 28vh, 0); filter: blur(10px); }
+}
+@keyframes finalsVisualExit {
+  from { opacity: 1; transform: scaleX(var(--art-mirror, 1)) scale(1.055) translate3d(0, 1.1%, 0); }
+  to { opacity: 0; transform: scaleX(var(--art-mirror, 1)) scale(1.12) translate3d(0, 8%, 0); }
+}
+
 /* ─── Progress / controls ─── */
 .progress { 
   position: absolute; 
@@ -555,7 +694,8 @@
   left: 5vw; 
   z-index: 10; 
   display: grid; 
-  grid-template-columns: repeat(14, 1fr); 
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   gap: .35rem; 
   pointer-events: none; 
 }
@@ -1168,12 +1308,12 @@
 .playerSlide .valueBlock strong small { color: var(--cyan); }
 
 @keyframes highlightEnter {
-  from { opacity: 0; transform: translateY(.65rem); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(-2.25rem); filter: blur(7px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
 }
 @keyframes identityAppear {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from { opacity: 0; transform: translateY(-2.75rem); filter: blur(8px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1215,7 +1355,7 @@
   .mapImageWrap { order: initial !important; height: 38vh !important; }
   .counterGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .counter { min-height: 8rem; }
-  .progress { grid-template-columns: repeat(14, 1fr); }
+  .progress { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 620px) {
@@ -1291,6 +1431,17 @@
   .storyActive .artFrame, .storyActive .artworkBackdrop img,
   .storyActive .counter, .introCopy h1 .char {
     animation: none;
+  }
+  .storyActive .highlightContent,
+  .storyActive .artworkBackdrop video,
+  .storyLeaving .highlightContent,
+  .storyLeaving .seasonFact,
+  .storyLeaving .mapCopy,
+  .storyLeaving .mapImageWrap,
+  .storyLeaving .heroBanGrid,
+  .storyLeaving .finaleHeading,
+  .storyLeaving .counterGrid {
+    animation: none !important;
   }
   .playerIdentityVisible { opacity: 1; transform: none; filter: none; }
   .playerIdentityVisible::before { opacity: 1; transform: scaleX(1); }

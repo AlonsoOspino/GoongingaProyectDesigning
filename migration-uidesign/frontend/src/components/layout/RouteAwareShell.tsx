@@ -20,13 +20,13 @@ export function RouteAwareShell({ children }: { children: ReactNode }) {
   if (!shellReady) return <>{children}</>;
 
   const isOverlayRoute = pathname.startsWith("/overlay");
-  const isWrappedRoute = pathname.startsWith("/wrapped");
+  const isFinalsRoute = pathname.startsWith("/finals") || pathname.startsWith("/wrapped");
   const isDraftTableRoute = pathname.startsWith("/draft-table");
   const isMinigamesRoute = pathname.startsWith("/minigames");
   const hasDraftAccessKey = isDraftTableRoute && Boolean(searchParams?.get("key"));
   const isKeyViewerMode = hasDraftAccessKey && user?.role !== "MANAGER";
 
-  if (isOverlayRoute || isWrappedRoute || isMinigamesRoute || hasDraftAccessKey || isKeyViewerMode) {
+  if (isOverlayRoute || isFinalsRoute || isMinigamesRoute || hasDraftAccessKey || isKeyViewerMode) {
     return <>{children}</>;
   }
 

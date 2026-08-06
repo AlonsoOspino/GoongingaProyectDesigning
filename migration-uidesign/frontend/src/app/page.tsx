@@ -12,6 +12,8 @@ import { MatchCard } from "@/components/matches/MatchCard";
 import { TeamCard } from "@/components/teams/TeamCard";
 import { NewsCard } from "@/components/news/NewsCard";
 import { RosterCarousel } from "@/components/teams/RosterCarousel";
+import { FinalsAnnouncement } from "@/components/finals/FinalsAnnouncement";
+import { getCurrentTournament } from "@/lib/api/admin";
 import type { Match, Team, NewsItem, NetworkMemberRole } from "@/lib/api/types";
 
 // Revalidate every 60 seconds. This makes the page semi-dynamic, so when you
@@ -22,11 +24,12 @@ export const revalidate = 60;
 
 async function getHomeData() {
   try {
-    const [matches, teams, news, recentNetworkMembers] = await Promise.all([
-      getMatches().catch(() => [] as Match[]),
+    const [matches, teams, news, recentNetworkMembers, tournament] = await Promise.all([
+      getMatches({ cache: "no-store" }).catch(() => [] as Match[]),
       getLeaderboard().catch(() => [] as Team[]),
       getNews().catch(() => [] as NewsItem[]),
       getRecentNetworkMembers().catch(() => []),
+      getCurrentTournament({ cache: "no-store" }).catch(() => null),
     ]);
 
     // Get active matches
@@ -59,6 +62,7 @@ async function getHomeData() {
     const recentNews = news.slice(0, 4);
 
     return {
+      matches,
       activeMatches,
       upcomingMatches,
       recentMatches,
@@ -67,10 +71,12 @@ async function getHomeData() {
       teamsById,
       recentNews,
       recentNetworkMembers,
+      tournament,
     };
   } catch (error) {
     console.error("Failed to fetch home data:", error);
     return {
+      matches: [],
       activeMatches: [],
       upcomingMatches: [],
       recentMatches: [],
@@ -79,6 +85,7 @@ async function getHomeData() {
       teamsById: new Map(),
       recentNews: [],
       recentNetworkMembers: [],
+      tournament: null,
     };
   }
 }
@@ -108,6 +115,18 @@ function resolveRosterSrc(roster?: string | null) {
 
 export default async function HomePage() {
   const data = await getHomeData();
+  const finalsMatch = data.tournament?.state === "FINALS"
+    ? data.matches
+        .filter((match) => (
+          match.type === "FINALS" || /grand\s*final/i.test(match.title || "")
+        ) && match.status !== "FINISHED")
+        .sort((left, right) => {
+          const leftTime = left.presentationStartDate || left.startDate;
+          const rightTime = right.presentationStartDate || right.startDate;
+          return (leftTime ? new Date(leftTime).getTime() : Number.MAX_SAFE_INTEGER)
+            - (rightTime ? new Date(rightTime).getTime() : Number.MAX_SAFE_INTEGER);
+        })[0] || null
+    : null;
   const hasRecentResults = data.recentMatches.length > 0;
   const rosterTeams = data.allTeams.filter((team) => Boolean(team.roster));
   const rosterItems = rosterTeams
@@ -123,6 +142,14 @@ export default async function HomePage() {
     <div className="min-h-screen relative">
       {/* Global decorative elements */}
       <div className="fixed inset-0 bg-grid-pattern-subtle pointer-events-none" />
+
+      {finalsMatch && (
+        <FinalsAnnouncement
+          match={finalsMatch}
+          teamA={data.teamsById.get(finalsMatch.teamAId)}
+          teamB={data.teamsById.get(finalsMatch.teamBId)}
+        />
+      )}
       
       {/* Hero Section */}
       <section className="relative py-24 overflow-hidden">

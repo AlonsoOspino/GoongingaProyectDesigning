@@ -9,7 +9,10 @@ import {
   type WrappedAssetKey,
   type WrappedMapRanking,
   type WrappedPlayerLeader,
+  type WrappedHeroRanking,
 } from "@/lib/api/wrapped";
+import { resolveGenericBackendAsset, resolveHeroImageUrl } from "@/lib/assetUrls";
+import { getCurrentTournament, getMembers } from "@/lib/api/admin";
 import styles from "./wrapped.module.css";
 
 type PlayerStory = {
@@ -38,7 +41,25 @@ type MapStory = {
   assetKey: WrappedAssetKey;
 };
 
-type Story = PlayerStory | MapStory | { id: "finale"; kind: "finale" };
+type BrandIntroStory = { id: string; kind: "brand"; durationSeconds: number };
+type FinalistsStory = { id: string; kind: "finalists"; teams: Array<{ id: number; name: string; logo: string | null }>; durationSeconds: number };
+type ThanksBeforeStory = { id: string; kind: "thanksBefore"; teams: Array<{ id: number; name: string; logo: string | null }>; durationSeconds: number };
+type CommunityStory = { id: string; kind: "community"; players: Array<{ name: string; teamName: string | null }>; durationSeconds: number };
+type LeaderboardTeaseStory = { id: string; kind: "leaderboardTease"; durationSeconds: number };
+
+type Story =
+  | PlayerStory
+  | MapStory
+  | BrandIntroStory
+  | FinalistsStory
+  | ThanksBeforeStory
+  | CommunityStory
+  | LeaderboardTeaseStory
+  | { id: string; kind: "opening"; variant: "teams" | "thanks" }
+  | { id: "heroBans"; kind: "heroBans"; most: WrappedHeroRanking | null; least: WrappedHeroRanking | null }
+  | { id: "finale"; kind: "finale" }
+  | { id: "communityThanks"; kind: "thanks" }
+  | { id: "finalsTransition"; kind: "transition" };
 
 const STANDARD_STORY_DURATION_MS = 4000;
 const EMPTY_AUDIO_SOURCES: string[] = [];
@@ -49,6 +70,7 @@ const CUE_STABLE_GAIN = 1.5;
 const HIGHLIGHT_TEXT_SEQUENCE_MS = 10_000;
 const COUNT_UP_DURATION_MS = 2_500;
 const MIN_PLAYER_HIGHLIGHT_DURATION_MS = HIGHLIGHT_TEXT_SEQUENCE_MS + COUNT_UP_DURATION_MS + POST_COUNT_HOLD_MS;
+const STORY_EXIT_DURATION_MS = 850;
 
 function formatNumber(value: number | null | undefined, decimals = 0) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "—";
@@ -154,7 +176,7 @@ function TeamTile({ team, index }: { team: GoongingaWrapped["snapshot"]["overvie
       <span className={styles.teamIndex}>{String(index + 1).padStart(2, "0")}</span>
       <div className={styles.teamMark}>
         {!logoUnavailable && team.logo ? (
-          <img src={team.logo} alt={team.name} onError={() => setLogoUnavailable(true)} />
+          <img src={resolveGenericBackendAsset(team.logo)} alt={team.name} onError={() => setLogoUnavailable(true)} />
         ) : (
           <span aria-label={team.name}>{team.name.slice(0, 2).toUpperCase()}</span>
         )}
@@ -164,21 +186,34 @@ function TeamTile({ team, index }: { team: GoongingaWrapped["snapshot"]["overvie
   );
 }
 
-function IntroSlide({ wrapped, onStart }: { wrapped: GoongingaWrapped; onStart: () => void }) {
+function SeasonLogo({ team, index }: { team: GoongingaWrapped["snapshot"]["overview"]["teams"][number]; index: number }) {
+  const [logoUnavailable, setLogoUnavailable] = useState(!team.logo);
+  return (
+    <div className={styles.seasonLogo} style={{ "--logo-index": index } as CSSProperties}>
+      {!logoUnavailable && team.logo ? (
+        <img src={resolveGenericBackendAsset(team.logo)} alt={team.name} onError={() => setLogoUnavailable(true)} />
+      ) : <span aria-label={`${team.name} logo`}>{team.name.slice(0, 2).toUpperCase()}</span>}
+      <small>{team.name}</small>
+    </div>
+  );
+}
+
+function IntroSlide({ wrapped, onStart, autoPlaying = false }: { wrapped: GoongingaWrapped; onStart: () => void; autoPlaying?: boolean }) {
   const snapshot = resolveWrappedSnapshot(wrapped.snapshot);
   const teams = snapshot.overview.teams.slice(0, 12);
   return (
-    <section className={`${styles.slide} ${styles.introSlide}`} aria-label="Wrapped introduction">
+    <section className={`${styles.slide} ${styles.introSlide}`} aria-label="Finals introduction">
       <div className={styles.introCopy}>
-        <p className={styles.eyebrow}>GOONGINGA LEAGUE · SEASON ARCHIVE</p>
-        <h1><span>Season</span> in review</h1>
-        <p className={styles.introDescription}>A complete record of the players, battles and moments that defined this Goonginga season.</p>
+        <p className={styles.eyebrow}>GOONGINGA LEAGUE · SEASON RECAP</p>
+        <h1><span>This season</span> was yours</h1>
+        <p className={styles.introDescription}>Thank you for showing up, competing, and giving the league a season worth remembering.</p>
         <div className={styles.introNumbers}>
           <div><strong>{snapshot.overview.games}</strong><span>Maps played</span></div>
           <div><strong>{snapshot.overview.players}</strong><span>Names in record</span></div>
           <div><strong>{teams.length}</strong><span>Teams assembled</span></div>
         </div>
-        <button type="button" className={styles.startButton} onClick={onStart}>Begin the replay <span aria-hidden="true">↓</span></button>
+        {!autoPlaying && <button type="button" className={styles.startButton} onClick={onStart}>Play the season recap <span aria-hidden="true">↓</span></button>}
+        {autoPlaying && <p className={styles.autoStartLabel}>THE RECAP BEGINS</p>}
       </div>
       <div className={styles.coverVisual} aria-label={`${teams.length} teams in the season`}>
         <div className={styles.coverHeading}>
@@ -193,6 +228,150 @@ function IntroSlide({ wrapped, onStart }: { wrapped: GoongingaWrapped; onStart: 
           <span>One season · one record</span>
         </div>
       </div>
+    </section>
+  );
+}
+
+function OpeningSlide({ wrapped, variant }: { wrapped: GoongingaWrapped; variant: "teams" | "thanks" }) {
+  const teams = resolveWrappedSnapshot(wrapped.snapshot).overview.teams.slice(0, 14);
+  if (variant === "thanks") {
+    return (
+      <section className={`${styles.slide} ${styles.openingThanks}`} aria-label="Thank you for playing">
+        <p>TO EVERY PLAYER, CAPTAIN, AND TEAM</p>
+        <h2>THANK YOU<br />FOR PLAYING.</h2>
+        <span>Every map, every late-night lobby, every close series — this season happened because you were part of it.</span>
+      </section>
+    );
+  }
+  return (
+    <section className={`${styles.slide} ${styles.openingTeams}`} aria-label="The teams of the season">
+      <div className={styles.openingTeamCopy}>
+        <p>THE TEAMS OF GOONGINGA LEAGUE</p>
+        <h2>YOU BUILT<br />THIS SEASON.</h2>
+      </div>
+      <div className={styles.logoField}>
+        {teams.map((team, index) => <SeasonLogo key={team.id} team={team} index={index} />)}
+      </div>
+    </section>
+  );
+}
+
+function HeroBansSlide({ most, least }: { most: WrappedHeroRanking | null; least: WrappedHeroRanking | null }) {
+  const cards = [
+    { label: "MOST BANNED", hero: most, tone: "most" },
+    { label: "LEAST BANNED", hero: least, tone: "least" },
+  ];
+  return (
+    <section className={`${styles.slide} ${styles.heroBansSlide}`} aria-label="Most and least banned heroes">
+      <header><p>DRAFT ROOM · SEASON RECORD</p><h2>THE HERO BAN SPLIT</h2></header>
+      <div className={styles.heroBanGrid}>
+        {cards.map(({ label, hero, tone }) => (
+          <article key={label} className={`${styles.heroBanCard} ${styles[`heroBan${tone[0].toUpperCase()}${tone.slice(1)}`]}`}>
+            <div>{hero?.image ? <img src={resolveHeroImageUrl(hero.image)} alt={hero.name} /> : <span>?</span>}</div>
+            <p>{label}</p>
+            <h3>{hero?.name || "NO DATA"}</h3>
+            <strong>{formatNumber(hero?.count)} <small>BANS</small></strong>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function BrandIntroSlide() {
+  return (
+    <section className={`${styles.slide} ${styles.brandIntroSlide}`} aria-label="Brand introduction">
+      <div className={styles.brandIntroContent}>
+        <p className={styles.brandIntroEyebrow}>presented in motion</p>
+        <h2>RAT&apos;S PRODUCTIONS</h2>
+        <p className={styles.brandIntroSubtitle}>with the help of the Social Teams</p>
+        <p className={styles.brandIntroPresents}>presents</p>
+      </div>
+    </section>
+  );
+}
+
+function FinalistsSlide({ teams }: { teams: Array<{ id: number; name: string; logo: string | null }> }) {
+  return (
+    <section className={`${styles.slide} ${styles.finalistsSlide}`} aria-label="Finalists showdown">
+      <div className={styles.finalistsHeader}>
+        <p>the grand final contenders</p>
+        <h2>Two teams. One stage.</h2>
+      </div>
+      <div className={styles.finalistsGrid}>
+        {teams.slice(0, 2).map((team, index) => (
+          <article key={team.id} className={styles.finalistCard}>
+            <div className={styles.finalistAvatarWrap}>
+              {team.logo ? (
+                <img src={resolveGenericBackendAsset(team.logo)} alt={team.name} />
+              ) : (
+                <span>{team.name.slice(0, 2).toUpperCase()}</span>
+              )}
+            </div>
+            <div className={styles.finalistMeta}>
+              <span>{index === 0 ? "North" : "South"}</span>
+              <strong>{team.name}</strong>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ThanksBeforeSlide({ teams }: { teams: Array<{ id: number; name: string; logo: string | null }> }) {
+  return (
+    <section className={`${styles.slide} ${styles.thanksBeforeSlide}`} aria-label="Thanks before the recap">
+      <div className={styles.thanksBeforeHeader}>
+        <p>but before</p>
+        <h2>We want to thank every team that brought this season to life.</h2>
+      </div>
+      <div className={styles.thanksBeforeRoster}>
+        {teams.slice(0, 9).map((team) => (
+          <div key={team.id} className={styles.thanksBeforeTeam}>
+            {team.logo ? <img src={resolveGenericBackendAsset(team.logo)} alt={team.name} /> : <span>{team.name.slice(0, 2).toUpperCase()}</span>}
+            <strong>{team.name}</strong>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CommunityThanksSlide({ players }: { players: Array<{ name: string; teamName: string | null }> }) {
+  return (
+    <section className={`${styles.slide} ${styles.communityThanks}`} aria-label="Community thank you">
+      <div className={styles.communityThanksCopy}>
+        <p className={styles.communityThanksEyebrow}>from the whole league</p>
+        <h2>You made this season spectacular.</h2>
+      </div>
+      <div className={styles.communityThanksNames}>
+        {players.map((player, index) => (
+          <span key={`${player.name}-${index}`} className={styles.communityThanksName} style={{ animationDelay: `${index * 70}ms` }}>
+            {player.name}{player.teamName ? ` · ${player.teamName}` : ""}
+          </span>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function LeaderboardTeaseSlide() {
+  return (
+    <section className={`${styles.slide} ${styles.leaderboardTeaseSlide}`} aria-label="Leaderboard tease">
+      <p className={styles.leaderboardTeaseEyebrow}>stats are about to speak</p>
+      <h2>And now it&apos;s time to show who dominated the stats leaderboard.</h2>
+    </section>
+  );
+}
+
+function FinalsTransitionSlide() {
+  return (
+    <section className={`${styles.slide} ${styles.finalsTransition}`} aria-label="Transition to the Grand Final">
+      <div aria-hidden="true">GGL</div>
+      <p>THE RECAP IS OVER</p>
+      <h2>THE FINAL<br />STARTS NOW.</h2>
+      <span>CAPTAINS, TAKE YOUR POSITIONS.</span>
     </section>
   );
 }
@@ -369,9 +548,9 @@ function PlayerSlide({
     video.muted = true;
     video.defaultMuted = true;
     video.volume = 0;
-    video.loop = true;
-    video.defaultPlaybackRate = 1;
-    video.playbackRate = 1;
+    video.loop = false;
+    video.defaultPlaybackRate = 0.75;
+    video.playbackRate = 0.75;
 
     if (!active || reducedMotion) {
       video.pause();
@@ -402,7 +581,8 @@ function PlayerSlide({
     video.muted = true;
     video.defaultMuted = true;
     video.volume = 0;
-    video.loop = true;
+    video.loop = false;
+    video.playbackRate = 0.75;
     void video.play().catch(() => undefined);
   }, [active, reducedMotion]);
   const handleStoryAudioPlaybackChange = useCallback((playing: boolean) => {
@@ -542,7 +722,7 @@ function FinaleSlide({ wrapped, active, reducedMotion }: { wrapped: GoongingaWra
   );
 }
 
-export default function WrappedPage() {
+export default function FinalsPage() {
   const [wrapped, setWrapped] = useState<GoongingaWrapped | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -550,18 +730,28 @@ export default function WrappedPage() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [completedAudioStoryId, setCompletedAudioStoryId] = useState<string | null>(null);
   const [storyAudioPlayingId, setStoryAudioPlayingId] = useState<string | null>(null);
+  const [finalsAutostart, setFinalsAutostart] = useState(false);
+  const [leavingIndex, setLeavingIndex] = useState<number | null>(null);
+  const [registeredPlayers, setRegisteredPlayers] = useState<Array<{ name: string; teamName: string | null }>>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const introAudioRef = useRef<HTMLAudioElement>(null);
-  const generalAudioRef = useRef<HTMLAudioElement>(null);
+  const recapAudioRef = useRef<HTMLAudioElement>(null);
   const playerHighlightStartedAtRef = useRef<number | null>(null);
   const reducedMotion = useReducedMotion();
 
   useEffect(() => {
     async function loadWrapped() {
       try {
-        setWrapped(await getGoongingaWrapped());
+        const [tournament, data] = await Promise.all([
+          getCurrentTournament({ cache: "no-store" }),
+          getGoongingaWrapped(),
+        ]);
+        if (tournament.state !== "FINALS") {
+          setError("The Finals experience unlocks when the tournament enters Finals.");
+          return;
+        }
+        setWrapped(data);
       } catch (err: any) {
-        setError(err?.status === 404 ? "The season story is still being prepared." : err?.message || "Could not load Goonginga Wrapped.");
+        setError(err?.status === 404 ? "The Finals story is still being prepared." : err?.message || "Could not load the Goonginga Finals experience.");
       } finally {
         setLoading(false);
       }
@@ -569,10 +759,47 @@ export default function WrappedPage() {
     void loadWrapped();
   }, []);
 
+  const media = useMemo(() => wrapped ? resolveWrappedAssets(wrapped.assets) : null, [wrapped]);
+  const storyDurations = media?.storyDurations || {};
+  const getStoryDuration = useCallback((key: string, fallback: number) => {
+    const value = storyDurations[key as keyof typeof storyDurations];
+    if (typeof value === "number" && Number.isFinite(value) && value > 0) return value;
+    if (key === "thanksBefore") {
+      const legacyValue = storyDurations.thanks;
+      if (typeof legacyValue === "number" && Number.isFinite(legacyValue) && legacyValue > 0) return legacyValue;
+    }
+    return fallback;
+  }, [storyDurations]);
+
+  useEffect(() => {
+    async function loadPlayers() {
+      try {
+        const members = await getMembers();
+        const teamLookup = new Map((resolveWrappedSnapshot(wrapped?.snapshot || { overview: { teams: [] }, averagesPer10: {}, totals: {}, performance: {}, maps: {}, heroes: {} } as any).overview.teams || []).map((team: { id: number; name: string }) => [team.id, team.name]));
+        const players = (members || [])
+          .filter((member: { nickname?: string; teamId?: number | null }) => Boolean(member.nickname))
+          .map((member: { nickname: string; teamId?: number | null }) => ({
+            name: member.nickname,
+            teamName: member.teamId ? teamLookup.get(member.teamId) || null : null,
+          }));
+        setRegisteredPlayers(players);
+      } catch {
+        setRegisteredPlayers([]);
+      }
+    }
+    if (wrapped) void loadPlayers();
+  }, [wrapped]);
+
   const stories = useMemo<Story[]>(() => {
     if (!wrapped) return [];
-    const { averagesPer10, totals, performance, maps } = resolveWrappedSnapshot(wrapped.snapshot);
+    const snapshot = resolveWrappedSnapshot(wrapped.snapshot);
+    const { averagesPer10, totals, performance, maps, heroes } = snapshot;
     return [
+      { id: "brandIntro", kind: "brand", durationSeconds: Number(getStoryDuration("intro", 4.5)) },
+      { id: "finalists", kind: "finalists", teams: snapshot.overview.teams.slice(0, 2), durationSeconds: Number(getStoryDuration("finalists", 12.5)) },
+      { id: "thanksBefore", kind: "thanksBefore", teams: snapshot.overview.teams.slice(0, 9), durationSeconds: Number(getStoryDuration("thanksBefore", 7.25)) },
+      { id: "community", kind: "community", players: registeredPlayers.slice(0, 80), durationSeconds: Number(getStoryDuration("community", 8)) },
+      { id: "leaderboardTease", kind: "leaderboardTease", durationSeconds: Number(getStoryDuration("leaderboard", 5)) },
       { id: "averageKills", kind: "player", contentSide: "left", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["COLD-BLOODED", "FINISHER"], titleColor: "#57E6F2", descriptor: "Highest average kills of the season.", caption: "The season's sharpest elimination pace.", value: averagesPer10.kills, assetKey: "averageKills", decimals: 2, suffix: " / 10" },
       { id: "averageHealing", kind: "player", contentSide: "left", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["LIFELINE", "ON CALL"], titleColor: "#83F5B5", descriptor: "Highest average healing of the season.", caption: "Keeping every fight alive when it mattered.", value: averagesPer10.healing, assetKey: "averageHealing", decimals: 2, suffix: " / 10" },
       { id: "averageDamage", kind: "player", contentSide: "right", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["PRESSURE,", "UNBROKEN"], titleColor: "#FF9867", descriptor: "Highest average damage of the season.", caption: "Damage that never gave the lobby room to breathe.", value: averagesPer10.damage, assetKey: "averageDamage", decimals: 2, suffix: " / 10" },
@@ -582,15 +809,17 @@ export default function WrappedPage() {
       { id: "totalDamage", kind: "player", contentSide: "left", eyebrow: "SEASON SUMS", titleLines: ["A SEASON", "OF IMPACT"], titleColor: "#FF6F61", descriptor: "Highest total damage dealt across the full season.", caption: "The heaviest damage total in the record.", value: totals.damage, assetKey: "totalDamage" },
       { id: "totalHealing", kind: "player", contentSide: "left", eyebrow: "SEASON SUMS", titleLines: ["LIFEBAR", "ARCHITECT"], titleColor: "#49E0C5", descriptor: "Highest total healing delivered across the full season.", caption: "The deepest reserve of healing all season.", value: totals.healing, assetKey: "totalHealing" },
       { id: "totalMitigation", kind: "player", contentSide: "left", eyebrow: "SEASON SUMS", titleLines: ["FRONTLINE", "FORTRESS"], titleColor: "#F6C443", descriptor: "Highest total mitigation recorded across the full season.", caption: "A season spent holding the line.", value: totals.mitigation, assetKey: "totalMitigation" },
+      { id: "heroBans", kind: "heroBans", most: heroes.mostBanned, least: heroes.leastBanned },
       { id: "bestKd", kind: "player", contentSide: "left", eyebrow: "GREAT PERFORMANCE", titleLines: ["THE", "CLEANEST", "FINISH"], titleColor: "#FF79B7", descriptor: "Highest kill-to-death performance of the season.", caption: "The strongest K/D performance in the season.", value: performance.kd, assetKey: "bestKd", decimals: 2, suffix: " K/D" },
       { id: "mostPickedMap", kind: "map", layout: "panorama", eyebrow: "MAP POOL", title: "Home field", caption: "The battleground that kept calling the season back.", value: maps.mostPicked, assetKey: "mostPickedMap" },
       { id: "leastPickedMap", kind: "map", layout: "fragment", eyebrow: "MAP POOL", title: "The road untaken", caption: "The quietest corner of the draft, zeros included.", value: maps.leastPicked, assetKey: "leastPickedMap" },
       { id: "finale", kind: "finale" },
+      { id: "communityThanks", kind: "thanks" },
+      { id: "finalsTransition", kind: "transition" },
     ];
-  }, [wrapped]);
+  }, [getStoryDuration, registeredPlayers, wrapped]);
 
   const totalSlides = stories.length + 1;
-  const media = useMemo(() => wrapped ? resolveWrappedAssets(wrapped.assets) : null, [wrapped]);
   const nextVideoToPreload = useMemo(() => {
     if (!started || !media) return null;
     // activeIndex includes the intro, so the following story begins at its
@@ -606,6 +835,7 @@ export default function WrappedPage() {
   }, [activeIndex, media, started, stories]);
   const goTo = useCallback((nextIndex: number, behavior: ScrollBehavior = "smooth") => {
     const bounded = Math.max(0, Math.min(nextIndex, totalSlides - 1));
+    setLeavingIndex(null);
     setActiveIndex(bounded);
     const viewport = scrollRef.current;
     if (viewport) viewport.scrollTo({ top: viewport.clientHeight * bounded, behavior });
@@ -628,24 +858,32 @@ export default function WrappedPage() {
   const beginPlayback = useCallback(() => {
     if (!started) {
       setStarted(true);
-      const intro = introAudioRef.current;
-      if (intro) {
-        fadeAudio(intro, 0, 250);
-        window.setTimeout(() => {
-          intro.pause();
-          intro.currentTime = 0;
-        }, 260);
-      }
-      const general = generalAudioRef.current;
-      if (general) {
-        general.loop = true;
-        general.currentTime = 0;
-        general.volume = 1;
-        void general.play().catch(() => undefined);
+      const recap = recapAudioRef.current;
+      if (recap) {
+        recap.loop = false;
+        recap.currentTime = 0;
+        recap.volume = MUSIC_RESTING_VOLUME;
+        void recap.play().catch(() => undefined);
       }
     }
     goTo(1);
   }, [goTo, started]);
+
+  useEffect(() => {
+    if (!wrapped || started) return;
+    const mode = new URLSearchParams(window.location.search).get("autostart");
+    if (mode !== "finals") return;
+    setFinalsAutostart(true);
+    setStarted(true);
+    goTo(0, "auto");
+    const recap = recapAudioRef.current;
+    if (recap) {
+      recap.loop = false;
+      recap.currentTime = 0;
+      recap.volume = MUSIC_RESTING_VOLUME;
+      void recap.play().catch(() => undefined);
+    }
+  }, [goTo, started, wrapped]);
 
   const setStoryAudioPlayback = useCallback((storyId: string, playing: boolean) => {
     setStoryAudioPlayingId((current) => {
@@ -658,32 +896,18 @@ export default function WrappedPage() {
   }, []);
 
   useEffect(() => {
-    const intro = introAudioRef.current;
-    if (!intro || !media?.soundtrack.intro || started || reducedMotion) return;
-    intro.loop = true;
-    intro.volume = 0;
-    let cancelFade: (() => void) | undefined;
-    void intro.play().then(() => { cancelFade = fadeAudio(intro, 1, 1500); }).catch(() => undefined);
-    return () => {
-      cancelFade?.();
-      intro.pause();
-      intro.currentTime = 0;
-    };
-  }, [media?.soundtrack.intro, reducedMotion, started]);
-
-  useEffect(() => {
-    const general = generalAudioRef.current;
-    if (!general || !media?.soundtrack.general || !started) return;
-    general.loop = true;
-    void general.play().catch(() => undefined);
+    const recap = recapAudioRef.current;
+    if (!recap || !media?.soundtrack.recap || !started) return;
+    recap.loop = false;
+    void recap.play().catch(() => undefined);
     const activeStory = activeIndex > 0 ? stories[activeIndex - 1] : null;
     const isPlayerHighlight = activeStory?.kind === "player";
     const isStoryAudioPlaying = activeStory?.kind === "player" && storyAudioPlayingId === activeStory.id;
     const targetVolume = isStoryAudioPlaying || isPlayerHighlight
       ? MUSIC_HIGHLIGHT_VOLUME
       : MUSIC_RESTING_VOLUME;
-    return fadeAudio(general, targetVolume, isStoryAudioPlaying ? 360 : 650);
-  }, [activeIndex, media?.soundtrack.general, started, stories, storyAudioPlayingId]);
+    return fadeAudio(recap, targetVolume, isStoryAudioPlaying ? 360 : 650);
+  }, [activeIndex, media?.soundtrack.recap, started, stories, storyAudioPlayingId]);
 
   useEffect(() => {
     setCompletedAudioStoryId(null);
@@ -692,16 +916,43 @@ export default function WrappedPage() {
   }, [activeIndex, started]);
 
   useEffect(() => {
-    if (!started || reducedMotion || activeIndex >= totalSlides - 1) return;
+    if (!started || (reducedMotion && !finalsAutostart) || activeIndex >= totalSlides - 1) return;
     const activeStory = activeIndex > 0 ? stories[activeIndex - 1] : null;
     if (activeStory?.kind === "player" && completedAudioStoryId !== activeStory.id) return;
     const elapsed = playerHighlightStartedAtRef.current === null ? 0 : performance.now() - playerHighlightStartedAtRef.current;
     const duration = activeStory?.kind === "player"
       ? Math.max(POST_COUNT_HOLD_MS, MIN_PLAYER_HIGHLIGHT_DURATION_MS - elapsed)
-      : STANDARD_STORY_DURATION_MS;
-    const timeout = window.setTimeout(() => goTo(activeIndex + 1), duration);
+      : activeStory?.kind === "brand"
+        ? (activeStory.durationSeconds ?? 4.5) * 1000
+        : activeStory?.kind === "finalists"
+          ? (activeStory.durationSeconds ?? 12.5) * 1000
+          : activeStory?.kind === "thanksBefore"
+            ? (activeStory.durationSeconds ?? 7.25) * 1000
+            : activeStory?.kind === "community"
+              ? (activeStory.durationSeconds ?? 8) * 1000
+              : activeStory?.kind === "leaderboardTease"
+                ? (activeStory.durationSeconds ?? 5) * 1000
+                : STANDARD_STORY_DURATION_MS;
+    let exitTimeout = 0;
+    const timeout = window.setTimeout(() => {
+      setLeavingIndex(activeIndex);
+      exitTimeout = window.setTimeout(() => goTo(activeIndex + 1), STORY_EXIT_DURATION_MS);
+    }, duration);
+    return () => {
+      window.clearTimeout(timeout);
+      window.clearTimeout(exitTimeout);
+    };
+  }, [activeIndex, completedAudioStoryId, finalsAutostart, goTo, reducedMotion, started, stories, totalSlides]);
+
+  useEffect(() => {
+    if (!started || activeIndex !== totalSlides - 1) return;
+    const activeStory = stories[activeIndex - 1];
+    if (activeStory?.kind !== "transition") return;
+    const timeout = window.setTimeout(() => {
+      window.parent.postMessage({ type: "goonginga-wrapped-complete" }, window.location.origin);
+    }, 4_200);
     return () => window.clearTimeout(timeout);
-  }, [activeIndex, completedAudioStoryId, goTo, reducedMotion, started, stories, totalSlides]);
+  }, [activeIndex, started, stories, totalSlides]);
 
   useEffect(() => {
     const viewport = scrollRef.current;
@@ -734,25 +985,33 @@ export default function WrappedPage() {
   }, [activeIndex, beginPlayback, goTo, started]);
 
   if (loading) return <main className={styles.status}>Building the season story...</main>;
-  if (error || !wrapped) return <main className={styles.status}><p>GOONGINGA WRAPPED</p><h1>{error || "No Wrapped found"}</h1></main>;
+  if (error || !wrapped) return <main className={styles.status}><p>GOONGINGA FINALS</p><h1>{error || "No Finals recap found"}</h1></main>;
 
   return (
     <main className={styles.wrapped}>
-      {media?.soundtrack.intro && <audio ref={introAudioRef} src={media.soundtrack.intro} preload="auto" />}
-      {media?.soundtrack.general && <audio ref={generalAudioRef} src={media.soundtrack.general} preload="auto" />}
+      {media?.soundtrack.recap?.url && <audio ref={recapAudioRef} src={media.soundtrack.recap.url} preload="auto" />}
       <div className={styles.progress} aria-label={`Story ${activeIndex + 1} of ${totalSlides}`}>
         {Array.from({ length: totalSlides }).map((_, index) => <span key={index} className={index <= activeIndex ? styles.progressActive : ""} />)}
       </div>
       <div ref={scrollRef} className={styles.scrollTrack}>
-        <IntroSlide wrapped={wrapped} onStart={beginPlayback} />
+        <IntroSlide wrapped={wrapped} onStart={beginPlayback} autoPlaying={finalsAutostart} />
         {stories.map((story, index) => {
           const storyIndex = index + 1;
           const isActive = started && activeIndex === storyIndex;
           return (
-            <div key={story.id} className={`${styles.storyViewport} ${isActive ? styles.storyActive : ""}`}>
+            <div key={story.id} className={`${styles.storyViewport} ${isActive ? styles.storyActive : ""} ${leavingIndex === storyIndex ? styles.storyLeaving : ""}`}>
               {story.kind === "player" && <PlayerSlide story={story} wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} onStoryAudioPlaybackChange={setStoryAudioPlayback} onStoryAudioCompleted={setStoryAudioCompleted} />}
               {story.kind === "map" && <MapSlide story={story} wrapped={wrapped} />}
+              {story.kind === "opening" && <OpeningSlide wrapped={wrapped} variant={story.variant} />}
+              {story.kind === "brand" && <BrandIntroSlide />}
+              {story.kind === "finalists" && <FinalistsSlide teams={story.teams} />}
+              {story.kind === "thanksBefore" && <ThanksBeforeSlide teams={story.teams} />}
+              {story.kind === "community" && <CommunityThanksSlide players={story.players} />}
+              {story.kind === "leaderboardTease" && <LeaderboardTeaseSlide />}
+              {story.kind === "heroBans" && <HeroBansSlide most={story.most} least={story.least} />}
               {story.kind === "finale" && <FinaleSlide wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} />}
+              {story.kind === "thanks" && <CommunityThanksSlide players={[]} />}
+              {story.kind === "transition" && <FinalsTransitionSlide />}
             </div>
           );
         })}

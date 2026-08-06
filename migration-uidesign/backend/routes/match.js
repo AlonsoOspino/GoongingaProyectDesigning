@@ -16,6 +16,8 @@ router.get("/admin/week-maps/:tournamentId/:semanas", authMiddleware, adminMiddl
 router.put("/captain/update/:id", authMiddleware, captainMatchMiddleware, matchController.captainUpdate);
 router.post("/captain/:id/request-pause", authMiddleware, captainMatchMiddleware, matchController.captainRequestPause);
 router.put("/manager/update/:id", authMiddleware, managerMiddleware, matchController.managerUpdate);
+router.put("/manager/presentation-time/:id", authMiddleware, managerMiddleware, matchController.managerUpdatePresentationTime);
+router.post("/manager/presentation-reset/:id", authMiddleware, managerMiddleware, matchController.managerResetFinalsPresentation);
 router.post("/manager/:id/toggle-pause", authMiddleware, managerMiddleware, matchController.managerTogglePause);
 router.post("/manager/:id/clear-pause-request", authMiddleware, managerMiddleware, matchController.managerClearPauseRequest);
 // Image endpoint must come before generic /:id routes

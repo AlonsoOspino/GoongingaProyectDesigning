@@ -41,6 +41,7 @@ function savePrismaMethods() {
     draftActionFindMany: prisma.draftAction.findMany,
     teamFindMany: prisma.team.findMany,
     mapFindMany: prisma.map.findMany,
+    heroFindMany: prisma.hero.findMany,
     tournamentFindFirst: prisma.tournament.findFirst,
     wrappedFindUnique: prisma.wrapped.findUnique,
     wrappedCreate: prisma.wrapped.create,
@@ -53,13 +54,14 @@ function restorePrismaMethods(original) {
   prisma.draftAction.findMany = original.draftActionFindMany;
   prisma.team.findMany = original.teamFindMany;
   prisma.map.findMany = original.mapFindMany;
+  prisma.hero.findMany = original.heroFindMany;
   prisma.tournament.findFirst = original.tournamentFindFirst;
   prisma.wrapped.findUnique = original.wrappedFindUnique;
   prisma.wrapped.create = original.wrappedCreate;
   prisma.wrapped.update = original.wrappedUpdate;
 }
 
-function mockSnapshotQueries(stats, leaderboardStats = stats, actions = [{ value: 2 }]) {
+function mockSnapshotQueries(stats, leaderboardStats = stats, actions = [{ action: "PICK", value: 2 }, { action: "BAN", value: 11 }]) {
   let playerStatQueryCount = 0;
   prisma.playerStat.findMany = async () => playerStatQueryCount++ === 0 ? stats : leaderboardStats;
   prisma.draftAction.findMany = async () => actions;
@@ -67,6 +69,10 @@ function mockSnapshotQueries(stats, leaderboardStats = stats, actions = [{ value
   prisma.map.findMany = async () => [
     { id: 1, description: "Alpha", imgPath: "/alpha.jpg" },
     { id: 2, description: "Zulu", imgPath: "/zulu.jpg" },
+  ];
+  prisma.hero.findMany = async () => [
+    { id: 10, name: "Ana", imgPath: "/ana.png", role: "SUPPORT" },
+    { id: 11, name: "Zarya", imgPath: "/zarya.png", role: "TANK" },
   ];
 }
 
@@ -93,6 +99,8 @@ test("buildSnapshot mirrors the Player Stats per-game averages, total sums, and 
   assert.equal(snapshot.maps.mostPicked.name, "Zulu");
   assert.equal(snapshot.maps.leastPicked.name, "Alpha");
   assert.equal(snapshot.performance.kd.player, "Bravo");
+  assert.equal(snapshot.heroes.mostBanned.name, "Zarya");
+  assert.equal(snapshot.heroes.leastBanned.name, "Ana");
 });
 
 test("buildLeaderboardAverages matches the Player Stats running average formula", () => {
@@ -160,7 +168,7 @@ test("refresh retains matching artwork and its horizontal flip setting", () => {
       videos: { averageKills: "https://cdn.example/alpha.mp4", mostPickedMap: "https://cdn.example/zulu.mp4" },
       videoPositions: { averageKills: { x: 28, y: 62 }, mostPickedMap: { x: 91, y: 10 } },
       storyAudios: { averageKills: ["https://cdn.example/one.mp3"], mostPickedMap: ["https://cdn.example/two.mp3"] },
-      soundtrack: { intro: "https://cdn.example/intro.mp3", general: "https://cdn.example/general.mp3" },
+      soundtrack: { recap: { url: "https://cdn.example/recap.mp3", durationSeconds: 100 }, countdown: { url: "https://cdn.example/countdown.mp3", durationSeconds: 45.5 } },
     },
     snapshot: {
       averagesPer10: { kills: { userId: 1 } },
@@ -178,7 +186,7 @@ test("refresh retains matching artwork and its horizontal flip setting", () => {
     videos: { averageKills: "https://cdn.example/alpha.mp4" },
     videoPositions: { averageKills: { x: 28, y: 62 } },
     storyAudios: { averageKills: ["https://cdn.example/one.mp3"] },
-    soundtrack: { intro: "https://cdn.example/intro.mp3", general: "https://cdn.example/general.mp3" },
+    soundtrack: { recap: { url: "https://cdn.example/recap.mp3", durationSeconds: 100 }, countdown: { url: "https://cdn.example/countdown.mp3", durationSeconds: 45.5 } },
   });
 });
 
@@ -201,7 +209,11 @@ test("asset settings retain only valid media URLs and at most three post-video a
     wrappedController.__testables.normalizeAssets({
       videos: { averageKills: " https://cdn.example/intro.mp4 ", unknown: "https://cdn.example/nope.mp4" },
       storyAudios: { averageKills: [" https://cdn.example/1.mp3 ", "", "https://cdn.example/2.mp3", "https://cdn.example/3.mp3", "https://cdn.example/4.mp3"] },
-      soundtrack: { intro: " https://cdn.example/intro-loop.mp3 ", general: "https://cdn.example/general.mp3", other: "https://cdn.example/nope.mp3" },
+      soundtrack: {
+        recap: { url: " https://cdn.example/recap.mp3 ", durationSeconds: 100.1254 },
+        countdown: { url: "https://cdn.example/countdown.mp3", durationSeconds: 45.5 },
+        other: { url: "https://cdn.example/nope.mp3" },
+      },
     }),
     {
       images: {},
@@ -209,7 +221,31 @@ test("asset settings retain only valid media URLs and at most three post-video a
       videos: { averageKills: "https://cdn.example/intro.mp4" },
       videoPositions: {},
       storyAudios: { averageKills: ["https://cdn.example/1.mp3", "https://cdn.example/2.mp3", "https://cdn.example/3.mp3"] },
-      soundtrack: { intro: "https://cdn.example/intro-loop.mp3", general: "https://cdn.example/general.mp3" },
+      soundtrack: {
+        recap: { url: "https://cdn.example/recap.mp3", durationSeconds: 100.125 },
+        countdown: { url: "https://cdn.example/countdown.mp3", durationSeconds: 45.5 },
+      },
+    }
+  );
+});
+
+test("story durations are preserved with decimal precision for the pre-highlight sequence", () => {
+  assert.deepEqual(
+    wrappedController.__testables.normalizeAssets({
+      storyDurations: {
+        intro: 4.5,
+        finalists: 12.5,
+        thanks: 7.25,
+        community: 8,
+        leaderboard: 5,
+      },
+    }).storyDurations,
+    {
+      intro: 4.5,
+      finalists: 12.5,
+      thanks: 7.25,
+      community: 8,
+      leaderboard: 5,
     }
   );
 });

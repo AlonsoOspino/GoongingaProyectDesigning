@@ -32,8 +32,10 @@ import {
   type Team,
 } from "@/lib/api";
 import { clsx } from "clsx";
-import { resolveHeroImageUrl, resolveMapImageUrl } from "@/lib/assetUrls";
+import { resolveGenericBackendAsset, resolveHeroImageUrl, resolveMapImageUrl } from "@/lib/assetUrls";
 import { MapImage, MapBackground, useImageReady, preloadImages } from "@/components/draft/MapImage";
+import { FinalsPresentationStage } from "@/components/finals/FinalsPresentationStage";
+import finalsStyles from "@/components/finals/finals.module.css";
 
 const POLL_INTERVAL = 3000;
 const TURN_DURATION = 95;
@@ -1185,27 +1187,48 @@ export default function DraftTablePage() {
 
           {/* Phase Content */}
         {currentPhase === "STARTING" && (
-          <StartingPhase
-            isManager={isManager}
-            isCaptain={isCaptain}
-            isObsKeyAccess={isObsKeyAccess}
-            teamA={teamA}
-            teamB={teamB}
-            match={draftState.match}
-            amIReady={amIReady}
-            onStart={handleStartMapPicking}
-            onSetReady={handleSetReady}
-            onUndoResult={handleUndoResult}
-            firstPickerTeam={firstPickerTeam}
-            canYieldFirstPick={
-              isCaptain &&
-              draftState.match.type === "PLAYOFFS" &&
-              draftState.match.gameNumber === 0 &&
-              draftState.currentTurnTeamId === myTeamId
-            }
-            onYieldFirstPick={handleYieldFirstPick}
-            actionLoading={actionLoading}
-          />
+          (draftState.match.type === "FINALS" || /grand\s*final/i.test(draftState.match.title || "")) && draftState.match.gameNumber === 0 ? (
+            <FinalsPresentationStage match={draftState.match} teamA={teamA} teamB={teamB} isManager={isManager}>
+              <StartingPhase
+                isManager={isManager}
+                isCaptain={isCaptain}
+                isObsKeyAccess={isObsKeyAccess}
+                teamA={teamA}
+                teamB={teamB}
+                match={draftState.match}
+                amIReady={amIReady}
+                onStart={handleStartMapPicking}
+                onSetReady={handleSetReady}
+                onUndoResult={handleUndoResult}
+                firstPickerTeam={firstPickerTeam}
+                canYieldFirstPick={false}
+                onYieldFirstPick={handleYieldFirstPick}
+                actionLoading={actionLoading}
+              />
+            </FinalsPresentationStage>
+          ) : (
+            <StartingPhase
+              isManager={isManager}
+              isCaptain={isCaptain}
+              isObsKeyAccess={isObsKeyAccess}
+              teamA={teamA}
+              teamB={teamB}
+              match={draftState.match}
+              amIReady={amIReady}
+              onStart={handleStartMapPicking}
+              onSetReady={handleSetReady}
+              onUndoResult={handleUndoResult}
+              firstPickerTeam={firstPickerTeam}
+              canYieldFirstPick={
+                isCaptain &&
+                draftState.match.type === "PLAYOFFS" &&
+                draftState.match.gameNumber === 0 &&
+                draftState.currentTurnTeamId === myTeamId
+              }
+              onYieldFirstPick={handleYieldFirstPick}
+              actionLoading={actionLoading}
+            />
+          )
         )}
 
         {currentPhase === "MAPPICKING" && (
@@ -1581,6 +1604,13 @@ export default function DraftTablePage() {
 
 // ==================== STARTING PHASE ====================
 
+function WaitingTeamLogo({ team, fallback }: { team?: Team; fallback: string }) {
+  const [logoFailed, setLogoFailed] = useState(!team?.logo);
+  return team?.logo && !logoFailed ? (
+    <img src={resolveGenericBackendAsset(team.logo)} alt={`${team.name} logo`} onError={() => setLogoFailed(true)} />
+  ) : <span aria-label={`${team?.name || fallback} logo`}>{team?.name?.slice(0, 2).toUpperCase() || fallback}</span>;
+}
+
 function StartingPhase({
   isManager,
   isCaptain,
@@ -1615,142 +1645,60 @@ function StartingPhase({
   const bothReady = match.teamAready === 1 && match.teamBready === 1;
   const canUndoResult = isManager && match.status !== "FINISHED" && (match.mapResults?.length || 0) > 0;
 
-  const cardSizeClass = isObsKeyAccess ? "max-w-5xl" : "max-w-2xl";
-  const cardPaddingClass = isObsKeyAccess ? "p-14" : "p-8";
-
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh]">
-      <Card variant="featured" className={clsx("w-full", cardSizeClass)}>
-        <CardContent className={cardPaddingClass}>
-          <h2 className={clsx("font-bold text-center text-foreground mb-2", isObsKeyAccess ? "text-3xl" : "text-2xl")}>
-              {match.gameNumber === 0 ? "Waiting to Start" : `Ready for Game ${match.gameNumber + 1}?`}
-            </h2>
-            <p className={clsx("text-muted text-center mb-8", isObsKeyAccess ? "text-base" : "text-sm")}>
-              Captains can mark ready; manager can start when match operations are prepared
-            </p>
-            
-            <div className="flex items-center justify-center gap-12 mb-8">
-              <div className="text-center">
-                <div
-                  className={clsx(
-                    "rounded-full bg-[color:var(--color-team-a)]/20 border-2 border-[color:var(--color-team-a)] mx-auto mb-3 flex items-center justify-center",
-                    isObsKeyAccess ? "w-28 h-28" : "w-20 h-20"
-                  )}
-                >
-                  <span className={clsx("font-bold text-[color:var(--color-team-a)]", isObsKeyAccess ? "text-3xl" : "text-2xl")}>
-                    {teamA?.name?.charAt(0) || "A"}
-                  </span>
-                </div>
-                <p className={clsx("font-semibold text-foreground mb-2", isObsKeyAccess ? "text-lg" : "text-base")}>
-                  {teamA?.name}
-                </p>
-                <Badge variant={match.teamAready ? "success" : "default"} className={clsx(isObsKeyAccess && "text-sm px-4 py-1")}>
-                  {match.teamAready ? "Ready" : "Not Ready"}
-                </Badge>
-              </div>
+    <div className={clsx(finalsStyles.waitingRoom, isObsKeyAccess && finalsStyles.waitingRoomBroadcast)}>
+      <div className={finalsStyles.waitingGrid} aria-hidden="true" />
+      <header className={finalsStyles.waitingHeading}>
+        <p>{match.gameNumber === 0 ? "CAPTAIN CHECK-IN" : `GAME ${match.gameNumber + 1} · RESET`}</p>
+        <h2>{match.gameNumber === 0 ? "THE LOBBY IS OPEN" : "READY FOR THE NEXT MAP"}</h2>
+        <span>{bothReady ? "Both teams are locked in." : "Captains, confirm your team when you are ready."}</span>
+      </header>
 
-              <div className={clsx("font-bold text-muted", isObsKeyAccess ? "text-5xl" : "text-4xl")}>VS</div>
-
-              <div className="text-center">
-                <div
-                  className={clsx(
-                    "rounded-full bg-[color:var(--color-team-b)]/20 border-2 border-[color:var(--color-team-b)] mx-auto mb-3 flex items-center justify-center",
-                    isObsKeyAccess ? "w-28 h-28" : "w-20 h-20"
-                  )}
-                >
-                  <span className={clsx("font-bold text-[color:var(--color-team-b)]", isObsKeyAccess ? "text-3xl" : "text-2xl")}>
-                    {teamB?.name?.charAt(0) || "B"}
-                  </span>
-                </div>
-                <p className={clsx("font-semibold text-foreground mb-2", isObsKeyAccess ? "text-lg" : "text-base")}>
-                  {teamB?.name}
-                </p>
-                <Badge variant={match.teamBready ? "success" : "default"} className={clsx(isObsKeyAccess && "text-sm px-4 py-1")}>
-                  {match.teamBready ? "Ready" : "Not Ready"}
-                </Badge>
-              </div>
+      <div className={finalsStyles.waitingMatchup}>
+        {[{ team: teamA, ready: match.teamAready, side: "a" }, { team: teamB, ready: match.teamBready, side: "b" }].map(({ team, ready, side }) => (
+          <div key={side} className={`${finalsStyles.waitingTeam} ${finalsStyles[`waitingTeam${side.toUpperCase()}`]}`}>
+            <div className={finalsStyles.waitingLogo}>
+              <WaitingTeamLogo team={team} fallback={side.toUpperCase()} />
             </div>
+            <h3>{team?.name || `Team ${side.toUpperCase()}`}</h3>
+            <div className={`${finalsStyles.readyState} ${ready ? finalsStyles.readyStateActive : ""}`}>
+              <i /> {ready ? "READY" : "AWAITING CAPTAIN"}
+            </div>
+          </div>
+        ))}
+        <div className={finalsStyles.waitingVs}>
+          <small>BEST OF {match.bestOf}</small>
+          <strong>VS</strong>
+          <span>{Number(Boolean(match.teamAready)) + Number(Boolean(match.teamBready))} / 2 READY</span>
+        </div>
+      </div>
 
-            {match.type === "PLAYOFFS" && match.gameNumber === 0 && (
-              <div className="mb-6 rounded-md border border-primary/30 bg-primary/10 px-4 py-3 text-center">
-                <p className="text-sm font-semibold text-foreground">
-                  {firstPickerTeam?.name || "Higher seed"} has first map pick and first ban.
-                </p>
-                {canYieldFirstPick && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="mt-3"
-                    onClick={onYieldFirstPick}
-                    disabled={actionLoading}
-                  >
-                    Allow enemy team to choose first
-                  </Button>
-                )}
-              </div>
-            )}
+      {match.type === "PLAYOFFS" && match.gameNumber === 0 && (
+        <div className={finalsStyles.firstPickNotice}>
+          <span>FIRST MOVE</span>
+          <p>{firstPickerTeam?.name || "Higher seed"} holds first map pick and first ban.</p>
+          {canYieldFirstPick && <Button type="button" variant="outline" size="sm" onClick={onYieldFirstPick} disabled={actionLoading}>Yield first choice</Button>}
+        </div>
+      )}
 
-            {/* Captain Ready Button */}
-            {isCaptain && !amIReady && (
-              <div className="text-center mb-6">
-                <Button size="lg" onClick={onSetReady} disabled={actionLoading} className={clsx("px-8", isObsKeyAccess && "text-lg px-10")}> 
-                  {actionLoading ? "Setting ready..." : "I'm Ready!"}
-                </Button>
-                <p className={clsx("text-muted mt-2", isObsKeyAccess ? "text-sm" : "text-xs")}>
-                  Click to confirm you are ready to play
-                </p>
-              </div>
-            )}
-
-            {isCaptain && amIReady && (
-              <div className="text-center mb-6">
-                <Badge variant="success" className={clsx("text-sm px-4 py-2", isObsKeyAccess && "text-base px-5 py-2.5")}>
-                  You are ready
-                </Badge>
-                <p className={clsx("text-muted mt-2", isObsKeyAccess ? "text-sm" : "text-xs")}>
-                  Waiting for manager to start...
-                </p>
-              </div>
-            )}
-
-            {isManager && (
-              <div className="text-center">
-                {!bothReady && (
-                  <p className={clsx("text-muted mb-4", isObsKeyAccess ? "text-base" : "text-sm")}>
-                    One or both captains are not marked ready yet.
-                  </p>
-                )}
-                <div className="flex flex-wrap items-center justify-center gap-3">
-                  {canUndoResult && (
-                    <Button
-                      size="lg"
-                      variant="secondary"
-                      onClick={onUndoResult}
-                      disabled={actionLoading}
-                      className={clsx("px-8", isObsKeyAccess && "text-lg px-10")}
-                    >
-                      Fix Last Result
-                    </Button>
-                  )}
-                  <Button 
-                    size="lg" 
-                    onClick={onStart} 
-                    disabled={actionLoading} 
-                    className={clsx("px-8", isObsKeyAccess && "text-lg px-10")}
-                  >
-                    {actionLoading ? "Starting..." : "Start Map Picking"}
-                  </Button>
-                </div>
-                {!bothReady && (
-                  <p className={clsx("text-muted mt-2", isObsKeyAccess ? "text-sm" : "text-xs")}>
-                    Manager override is active.
-                  </p>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      <div className={finalsStyles.waitingActions}>
+        {isCaptain && !amIReady && (
+          <Button size="lg" onClick={onSetReady} disabled={actionLoading} className="px-10">
+            {actionLoading ? "CONFIRMING..." : "CONFIRM TEAM READY"}
+          </Button>
+        )}
+        {isCaptain && amIReady && <div className={finalsStyles.lockedMessage}><strong>YOU ARE LOCKED IN</strong><span>The manager will open map picking.</span></div>}
+        {isManager && (
+          <>
+            {canUndoResult && <Button size="lg" variant="secondary" onClick={onUndoResult} disabled={actionLoading}>Fix Last Result</Button>}
+            <Button size="lg" onClick={onStart} disabled={actionLoading} className="px-10">
+              {actionLoading ? "OPENING..." : "OPEN MAP PICKING"}
+            </Button>
+            {!bothReady && <span className={finalsStyles.overrideNote}>Manager override available · captains are not both ready</span>}
+          </>
+        )}
+        {!isCaptain && !isManager && <p className={finalsStyles.viewerMessage}>Waiting for both captains to check in.</p>}
+      </div>
     </div>
   );
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "Match" ADD COLUMN "presentationVersion" INTEGER NOT NULL DEFAULT 0;

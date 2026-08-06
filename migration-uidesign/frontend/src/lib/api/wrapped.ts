@@ -20,9 +20,13 @@ export type WrappedVideoUrls = Partial<Record<WrappedAssetKey, string>>;
 export type WrappedVideoPosition = { x: number; y: number };
 export type WrappedVideoPositions = Partial<Record<WrappedAssetKey, WrappedVideoPosition>>;
 export type WrappedStoryAudio = Partial<Record<WrappedAssetKey, string[]>>;
+export type WrappedSoundtrackTrack = {
+  url: string;
+  durationSeconds?: number;
+};
 export type WrappedSoundtrack = {
-  intro?: string;
-  general?: string;
+  recap?: WrappedSoundtrackTrack;
+  countdown?: WrappedSoundtrackTrack;
 };
 
 export type WrappedAssets = {
@@ -32,6 +36,7 @@ export type WrappedAssets = {
   videoPositions: WrappedVideoPositions;
   storyAudios: WrappedStoryAudio;
   soundtrack: WrappedSoundtrack;
+  storyDurations?: Record<string, number>;
 };
 
 type LegacyWrappedAssets = WrappedAssetUrls;
@@ -75,6 +80,9 @@ export function resolveWrappedAssets(value: unknown): WrappedAssets {
   const soundtrackSource = raw.soundtrack && typeof raw.soundtrack === "object" && !Array.isArray(raw.soundtrack)
     ? raw.soundtrack as Record<string, unknown>
     : {};
+  const storyDurationSource = raw.storyDurations && typeof raw.storyDurations === "object" && !Array.isArray(raw.storyDurations)
+    ? raw.storyDurations as Record<string, unknown>
+    : {};
 
   const images = Object.fromEntries(
     Object.entries(imageSource).filter(([key, image]) => wrappedAssetKeys.has(key as WrappedAssetKey) && typeof image === "string" && image.trim())
@@ -101,11 +109,29 @@ export function resolveWrappedAssets(value: unknown): WrappedAssets {
       .map(([key, sources]) => [key, (sources as unknown[]).filter((source): source is string => typeof source === "string" && Boolean(source.trim())).slice(0, 3)])
       .filter(([, sources]) => sources.length)
   ) as WrappedStoryAudio;
-  const soundtrack = Object.fromEntries(
-    Object.entries(soundtrackSource).filter(([key, source]) => (key === "intro" || key === "general") && typeof source === "string" && source.trim())
-  ) as WrappedSoundtrack;
+  const normalizeTrack = (value: unknown, legacyUrl?: unknown): WrappedSoundtrackTrack | undefined => {
+    const source = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+    const rawUrl = typeof source.url === "string" ? source.url : legacyUrl;
+    if (typeof rawUrl !== "string" || !rawUrl.trim()) return undefined;
+    const rawDuration = Number(source.durationSeconds);
+    return {
+      url: rawUrl.trim(),
+      ...(Number.isFinite(rawDuration) && rawDuration > 0 ? { durationSeconds: rawDuration } : {}),
+    };
+  };
+  const recap = normalizeTrack(soundtrackSource.recap, soundtrackSource.general);
+  const countdown = normalizeTrack(soundtrackSource.countdown);
+  const soundtrack: WrappedSoundtrack = {
+    ...(recap ? { recap } : {}),
+    ...(countdown ? { countdown } : {}),
+  };
+  const storyDurations = Object.fromEntries(
+    Object.entries(storyDurationSource)
+      .filter(([key, value]) => ["intro", "finalists", "thanksBefore", "thanks", "community", "leaderboard"].includes(key) && typeof value === "number" && Number.isFinite(value) && value > 0)
+      .map(([key, value]) => [key, Number(value)])
+  );
 
-  return { images, flipped, videos, videoPositions, storyAudios, soundtrack };
+  return { images, flipped, videos, videoPositions, storyAudios, soundtrack, storyDurations };
 }
 
 export interface WrappedPlayerLeader {
@@ -122,6 +148,14 @@ export interface WrappedMapRanking {
   mapId: number;
   name: string;
   image: string | null;
+  count: number;
+}
+
+export interface WrappedHeroRanking {
+  heroId: number;
+  name: string;
+  image: string | null;
+  role: "TANK" | "DPS" | "SUPPORT";
   count: number;
 }
 
@@ -154,6 +188,10 @@ export interface WrappedSnapshot {
   maps: {
     mostPicked: WrappedMapRanking | null;
     leastPicked: WrappedMapRanking | null;
+  };
+  heroes?: {
+    mostBanned: WrappedHeroRanking | null;
+    leastBanned: WrappedHeroRanking | null;
   };
 }
 
@@ -199,6 +237,7 @@ export function resolveWrappedSnapshot(snapshot: WrappedSnapshot) {
       mostPicked: legacy.draft?.mostPickedMap || null,
       leastPicked: legacy.draft?.leastPlayedMaps?.[0] || null,
     },
+    heroes: snapshot.heroes || { mostBanned: null, leastBanned: null },
   };
 }
 

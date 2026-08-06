@@ -149,6 +149,8 @@ model Match {
   bestOf             Int
   status             MatchStatus  @default(SCHEDULED)
   startDate          DateTime?
+  presentationStartDate DateTime?
+  presentationVersion Int         @default(0)
   tournamentId       Int
   teamAId            Int
   teamBId            Int

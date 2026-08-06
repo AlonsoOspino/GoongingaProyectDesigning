@@ -12,6 +12,7 @@ type MediaUploadFieldProps = {
   token: string;
   placeholder?: string;
   hint?: string;
+  onDurationChange?: (durationSeconds: number | null) => void;
 };
 
 const mediaConfig = {
@@ -19,7 +20,7 @@ const mediaConfig = {
   audio: { accept: "audio/mpeg,audio/mp4,audio/wav,audio/x-wav,audio/ogg,audio/webm,audio/aac", empty: "No audio", action: "Upload audio" },
 } satisfies Record<BlobMediaType, { accept: string; empty: string; action: string }>;
 
-export function MediaUploadField({ label, value, onChange, type, token, placeholder, hint }: MediaUploadFieldProps) {
+export function MediaUploadField({ label, value, onChange, type, token, placeholder, hint, onDurationChange }: MediaUploadFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +44,18 @@ export function MediaUploadField({ label, value, onChange, type, token, placehol
     <div className="space-y-2">
       <label className="block text-sm font-medium text-foreground">{label}</label>
       {value ? (
-        type === "video" ? <video src={value} className="h-24 w-full rounded-md border border-border bg-black object-cover" controls preload="metadata" /> : <audio src={value} className="w-full" controls preload="metadata" />
+        type === "video" ? <video src={value} className="h-24 w-full rounded-md border border-border bg-black object-cover" controls preload="metadata" /> : (
+          <audio
+            src={value}
+            className="w-full"
+            controls
+            preload="metadata"
+            onLoadedMetadata={(event) => {
+              const duration = event.currentTarget.duration;
+              onDurationChange?.(Number.isFinite(duration) && duration > 0 ? duration : null);
+            }}
+          />
+        )
       ) : (
         <div className="flex h-14 items-center rounded-md border border-dashed border-border bg-surface-elevated px-3 text-sm text-muted">{config.empty}</div>
       )}
@@ -58,7 +70,7 @@ export function MediaUploadField({ label, value, onChange, type, token, placehol
         <Button type="button" variant="secondary" size="sm" onClick={() => inputRef.current?.click()} disabled={uploading}>
           {uploading ? "Uploading..." : config.action}
         </Button>
-        {value && <Button type="button" variant="ghost" size="sm" onClick={() => onChange("")}>Clear</Button>}
+        {value && <Button type="button" variant="ghost" size="sm" onClick={() => { onChange(""); onDurationChange?.(null); }}>Clear</Button>}
       </div>
       {hint && <p className="text-xs text-muted">{hint}</p>}
       {error && <p className="text-sm text-danger">{error}</p>}

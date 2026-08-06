@@ -137,6 +137,8 @@ export interface Match {
   status: MatchStatus;
   bestOf: number;
   startDate: string;
+  presentationStartDate?: string | null;
+  presentationVersion?: number;
   tournamentId: number;
   teamAId: number;
   teamBId: number;

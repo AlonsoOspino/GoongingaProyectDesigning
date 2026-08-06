@@ -9,8 +9,8 @@ export async function getTournaments() {
   return apiRequest<Tournament[]>("/tournament");
 }
 
-export async function getCurrentTournament() {
-  return apiRequest<Tournament>("/tournament/current");
+export async function getCurrentTournament(options: { cache?: RequestCache } = {}) {
+  return apiRequest<Tournament>("/tournament/current", { cache: options.cache });
 }
 
 export async function createTournament(

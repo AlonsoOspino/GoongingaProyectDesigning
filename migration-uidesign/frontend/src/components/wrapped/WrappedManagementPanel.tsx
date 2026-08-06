@@ -61,7 +61,7 @@ function fieldsFor(wrapped: GoongingaWrapped): AssetField[] {
 
 export function WrappedManagementPanel({ token }: { token: string }) {
   const [wrapped, setWrapped] = useState<GoongingaWrapped | null>(null);
-  const [assets, setAssets] = useState<WrappedAssets>({ images: {}, flipped: {}, videos: {}, videoPositions: {}, storyAudios: {}, soundtrack: {} });
+  const [assets, setAssets] = useState<WrappedAssets & { storyDurations?: Record<string, number> }>({ images: {}, flipped: {}, videos: {}, videoPositions: {}, storyAudios: {}, soundtrack: {}, storyDurations: {} });
   const [loading, setLoading] = useState(true);
   const [freezing, setFreezing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -69,6 +69,15 @@ export function WrappedManagementPanel({ token }: { token: string }) {
 
   const assetFields = useMemo(() => (wrapped ? fieldsFor(wrapped) : []), [wrapped]);
   const snapshot = wrapped ? resolveWrappedSnapshot(wrapped.snapshot) : null;
+  const getStoryDurationValue = (key: string, fallback: number) => {
+    const value = assets.storyDurations?.[key];
+    if (typeof value === "number" && Number.isFinite(value) && value > 0) return value;
+    if (key === "thanksBefore") {
+      const legacyValue = assets.storyDurations?.thanks;
+      if (typeof legacyValue === "number" && Number.isFinite(legacyValue) && legacyValue > 0) return legacyValue;
+    }
+    return fallback;
+  };
 
   const notify = (type: "success" | "error", message: string) => {
     setNotification({ type, message });
@@ -81,7 +90,7 @@ export function WrappedManagementPanel({ token }: { token: string }) {
       setWrapped(data);
       setAssets(resolveWrappedAssets(data.assets));
     } catch (error: any) {
-      if (error?.status !== 404) notify("error", error?.message || "Could not load Goonginga Wrapped.");
+      if (error?.status !== 404) notify("error", error?.message || "Could not load the Finals recap.");
     } finally {
       setLoading(false);
     }
@@ -96,7 +105,7 @@ export function WrappedManagementPanel({ token }: { token: string }) {
     const action = wrapped ? "Refresh" : "Freeze";
     const message = wrapped
       ? "Refresh the locked stats? Media is kept only for slides whose player or map remains unchanged."
-      : "Freeze the current finished-game stats for the public Wrapped?";
+      : "Freeze the current finished-game stats for the Finals recap?";
     if (!window.confirm(message)) return;
 
     setFreezing(true);
@@ -108,7 +117,7 @@ export function WrappedManagementPanel({ token }: { token: string }) {
       setAssets(nextAssets);
       notify("success", `${action} complete.${clearedCount > 0 ? ` ${clearedCount} outdated media item(s) were cleared.` : ""}`);
     } catch (error: any) {
-      notify("error", error?.message || "Could not freeze the Wrapped snapshot.");
+      notify("error", error?.message || "Could not freeze the Finals snapshot.");
     } finally {
       setFreezing(false);
     }
@@ -119,16 +128,17 @@ export function WrappedManagementPanel({ token }: { token: string }) {
     try {
       const data = await updateManageGoongingaWrappedAssets(token, assets);
       setWrapped(data);
-      setAssets(resolveWrappedAssets(data.assets));
-      notify("success", "Wrapped media saved.");
+      const nextAssets = resolveWrappedAssets(data.assets) as WrappedAssets & { storyDurations?: Record<string, number> };
+      setAssets({ ...nextAssets, storyDurations: (data.assets as any)?.storyDurations || {} });
+      notify("success", "Finals media saved.");
     } catch (error: any) {
-      notify("error", error?.message || "Could not save Wrapped artwork.");
+      notify("error", error?.message || "Could not save Finals media.");
     } finally {
       setSaving(false);
     }
   }
 
-  if (loading) return <Card variant="bordered"><CardContent className="p-8 text-center text-muted">Loading Wrapped studio...</CardContent></Card>;
+  if (loading) return <Card variant="bordered"><CardContent className="p-8 text-center text-muted">Loading Finals studio...</CardContent></Card>;
 
   return (
     <div className="space-y-6">
@@ -141,11 +151,11 @@ export function WrappedManagementPanel({ token }: { token: string }) {
       <Card variant="bordered">
         <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <CardTitle>Goonginga Wrapped studio</CardTitle>
-            <p className="mt-1 text-sm text-muted">Public playback reads this frozen snapshot only. Refreshing is the only action that recalculates season stats.</p>
+            <CardTitle>Goonginga Finals studio</CardTitle>
+            <p className="mt-1 text-sm text-muted">The recap unlocks only while the tournament is in Finals. Playback reads this frozen snapshot and never recalculates live stats.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {wrapped && <Button variant="secondary" onClick={() => window.open("/wrapped", "_blank")}>Open stream view</Button>}
+            {wrapped && <Button variant="secondary" onClick={() => window.open("/finals", "_blank")}>Open Finals view</Button>}
             <Button onClick={freezeSnapshot} disabled={freezing}>
               {freezing ? (wrapped ? "Refreshing..." : "Freezing...") : (wrapped ? "Refresh locked stats" : "Freeze statistics")}
             </Button>
@@ -172,7 +182,7 @@ export function WrappedManagementPanel({ token }: { token: string }) {
               </div>
             </div>
           ) : (
-            <p className="rounded-lg border border-border bg-surface/50 p-5 text-sm text-muted">Freeze after at least one finished game has registered stats. Until then, the public Wrapped remains unavailable.</p>
+            <p className="rounded-lg border border-border bg-surface/50 p-5 text-sm text-muted">Freeze after at least one finished game has registered stats. Until then, the Finals recap remains unavailable.</p>
           )}
         </CardContent>
       </Card>
@@ -180,27 +190,104 @@ export function WrappedManagementPanel({ token }: { token: string }) {
       {wrapped && (
         <Card variant="bordered">
           <CardHeader>
-            <CardTitle>Wrapped soundtrack</CardTitle>
-            <p className="mt-1 text-sm text-muted">The intro track loops before Start with a 1.5 second fade-in. The general track begins when the replay starts and ducks to 50% after each story video.</p>
+            <CardTitle>Finals audio tracks</CardTitle>
+            <p className="mt-1 text-sm text-muted">Both tracks play once. The countdown track is timed to end exactly at zero; the recap track starts with the season recap and never loops.</p>
           </CardHeader>
           <CardContent>
             <div className="grid gap-5 lg:grid-cols-2">
               <MediaUploadField
-                label="Introductory loop"
+                label="Finals countdown track"
                 type="audio"
                 token={token}
-                value={assets.soundtrack.intro || ""}
-                onChange={(url) => setAssets((current) => ({ ...current, soundtrack: { ...current.soundtrack, intro: url } }))}
-                hint="Loops on the cover before Start."
+                value={assets.soundtrack.countdown?.url || ""}
+                onChange={(url) => setAssets((current) => ({
+                  ...current,
+                  soundtrack: url
+                    ? { ...current.soundtrack, countdown: { url, durationSeconds: current.soundtrack.countdown?.durationSeconds } }
+                    : { ...current.soundtrack, countdown: undefined },
+                }))}
+                onDurationChange={(durationSeconds) => setAssets((current) => ({
+                  ...current,
+                  soundtrack: current.soundtrack.countdown
+                    ? { ...current.soundtrack, countdown: { ...current.soundtrack.countdown, ...(durationSeconds ? { durationSeconds } : {}) } }
+                    : current.soundtrack,
+                }))}
+                hint={assets.soundtrack.countdown?.durationSeconds
+                  ? `Starts automatically at ${assets.soundtrack.countdown.durationSeconds.toFixed(1)} seconds remaining.`
+                  : "Duration is read from the uploaded file and saved with the track."}
               />
               <MediaUploadField
-                label="General Wrapped track"
+                label="Finals recap track"
                 type="audio"
                 token={token}
-                value={assets.soundtrack.general || ""}
-                onChange={(url) => setAssets((current) => ({ ...current, soundtrack: { ...current.soundtrack, general: url } }))}
-                hint="Plays through the recap and is reduced while story audio cues play."
+                value={assets.soundtrack.recap?.url || ""}
+                onChange={(url) => setAssets((current) => ({
+                  ...current,
+                  soundtrack: url
+                    ? { ...current.soundtrack, recap: { url, durationSeconds: current.soundtrack.recap?.durationSeconds } }
+                    : { ...current.soundtrack, recap: undefined },
+                }))}
+                onDurationChange={(durationSeconds) => setAssets((current) => ({
+                  ...current,
+                  soundtrack: current.soundtrack.recap
+                    ? { ...current.soundtrack, recap: { ...current.soundtrack.recap, ...(durationSeconds ? { durationSeconds } : {}) } }
+                    : current.soundtrack,
+                }))}
+                hint={assets.soundtrack.recap?.durationSeconds
+                  ? `Saved duration: ${assets.soundtrack.recap.durationSeconds.toFixed(1)} seconds. Plays once from the beginning of the recap.`
+                  : "Duration is read from the uploaded file and saved with the track."}
               />
+            </div>
+            <div className="mt-5 flex justify-end">
+              <Button onClick={saveAssets} disabled={saving}>{saving ? "Saving audio..." : "Save Finals audio"}</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {wrapped && (
+        <Card variant="bordered">
+          <CardHeader>
+            <CardTitle>Pre-highlight story timing</CardTitle>
+            <p className="mt-1 text-sm text-muted">Set the runtime of each intro screen before the player highlights begin. Values accept decimals for smoother pacing.</p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2">
+              {[
+                { key: "intro", label: "Brand intro", defaultValue: 4.5 },
+                { key: "finalists", label: "Finalists showdown", defaultValue: 12.5 },
+                { key: "thanksBefore", label: "Thank-you roster", defaultValue: 7.25 },
+                { key: "community", label: "Community tribute", defaultValue: 8 },
+                { key: "leaderboard", label: "Leaderboard tease", defaultValue: 5 },
+              ].map((item) => (
+                <label key={item.key} className="grid gap-2 rounded-lg border border-border bg-surface/40 p-3 text-sm text-foreground">
+                  <span className="flex items-center justify-between">
+                    <span>{item.label}</span>
+                    <strong>{getStoryDurationValue(item.key, item.defaultValue).toFixed(2)}s</strong>
+                  </span>
+                  <input
+                    type="range"
+                    min="1"
+                    max="20"
+                    step="0.25"
+                    value={getStoryDurationValue(item.key, item.defaultValue)}
+                    onChange={(event) => {
+                      const value = Number(event.target.value);
+                      setAssets((current) => ({
+                        ...current,
+                        storyDurations: {
+                          ...(current.storyDurations || {}),
+                          [item.key]: value,
+                        },
+                      }));
+                    }}
+                    className="w-full accent-primary"
+                  />
+                </label>
+              ))}
+            </div>
+            <div className="mt-6 flex justify-end">
+              <Button onClick={saveAssets} disabled={saving}>{saving ? "Saving timing..." : "Save timing"}</Button>
             </div>
           </CardContent>
         </Card>
@@ -339,7 +426,7 @@ export function WrappedManagementPanel({ token }: { token: string }) {
                 );
               })}
             </div>
-            <div className="mt-6 flex justify-end"><Button onClick={saveAssets} disabled={saving}>{saving ? "Saving media..." : "Save Wrapped media"}</Button></div>
+            <div className="mt-6 flex justify-end"><Button onClick={saveAssets} disabled={saving}>{saving ? "Saving media..." : "Save Finals media"}</Button></div>
           </CardContent>
         </Card>
       )}

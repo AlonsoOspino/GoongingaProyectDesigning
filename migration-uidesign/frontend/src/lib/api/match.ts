@@ -1,8 +1,8 @@
 import { apiRequest } from "@/lib/api/client";
 import type { Match } from "@/lib/api/types";
 
-export async function getMatches() {
-  return apiRequest<Match[]>("/match");
+export async function getMatches(options: { cache?: RequestCache } = {}) {
+  return apiRequest<Match[]>("/match", { cache: options.cache });
 }
 
 export async function getMatchesByTournament(tournamentId: number) {
@@ -38,6 +38,25 @@ export async function updateManagerMatch(token: string, matchId: number, payload
     method: "PUT",
     token,
     body: payload,
+  });
+}
+
+export async function updateManagerPresentationTime(
+  token: string,
+  matchId: number,
+  presentationStartDate: string | null
+) {
+  return apiRequest<Match>(`/match/manager/presentation-time/${matchId}`, {
+    method: "PUT",
+    token,
+    body: { presentationStartDate },
+  });
+}
+
+export async function resetManagerFinalsPresentation(token: string, matchId: number) {
+  return apiRequest<Match>(`/match/manager/presentation-reset/${matchId}`, {
+    method: "POST",
+    token,
   });
 }
 

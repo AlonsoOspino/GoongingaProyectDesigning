@@ -25,6 +25,8 @@ import {
   confirmMatchStatsUpload,
   managerTogglePause,
   managerClearPauseRequest,
+  updateManagerPresentationTime,
+  resetManagerFinalsPresentation,
   type Match,
   type Team,
   type DraftState,
@@ -128,6 +130,10 @@ export default function ManagerDashboardPage() {
   const [drafts, setDrafts] = useState<Record<number, DraftState | null>>({});
   const [loading, setLoading] = useState(true);
   const [creatingDraft, setCreatingDraft] = useState<number | null>(null);
+  const [presentationTimeInputs, setPresentationTimeInputs] = useState<Record<number, string>>({});
+  const [savingPresentationTime, setSavingPresentationTime] = useState<number | null>(null);
+  const [resettingPresentation, setResettingPresentation] = useState<number | null>(null);
+  const [presentationMessages, setPresentationMessages] = useState<Record<number, string>>({});
   const [activeStatMatchId, setActiveStatMatchId] = useState<number | null>(null);
   const [uploadForms, setUploadForms] = useState<Record<number, PendingUploadFormState>>({});
   const [matchPreviews, setMatchPreviews] = useState<Record<number, MatchStatPreviewResponse[]>>({});
@@ -266,6 +272,64 @@ export default function ManagerDashboardPage() {
       }
     } finally {
       setCreatingDraft(null);
+    }
+  }
+
+  function asLocalDateTimeInput(value?: string | null) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+    return local.toISOString().slice(0, 16);
+  }
+
+  async function handlePresentationTime(match: Match, restoreSchedule = false) {
+    if (!token) return;
+    const input = presentationTimeInputs[match.id] || "";
+    if (!restoreSchedule && !input) {
+      setPresentationMessages((current) => ({ ...current, [match.id]: "Choose a rehearsal date and time first." }));
+      return;
+    }
+    setSavingPresentationTime(match.id);
+    try {
+      const value = restoreSchedule ? null : new Date(input).toISOString();
+      await updateManagerPresentationTime(token, match.id, value);
+      setPresentationMessages((current) => ({
+        ...current,
+        [match.id]: restoreSchedule
+          ? "Presentation now follows the official schedule. No Discord message was sent."
+          : "Presentation timer updated. No Discord message was sent.",
+      }));
+      await loadData(true);
+    } catch (error) {
+      setPresentationMessages((current) => ({
+        ...current,
+        [match.id]: error instanceof Error ? error.message : "Could not update the presentation timer.",
+      }));
+    } finally {
+      setSavingPresentationTime(null);
+    }
+  }
+
+  async function handleResetPresentation(match: Match) {
+    if (!token) return;
+    if (!window.confirm("Reset the complete Finals rehearsal? This clears both captain check-ins and returns the pre-show to its countdown. Match results, media and the official schedule will not be deleted.")) return;
+    setResettingPresentation(match.id);
+    try {
+      await resetManagerFinalsPresentation(token, match.id);
+      setPresentationTimeInputs((current) => ({ ...current, [match.id]: "" }));
+      setPresentationMessages((current) => ({
+        ...current,
+        [match.id]: "Finals rehearsal reset. Choose a new presentation time, then update the timer.",
+      }));
+      await loadData(true);
+    } catch (error) {
+      setPresentationMessages((current) => ({
+        ...current,
+        [match.id]: error instanceof Error ? error.message : "Could not reset the Finals rehearsal.",
+      }));
+    } finally {
+      setResettingPresentation(null);
     }
   }
 
@@ -612,7 +676,7 @@ export default function ManagerDashboardPage() {
             <TabsTrigger value="active">Active ({activeMatches.length})</TabsTrigger>
             <TabsTrigger value="pending">Pending ({pendingMatches.length})</TabsTrigger>
             <TabsTrigger value="stats">Stats</TabsTrigger>
-            <TabsTrigger value="wrapped">Wrapped</TabsTrigger>
+            <TabsTrigger value="wrapped">Finals</TabsTrigger>
           </TabsList>
 
           {/* SCHEDULED TAB */}
@@ -683,6 +747,46 @@ export default function ManagerDashboardPage() {
                                     </Button>
                                   </div>
                                 </div>
+                                {(match.type === "FINALS" || /grand\s*final/i.test(match.title || "")) && (
+                                  <div className="mt-4 grid gap-3 border-t border-warning/25 pt-4 lg:grid-cols-[1fr_auto] lg:items-end">
+                                    <div>
+                                      <p className="text-xs font-black uppercase tracking-[0.18em] text-warning">Finals presentation clock</p>
+                                      <p className="mt-1 text-xs text-muted">Controls the countdown without rescheduling the match or notifying Discord. Reset Finals creates a clean rehearsal for every viewer.</p>
+                                      <Input
+                                        type="datetime-local"
+                                        className="mt-3 max-w-sm"
+                                        value={presentationTimeInputs[match.id] ?? asLocalDateTimeInput(match.presentationStartDate || match.startDate)}
+                                        onChange={(event) => setPresentationTimeInputs((current) => ({ ...current, [match.id]: event.target.value }))}
+                                      />
+                                      {presentationMessages[match.id] && <p className="mt-2 text-xs text-muted">{presentationMessages[match.id]}</p>}
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                      <Button
+                                        size="sm"
+                                        variant="danger"
+                                        disabled={resettingPresentation === match.id || savingPresentationTime === match.id}
+                                        onClick={() => handleResetPresentation(match)}
+                                      >
+                                        {resettingPresentation === match.id ? "Resetting..." : "Reset Finals"}
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="secondary"
+                                        disabled={savingPresentationTime === match.id}
+                                        onClick={() => handlePresentationTime(match, true)}
+                                      >
+                                        Use Official Schedule
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        disabled={savingPresentationTime === match.id}
+                                        onClick={() => handlePresentationTime(match)}
+                                      >
+                                        {savingPresentationTime === match.id ? "Saving..." : "Update Timer"}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
