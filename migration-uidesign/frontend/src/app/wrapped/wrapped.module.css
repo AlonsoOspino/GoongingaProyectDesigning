@@ -2004,8 +2004,8 @@
   width: 100%;
   min-height: .78em;
   margin: 0;
-  font-size: clamp(8rem, 14.5vw, 17rem) !important;
-  line-height: .74;
+  font-size: clamp(9rem, 16vw, 19rem) !important;
+  line-height: .7;
   text-align: center;
   white-space: nowrap;
 }
@@ -2017,10 +2017,10 @@
 .productionSequence {
   display: grid;
   min-height: clamp(8.5rem, 20vh, 12rem);
-  margin-top: clamp(2.6rem, 6vh, 5rem);
+  margin-top: clamp(1.6rem, 3.8vh, 3.2rem);
   place-items: start center;
   align-content: start;
-  gap: clamp(2.2rem, 5vh, 4.4rem);
+  gap: clamp(1.25rem, 2.8vh, 2.4rem);
   text-align: center;
 }
 

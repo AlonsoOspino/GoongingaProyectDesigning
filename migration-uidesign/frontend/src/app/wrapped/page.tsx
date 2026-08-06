@@ -65,10 +65,10 @@ type Story =
 
 const STANDARD_STORY_DURATION_MS = 4000;
 const EMPTY_AUDIO_SOURCES: string[] = [];
-const MUSIC_HIGHLIGHT_VOLUME = 0.38;
-const MUSIC_RESTING_VOLUME = 0.65;
+const MUSIC_HIGHLIGHT_VOLUME = 0.63;
+const MUSIC_RESTING_VOLUME = 1;
 const POST_COUNT_HOLD_MS = 1_500;
-const CUE_STABLE_GAIN = 1.5;
+const CUE_STABLE_GAIN = 1.2;
 const HIGHLIGHT_TEXT_SEQUENCE_MS = 10_000;
 const COUNT_UP_DURATION_MS = 2_500;
 const MIN_PLAYER_HIGHLIGHT_DURATION_MS = HIGHLIGHT_TEXT_SEQUENCE_MS + COUNT_UP_DURATION_MS + POST_COUNT_HOLD_MS;
@@ -173,7 +173,7 @@ function clamp(value: number, min: number, max: number) {
 
 function getCreditsDurationSeconds(participantCount: number) {
   // Long enough to keep every player readable, but capped so the scene does not drag forever.
-  return Math.min(42, Math.max(13.5, 6 + participantCount * 0.78));
+  return Math.min(28, Math.max(9, (6 + participantCount * 0.78) / 1.5));
 }
 
 
@@ -274,7 +274,7 @@ function IntroSlide({ onStart, active, reducedMotion }: { onStart: () => void; a
     <section className={`${styles.slide} ${styles.introSlide} ${active ? styles.storyActive : ""}`} aria-label="Rat's Productions, with the help of the Social Teams, presents">
       <div className={styles.productionLockup}>
         <h1 aria-label="RAT'S PRODUCTIONS">
-          <TypewriterText text="RAT'S PRODUCTIONS" active={active} reducedMotion={reducedMotion} speed={100} />
+          <TypewriterText text="RAT'S PRODUCTIONS" active={active} reducedMotion={reducedMotion} speed={75} />
         </h1>
         <div className={styles.productionSequence}>
           <p aria-label="with the help of the Social Teams">
@@ -587,7 +587,7 @@ function StoryAudioSequence({ sources, active, onPlaybackChange, onComplete }: {
           } catch {
             // Keep the cue playable if a third-party URL does not allow the
             // Web Audio graph. Blob-hosted assets use the normalized path.
-            current.volume = 1;
+            current.volume = 0.8;
           }
         }
         await current.play();
