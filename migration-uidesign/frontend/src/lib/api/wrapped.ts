@@ -159,6 +159,14 @@ export interface WrappedHeroRanking {
   count: number;
 }
 
+export interface WrappedParticipant {
+  userId: number;
+  nickname: string;
+  profilePic: string | null;
+  team: string | null;
+  mapsPlayed?: number;
+}
+
 export interface WrappedSnapshot {
   generatedAt: string;
   tournament: { id: number; name: string; startDate: string };
@@ -166,6 +174,8 @@ export interface WrappedSnapshot {
     weeks: number;
     games: number;
     players: number;
+    /** Present after regenerating the Wrapped with the participant-enabled backend. */
+    participants?: WrappedParticipant[];
     teams: Array<{ id: number; name: string; logo: string | null }>;
     totals: { damage: number; healing: number; mitigation: number };
   };
@@ -221,6 +231,9 @@ export function resolveWrappedSnapshot(snapshot: WrappedSnapshot) {
   return {
     overview: {
       ...snapshot.overview,
+      participants: Array.isArray(snapshot.overview?.participants)
+        ? snapshot.overview.participants
+        : [],
       totals: snapshot.overview?.totals || { damage: 0, healing: 0, mitigation: 0 },
     },
     averagesPer10: snapshot.averagesPer10 || {

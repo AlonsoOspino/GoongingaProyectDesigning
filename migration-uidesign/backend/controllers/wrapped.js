@@ -138,11 +138,19 @@ function hydrateCurrentProfilePictures(wrapped, members) {
     return { ...leader, profilePic: profileByUserId.get(leader.userId) };
   };
   const snapshot = wrapped.snapshot;
+  const overview = snapshot.overview || {};
+  const participants = Array.isArray(overview.participants)
+    ? overview.participants.map(withCurrentProfile)
+    : [];
 
   return {
     ...wrapped,
     snapshot: {
       ...snapshot,
+      overview: {
+        ...overview,
+        participants,
+      },
       averagesPer10: snapshot.averagesPer10 ? {
         ...snapshot.averagesPer10,
         kills: withCurrentProfile(snapshot.averagesPer10.kills),
@@ -175,7 +183,14 @@ async function withCurrentProfilePictures(wrapped) {
     ...Object.values(snapshot.totals || {}),
     ...Object.values(snapshot.performance || {}),
   ];
-  const userIds = [...new Set(leaders.map((leader) => leader?.userId).filter(Number.isInteger))];
+  const participants = Array.isArray(snapshot.overview?.participants)
+    ? snapshot.overview.participants
+    : [];
+  const userIds = [...new Set(
+    [...leaders, ...participants]
+      .map((entry) => entry?.userId)
+      .filter(Number.isInteger)
+  )];
   if (!userIds.length) return wrapped;
   const members = await prisma.member.findMany({
     where: { id: { in: userIds } },
@@ -448,6 +463,17 @@ async function buildSnapshot(tournament) {
   }
 
   const players = [...totalsByPlayer.values()];
+  const participants = players
+    .map((player) => ({
+      userId: player.userId,
+      nickname: player.user?.nickname || `Player ${player.userId}`,
+      profilePic: player.user?.profilePic || null,
+      team: player.user?.team?.name || null,
+      mapsPlayed: player.mapKeys instanceof Set ? player.mapKeys.size : 0,
+    }))
+    .sort((left, right) =>
+      compareLabels(left.nickname, right.nickname) || compareLabels(left.team, right.team)
+    );
   const leaderboardPlayers = buildLeaderboardAverages(leaderboardStats);
   const playerOptions = { getTieLabel: (player) => player.user.nickname };
   const rateLeader = (metric, lowerIsBetter = false) => {
@@ -491,7 +517,8 @@ async function buildSnapshot(tournament) {
     overview: {
       weeks: Math.max(elapsedWeeks, scheduledWeeks),
       games: new Set(stats.map((stat) => `${stat.matchId}:${stat.gameNumber}`)).size,
-      players: new Set(stats.map((stat) => stat.userId)).size,
+      players: participants.length,
+      participants,
       teams,
       totals: globalTotals,
     },
