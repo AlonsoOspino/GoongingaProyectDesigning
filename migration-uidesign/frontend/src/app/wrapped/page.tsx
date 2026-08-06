@@ -73,6 +73,11 @@ const HIGHLIGHT_TEXT_SEQUENCE_MS = 10_000;
 const COUNT_UP_DURATION_MS = 2_500;
 const MIN_PLAYER_HIGHLIGHT_DURATION_MS = HIGHLIGHT_TEXT_SEQUENCE_MS + COUNT_UP_DURATION_MS + POST_COUNT_HOLD_MS;
 const STORY_EXIT_DURATION_MS = 850;
+const MUSIC_CROSSFADE_MS = 900;
+const MUSIC_FADE_IN_MS = 1_800;
+const STATS_INTRO_FADE_IN_MS = 2_700;
+
+type MusicPhase = "idle" | "intro" | "statsIntro" | "highlights";
 
 function formatNumber(value: number | null | undefined, decimals = 0) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "—";
@@ -391,9 +396,9 @@ function ThanksBeforeSlide({ teams, active, reducedMotion }: { teams: FinalsTeam
             className={styles.thanksBeforeTypedTitle}
           />
         </h2>
-        <span aria-label="We want to thank every team for the commitment, the match nights, and all the effort put into following the League schedule.">
+        <span aria-label="Thank you to every team for the commitment, the match nights, and the effort that carried this League through the season.">
           <TypewriterText
-            text="We want to thank every team for the commitment, the match nights, and all the effort put into following the League schedule."
+            text="Thank you to every team for the commitment, the match nights, and the effort that carried this League through the season."
             active={active}
             reducedMotion={reducedMotion}
             delay={3_650}
@@ -827,7 +832,11 @@ export default function FinalsPage() {
   const [seasonTeams, setSeasonTeams] = useState<FinalsTeam[]>([]);
   const [finalsMatchup, setFinalsMatchup] = useState<FinalsTeam[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const recapAudioRef = useRef<HTMLAudioElement>(null);
+  const introAudioRef = useRef<HTMLAudioElement>(null);
+  const statsIntroAudioRef = useRef<HTMLAudioElement>(null);
+  const highlightsAudioRef = useRef<HTMLAudioElement>(null);
+  const musicFadeCancelsRef = useRef<Array<() => void>>([]);
+  const musicPauseTimersRef = useRef<number[]>([]);
   const playerHighlightStartedAtRef = useRef<number | null>(null);
   const reducedMotion = useReducedMotion();
 
@@ -874,6 +883,9 @@ export default function FinalsPage() {
   }, []);
 
   const media = useMemo(() => wrapped ? resolveWrappedAssets(wrapped.assets) : null, [wrapped]);
+  const introTrack = media?.soundtrack.intro || media?.soundtrack.recap;
+  const statsIntroTrack = media?.soundtrack.statsIntro;
+  const highlightsTrack = media?.soundtrack.highlights || media?.soundtrack.recap;
   const storyDurations = media?.storyDurations || {};
   const getStoryDuration = useCallback((key: string, fallback: number) => {
     const value = storyDurations[key as keyof typeof storyDurations];
@@ -900,7 +912,7 @@ export default function FinalsPage() {
         participants,
         durationSeconds: Math.max(Number(getStoryDuration("community", creditsDurationSeconds + 1.6)), creditsDurationSeconds + 1.6),
       },
-      { id: "statsIntro", kind: "statsIntro", durationSeconds: 7 },
+      { id: "statsIntro", kind: "statsIntro", durationSeconds: Number(getStoryDuration("statsIntro", getStoryDuration("leaderboard", 7))) },
       { id: "averageKills", kind: "player", contentSide: "left", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["COLD-BLOODED", "FINISHER"], titleColor: "#57E6F2", descriptor: "Highest average kills of the season.", caption: "The season's sharpest elimination pace.", value: averagesPer10.kills, assetKey: "averageKills", decimals: 2, suffix: " / 10" },
       { id: "averageHealing", kind: "player", contentSide: "left", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["LIFELINE", "ON CALL"], titleColor: "#83F5B5", descriptor: "Highest average healing of the season.", caption: "Keeping every fight alive when it mattered.", value: averagesPer10.healing, assetKey: "averageHealing", decimals: 2, suffix: " / 10" },
       { id: "averageDamage", kind: "player", contentSide: "right", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["PRESSURE,", "UNBROKEN"], titleColor: "#FF9867", descriptor: "Highest average damage of the season.", caption: "Damage that never gave the lobby room to breathe.", value: averagesPer10.damage, assetKey: "averageDamage", decimals: 2, suffix: " / 10" },
@@ -921,6 +933,15 @@ export default function FinalsPage() {
   }, [finalsMatchup, getStoryDuration, seasonTeams, wrapped]);
 
   const totalSlides = stories.length + 1;
+  const musicPhase = useMemo<MusicPhase>(() => {
+    if (!started) return "idle";
+    const activeStory = activeIndex > 0 ? stories[activeIndex - 1] : null;
+    if (activeStory?.kind === "statsIntro") return "statsIntro";
+    const statsIntroIndex = stories.findIndex((story) => story.kind === "statsIntro") + 1;
+    if (statsIntroIndex > 0 && activeIndex > statsIntroIndex) return "highlights";
+    return "intro";
+  }, [activeIndex, started, stories]);
+
   const nextVideoToPreload = useMemo(() => {
     if (!started || !media) return null;
     // activeIndex includes the intro, so the following story begins at its
@@ -959,12 +980,12 @@ export default function FinalsPage() {
   const beginPlayback = useCallback(() => {
     if (!started) {
       setStarted(true);
-      const recap = recapAudioRef.current;
-      if (recap) {
-        recap.loop = false;
-        recap.currentTime = 0;
-        recap.volume = MUSIC_RESTING_VOLUME;
-        void recap.play().catch(() => undefined);
+      const intro = introAudioRef.current;
+      if (intro) {
+        intro.loop = false;
+        intro.currentTime = 0;
+        intro.volume = MUSIC_RESTING_VOLUME;
+        void intro.play().catch(() => undefined);
       }
     }
     goTo(0, "auto");
@@ -977,13 +998,6 @@ export default function FinalsPage() {
     setFinalsAutostart(true);
     setStarted(true);
     goTo(0, "auto");
-    const recap = recapAudioRef.current;
-    if (recap) {
-      recap.loop = false;
-      recap.currentTime = 0;
-      recap.volume = MUSIC_RESTING_VOLUME;
-      void recap.play().catch(() => undefined);
-    }
   }, [goTo, started, wrapped]);
 
   const setStoryAudioPlayback = useCallback((storyId: string, playing: boolean) => {
@@ -997,18 +1011,97 @@ export default function FinalsPage() {
   }, []);
 
   useEffect(() => {
-    const recap = recapAudioRef.current;
-    if (!recap || !media?.soundtrack.recap || !started) return;
-    recap.loop = false;
-    void recap.play().catch(() => undefined);
+    musicFadeCancelsRef.current.forEach((cancel) => cancel());
+    musicFadeCancelsRef.current = [];
+    musicPauseTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    musicPauseTimersRef.current = [];
+
+    const intro = introAudioRef.current;
+    const statsIntro = statsIntroAudioRef.current;
+    const highlights = highlightsAudioRef.current;
+
+    const fadeOutAndPause = (audio: HTMLAudioElement | null, durationMs = MUSIC_CROSSFADE_MS) => {
+      if (!audio) return;
+      if (audio.paused) {
+        audio.volume = 0;
+        return;
+      }
+      musicFadeCancelsRef.current.push(fadeAudio(audio, 0, durationMs));
+      const timer = window.setTimeout(() => {
+        audio.pause();
+        try {
+          audio.currentTime = 0;
+        } catch {
+          // Remote media may reject seeking until metadata is available.
+        }
+      }, durationMs + 80);
+      musicPauseTimersRef.current.push(timer);
+    };
+
+    const fadeInTrack = (
+      audio: HTMLAudioElement | null,
+      targetVolume: number,
+      durationMs: number,
+    ) => {
+      if (!audio) return;
+      audio.loop = false;
+      if (audio.paused || audio.ended) {
+        try {
+          audio.currentTime = 0;
+        } catch {
+          // Remote media may reject seeking until metadata is available.
+        }
+        audio.volume = 0;
+        void audio.play().catch(() => undefined);
+      }
+      musicFadeCancelsRef.current.push(fadeAudio(audio, targetVolume, durationMs));
+    };
+
+    if (musicPhase === "idle") {
+      fadeOutAndPause(intro, 250);
+      fadeOutAndPause(statsIntro, 250);
+      fadeOutAndPause(highlights, 250);
+      return;
+    }
+
+    if (musicPhase === "intro") {
+      fadeOutAndPause(statsIntro);
+      fadeOutAndPause(highlights);
+      fadeInTrack(intro, MUSIC_RESTING_VOLUME, MUSIC_FADE_IN_MS);
+      return;
+    }
+
+    if (musicPhase === "statsIntro") {
+      fadeOutAndPause(intro);
+      fadeOutAndPause(highlights);
+      fadeInTrack(statsIntro, MUSIC_RESTING_VOLUME, STATS_INTRO_FADE_IN_MS);
+      return;
+    }
+
+    fadeOutAndPause(intro);
+    fadeOutAndPause(statsIntro, 1_100);
+    fadeInTrack(highlights, MUSIC_RESTING_VOLUME, MUSIC_FADE_IN_MS);
+  }, [highlightsTrack?.url, introTrack?.url, musicPhase, statsIntroTrack?.url]);
+
+  useEffect(() => {
+    const highlights = highlightsAudioRef.current;
+    if (!highlights || !highlightsTrack || !started || musicPhase !== "highlights") return;
+    highlights.loop = false;
+    void highlights.play().catch(() => undefined);
     const activeStory = activeIndex > 0 ? stories[activeIndex - 1] : null;
     const isPlayerHighlight = activeStory?.kind === "player";
-    const isStoryAudioPlaying = activeStory?.kind === "player" && storyAudioPlayingId === activeStory.id;
+    const isStoryAudioPlaying = isPlayerHighlight && storyAudioPlayingId === activeStory.id;
     const targetVolume = isStoryAudioPlaying || isPlayerHighlight
       ? MUSIC_HIGHLIGHT_VOLUME
       : MUSIC_RESTING_VOLUME;
-    return fadeAudio(recap, targetVolume, isStoryAudioPlaying ? 360 : 650);
-  }, [activeIndex, media?.soundtrack.recap, started, stories, storyAudioPlayingId]);
+    return fadeAudio(highlights, targetVolume, isStoryAudioPlaying ? 360 : 650);
+  }, [activeIndex, highlightsTrack, musicPhase, started, stories, storyAudioPlayingId]);
+
+  useEffect(() => () => {
+    musicFadeCancelsRef.current.forEach((cancel) => cancel());
+    musicPauseTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    [introAudioRef.current, statsIntroAudioRef.current, highlightsAudioRef.current].forEach((audio) => audio?.pause());
+  }, []);
 
   useEffect(() => {
     setCompletedAudioStoryId(null);
@@ -1092,7 +1185,9 @@ export default function FinalsPage() {
 
   return (
     <main className={styles.wrapped}>
-      {media?.soundtrack.recap?.url && <audio ref={recapAudioRef} src={media.soundtrack.recap.url} preload="auto" />}
+      {introTrack?.url && <audio ref={introAudioRef} src={introTrack.url} preload="auto" />}
+      {statsIntroTrack?.url && <audio ref={statsIntroAudioRef} src={statsIntroTrack.url} preload="auto" />}
+      {highlightsTrack?.url && <audio ref={highlightsAudioRef} src={highlightsTrack.url} preload="auto" />}
       <div className={styles.progress} aria-label={`Story ${activeIndex + 1} of ${totalSlides}`}>
         {Array.from({ length: totalSlides }).map((_, index) => <span key={index} className={index <= activeIndex ? styles.progressActive : ""} />)}
       </div>

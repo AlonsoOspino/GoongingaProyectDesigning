@@ -25,7 +25,14 @@ export type WrappedSoundtrackTrack = {
   durationSeconds?: number;
 };
 export type WrappedSoundtrack = {
+  /** Legacy alias kept for FinalsPresentationStage and older saved records. */
   recap?: WrappedSoundtrackTrack;
+  /** Music for the opening screens before the stats transition. */
+  intro?: WrappedSoundtrackTrack;
+  /** Dedicated cue for the "And now..." stats transition screen. */
+  statsIntro?: WrappedSoundtrackTrack;
+  /** Music that starts with the first player highlight and continues through the recap. */
+  highlights?: WrappedSoundtrackTrack;
   countdown?: WrappedSoundtrackTrack;
 };
 
@@ -120,14 +127,20 @@ export function resolveWrappedAssets(value: unknown): WrappedAssets {
     };
   };
   const recap = normalizeTrack(soundtrackSource.recap, soundtrackSource.general);
+  const intro = normalizeTrack(soundtrackSource.intro) || recap;
+  const statsIntro = normalizeTrack(soundtrackSource.statsIntro);
+  const highlights = normalizeTrack(soundtrackSource.highlights) || recap;
   const countdown = normalizeTrack(soundtrackSource.countdown);
   const soundtrack: WrappedSoundtrack = {
     ...(recap ? { recap } : {}),
+    ...(intro ? { intro } : {}),
+    ...(statsIntro ? { statsIntro } : {}),
+    ...(highlights ? { highlights } : {}),
     ...(countdown ? { countdown } : {}),
   };
   const storyDurations = Object.fromEntries(
     Object.entries(storyDurationSource)
-      .filter(([key, value]) => ["intro", "finalists", "thanksBefore", "thanks", "community", "leaderboard"].includes(key) && typeof value === "number" && Number.isFinite(value) && value > 0)
+      .filter(([key, value]) => ["intro", "finalists", "thanksBefore", "thanks", "community", "leaderboard", "statsIntro"].includes(key) && typeof value === "number" && Number.isFinite(value) && value > 0)
       .map(([key, value]) => [key, Number(value)])
   );
 

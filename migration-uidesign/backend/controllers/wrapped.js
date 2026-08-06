@@ -267,14 +267,19 @@ function normalizeAssets(value) {
     };
   };
 
-  // `general` was the old looping soundtrack. Preserve it as the new
-  // one-shot recap track until a manager replaces it; the intro loop is
-  // intentionally discarded.
-  const recapTrack = normalizeTrack(soundtrackSource.recap, typeof soundtrackSource.general === "string" ? soundtrackSource.general : null);
+  // Preserve the old recap/general track as a compatibility fallback while
+  // allowing the Wrapped presentation to use three independently uploaded cues.
+  const recapTrack = normalizeTrack(
+    soundtrackSource.recap,
+    typeof soundtrackSource.general === "string" ? soundtrackSource.general : null
+  );
+const introTrack = normalizeTrack(soundtrackSource.intro);
+const statsIntroTrack = normalizeTrack(soundtrackSource.statsIntro);
+const highlightsTrack = normalizeTrack(soundtrackSource.highlights);
   const countdownTrack = normalizeTrack(soundtrackSource.countdown);
   const storyDurations = Object.fromEntries(
     Object.entries(storyDurationSource)
-      .filter(([key, rawValue]) => ["intro", "finalists", "thanksBefore", "thanks", "community", "leaderboard"].includes(key) && typeof rawValue === "number" && Number.isFinite(rawValue) && rawValue > 0)
+      .filter(([key, rawValue]) => ["intro", "finalists", "thanksBefore", "thanks", "community", "leaderboard", "statsIntro"].includes(key) && typeof rawValue === "number" && Number.isFinite(rawValue) && rawValue > 0)
       .map(([key, rawValue]) => [key, Math.round(Number(rawValue) * 1000) / 1000])
   );
 
@@ -312,6 +317,9 @@ function normalizeAssets(value) {
     ),
     soundtrack: {
       ...(recapTrack ? { recap: recapTrack } : {}),
+      ...(introTrack ? { intro: introTrack } : {}),
+      ...(statsIntroTrack ? { statsIntro: statsIntroTrack } : {}),
+      ...(highlightsTrack ? { highlights: highlightsTrack } : {}),
       ...(countdownTrack ? { countdown: countdownTrack } : {}),
     },
     ...(Object.keys(storyDurations).length ? { storyDurations } : {}),

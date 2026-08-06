@@ -191,7 +191,10 @@ export function WrappedManagementPanel({ token }: { token: string }) {
         <Card variant="bordered">
           <CardHeader>
             <CardTitle>Finals audio tracks</CardTitle>
-            <p className="mt-1 text-sm text-muted">Both tracks play once. The countdown track is timed to end exactly at zero; the recap track starts with the season recap and never loops.</p>
+            <p className="mt-1 text-sm text-muted">
+              Upload one track for the opening screens, one dedicated fade-in cue for the stats transition,
+              and one track that begins with the first highlight. The countdown track remains independent.
+            </p>
           </CardHeader>
           <CardContent>
             <div className="grid gap-5 lg:grid-cols-2">
@@ -216,26 +219,86 @@ export function WrappedManagementPanel({ token }: { token: string }) {
                   ? `Starts automatically at ${assets.soundtrack.countdown.durationSeconds.toFixed(1)} seconds remaining.`
                   : "Duration is read from the uploaded file and saved with the track."}
               />
+
               <MediaUploadField
-                label="Finals recap track"
+                label="Opening screens track"
                 type="audio"
                 token={token}
-                value={assets.soundtrack.recap?.url || ""}
+                value={assets.soundtrack.intro?.url || assets.soundtrack.recap?.url || ""}
+                onChange={(url) => setAssets((current) => {
+                  const durationSeconds = current.soundtrack.intro?.durationSeconds
+                    ?? current.soundtrack.recap?.durationSeconds;
+                  const nextTrack = url ? { url, ...(durationSeconds ? { durationSeconds } : {}) } : undefined;
+                  return {
+                    ...current,
+                    soundtrack: {
+                      ...current.soundtrack,
+                      intro: nextTrack,
+                      // Keep the old alias synchronized for FinalsPresentationStage.
+                      recap: nextTrack,
+                    },
+                  };
+                })}
+                onDurationChange={(durationSeconds) => setAssets((current) => {
+                  const currentTrack = current.soundtrack.intro || current.soundtrack.recap;
+                  if (!currentTrack) return current;
+                  const nextTrack = { ...currentTrack, ...(durationSeconds ? { durationSeconds } : {}) };
+                  return {
+                    ...current,
+                    soundtrack: {
+                      ...current.soundtrack,
+                      intro: nextTrack,
+                      recap: nextTrack,
+                    },
+                  };
+                })}
+                hint={assets.soundtrack.intro?.durationSeconds || assets.soundtrack.recap?.durationSeconds
+                  ? `Saved duration: ${(assets.soundtrack.intro?.durationSeconds || assets.soundtrack.recap?.durationSeconds || 0).toFixed(1)} seconds. Starts when the Wrapped begins.`
+                  : "Plays from the first RAT'S PRODUCTIONS screen through the pre-highlight opening screens."}
+              />
+
+              <MediaUploadField
+                label="Stats transition track"
+                type="audio"
+                token={token}
+                value={assets.soundtrack.statsIntro?.url || ""}
                 onChange={(url) => setAssets((current) => ({
                   ...current,
                   soundtrack: url
-                    ? { ...current.soundtrack, recap: { url, durationSeconds: current.soundtrack.recap?.durationSeconds } }
-                    : { ...current.soundtrack, recap: undefined },
+                    ? { ...current.soundtrack, statsIntro: { url, durationSeconds: current.soundtrack.statsIntro?.durationSeconds } }
+                    : { ...current.soundtrack, statsIntro: undefined },
                 }))}
                 onDurationChange={(durationSeconds) => setAssets((current) => ({
                   ...current,
-                  soundtrack: current.soundtrack.recap
-                    ? { ...current.soundtrack, recap: { ...current.soundtrack.recap, ...(durationSeconds ? { durationSeconds } : {}) } }
+                  soundtrack: current.soundtrack.statsIntro
+                    ? { ...current.soundtrack, statsIntro: { ...current.soundtrack.statsIntro, ...(durationSeconds ? { durationSeconds } : {}) } }
                     : current.soundtrack,
                 }))}
-                hint={assets.soundtrack.recap?.durationSeconds
-                  ? `Saved duration: ${assets.soundtrack.recap.durationSeconds.toFixed(1)} seconds. Plays once from the beginning of the recap.`
-                  : "Duration is read from the uploaded file and saved with the track."}
+                hint={assets.soundtrack.statsIntro?.durationSeconds
+                  ? `Saved duration: ${assets.soundtrack.statsIntro.durationSeconds.toFixed(1)} seconds. Fades in on the “And now...” screen.`
+                  : "Dedicated cue for “And now... It’s time to see who led the season in numbers.”"}
+              />
+
+              <MediaUploadField
+                label="Highlights track"
+                type="audio"
+                token={token}
+                value={assets.soundtrack.highlights?.url || assets.soundtrack.recap?.url || ""}
+                onChange={(url) => setAssets((current) => ({
+                  ...current,
+                  soundtrack: url
+                    ? { ...current.soundtrack, highlights: { url, durationSeconds: current.soundtrack.highlights?.durationSeconds } }
+                    : { ...current.soundtrack, highlights: undefined },
+                }))}
+                onDurationChange={(durationSeconds) => setAssets((current) => ({
+                  ...current,
+                  soundtrack: current.soundtrack.highlights
+                    ? { ...current.soundtrack, highlights: { ...current.soundtrack.highlights, ...(durationSeconds ? { durationSeconds } : {}) } }
+                    : current.soundtrack,
+                }))}
+                hint={assets.soundtrack.highlights?.durationSeconds
+                  ? `Saved duration: ${assets.soundtrack.highlights.durationSeconds.toFixed(1)} seconds. Starts with the first player highlight.`
+                  : "Continues through the player, hero, map and season-summary highlights."}
               />
             </div>
             <div className="mt-5 flex justify-end">
@@ -258,7 +321,7 @@ export function WrappedManagementPanel({ token }: { token: string }) {
                 { key: "finalists", label: "Finalists showdown", defaultValue: 12.5 },
                 { key: "thanksBefore", label: "Thank-you roster", defaultValue: 7.25 },
                 { key: "community", label: "Community tribute", defaultValue: 8 },
-                { key: "leaderboard", label: "Leaderboard tease", defaultValue: 5 },
+                { key: "statsIntro", label: "Stats transition", defaultValue: 7 },
               ].map((item) => (
                 <label key={item.key} className="grid gap-2 rounded-lg border border-border bg-surface/40 p-3 text-sm text-foreground">
                   <span className="flex items-center justify-between">
