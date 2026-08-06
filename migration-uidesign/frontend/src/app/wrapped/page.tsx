@@ -12,7 +12,9 @@ import {
   type WrappedHeroRanking,
 } from "@/lib/api/wrapped";
 import { resolveGenericBackendAsset, resolveHeroImageUrl } from "@/lib/assetUrls";
-import { getCurrentTournament, getMembers } from "@/lib/api/admin";
+import { getCurrentTournament } from "@/lib/api/admin";
+import { getMatchesByTournament } from "@/lib/api/match";
+import { getTeams } from "@/lib/api/team";
 import styles from "./wrapped.module.css";
 
 type PlayerStory = {
@@ -41,20 +43,17 @@ type MapStory = {
   assetKey: WrappedAssetKey;
 };
 
-type BrandIntroStory = { id: string; kind: "brand"; durationSeconds: number };
-type FinalistsStory = { id: string; kind: "finalists"; teams: Array<{ id: number; name: string; logo: string | null }>; durationSeconds: number };
-type ThanksBeforeStory = { id: string; kind: "thanksBefore"; teams: Array<{ id: number; name: string; logo: string | null }>; durationSeconds: number };
-type CommunityStory = { id: string; kind: "community"; players: Array<{ name: string; teamName: string | null }>; durationSeconds: number };
-type LeaderboardTeaseStory = { id: string; kind: "leaderboardTease"; durationSeconds: number };
+type FinalsTeam = { id: number; name: string; logo: string | null };
+type FinalistsStory = { id: string; kind: "finalists"; teams: FinalsTeam[]; durationSeconds: number };
+type ThanksBeforeStory = { id: string; kind: "thanksBefore"; teams: FinalsTeam[]; durationSeconds: number };
+type SpectacularStory = { id: string; kind: "spectacular"; durationSeconds: number };
 
 type Story =
   | PlayerStory
   | MapStory
-  | BrandIntroStory
   | FinalistsStory
   | ThanksBeforeStory
-  | CommunityStory
-  | LeaderboardTeaseStory
+  | SpectacularStory
   | { id: string; kind: "opening"; variant: "teams" | "thanks" }
   | { id: "heroBans"; kind: "heroBans"; most: WrappedHeroRanking | null; least: WrappedHeroRanking | null }
   | { id: "finale"; kind: "finale" }
@@ -198,36 +197,15 @@ function SeasonLogo({ team, index }: { team: GoongingaWrapped["snapshot"]["overv
   );
 }
 
-function IntroSlide({ wrapped, onStart, autoPlaying = false }: { wrapped: GoongingaWrapped; onStart: () => void; autoPlaying?: boolean }) {
-  const snapshot = resolveWrappedSnapshot(wrapped.snapshot);
-  const teams = snapshot.overview.teams.slice(0, 12);
+function IntroSlide({ onStart, active }: { onStart: () => void; active: boolean }) {
   return (
-    <section className={`${styles.slide} ${styles.introSlide}`} aria-label="Finals introduction">
-      <div className={styles.introCopy}>
-        <p className={styles.eyebrow}>GOONGINGA LEAGUE · SEASON RECAP</p>
-        <h1><span>This season</span> was yours</h1>
-        <p className={styles.introDescription}>Thank you for showing up, competing, and giving the league a season worth remembering.</p>
-        <div className={styles.introNumbers}>
-          <div><strong>{snapshot.overview.games}</strong><span>Maps played</span></div>
-          <div><strong>{snapshot.overview.players}</strong><span>Names in record</span></div>
-          <div><strong>{teams.length}</strong><span>Teams assembled</span></div>
-        </div>
-        {!autoPlaying && <button type="button" className={styles.startButton} onClick={onStart}>Play the season recap <span aria-hidden="true">↓</span></button>}
-        {autoPlaying && <p className={styles.autoStartLabel}>THE RECAP BEGINS</p>}
+    <section className={`${styles.slide} ${styles.introSlide} ${active ? styles.storyActive : ""}`} aria-label="Rat's Productions presents">
+      <div className={styles.productionLockup}>
+        <h1>RAT&apos;S PRODUCTIONS</h1>
+        <p>with the help of the Social Teams</p>
+        <span>presents:</span>
       </div>
-      <div className={styles.coverVisual} aria-label={`${teams.length} teams in the season`}>
-        <div className={styles.coverHeading}>
-          <p>{wrapped.snapshot.tournament.name}</p>
-          <strong>The league</strong>
-        </div>
-        <div className={styles.coverRoster}>
-          {teams.map((team, index) => <TeamTile key={team.id} team={team} index={index} />)}
-        </div>
-        <div className={styles.coverFooter}>
-          <span>{teams.length} teams</span>
-          <span>One season · one record</span>
-        </div>
-      </div>
+      <button type="button" className={styles.introStartOverlay} onClick={onStart} aria-label="Start the Finals presentation" />
     </section>
   );
 }
@@ -278,29 +256,18 @@ function HeroBansSlide({ most, least }: { most: WrappedHeroRanking | null; least
   );
 }
 
-function BrandIntroSlide() {
-  return (
-    <section className={`${styles.slide} ${styles.brandIntroSlide}`} aria-label="Brand introduction">
-      <div className={styles.brandIntroContent}>
-        <p className={styles.brandIntroEyebrow}>presented in motion</p>
-        <h2>RAT&apos;S PRODUCTIONS</h2>
-        <p className={styles.brandIntroSubtitle}>with the help of the Social Teams</p>
-        <p className={styles.brandIntroPresents}>presents</p>
-      </div>
-    </section>
-  );
-}
-
-function FinalistsSlide({ teams }: { teams: Array<{ id: number; name: string; logo: string | null }> }) {
+function FinalistsSlide({ teams }: { teams: FinalsTeam[] }) {
+  const matchup = teams.slice(0, 2);
   return (
     <section className={`${styles.slide} ${styles.finalistsSlide}`} aria-label="Finalists showdown">
-      <div className={styles.finalistsHeader}>
-        <p>the grand final contenders</p>
-        <h2>Two teams. One stage.</h2>
-      </div>
-      <div className={styles.finalistsGrid}>
-        {teams.slice(0, 2).map((team, index) => (
-          <article key={team.id} className={styles.finalistCard}>
+      <div className={styles.finalistsBackdrop} aria-hidden="true"><span /><span /><span /></div>
+      <header className={styles.finalistsHeader}>
+        <p>GOONGINGA LEAGUE</p>
+        <h2>THE GRAND FINAL</h2>
+      </header>
+      <div className={styles.finalistsArena}>
+        {matchup.map((team, index) => (
+          <article key={team.id} className={`${styles.finalistCard} ${index === 0 ? styles.finalistCardLeft : styles.finalistCardRight}`}>
             <div className={styles.finalistAvatarWrap}>
               {team.logo ? (
                 <img src={resolveGenericBackendAsset(team.logo)} alt={team.name} />
@@ -309,26 +276,29 @@ function FinalistsSlide({ teams }: { teams: Array<{ id: number; name: string; lo
               )}
             </div>
             <div className={styles.finalistMeta}>
-              <span>{index === 0 ? "North" : "South"}</span>
+              <span>{index === 0 ? "FINALIST 01" : "FINALIST 02"}</span>
               <strong>{team.name}</strong>
             </div>
           </article>
         ))}
+        <div className={styles.finalistsCenterBadge}><small>CHAMPIONSHIP</small><strong>VS</strong><span>ONE MATCH</span></div>
       </div>
+      <p className={styles.finalistsSubtitle}>EVERY ROUND LED HERE.</p>
     </section>
   );
 }
 
-function ThanksBeforeSlide({ teams }: { teams: Array<{ id: number; name: string; logo: string | null }> }) {
+function ThanksBeforeSlide({ teams }: { teams: FinalsTeam[] }) {
   return (
     <section className={`${styles.slide} ${styles.thanksBeforeSlide}`} aria-label="Thanks before the recap">
       <div className={styles.thanksBeforeHeader}>
-        <p>but before</p>
-        <h2>We want to thank every team that brought this season to life.</h2>
+        <p>BUT BEFORE...</p>
+        <h2>THANK YOU FOR<br />SHOWING UP.</h2>
+        <span>We want to thank every team for the commitment, the match nights, and all the effort put into following the League schedule.</span>
       </div>
       <div className={styles.thanksBeforeRoster}>
-        {teams.slice(0, 9).map((team) => (
-          <div key={team.id} className={styles.thanksBeforeTeam}>
+        {teams.slice(0, 9).map((team, index) => (
+          <div key={team.id} className={styles.thanksBeforeTeam} style={{ "--team-index": index } as CSSProperties}>
             {team.logo ? <img src={resolveGenericBackendAsset(team.logo)} alt={team.name} /> : <span>{team.name.slice(0, 2).toUpperCase()}</span>}
             <strong>{team.name}</strong>
           </div>
@@ -338,29 +308,24 @@ function ThanksBeforeSlide({ teams }: { teams: Array<{ id: number; name: string;
   );
 }
 
-function CommunityThanksSlide({ players }: { players: Array<{ name: string; teamName: string | null }> }) {
+function SpectacularSlide() {
   return (
-    <section className={`${styles.slide} ${styles.communityThanks}`} aria-label="Community thank you">
-      <div className={styles.communityThanksCopy}>
-        <p className={styles.communityThanksEyebrow}>from the whole league</p>
+    <section className={`${styles.slide} ${styles.spectacularSlide}`} aria-label="You made this season spectacular">
+      <div className={styles.spectacularGhost} aria-hidden="true">SEASON</div>
+      <div className={styles.spectacularCopy}>
+        <p>TO EVERY TEAM. TO EVERY PLAYER.</p>
         <h2>You made this season spectacular.</h2>
-      </div>
-      <div className={styles.communityThanksNames}>
-        {players.map((player, index) => (
-          <span key={`${player.name}-${index}`} className={styles.communityThanksName} style={{ animationDelay: `${index * 70}ms` }}>
-            {player.name}{player.teamName ? ` · ${player.teamName}` : ""}
-          </span>
-        ))}
       </div>
     </section>
   );
 }
 
-function LeaderboardTeaseSlide() {
+function EndThanksSlide() {
   return (
-    <section className={`${styles.slide} ${styles.leaderboardTeaseSlide}`} aria-label="Leaderboard tease">
-      <p className={styles.leaderboardTeaseEyebrow}>stats are about to speak</p>
-      <h2>And now it&apos;s time to show who dominated the stats leaderboard.</h2>
+    <section className={`${styles.slide} ${styles.communityThanks}`} aria-label="Final community thank you">
+      <p>FROM GOONGINGA LEAGUE</p>
+      <h2>THANK YOU FOR<br />BACKING THE LEAGUE.</h2>
+      <span>Every match watched, every clip shared, and every voice in the community made this season matter.</span>
     </section>
   );
 }
@@ -519,27 +484,6 @@ function PlayerSlide({
   const revealStage = useHighlightSequence(active);
   const title = story.titleLines.join("\n");
   const titleRevealed = revealStage >= 1;
-  const [typedTitleLength, setTypedTitleLength] = useState(0);
-
-  useEffect(() => {
-    if (!active || !titleRevealed) {
-      setTypedTitleLength(0);
-      return;
-    }
-    if (reducedMotion) {
-      setTypedTitleLength(title.length);
-      return;
-    }
-
-    let nextLength = 1;
-    setTypedTitleLength(nextLength);
-    const interval = window.setInterval(() => {
-      nextLength += 1;
-      setTypedTitleLength(Math.min(nextLength, title.length));
-      if (nextLength >= title.length) window.clearInterval(interval);
-    }, 55);
-    return () => window.clearInterval(interval);
-  }, [active, reducedMotion, title, titleRevealed]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -635,18 +579,8 @@ function PlayerSlide({
         </div>
         <div className={`${styles.storyCopy} ${active ? styles.storyTimeline : styles.storyWaiting}`} data-sequence-stage={revealStage}>
           {revealStage >= 1 && (
-            <h2
-              aria-label={title.replace(/\n/g, " ")}
-              className={`${styles.sequenceTitle} ${reducedMotion ? "" : styles.typingTitle}`}
-            >
-              {reducedMotion
-                ? title
-                : (
-                  <>
-                    <span className={styles.typingMeasure} aria-hidden="true">{title}</span>
-                    <span className={styles.typingVisible} aria-hidden="true">{title.slice(0, typedTitleLength)}</span>
-                  </>
-                )}
+            <h2 aria-label={title.replace(/\n/g, " ")} className={styles.sequenceTitle}>
+              {title}
             </h2>
           )}
           {revealStage >= 2 && <p className={`${styles.metricDescriptor} ${styles.sequenceDescriptor}`}>{story.descriptor}</p>}
@@ -732,7 +666,8 @@ export default function FinalsPage() {
   const [storyAudioPlayingId, setStoryAudioPlayingId] = useState<string | null>(null);
   const [finalsAutostart, setFinalsAutostart] = useState(false);
   const [leavingIndex, setLeavingIndex] = useState<number | null>(null);
-  const [registeredPlayers, setRegisteredPlayers] = useState<Array<{ name: string; teamName: string | null }>>([]);
+  const [seasonTeams, setSeasonTeams] = useState<FinalsTeam[]>([]);
+  const [finalsMatchup, setFinalsMatchup] = useState<FinalsTeam[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const recapAudioRef = useRef<HTMLAudioElement>(null);
   const playerHighlightStartedAtRef = useRef<number | null>(null);
@@ -741,15 +676,36 @@ export default function FinalsPage() {
   useEffect(() => {
     async function loadWrapped() {
       try {
-        const [tournament, data] = await Promise.all([
-          getCurrentTournament({ cache: "no-store" }),
-          getGoongingaWrapped(),
-        ]);
-        if (tournament.state !== "FINALS") {
+        const tournament = await getCurrentTournament({ cache: "no-store" });
+        const localPreview = process.env.NODE_ENV !== "production" && new URLSearchParams(window.location.search).get("preview") === "1";
+        if (tournament.state !== "FINALS" && !localPreview) {
           setError("The Finals experience unlocks when the tournament enters Finals.");
           return;
         }
+        const [data, matches, teams] = await Promise.all([
+          getGoongingaWrapped(),
+          localPreview ? Promise.resolve([]) : getMatchesByTournament(tournament.id),
+          getTeams(),
+        ]);
+        const tournamentTeams = (teams || [])
+          .filter((team) => team.tournamentId === tournament.id)
+          .map((team) => ({ id: team.id, name: team.name, logo: team.logo || null }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+        const teamLookup = new Map(tournamentTeams.map((team) => [team.id, team]));
+        const finalsMatch = (matches || [])
+          .filter((match) => Boolean(match.teamAId && match.teamBId) && (match.type === "FINALS" || /grand\s*final/i.test(match.title || "")))
+          .sort((a, b) => {
+            const liveA = a.status === "ACTIVE" || a.status === "SCHEDULED" ? 1 : 0;
+            const liveB = b.status === "ACTIVE" || b.status === "SCHEDULED" ? 1 : 0;
+            return liveB - liveA || Number(b.type === "FINALS") - Number(a.type === "FINALS") || b.id - a.id;
+          })[0];
+        const matchupTeams = finalsMatch
+          ? [teamLookup.get(finalsMatch.teamAId!), teamLookup.get(finalsMatch.teamBId!)].filter((team): team is FinalsTeam => Boolean(team))
+          : localPreview ? tournamentTeams.slice(0, 2) : [];
+        if (matchupTeams.length !== 2) throw new Error("The Grand Final matchup has not been assigned yet.");
         setWrapped(data);
+        setSeasonTeams(tournamentTeams);
+        setFinalsMatchup(matchupTeams);
       } catch (err: any) {
         setError(err?.status === 404 ? "The Finals story is still being prepared." : err?.message || "Could not load the Goonginga Finals experience.");
       } finally {
@@ -771,35 +727,14 @@ export default function FinalsPage() {
     return fallback;
   }, [storyDurations]);
 
-  useEffect(() => {
-    async function loadPlayers() {
-      try {
-        const members = await getMembers();
-        const teamLookup = new Map((resolveWrappedSnapshot(wrapped?.snapshot || { overview: { teams: [] }, averagesPer10: {}, totals: {}, performance: {}, maps: {}, heroes: {} } as any).overview.teams || []).map((team: { id: number; name: string }) => [team.id, team.name]));
-        const players = (members || [])
-          .filter((member: { nickname?: string; teamId?: number | null }) => Boolean(member.nickname))
-          .map((member: { nickname: string; teamId?: number | null }) => ({
-            name: member.nickname,
-            teamName: member.teamId ? teamLookup.get(member.teamId) || null : null,
-          }));
-        setRegisteredPlayers(players);
-      } catch {
-        setRegisteredPlayers([]);
-      }
-    }
-    if (wrapped) void loadPlayers();
-  }, [wrapped]);
-
   const stories = useMemo<Story[]>(() => {
     if (!wrapped) return [];
     const snapshot = resolveWrappedSnapshot(wrapped.snapshot);
     const { averagesPer10, totals, performance, maps, heroes } = snapshot;
     return [
-      { id: "brandIntro", kind: "brand", durationSeconds: Number(getStoryDuration("intro", 4.5)) },
-      { id: "finalists", kind: "finalists", teams: snapshot.overview.teams.slice(0, 2), durationSeconds: Number(getStoryDuration("finalists", 12.5)) },
-      { id: "thanksBefore", kind: "thanksBefore", teams: snapshot.overview.teams.slice(0, 9), durationSeconds: Number(getStoryDuration("thanksBefore", 7.25)) },
-      { id: "community", kind: "community", players: registeredPlayers.slice(0, 80), durationSeconds: Number(getStoryDuration("community", 8)) },
-      { id: "leaderboardTease", kind: "leaderboardTease", durationSeconds: Number(getStoryDuration("leaderboard", 5)) },
+      { id: "finalists", kind: "finalists", teams: finalsMatchup, durationSeconds: 12.5 },
+      { id: "thanksBefore", kind: "thanksBefore", teams: seasonTeams.slice(0, 9), durationSeconds: Number(getStoryDuration("thanksBefore", 9)) },
+      { id: "spectacular", kind: "spectacular", durationSeconds: Number(getStoryDuration("community", 6)) },
       { id: "averageKills", kind: "player", contentSide: "left", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["COLD-BLOODED", "FINISHER"], titleColor: "#57E6F2", descriptor: "Highest average kills of the season.", caption: "The season's sharpest elimination pace.", value: averagesPer10.kills, assetKey: "averageKills", decimals: 2, suffix: " / 10" },
       { id: "averageHealing", kind: "player", contentSide: "left", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["LIFELINE", "ON CALL"], titleColor: "#83F5B5", descriptor: "Highest average healing of the season.", caption: "Keeping every fight alive when it mattered.", value: averagesPer10.healing, assetKey: "averageHealing", decimals: 2, suffix: " / 10" },
       { id: "averageDamage", kind: "player", contentSide: "right", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["PRESSURE,", "UNBROKEN"], titleColor: "#FF9867", descriptor: "Highest average damage of the season.", caption: "Damage that never gave the lobby room to breathe.", value: averagesPer10.damage, assetKey: "averageDamage", decimals: 2, suffix: " / 10" },
@@ -817,7 +752,7 @@ export default function FinalsPage() {
       { id: "communityThanks", kind: "thanks" },
       { id: "finalsTransition", kind: "transition" },
     ];
-  }, [getStoryDuration, registeredPlayers, wrapped]);
+  }, [finalsMatchup, getStoryDuration, seasonTeams, wrapped]);
 
   const totalSlides = stories.length + 1;
   const nextVideoToPreload = useMemo(() => {
@@ -866,7 +801,7 @@ export default function FinalsPage() {
         void recap.play().catch(() => undefined);
       }
     }
-    goTo(1);
+    goTo(0, "auto");
   }, [goTo, started]);
 
   useEffect(() => {
@@ -920,24 +855,24 @@ export default function FinalsPage() {
     const activeStory = activeIndex > 0 ? stories[activeIndex - 1] : null;
     if (activeStory?.kind === "player" && completedAudioStoryId !== activeStory.id) return;
     const elapsed = playerHighlightStartedAtRef.current === null ? 0 : performance.now() - playerHighlightStartedAtRef.current;
-    const duration = activeStory?.kind === "player"
+    const duration = activeIndex === 0
+      ? 4_500
+      : activeStory?.kind === "player"
       ? Math.max(POST_COUNT_HOLD_MS, MIN_PLAYER_HIGHLIGHT_DURATION_MS - elapsed)
-      : activeStory?.kind === "brand"
-        ? (activeStory.durationSeconds ?? 4.5) * 1000
-        : activeStory?.kind === "finalists"
+      : activeStory?.kind === "finalists"
           ? (activeStory.durationSeconds ?? 12.5) * 1000
           : activeStory?.kind === "thanksBefore"
             ? (activeStory.durationSeconds ?? 7.25) * 1000
-            : activeStory?.kind === "community"
-              ? (activeStory.durationSeconds ?? 8) * 1000
-              : activeStory?.kind === "leaderboardTease"
-                ? (activeStory.durationSeconds ?? 5) * 1000
+            : activeStory?.kind === "spectacular"
+              ? (activeStory.durationSeconds ?? 6) * 1000
                 : STANDARD_STORY_DURATION_MS;
+    const durationIncludesExit = activeIndex === 0 || activeStory?.kind === "finalists" || activeStory?.kind === "thanksBefore" || activeStory?.kind === "spectacular";
+    const exitAt = durationIncludesExit ? Math.max(0, duration - STORY_EXIT_DURATION_MS) : duration;
     let exitTimeout = 0;
     const timeout = window.setTimeout(() => {
       setLeavingIndex(activeIndex);
       exitTimeout = window.setTimeout(() => goTo(activeIndex + 1), STORY_EXIT_DURATION_MS);
-    }, duration);
+    }, exitAt);
     return () => {
       window.clearTimeout(timeout);
       window.clearTimeout(exitTimeout);
@@ -994,7 +929,7 @@ export default function FinalsPage() {
         {Array.from({ length: totalSlides }).map((_, index) => <span key={index} className={index <= activeIndex ? styles.progressActive : ""} />)}
       </div>
       <div ref={scrollRef} className={styles.scrollTrack}>
-        <IntroSlide wrapped={wrapped} onStart={beginPlayback} autoPlaying={finalsAutostart} />
+        <IntroSlide onStart={beginPlayback} active={started && activeIndex === 0} />
         {stories.map((story, index) => {
           const storyIndex = index + 1;
           const isActive = started && activeIndex === storyIndex;
@@ -1003,14 +938,12 @@ export default function FinalsPage() {
               {story.kind === "player" && <PlayerSlide story={story} wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} onStoryAudioPlaybackChange={setStoryAudioPlayback} onStoryAudioCompleted={setStoryAudioCompleted} />}
               {story.kind === "map" && <MapSlide story={story} wrapped={wrapped} />}
               {story.kind === "opening" && <OpeningSlide wrapped={wrapped} variant={story.variant} />}
-              {story.kind === "brand" && <BrandIntroSlide />}
               {story.kind === "finalists" && <FinalistsSlide teams={story.teams} />}
               {story.kind === "thanksBefore" && <ThanksBeforeSlide teams={story.teams} />}
-              {story.kind === "community" && <CommunityThanksSlide players={story.players} />}
-              {story.kind === "leaderboardTease" && <LeaderboardTeaseSlide />}
+              {story.kind === "spectacular" && <SpectacularSlide />}
               {story.kind === "heroBans" && <HeroBansSlide most={story.most} least={story.least} />}
               {story.kind === "finale" && <FinaleSlide wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} />}
-              {story.kind === "thanks" && <CommunityThanksSlide players={[]} />}
+              {story.kind === "thanks" && <EndThanksSlide />}
               {story.kind === "transition" && <FinalsTransitionSlide />}
             </div>
           );
