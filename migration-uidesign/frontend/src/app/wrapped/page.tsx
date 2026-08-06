@@ -46,7 +46,8 @@ type MapStory = {
 type FinalsTeam = { id: number; name: string; logo: string | null };
 type FinalistsStory = { id: string; kind: "finalists"; teams: FinalsTeam[]; durationSeconds: number };
 type ThanksBeforeStory = { id: string; kind: "thanksBefore"; teams: FinalsTeam[]; durationSeconds: number };
-type SpectacularStory = { id: string; kind: "spectacular"; durationSeconds: number };
+type SpectacularStory = { id: string; kind: "spectacular"; teams: FinalsTeam[]; durationSeconds: number };
+type StatsIntroStory = { id: string; kind: "statsIntro"; durationSeconds: number };
 
 type Story =
   | PlayerStory
@@ -54,6 +55,7 @@ type Story =
   | FinalistsStory
   | ThanksBeforeStory
   | SpectacularStory
+  | StatsIntroStory
   | { id: string; kind: "opening"; variant: "teams" | "thanks" }
   | { id: "heroBans"; kind: "heroBans"; most: WrappedHeroRanking | null; least: WrappedHeroRanking | null }
   | { id: "finale"; kind: "finale" }
@@ -168,6 +170,70 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
+
+type TypewriterTextProps = {
+  text: string;
+  active: boolean;
+  reducedMotion: boolean;
+  delay?: number;
+  speed?: number;
+  className?: string;
+};
+
+function TypewriterText({
+  text,
+  active,
+  reducedMotion,
+  delay = 0,
+  speed = 55,
+  className = "",
+}: TypewriterTextProps) {
+  const [visibleLength, setVisibleLength] = useState(0);
+
+  useEffect(() => {
+    let interval = 0;
+    let timeout = 0;
+
+    if (!active) {
+      setVisibleLength(0);
+      return;
+    }
+    if (reducedMotion) {
+      setVisibleLength(text.length);
+      return;
+    }
+
+    setVisibleLength(0);
+    timeout = window.setTimeout(() => {
+      setVisibleLength(text.length ? 1 : 0);
+      interval = window.setInterval(() => {
+        setVisibleLength((current) => {
+          if (current >= text.length) {
+            window.clearInterval(interval);
+            return current;
+          }
+          return current + 1;
+        });
+      }, speed);
+    }, delay);
+
+    return () => {
+      window.clearTimeout(timeout);
+      window.clearInterval(interval);
+    };
+  }, [active, delay, reducedMotion, speed, text]);
+
+  const typing = active && visibleLength < text.length;
+  return (
+    <span
+      className={`${styles.typewriterText} ${typing ? styles.typewriterTyping : ""} ${className}`}
+      aria-hidden="true"
+    >
+      {text.slice(0, visibleLength)}
+    </span>
+  );
+}
+
 function TeamTile({ team, index }: { team: GoongingaWrapped["snapshot"]["overview"]["teams"][number]; index: number }) {
   const [logoUnavailable, setLogoUnavailable] = useState(!team.logo);
   return (
@@ -197,14 +263,23 @@ function SeasonLogo({ team, index }: { team: GoongingaWrapped["snapshot"]["overv
   );
 }
 
-function IntroSlide({ onStart, active }: { onStart: () => void; active: boolean }) {
+function IntroSlide({ onStart, active, reducedMotion }: { onStart: () => void; active: boolean; reducedMotion: boolean }) {
   return (
-    <section className={`${styles.slide} ${styles.introSlide} ${active ? styles.storyActive : ""}`} aria-label="Rat's Productions presents">
+    <section className={`${styles.slide} ${styles.introSlide} ${active ? styles.storyActive : ""}`} aria-label="Rat's Productions, with the help of the Social Teams, presents">
       <div className={styles.productionLockup}>
-        <h1>RAT&apos;S PRODUCTIONS</h1>
-        <p>with the help of the Social Teams</p>
-        <span>presents:</span>
+        <h1 aria-label="RAT'S PRODUCTIONS">
+          <TypewriterText text="RAT'S PRODUCTIONS" active={active} reducedMotion={reducedMotion} speed={88} />
+        </h1>
+        <div className={styles.productionInterleaved}>
+          <p aria-label="with the help of the Social Teams">
+            <TypewriterText text="with the help of the Social Teams" active={active} reducedMotion={reducedMotion} delay={1_750} speed={58} />
+          </p>
+          <span aria-label="presents">
+            <TypewriterText text="presents:" active={active} reducedMotion={reducedMotion} delay={2_650} speed={96} />
+          </span>
+        </div>
       </div>
+      {!active && <small className={styles.introStartHint}>CLICK ANYWHERE TO START</small>}
       <button type="button" className={styles.introStartOverlay} onClick={onStart} aria-label="Start the Finals presentation" />
     </section>
   );
@@ -256,18 +331,23 @@ function HeroBansSlide({ most, least }: { most: WrappedHeroRanking | null; least
   );
 }
 
-function FinalistsSlide({ teams }: { teams: FinalsTeam[] }) {
+function FinalistsSlide({ teams, active, reducedMotion }: { teams: FinalsTeam[]; active: boolean; reducedMotion: boolean }) {
   const matchup = teams.slice(0, 2);
   return (
-    <section className={`${styles.slide} ${styles.finalistsSlide}`} aria-label="Finalists showdown">
+    <section className={`${styles.slide} ${styles.finalistsSlide}`} aria-label="Goonginga League Grand Final">
       <div className={styles.finalistsBackdrop} aria-hidden="true"><span /><span /><span /></div>
       <header className={styles.finalistsHeader}>
-        <p>GOONGINGA LEAGUE</p>
-        <h2>THE GRAND FINAL</h2>
+        <p aria-label="GOONGINGA LEAGUE">
+          <TypewriterText text="GOONGINGA LEAGUE" active={active} reducedMotion={reducedMotion} delay={180} speed={52} />
+        </p>
+        <h2 aria-label="THE GRAND FINAL">
+          <TypewriterText text="THE GRAND FINAL" active={active} reducedMotion={reducedMotion} delay={900} speed={100} />
+        </h2>
       </header>
       <div className={styles.finalistsArena}>
         {matchup.map((team, index) => (
           <article key={team.id} className={`${styles.finalistCard} ${index === 0 ? styles.finalistCardLeft : styles.finalistCardRight}`}>
+            <div className={styles.finalistEnergyRing} aria-hidden="true" />
             <div className={styles.finalistAvatarWrap}>
               {team.logo ? (
                 <img src={resolveGenericBackendAsset(team.logo)} alt={team.name} />
@@ -277,7 +357,7 @@ function FinalistsSlide({ teams }: { teams: FinalsTeam[] }) {
             </div>
             <div className={styles.finalistMeta}>
               <span>{index === 0 ? "FINALIST 01" : "FINALIST 02"}</span>
-              <strong>{team.name}</strong>
+              <strong title={team.name}>{/gaming\s+for\s+goonginga/i.test(team.name) ? "GAMING FOR GOONGINGA" : team.name}</strong>
             </div>
           </article>
         ))}
@@ -288,13 +368,27 @@ function FinalistsSlide({ teams }: { teams: FinalsTeam[] }) {
   );
 }
 
-function ThanksBeforeSlide({ teams }: { teams: FinalsTeam[] }) {
+function ThanksBeforeSlide({ teams, active, reducedMotion }: { teams: FinalsTeam[]; active: boolean; reducedMotion: boolean }) {
   return (
     <section className={`${styles.slide} ${styles.thanksBeforeSlide}`} aria-label="Thanks before the recap">
       <div className={styles.thanksBeforeHeader}>
-        <p>BUT BEFORE...</p>
-        <h2>THANK YOU FOR<br />SHOWING UP.</h2>
-        <span>We want to thank every team for the commitment, the match nights, and all the effort put into following the League schedule.</span>
+        <p aria-label="BUT BEFORE">
+          <TypewriterText text="BUT BEFORE..." active={active} reducedMotion={reducedMotion} delay={180} speed={72} />
+        </p>
+        <h2 aria-label="THANK YOU FOR SHOWING UP">
+          <TypewriterText text="THANK YOU FOR" active={active} reducedMotion={reducedMotion} delay={1_000} speed={72} className={styles.typewriterLine} />
+          <br />
+          <TypewriterText text="SHOWING UP." active={active} reducedMotion={reducedMotion} delay={1_950} speed={78} className={styles.typewriterLine} />
+        </h2>
+        <span aria-label="We want to thank every team for the commitment, the match nights, and all the effort put into following the League schedule.">
+          <TypewriterText
+            text="We want to thank every team for the commitment, the match nights, and all the effort put into following the League schedule."
+            active={active}
+            reducedMotion={reducedMotion}
+            delay={3_000}
+            speed={31}
+          />
+        </span>
       </div>
       <div className={styles.thanksBeforeRoster}>
         {teams.slice(0, 9).map((team, index) => (
@@ -308,13 +402,55 @@ function ThanksBeforeSlide({ teams }: { teams: FinalsTeam[] }) {
   );
 }
 
-function SpectacularSlide() {
+function SpectacularSlide({ teams, active, reducedMotion }: { teams: FinalsTeam[]; active: boolean; reducedMotion: boolean }) {
   return (
     <section className={`${styles.slide} ${styles.spectacularSlide}`} aria-label="You made this season spectacular">
       <div className={styles.spectacularGhost} aria-hidden="true">SEASON</div>
       <div className={styles.spectacularCopy}>
-        <p>TO EVERY TEAM. TO EVERY PLAYER.</p>
-        <h2>You made this season spectacular.</h2>
+        <p aria-label="TO EVERY TEAM. TO EVERY PLAYER.">
+          <TypewriterText text="TO EVERY TEAM. TO EVERY PLAYER." active={active} reducedMotion={reducedMotion} delay={180} speed={56} />
+        </p>
+        <h2 aria-label="YOU MADE THIS SEASON SPECTACULAR">
+          <TypewriterText text="YOU MADE" active={active} reducedMotion={reducedMotion} delay={1_000} speed={90} className={styles.typewriterLine} />
+          <br />
+          <TypewriterText text="THIS SEASON" active={active} reducedMotion={reducedMotion} delay={1_850} speed={82} className={styles.typewriterLine} />
+          <br />
+          <TypewriterText text="SPECTACULAR." active={active} reducedMotion={reducedMotion} delay={2_950} speed={82} className={styles.typewriterLine} />
+        </h2>
+      </div>
+      <aside className={styles.creditsViewport} aria-label="Season team credits">
+        <p className={styles.creditsHeading} aria-label="SEASON TEAMS">
+          <TypewriterText text="SEASON TEAMS" active={active} reducedMotion={reducedMotion} delay={650} speed={64} />
+        </p>
+        <div className={styles.creditsRoll}>
+          {teams.map((team, index) => (
+            <div className={styles.creditEntry} key={team.id}>
+              <small>{String(index + 1).padStart(2, "0")}</small>
+              <strong>{team.name}</strong>
+              <span>GOONGINGA LEAGUE</span>
+            </div>
+          ))}
+        </div>
+      </aside>
+    </section>
+  );
+}
+
+function StatsIntroSlide({ active, reducedMotion }: { active: boolean; reducedMotion: boolean }) {
+  return (
+    <section className={`${styles.slide} ${styles.statsIntroSlide}`} aria-label="It is time to see who led the season in numbers">
+      <div className={styles.statsIntroGrid} aria-hidden="true" />
+      <div className={styles.statsIntroCopy}>
+        <p aria-label="AND NOW">
+          <TypewriterText text="AND NOW..." active={active} reducedMotion={reducedMotion} delay={250} speed={105} />
+        </p>
+        <h2 aria-label="IT'S TIME TO SEE WHO LED THE SEASON IN NUMBERS">
+          <TypewriterText text="IT'S TIME TO SEE" active={active} reducedMotion={reducedMotion} delay={1_350} speed={72} className={styles.typewriterLine} />
+          <br />
+          <TypewriterText text="WHO LED THE SEASON" active={active} reducedMotion={reducedMotion} delay={2_650} speed={68} className={styles.typewriterLine} />
+          <br />
+          <TypewriterText text="IN NUMBERS." active={active} reducedMotion={reducedMotion} delay={4_000} speed={82} className={styles.typewriterLine} />
+        </h2>
       </div>
     </section>
   );
@@ -733,8 +869,9 @@ export default function FinalsPage() {
     const { averagesPer10, totals, performance, maps, heroes } = snapshot;
     return [
       { id: "finalists", kind: "finalists", teams: finalsMatchup, durationSeconds: 12.5 },
-      { id: "thanksBefore", kind: "thanksBefore", teams: seasonTeams.slice(0, 9), durationSeconds: Number(getStoryDuration("thanksBefore", 9)) },
-      { id: "spectacular", kind: "spectacular", durationSeconds: Number(getStoryDuration("community", 6)) },
+      { id: "thanksBefore", kind: "thanksBefore", teams: seasonTeams.slice(0, 9), durationSeconds: Number(getStoryDuration("thanksBefore", 11)) },
+      { id: "spectacular", kind: "spectacular", teams: seasonTeams, durationSeconds: Number(getStoryDuration("community", 12.5)) },
+      { id: "statsIntro", kind: "statsIntro", durationSeconds: 7 },
       { id: "averageKills", kind: "player", contentSide: "left", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["COLD-BLOODED", "FINISHER"], titleColor: "#57E6F2", descriptor: "Highest average kills of the season.", caption: "The season's sharpest elimination pace.", value: averagesPer10.kills, assetKey: "averageKills", decimals: 2, suffix: " / 10" },
       { id: "averageHealing", kind: "player", contentSide: "left", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["LIFELINE", "ON CALL"], titleColor: "#83F5B5", descriptor: "Highest average healing of the season.", caption: "Keeping every fight alive when it mattered.", value: averagesPer10.healing, assetKey: "averageHealing", decimals: 2, suffix: " / 10" },
       { id: "averageDamage", kind: "player", contentSide: "right", eyebrow: "BEST AVERAGES · PER 10", titleLines: ["PRESSURE,", "UNBROKEN"], titleColor: "#FF9867", descriptor: "Highest average damage of the season.", caption: "Damage that never gave the lobby room to breathe.", value: averagesPer10.damage, assetKey: "averageDamage", decimals: 2, suffix: " / 10" },
@@ -856,7 +993,7 @@ export default function FinalsPage() {
     if (activeStory?.kind === "player" && completedAudioStoryId !== activeStory.id) return;
     const elapsed = playerHighlightStartedAtRef.current === null ? 0 : performance.now() - playerHighlightStartedAtRef.current;
     const duration = activeIndex === 0
-      ? 4_500
+      ? 6_500
       : activeStory?.kind === "player"
       ? Math.max(POST_COUNT_HOLD_MS, MIN_PLAYER_HIGHLIGHT_DURATION_MS - elapsed)
       : activeStory?.kind === "finalists"
@@ -864,9 +1001,11 @@ export default function FinalsPage() {
           : activeStory?.kind === "thanksBefore"
             ? (activeStory.durationSeconds ?? 7.25) * 1000
             : activeStory?.kind === "spectacular"
-              ? (activeStory.durationSeconds ?? 6) * 1000
+              ? (activeStory.durationSeconds ?? 12.5) * 1000
+              : activeStory?.kind === "statsIntro"
+                ? (activeStory.durationSeconds ?? 7) * 1000
                 : STANDARD_STORY_DURATION_MS;
-    const durationIncludesExit = activeIndex === 0 || activeStory?.kind === "finalists" || activeStory?.kind === "thanksBefore" || activeStory?.kind === "spectacular";
+    const durationIncludesExit = activeIndex === 0 || activeStory?.kind === "finalists" || activeStory?.kind === "thanksBefore" || activeStory?.kind === "spectacular" || activeStory?.kind === "statsIntro";
     const exitAt = durationIncludesExit ? Math.max(0, duration - STORY_EXIT_DURATION_MS) : duration;
     let exitTimeout = 0;
     const timeout = window.setTimeout(() => {
@@ -929,7 +1068,7 @@ export default function FinalsPage() {
         {Array.from({ length: totalSlides }).map((_, index) => <span key={index} className={index <= activeIndex ? styles.progressActive : ""} />)}
       </div>
       <div ref={scrollRef} className={styles.scrollTrack}>
-        <IntroSlide onStart={beginPlayback} active={started && activeIndex === 0} />
+        <IntroSlide onStart={beginPlayback} active={started && activeIndex === 0} reducedMotion={reducedMotion} />
         {stories.map((story, index) => {
           const storyIndex = index + 1;
           const isActive = started && activeIndex === storyIndex;
@@ -938,9 +1077,10 @@ export default function FinalsPage() {
               {story.kind === "player" && <PlayerSlide story={story} wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} onStoryAudioPlaybackChange={setStoryAudioPlayback} onStoryAudioCompleted={setStoryAudioCompleted} />}
               {story.kind === "map" && <MapSlide story={story} wrapped={wrapped} />}
               {story.kind === "opening" && <OpeningSlide wrapped={wrapped} variant={story.variant} />}
-              {story.kind === "finalists" && <FinalistsSlide teams={story.teams} />}
-              {story.kind === "thanksBefore" && <ThanksBeforeSlide teams={story.teams} />}
-              {story.kind === "spectacular" && <SpectacularSlide />}
+              {story.kind === "finalists" && <FinalistsSlide teams={story.teams} active={isActive} reducedMotion={reducedMotion} />}
+              {story.kind === "thanksBefore" && <ThanksBeforeSlide teams={story.teams} active={isActive} reducedMotion={reducedMotion} />}
+              {story.kind === "spectacular" && <SpectacularSlide teams={story.teams} active={isActive} reducedMotion={reducedMotion} />}
+              {story.kind === "statsIntro" && <StatsIntroSlide active={isActive} reducedMotion={reducedMotion} />}
               {story.kind === "heroBans" && <HeroBansSlide most={story.most} least={story.least} />}
               {story.kind === "finale" && <FinaleSlide wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} />}
               {story.kind === "thanks" && <EndThanksSlide />}
