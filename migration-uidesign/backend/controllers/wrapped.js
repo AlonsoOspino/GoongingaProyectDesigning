@@ -15,6 +15,11 @@ const ASSET_KEYS = new Set([
   "bestKd",
   "mostPickedMap",
   "leastPickedMap",
+  // Vertical artwork for the hero ban split slide. Both keys must stay in this
+  // set: normalizeAssets() drops any key it does not recognize, which silently
+  // discarded these uploads on save.
+  "mostBannedHero",
+  "leastBannedHero",
 ]);
 
 // Maps and heroes that were introduced during the last week of the season.
@@ -248,6 +253,8 @@ function getSnapshotAssetSubject(snapshot, key) {
   if (playerPaths[key]?.userId) return `player:${playerPaths[key].userId}`;
   if (key === "mostPickedMap" && snapshot.maps?.mostPicked?.mapId) return `map:${snapshot.maps.mostPicked.mapId}`;
   if (key === "leastPickedMap" && snapshot.maps?.leastPicked?.mapId) return `map:${snapshot.maps.leastPicked.mapId}`;
+  if (key === "mostBannedHero" && snapshot.heroes?.mostBanned?.heroId) return `hero:${snapshot.heroes.mostBanned.heroId}`;
+  if (key === "leastBannedHero" && snapshot.heroes?.leastBanned?.heroId) return `hero:${snapshot.heroes.leastBanned.heroId}`;
   return null;
 }
 
