@@ -187,20 +187,21 @@ test("refresh retains matching artwork and its horizontal flip setting", () => {
     videoPositions: { averageKills: { x: 28, y: 62 } },
     storyAudios: { averageKills: ["https://cdn.example/one.mp3"] },
     soundtrack: { recap: { url: "https://cdn.example/recap.mp3", durationSeconds: 100 }, countdown: { url: "https://cdn.example/countdown.mp3", durationSeconds: 45.5 } },
+    masterVolume: 1,
   });
 });
 
 test("asset settings accept legacy image-only records and discard invalid flip values", () => {
   assert.deepEqual(
     wrappedController.__testables.normalizeAssets({ averageKills: " https://cdn.example/alpha.png ", unknown: "https://cdn.example/nope.png" }),
-    { images: { averageKills: "https://cdn.example/alpha.png" }, flipped: {}, videos: {}, videoPositions: {}, storyAudios: {}, soundtrack: {} }
+    { images: { averageKills: "https://cdn.example/alpha.png" }, flipped: {}, videos: {}, videoPositions: {}, storyAudios: {}, soundtrack: {}, masterVolume: 1 }
   );
   assert.deepEqual(
     wrappedController.__testables.normalizeAssets({
       images: { averageKills: "https://cdn.example/alpha.png" },
       flipped: { averageKills: true, bestKd: "yes", unknown: true },
     }),
-    { images: { averageKills: "https://cdn.example/alpha.png" }, flipped: { averageKills: true }, videos: {}, videoPositions: {}, storyAudios: {}, soundtrack: {} }
+    { images: { averageKills: "https://cdn.example/alpha.png" }, flipped: { averageKills: true }, videos: {}, videoPositions: {}, storyAudios: {}, soundtrack: {}, masterVolume: 1 }
   );
 });
 
@@ -225,6 +226,7 @@ test("asset settings retain only valid media URLs and at most three post-video a
         recap: { url: "https://cdn.example/recap.mp3", durationSeconds: 100.125 },
         countdown: { url: "https://cdn.example/countdown.mp3", durationSeconds: 45.5 },
       },
+      masterVolume: 1,
     }
   );
 });

@@ -274,7 +274,7 @@ if (
 
 function normalizeAssets(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return { images: {}, flipped: {}, videos: {}, videoPositions: {}, storyAudios: {}, soundtrack: {} };
+    return { images: {}, flipped: {}, videos: {}, videoPositions: {}, storyAudios: {}, soundtrack: {}, masterVolume: 1 };
   }
 
   const imageSource = value.images && typeof value.images === "object" && !Array.isArray(value.images)
@@ -325,6 +325,13 @@ const highlightsTrack = normalizeTrack(soundtrackSource.highlights);
       .filter(([key, rawValue]) => ["intro", "finalists", "thanksBefore", "thanks", "community", "leaderboard", "statsIntro"].includes(key) && typeof rawValue === "number" && Number.isFinite(rawValue) && rawValue > 0)
       .map(([key, rawValue]) => [key, Math.round(Number(rawValue) * 1000) / 1000])
   );
+  // Single global attenuation applied by the Wrapped player to every music
+  // track and every story audio cue. Stored as a 0..1 multiplier so existing
+  // per-scene mixing (ducking, fades, cue gain) keeps its relative balance.
+  const rawMasterVolume = Number(value.masterVolume);
+  const masterVolume = Number.isFinite(rawMasterVolume)
+    ? Math.min(1, Math.max(0, Math.round(rawMasterVolume * 1000) / 1000))
+    : 1;
 
   return {
     images: Object.fromEntries(
@@ -365,6 +372,7 @@ const highlightsTrack = normalizeTrack(soundtrackSource.highlights);
       ...(highlightsTrack ? { highlights: highlightsTrack } : {}),
       ...(countdownTrack ? { countdown: countdownTrack } : {}),
     },
+    masterVolume,
     ...(Object.keys(storyDurations).length ? { storyDurations } : {}),
   };
 }
@@ -400,6 +408,8 @@ function retainMatchingAssets(previousWrapped, nextSnapshot) {
     videoPositions,
     storyAudios,
     soundtrack: previousAssets.soundtrack,
+    // The global mix level is snapshot-independent, so a stats refresh keeps it.
+    masterVolume: typeof previousAssets.masterVolume === "number" ? previousAssets.masterVolume : 1,
     ...(Object.keys(previousAssets.storyDurations || {}).length ? { storyDurations: previousAssets.storyDurations } : {}),
   };
 }

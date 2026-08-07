@@ -55,6 +55,8 @@ export function FinalsPresentationStage({
   const [tournamentState, setTournamentState] = useState<string | null>(null);
   const [countdownTrack, setCountdownTrack] = useState<WrappedSoundtrackTrack | null>(null);
   const [countdownMetadataDuration, setCountdownMetadataDuration] = useState<number | null>(null);
+  // Global Wrapped mix level set by managers; applies to the countdown too.
+  const [masterVolume, setMasterVolume] = useState(1);
   const countdownAudioRef = useRef<HTMLAudioElement>(null);
   const countdownStartedKeyRef = useRef<string | null>(null);
   const effectiveStart = match.presentationStartDate || match.startDate;
@@ -81,7 +83,9 @@ export function FinalsPresentationStage({
       ]);
       if (cancelled) return;
       setTournamentState(tournament?.state || null);
-      setCountdownTrack(wrapped ? resolveWrappedAssets(wrapped.assets).soundtrack.countdown || null : null);
+      const wrappedAssets = wrapped ? resolveWrappedAssets(wrapped.assets) : null;
+      setCountdownTrack(wrappedAssets?.soundtrack.countdown || null);
+      setMasterVolume(typeof wrappedAssets?.masterVolume === "number" ? wrappedAssets.masterVolume : 1);
     };
     void loadFinalsState();
     const timer = window.setInterval(loadFinalsState, 3_000);
@@ -122,7 +126,7 @@ export function FinalsPresentationStage({
 
     countdownStartedKeyRef.current = presentationKey;
     audio.loop = false;
-    audio.volume = 1;
+    audio.volume = Math.min(1, Math.max(0, masterVolume));
     try {
       audio.currentTime = Math.min(Math.max(0, duration - remainingSeconds), Math.max(0, duration - 0.05));
     } catch {
@@ -134,7 +138,13 @@ export function FinalsPresentationStage({
       // Clear the marker so the next countdown tick can retry.
       countdownStartedKeyRef.current = null;
     });
-  }, [countdownMetadataDuration, countdownTrack, now, phase, presentationKey, startMs, tournamentState]);
+  }, [countdownMetadataDuration, countdownTrack, masterVolume, now, phase, presentationKey, startMs, tournamentState]);
+
+  useEffect(() => {
+    // Keep an already-playing countdown in sync when a manager changes the level.
+    const audio = countdownAudioRef.current;
+    if (audio) audio.volume = Math.min(1, Math.max(0, masterVolume));
+  }, [masterVolume]);
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
