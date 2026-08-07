@@ -610,7 +610,9 @@
   .heroBansSlide header { position: relative; z-index: 2; text-align: center; }
   .heroBansSlide header h2 { font-size: clamp(4.8rem,8vw,9rem); }
   .heroBanGrid { position: relative; z-index: 2; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 2.5vw; width: min(82vw,1320px); margin: 4vh auto 0; }
-  .heroBanCard { position: relative; display: grid; min-height: 43vh; grid-template-columns: .9fr 1.1fr; grid-template-rows: auto auto 1fr; align-items: end; overflow: hidden; border: 1px solid rgba(255,255,255,.15); padding: 2rem; background: linear-gradient(140deg,rgba(255,255,255,.07),rgba(5,8,13,.92)); }
+  .heroBanCard {
+    
+ position: relative; display: grid; min-height: 43vh; grid-template-columns: .9fr 1.1fr; grid-template-rows: auto auto 1fr; align-items: end; overflow: hidden; border: 1px solid rgba(255,255,255,.15); padding: 2rem; background: linear-gradient(140deg,rgba(255,255,255,.07),rgba(5,8,13,.92)); }
 .heroBanCard > div {
   grid-row: 1 / -1;
   align-self: stretch;
@@ -636,9 +638,14 @@
     drop-shadow(0 24px 25px rgba(0,0,0,.55))
     drop-shadow(0 0 24px rgba(255,255,255,.05));
 }
-.heroBanMost img {
+  .heroBanMost img {
   height: 60%;
 }
+
+.heroBanCard.kirikoHeroBanCard img {
+  transform: translateX(-50%) scale(1.12);
+}
+
 
 /* Baptiste */
 .heroBanLeast img {
