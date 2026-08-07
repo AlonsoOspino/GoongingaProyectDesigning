@@ -69,6 +69,7 @@ const MUSIC_HIGHLIGHT_VOLUME = 0.63;
 const MUSIC_RESTING_VOLUME = 1;
 const POST_COUNT_HOLD_MS = 1_500;
 const CUE_STABLE_GAIN = 1.2;
+const PLAYER_AUDIO_VOLUME = 0.83;
 const HIGHLIGHT_TEXT_SEQUENCE_MS = 10_000;
 const COUNT_UP_DURATION_MS = 2_500;
 const MIN_PLAYER_HIGHLIGHT_DURATION_MS = HIGHLIGHT_TEXT_SEQUENCE_MS + COUNT_UP_DURATION_MS + POST_COUNT_HOLD_MS;
@@ -607,8 +608,8 @@ function StoryAudioSequence({ sources, active, masterVolume, onPlaybackChange, o
   useEffect(() => {
     masterVolumeRef.current = masterVolume;
     const level = clamp(masterVolume, 0, 1);
-    if (activeGainRef.current) activeGainRef.current.gain.value = CUE_STABLE_GAIN * level;
-    if (activeElementRef.current && !activeGainRef.current) activeElementRef.current.volume = clamp(0.8 * level, 0, 1);
+    if (activeGainRef.current) activeGainRef.current.gain.value = CUE_STABLE_GAIN * PLAYER_AUDIO_VOLUME * level;
+    if (activeElementRef.current && !activeGainRef.current) activeElementRef.current.volume = clamp(PLAYER_AUDIO_VOLUME * level, 0, 1);
   }, [masterVolume]);
 
   useEffect(() => {
@@ -669,16 +670,16 @@ function StoryAudioSequence({ sources, active, masterVolume, onPlaybackChange, o
             // decoding every uploaded file a second time for loudness analysis.
             // That duplicate 30–40 MB download was causing playback stalls.
             // The manager's master level scales it without touching the mix.
-            gainNode.gain.value = CUE_STABLE_GAIN * level;
+            gainNode.gain.value = CUE_STABLE_GAIN * PLAYER_AUDIO_VOLUME * level;
             currentSource.connect(gainNode).connect(compressor);
             await context.resume();
           } catch {
             // Keep the cue playable if a third-party URL does not allow the
             // Web Audio graph. Blob-hosted assets use the normalized path.
-            current.volume = clamp(0.8 * level, 0, 1);
+            current.volume = clamp(PLAYER_AUDIO_VOLUME * level, 0, 1);
           }
         } else {
-          current.volume = clamp(0.8 * level, 0, 1);
+          current.volume = clamp(PLAYER_AUDIO_VOLUME * level, 0, 1);
         }
         await current.play();
         if (!cancelled) onPlaybackChange(true);
@@ -742,7 +743,7 @@ function PlayerSlide({
     video.muted = true;
     video.defaultMuted = true;
     video.volume = 0;
-    video.loop = false;
+    video.loop = true;
     video.defaultPlaybackRate = 0.75;
     video.playbackRate = 0.75;
 
@@ -775,7 +776,7 @@ function PlayerSlide({
     video.muted = true;
     video.defaultMuted = true;
     video.volume = 0;
-    video.loop = false;
+    video.loop = true;
     video.playbackRate = 0.75;
     void video.play().catch(() => undefined);
   }, [active, reducedMotion]);
