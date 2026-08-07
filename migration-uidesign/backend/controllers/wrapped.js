@@ -17,6 +17,28 @@ const ASSET_KEYS = new Set([
   "leastPickedMap",
 ]);
 
+// Maps and heroes that were introduced during the last week of the season.
+// They only existed for a fraction of the tournament, so a near-zero pick/ban
+// count is not meaningful and they are excluded from the "least" awards.
+// One shared list covers both catalogs: a name absent from a catalog is simply
+// never matched. Add a name here whenever content lands late in a season.
+const LATE_SEASON_CONTENT_NAMES = new Set(["neon junction", "shion"]);
+
+const normalizeEntityName = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+
+// Falls back to the full list if every candidate ends up excluded, so the
+// slide never renders empty.
+function excludeLateSeasonEntries(entries, excludedNames, getName) {
+  const eligible = entries.filter(
+    (entry) => !excludedNames.has(normalizeEntityName(getName(entry)))
+  );
+  return eligible.length ? eligible : entries;
+}
+
 let cachedWrapped = null;
 const activeSnapshotBuilds = new Set();
 
@@ -502,13 +524,23 @@ async function buildSnapshot(tournament) {
   const mostPicked = mapPicks.length
     ? pickBest(mapEntries, (item) => item.count, mapOptions)
     : null;
-  const leastPicked = pickBest(mapEntries, (item) => item.count, { ...mapOptions, lowerIsBetter: true });
+  const leastPickedCandidates = excludeLateSeasonEntries(
+    mapEntries,
+    LATE_SEASON_CONTENT_NAMES,
+    (item) => item.map.description
+  );
+  const leastPicked = pickBest(leastPickedCandidates, (item) => item.count, { ...mapOptions, lowerIsBetter: true });
   const heroCounts = new Map();
   for (const action of heroBans) heroCounts.set(action.value, (heroCounts.get(action.value) || 0) + 1);
   const heroEntries = heroes.map((hero) => ({ hero, count: heroCounts.get(hero.id) || 0 }));
   const heroOptions = { getTieLabel: (item) => item.hero.name || "" };
   const mostBanned = heroBans.length ? pickBest(heroEntries, (item) => item.count, heroOptions) : null;
-  const leastBanned = pickBest(heroEntries, (item) => item.count, { ...heroOptions, lowerIsBetter: true });
+  const leastBannedCandidates = excludeLateSeasonEntries(
+    heroEntries,
+    LATE_SEASON_CONTENT_NAMES,
+    (item) => item.hero.name
+  );
+  const leastBanned = pickBest(leastBannedCandidates, (item) => item.count, { ...heroOptions, lowerIsBetter: true });
 
   const generatedAt = new Date();
   const elapsedWeeks = Math.max(1, Math.ceil((generatedAt.getTime() - new Date(tournament.startDate).getTime()) / (7 * DAY_MS)));

@@ -825,12 +825,12 @@ function MapSlide({ story, wrapped }: { story: MapStory; wrapped: GoongingaWrapp
     <section className={`${styles.slide} ${styles.mapSlide} ${styles[`layout${story.layout[0].toUpperCase()}${story.layout.slice(1)}`]}`} aria-label={story.title}>
       <div className={styles.mapImageWrap}>
         <Art src={image} alt={map?.name || story.title} fallback="MAP" flipped={flipped} />
-        <span className={styles.mapCount}>{map ? `${map.count} PICK${map.count === 1 ? "" : "S"}` : "NO DATA"}</span>
       </div>
       <div className={styles.mapCopy}>
         <p className={styles.eyebrow}>{story.eyebrow}</p>
         <h2>{story.title}</h2>
         <strong className={styles.mapName}>{map?.name || "No map data"}</strong>
+        <span className={styles.mapCount}>{map ? `${map.count} PICK${map.count === 1 ? "" : "S"}` : "NO DATA"}</span>
         <p className={styles.storyCaption}>{story.caption}</p>
       </div>
     </section>

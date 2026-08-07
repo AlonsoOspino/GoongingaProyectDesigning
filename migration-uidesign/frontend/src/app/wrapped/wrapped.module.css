@@ -457,17 +457,21 @@
 .mapImageWrap { position: relative; overflow: hidden; }
 .mapImageWrap .artFrame { width: 100%; height: 100%; }
 .mapImageWrap .artImage { width: 100%; height: 100%; object-fit: cover; filter: brightness(.82) saturate(1.12); }
+/* Lives in the copy column, not over the image: the angled clip-path on
+   .mapImageWrap used to slice this badge in half. */
 .mapCount { 
-  position: absolute; 
-  right: 1.2rem; 
-  bottom: 1.1rem; 
-  z-index: 2; 
-  padding: .55rem .7rem; 
+  display: inline-block; 
+  vertical-align: top; 
+  max-width: 100%; 
+  margin-top: 1.4rem; 
+  padding: .55rem .8rem; 
   color: #071018; 
   background: var(--yellow); 
   font-size: .68rem; 
   font-weight: 900; 
   letter-spacing: .13em; 
+  line-height: 1; 
+  white-space: nowrap; 
 }
 .mapCopy { position: relative; z-index: 3; }
 .mapName { 
@@ -479,6 +483,8 @@
   line-height: .75; 
   text-transform: uppercase; 
   text-shadow: 0 0 30px rgba(246, 196, 67, .25);
+  overflow-wrap: break-word; 
+  hyphens: none; 
 }
 .layoutPanorama { 
   grid-template-columns: 1.2fr .8fr; 

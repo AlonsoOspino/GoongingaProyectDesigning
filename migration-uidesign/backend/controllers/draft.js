@@ -10,15 +10,16 @@ const playoffMapTypesByGame = [
   ["CONTROL"],
 ];
 // Best of 7 cycle used by the Grand Final:
-// control, hybrid, payload, push/flash, control, hybrid, push/flash.
+// control, hybrid, payload, push, flashpoint, control, hybrid.
+// Push and Flashpoint are separate games in the finals (not a combined pool).
 const finalsMapTypesByGame = [
   ["CONTROL"],
   ["HYBRID"],
   ["PAYLOAD"],
-  ["PUSH", "FLASHPOINT"],
+  ["PUSH"],
+  ["FLASHPOINT"],
   ["CONTROL"],
   ["HYBRID"],
-  ["PUSH", "FLASHPOINT"],
 ];
 
 const getMapTypeCycle = (matchType) => {

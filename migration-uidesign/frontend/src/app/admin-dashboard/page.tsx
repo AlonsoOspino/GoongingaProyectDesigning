@@ -590,10 +590,18 @@ function MatchesSection({ token }: { token: string }) {
     mapsByType[map.type].push(map);
   }
 
-  // Round map types guide: 1=CONTROL, 2=HYBRID, 3=PAYLOAD, 4=PUSH + FLASHPOINT, 5=CONTROL again
-  const roundMapTypes: Record<string, string[]> = {
+  // Best of 5 guide: 1=CONTROL, 2=HYBRID, 3=PAYLOAD, 4=PUSH + FLASHPOINT, 5=CONTROL again
+  const bo5RoundMapTypes: Record<string, string[]> = {
     "1": ["CONTROL"], "2": ["HYBRID"], "3": ["PAYLOAD"], "4": ["PUSH", "FLASHPOINT"], "5": ["CONTROL"],
   };
+  // Best of 7 guide for the Grand Final, where PUSH and FLASHPOINT are separate games:
+  // 1=CONTROL, 2=HYBRID, 3=PAYLOAD, 4=PUSH, 5=FLASHPOINT, 6=CONTROL, 7=HYBRID
+  const finalsRoundMapTypes: Record<string, string[]> = {
+    "1": ["CONTROL"], "2": ["HYBRID"], "3": ["PAYLOAD"], "4": ["PUSH"], "5": ["FLASHPOINT"],
+    "6": ["CONTROL"], "7": ["HYBRID"],
+  };
+  const roundMapTypes =
+    formData.type === "FINALS" ? finalsRoundMapTypes : bo5RoundMapTypes;
 
   function toggleMapForRound(round: string, mapId: number) {
     const current = formData.mapsAllowedByRound?.[round] || [];

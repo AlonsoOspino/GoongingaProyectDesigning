@@ -31,6 +31,8 @@ const isHybrid = (type: AdminGameMap["type"]) => type === "HYBRID";
 const isPayload = (type: AdminGameMap["type"]) => type === "PAYLOAD";
 const isPushOrFlash = (type: AdminGameMap["type"]) =>
   type === "PUSH" || type === "FLASHPOINT";
+const isPush = (type: AdminGameMap["type"]) => type === "PUSH";
+const isFlashpoint = (type: AdminGameMap["type"]) => type === "FLASHPOINT";
 
 // Best of 5: round robin and playoff rounds 1-2.
 const COLUMNS: ColumnDefinition[] = [
@@ -42,15 +44,15 @@ const COLUMNS: ColumnDefinition[] = [
 ];
 
 // Best of 7 cycle for the Grand Final:
-// control, hybrid, payload, push/flash, control, hybrid, push/flash.
+// control, hybrid, payload, push, flashpoint, control, hybrid.
 const FINALS_COLUMNS: ColumnDefinition[] = [
   { key: "1", title: "CONTROL", accepts: isControl },
   { key: "2", title: "HYBRID", accepts: isHybrid },
   { key: "3", title: "PAYLOAD", accepts: isPayload },
-  { key: "4", title: "PUSH/FLASH", accepts: isPushOrFlash },
-  { key: "5", title: "CONTROL", accepts: isControl },
-  { key: "6", title: "HYBRID", accepts: isHybrid },
-  { key: "7", title: "PUSH/FLASH", accepts: isPushOrFlash },
+  { key: "4", title: "PUSH", accepts: isPush },
+  { key: "5", title: "FLASHPOINT", accepts: isFlashpoint },
+  { key: "6", title: "CONTROL", accepts: isControl },
+  { key: "7", title: "HYBRID", accepts: isHybrid },
 ];
 
 const isBracketMatchType = (type?: Match["type"]) =>
