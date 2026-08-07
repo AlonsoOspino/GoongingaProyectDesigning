@@ -2611,3 +2611,56 @@
     .finalistsBlackCanvas,
     .storyActive .finalistsBlackCanvas { animation: none; opacity: 0; }
   }
+
+  /* RAT'S PRODUCTIONS is a deliberate black cinematic plate. Keep the
+     composition locked while the three TypewriterText lines do the only
+     movement: writing the words in place. */
+  .introSlide {
+    background: #000;
+  }
+
+  .introSlide.storyActive .productionLockup,
+  .introSlide.storyActive .productionSequence,
+  .introSlide.storyActive .productionInterleaved,
+  .introSlide.introFadingOut .productionLockup,
+  .introSlide.introFadingOut .productionSequence,
+  .introSlide.introFadingOut .productionInterleaved {
+    animation: none !important;
+    transform: none !important;
+    filter: none !important;
+  }
+
+  /* The generic story-leave choreography is the downward block-like motion
+     seen on the other scenes. Do not apply it globally: scene changes should
+     be immediate, while RAT'S PRODUCTIONS alone uses the plate fade above. */
+  .storyLeaving > *,
+  .storyLeaving .highlightContent,
+  .storyLeaving .seasonFact,
+  .storyLeaving .mapCopy,
+  .storyLeaving .mapImageWrap,
+  .storyLeaving .heroBanGrid,
+  .storyLeaving .finaleHeading,
+  .storyLeaving .counterGrid,
+  .storyLeaving .communityThanks > *,
+  .storyLeaving .openingTeamCopy,
+  .storyLeaving .openingThanks > *,
+  .storyLeaving .finalsTransition > *,
+  .storyLeaving .artworkBackdrop img,
+  .storyLeaving .artworkBackdrop video.videoReady,
+  .storyLeaving .artFrame,
+  .storyLeaving .productionLockup,
+  .storyLeaving .finalistsHeader,
+  .storyLeaving .finalistsArena,
+  .storyLeaving .finalistsSubtitle,
+  .storyLeaving .thanksBeforeHeader,
+  .storyLeaving .thanksBeforeRoster,
+  .storyLeaving .spectacularCopy,
+  .storyLeaving .statsIntroCopy,
+  .storyLeaving .creditsViewport {
+    animation: none !important;
+  }
+
+  .storyLeaving > * {
+    transform: none !important;
+    filter: none !important;
+  }
