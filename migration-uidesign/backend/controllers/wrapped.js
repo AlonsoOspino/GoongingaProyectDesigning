@@ -20,6 +20,8 @@ const ASSET_KEYS = new Set([
   // discarded these uploads on save.
   "mostBannedHero",
   "leastBannedHero",
+  "heroBanMost",
+  "heroBanLeast",
 ]);
 
 // Maps and heroes that were introduced during the last week of the season.
@@ -237,6 +239,7 @@ function pickLeaderboardLeader(players, metric, lowerIsBetter = false) {
 
 function getSnapshotAssetSubject(snapshot, key) {
   if (!snapshot) return null;
+  
   const playerPaths = {
     averageKills: snapshot.averagesPer10?.kills,
     averageHealing: snapshot.averagesPer10?.healing,
@@ -253,8 +256,19 @@ function getSnapshotAssetSubject(snapshot, key) {
   if (playerPaths[key]?.userId) return `player:${playerPaths[key].userId}`;
   if (key === "mostPickedMap" && snapshot.maps?.mostPicked?.mapId) return `map:${snapshot.maps.mostPicked.mapId}`;
   if (key === "leastPickedMap" && snapshot.maps?.leastPicked?.mapId) return `map:${snapshot.maps.leastPicked.mapId}`;
-  if (key === "mostBannedHero" && snapshot.heroes?.mostBanned?.heroId) return `hero:${snapshot.heroes.mostBanned.heroId}`;
-  if (key === "leastBannedHero" && snapshot.heroes?.leastBanned?.heroId) return `hero:${snapshot.heroes.leastBanned.heroId}`;
+if (
+  (key === "mostBannedHero" || key === "heroBanMost") &&
+  snapshot.heroes?.mostBanned?.heroId
+) {
+  return `hero:${snapshot.heroes.mostBanned.heroId}`;
+}
+
+if (
+  (key === "leastBannedHero" || key === "heroBanLeast") &&
+  snapshot.heroes?.leastBanned?.heroId
+) {
+  return `hero:${snapshot.heroes.leastBanned.heroId}`;
+}
   return null;
 }
 
