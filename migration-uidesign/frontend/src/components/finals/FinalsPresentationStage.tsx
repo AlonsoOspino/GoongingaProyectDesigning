@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Match, Team } from "@/lib/api/types";
 import { resolveGenericBackendAsset } from "@/lib/assetUrls";
+import { getSeriesLength } from "@/lib/match-format";
 import { getCurrentTournament } from "@/lib/api/admin";
 import { getGoongingaWrapped, resolveWrappedAssets, type WrappedSoundtrackTrack } from "@/lib/api/wrapped";
 import styles from "./finals.module.css";
@@ -199,7 +200,7 @@ export function FinalsPresentationStage({
         <p className={styles.stageKicker}>GOONGINGA LEAGUE · GRAND FINAL</p>
         <div className={styles.stageVersus}>
           <StageLogo team={teamA} side="a" />
-          <div className={styles.stageVs}><span>BEST OF {match.bestOf}</span><strong>VS</strong></div>
+          <div className={styles.stageVs}><span>BEST OF {getSeriesLength(match)}</span><strong>VS</strong></div>
           <StageLogo team={teamB} side="b" />
         </div>
         {parts ? (

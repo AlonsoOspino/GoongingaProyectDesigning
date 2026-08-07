@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { Match, Team } from "@/lib/api/types";
 import { resolveGenericBackendAsset } from "@/lib/assetUrls";
+import { getSeriesLength } from "@/lib/match-format";
 import styles from "./finals.module.css";
 
 function initials(name?: string) {
@@ -63,7 +64,7 @@ export function FinalsAnnouncement({ match, teamA, teamB }: { match: Match; team
         <div className={styles.finalsBar}>
           <div className={styles.finalsBrand}><i /> GOONGINGA LEAGUE</div>
           <span>SEASON CHAMPIONSHIP</span>
-          <strong>BEST OF {match.bestOf}</strong>
+          <strong>BEST OF {getSeriesLength(match)}</strong>
         </div>
         <div className={styles.announcementHeading}>
           <span>THE SEASON DECIDES HERE</span>

@@ -1,14 +1,24 @@
 const prisma = require("../config/prisma");
 
 /**
- * Bracket (playoff) matches are identified by having a playoffRound, NOT by their
- * `type`. Round 1-2 are stored as type "PLAYOFFS" while the Grand Final (round 3)
- * is stored as type "FINALS" so it satisfies the tournament FINALS state rules.
- * Always use these helpers instead of comparing `match.type` directly.
+ * Bracket (playoff) matches are identified by playoffRound when available.
+ * Legacy rows can still be identified by type/title so old Finals matches keep
+ * the current BO7 rules even if they were created before playoffRound existed.
  */
 const GRAND_FINAL_ROUND = 3;
-const isBracketMatch = (match) => Number.isInteger(match?.playoffRound);
-const isGrandFinal = (match) => match?.playoffRound === GRAND_FINAL_ROUND;
+const normalizeMatchType = (type) => String(type || "").trim().toUpperCase();
+const isBracketMatch = (match) =>
+  Number.isInteger(match?.playoffRound) ||
+  ["PLAYOFFS", "FINALS"].includes(normalizeMatchType(match?.type));
+const isGrandFinal = (match) =>
+  match?.playoffRound === GRAND_FINAL_ROUND ||
+  normalizeMatchType(match?.type) === "FINALS" ||
+  /grand\s*final/i.test(match?.title || "");
+const getSeriesBestOf = (match) => {
+  if (isGrandFinal(match)) return 7;
+  return Number.isInteger(match?.bestOf) && match.bestOf > 0 ? match.bestOf : 5;
+};
+const getRequiredWins = (match) => Math.ceil(getSeriesBestOf(match) / 2);
 
 const findById = (id) =>
   prisma.match.findUnique({
@@ -183,7 +193,8 @@ const submitResult = async (id, winnerTeamId) => {
     // After submitResult for game 1, gameNumber becomes 1.
     // The "current game being reported" is match.gameNumber + 1 (1-indexed).
     const currentGameBeingReported = match.gameNumber + 1;
-    const requiredWins = Math.ceil(match.bestOf / 2);
+    const seriesBestOf = getSeriesBestOf(match);
+    const requiredWins = getRequiredWins(match);
 
     const nextMapWinsA =
       hasWinner && winnerTeamId === match.teamAId
@@ -264,6 +275,7 @@ const submitResult = async (id, winnerTeamId) => {
       data: {
         mapWinsTeamA: nextMapWinsA,
         mapWinsTeamB: nextMapWinsB,
+        bestOf: seriesBestOf,
         gameNumber: currentGameBeingReported, // store the game just played
         teamAready: 0,
         teamBready: 0,
@@ -740,5 +752,7 @@ module.exports = {
   bulkCreateUsers,
   isBracketMatch,
   isGrandFinal,
+  getSeriesBestOf,
+  getRequiredWins,
   GRAND_FINAL_ROUND,
 };

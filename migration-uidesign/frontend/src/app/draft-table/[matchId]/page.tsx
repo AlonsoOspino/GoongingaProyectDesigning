@@ -35,7 +35,7 @@ import {
 import { clsx } from "clsx";
 import { resolveGenericBackendAsset, resolveHeroImageUrl, resolveMapImageUrl } from "@/lib/assetUrls";
 import { MapImage, MapBackground, useImageReady, preloadImages } from "@/components/draft/MapImage";
-import { isBracketMatch, isGrandFinalMatch, getRequiredWins } from "@/lib/match-format";
+import { isBracketMatch, isGrandFinalMatch, getRequiredWins, getSeriesLength } from "@/lib/match-format";
 import { FinalsPresentationStage } from "@/components/finals/FinalsPresentationStage";
 import finalsStyles from "@/components/finals/finals.module.css";
 
@@ -1331,7 +1331,13 @@ export default function DraftTablePage() {
         )}
 
         {currentPhase === "FINISHED" && (
-          <FinishedPhase draftState={draftState} teams={teams} />
+          <FinishedPhase
+            draftState={draftState}
+            teams={teams}
+            canResetMatch={canResetMatch && !isObsKeyAccess}
+            onRequestResetMatch={() => setResetConfirmOpen(true)}
+            actionLoading={actionLoading}
+          />
         )}
 
         {/* Draft History - Only shown after PENDINGRESULT/FINISHED */}
@@ -1674,7 +1680,11 @@ export default function DraftTablePage() {
 function WaitingTeamLogo({ team, fallback }: { team?: Team; fallback: string }) {
   const [logoFailed, setLogoFailed] = useState(!team?.logo);
   return team?.logo && !logoFailed ? (
-    <img src={resolveGenericBackendAsset(team.logo)} alt={`${team.name} logo`} onError={() => setLogoFailed(true)} />
+    <img
+      src={resolveGenericBackendAsset(team.logo)}
+      alt={`${team.name} logo`}
+      onError={() => setLogoFailed(true)}
+    />
   ) : <span aria-label={`${team?.name || fallback} logo`}>{team?.name?.slice(0, 2).toUpperCase() || fallback}</span>;
 }
 
@@ -1744,7 +1754,7 @@ function StartingPhase({
           </div>
         ))}
         <div className={finalsStyles.waitingVs}>
-          <small>BEST OF {match.bestOf}</small>
+          <small>BEST OF {getSeriesLength(match)}</small>
           <strong>VS</strong>
           <span>{Number(Boolean(match.teamAready)) + Number(Boolean(match.teamBready))} / 2 READY</span>
         </div>
@@ -3108,7 +3118,7 @@ function EndMapPhase({
           </div>
 
           <p className={clsx("text-muted", isObsKeyAccess ? "text-sm" : "text-xs")}>
-            Game {currentGameNumber} | Best of {draftState.match.bestOf} | First to {winsNeeded}
+            Game {currentGameNumber} | Best of {getSeriesLength(draftState.match)} | First to {winsNeeded}
           </p>
         </div>
       )}
@@ -3225,9 +3235,15 @@ function EndMapPhase({
 function FinishedPhase({
   draftState,
   teams,
+  canResetMatch,
+  onRequestResetMatch,
+  actionLoading,
 }: {
   draftState: DraftState;
   teams: Team[];
+  canResetMatch: boolean;
+  onRequestResetMatch: () => void;
+  actionLoading: boolean;
 }) {
   const teamA = teams.find((t) => t.id === draftState.match.teamAId);
   const teamB = teams.find((t) => t.id === draftState.match.teamBId);
@@ -3260,6 +3276,25 @@ function FinishedPhase({
               <p className="text-4xl font-bold text-[color:var(--color-team-b)]">{teamBWins}</p>
             </div>
           </div>
+
+          {canResetMatch && (
+            <div className="mt-8 rounded-lg border border-danger/40 bg-danger/10 p-4 text-left">
+              <p className="text-sm font-bold text-danger">Need to roll this back?</p>
+              <p className="mt-1 text-sm leading-relaxed text-muted">
+                Reset sends the match back to schedule and clears the draft, score, timers, stats and standings changes.
+              </p>
+              <Button
+                type="button"
+                variant="danger"
+                size="sm"
+                onClick={onRequestResetMatch}
+                disabled={actionLoading}
+                className="mt-4 w-full"
+              >
+                Reset to schedule
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

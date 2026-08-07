@@ -3,6 +3,7 @@ const test = require("node:test");
 
 const matchService = require("../services/match");
 const matchController = require("../controllers/match");
+const matchRepo = require("../repositories/match");
 
 function response() {
   return {
@@ -94,4 +95,11 @@ test("resetting Finals starts a new rehearsal without touching the official sche
   });
   assert.equal(res.body.startDate, officialStart);
   assert.equal(res.body.presentationVersion, 5);
+});
+
+test("Grand Final format stays BO7 even for legacy rows saved as BO5", () => {
+  assert.equal(matchRepo.getSeriesBestOf({ playoffRound: 3, bestOf: 5 }), 7);
+  assert.equal(matchRepo.getRequiredWins({ playoffRound: 3, bestOf: 5 }), 4);
+  assert.equal(matchRepo.getSeriesBestOf({ type: "FINALS", title: "Grand Final", bestOf: 5 }), 7);
+  assert.equal(matchRepo.getRequiredWins({ type: "ROUNDROBIN", bestOf: 5 }), 3);
 });

@@ -27,12 +27,12 @@ export function isGrandFinalMatch(match?: MatchLike | null): boolean {
 
 /** Games needed to win: 4 in the best of 7 Grand Final, 3 in a best of 5. */
 export function getRequiredWins(match?: MatchLike | null): number {
-  const bestOf = match?.bestOf && match.bestOf > 0 ? match.bestOf : 5;
-  return Math.ceil(bestOf / 2);
+  return Math.ceil(getSeriesLength(match) / 2);
 }
 
 /** Total maps in the series, used to size the wincards grid. */
 export function getSeriesLength(match?: MatchLike | null): number {
+  if (isGrandFinalMatch(match)) return 7;
   if (match?.bestOf && match.bestOf > 0) return match.bestOf;
-  return isGrandFinalMatch(match) ? 7 : 5;
+  return 5;
 }
