@@ -2611,3 +2611,28 @@
     .finalistsBlackCanvas,
     .storyActive .finalistsBlackCanvas { animation: none; opacity: 0; }
   }
+
+  /* RAT'S PRODUCTIONS is a deliberate black cinematic plate. Keep the
+     composition locked while the three TypewriterText lines do the only
+     movement: writing the words in place. */
+  .introSlide {
+    background: #000;
+  }
+
+  .introSlide.storyActive .productionLockup,
+  .introSlide.storyActive .productionSequence,
+  .introSlide.storyActive .productionInterleaved,
+  .introSlide.introFadingOut .productionLockup,
+  .introSlide.introFadingOut .productionSequence,
+  .introSlide.introFadingOut .productionInterleaved,
+  /* Override only the generic scene-leave choreography for RAT'S PRODUCTIONS. */
+  .storyLeaving.introSlide .productionLockup,
+  .storyLeaving.introSlide .productionSequence,
+  .storyLeaving.introSlide .productionInterleaved {
+    animation: none !important;
+    transform: none !important;
+    filter: none !important;
+  }
+
+  /* Restore the shared downward exit for every scene. RAT'S PRODUCTIONS is
+     the only exception: its own plate fade and static selectors above win. */
