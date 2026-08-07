@@ -216,6 +216,20 @@ const undoLastResult = async (id) => {
   }
   return await matchRepo.undoLastResult(parsedId);
 };
+/**
+ * Rewinds a match to its initial SCHEDULED state. This is not a business update,
+ * so it deliberately skips validateMatchRules: the point is to undo state, not to
+ * re-validate it against the current tournament stage.
+ */
+const resetToSchedule = async (id) => {
+  const parsedId = parsePositiveInt(id, "id");
+  const existing = await matchRepo.findById(parsedId);
+  if (!existing) {
+    throw new Error("Match not found.");
+  }
+  return await matchRepo.resetMatchToSchedule(parsedId);
+};
+
 const findSoonest = async () => {
   return await matchRepo.findSoonest();
 }
@@ -296,6 +310,7 @@ module.exports = {
   generateRoundRobin,
   submitResult,
   undoLastResult,
+  resetToSchedule,
   update,
   create,
   findSoonest,

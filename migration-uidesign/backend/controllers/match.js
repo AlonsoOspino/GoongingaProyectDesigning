@@ -414,6 +414,25 @@ const undoLastResult = async (req, res) => {
   }
 };
 
+// Hard reset of a match back to the schedule stage. Wipes the draft, the
+// scoreboard, the timers and the uploaded stats, and rolls back the standings.
+// Intended for reruns and rehearsals, hence manager/admin only.
+const managerResetMatch = async (req, res) => {
+  try {
+    const matchId = Number(req.params.id);
+    const match = await matchService.getById(matchId);
+    if (!match) {
+      return res.status(404).json({ message: "Match not found" });
+    }
+
+    const updatedMatch = await matchService.resetToSchedule(matchId);
+    return res.json(updatedMatch);
+  } catch (err) {
+    console.error(`[managerResetMatch] Error resetting match ${req.params.id}:`, err);
+    return res.status(400).json({ message: err.message });
+  }
+};
+
 const finishPendingRegisters = async (req, res) => {
   try {
     const updatedMatch = await matchService.finishPendingRegisters(Number(req.params.id));
@@ -601,6 +620,7 @@ module.exports = {
   managerUpdate,
   managerUpdatePresentationTime,
   managerResetFinalsPresentation,
+  managerResetMatch,
   findSoonest,
   getActiveMatches,
   submitResult,

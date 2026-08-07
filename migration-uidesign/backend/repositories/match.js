@@ -1,5 +1,15 @@
 const prisma = require("../config/prisma");
 
+/**
+ * Bracket (playoff) matches are identified by having a playoffRound, NOT by their
+ * `type`. Round 1-2 are stored as type "PLAYOFFS" while the Grand Final (round 3)
+ * is stored as type "FINALS" so it satisfies the tournament FINALS state rules.
+ * Always use these helpers instead of comparing `match.type` directly.
+ */
+const GRAND_FINAL_ROUND = 3;
+const isBracketMatch = (match) => Number.isInteger(match?.playoffRound);
+const isGrandFinal = (match) => match?.playoffRound === GRAND_FINAL_ROUND;
+
 const findById = (id) =>
   prisma.match.findUnique({
     where: { id },
@@ -236,7 +246,7 @@ const submitResult = async (id, winnerTeamId) => {
         ? match.teamBId
         : null;
 
-    if (isFinished && matchWinnerTeamId && match.type !== "PLAYOFFS") {
+    if (isFinished && matchWinnerTeamId && !isBracketMatch(match)) {
       const losingTeamId =
         matchWinnerTeamId === match.teamAId ? match.teamBId : match.teamAId;
       await tx.team.update({
@@ -326,7 +336,6 @@ const undoLastResult = async (id) => {
     const nextMapResults = mapResults.slice(0, -1);
     const hasWinner = !!lastResult.winnerTeamId;
 
-    const winsNeeded = Math.ceil(match.bestOf / 2);
     const matchWinnerTeamId =
       match.mapWinsTeamA > match.mapWinsTeamB
         ? match.teamAId
@@ -334,7 +343,7 @@ const undoLastResult = async (id) => {
         ? match.teamBId
         : null;
 
-    if (match.status === "PENDINGREGISTERS" && matchWinnerTeamId && match.type !== "PLAYOFFS") {
+    if (match.status === "PENDINGREGISTERS" && matchWinnerTeamId && !isBracketMatch(match)) {
       const losingTeamId =
         matchWinnerTeamId === match.teamAId ? match.teamBId : match.teamAId;
       await tx.team.update({
@@ -497,12 +506,16 @@ const createGuaranteedNextRoundMatches = async (tx, tournamentId, currentRound) 
       const [teamAId, teamBId] = [firstId, secondId].sort(
         (a, b) => seeds.get(a) - seeds.get(b)
       );
+      const isFinalRound = nextRound === GRAND_FINAL_ROUND;
       return {
-        type: "PLAYOFFS",
-        title: nextRound === 2 ? "Semifinal" : "Grand Final",
+        // The Grand Final must be type FINALS: the tournament sits in the FINALS
+        // state by then, and validateMatchRules only allows FINALS matches there.
+        type: isFinalRound ? "FINALS" : "PLAYOFFS",
+        title: isFinalRound ? "Grand Final" : "Semifinal",
         playoffRound: nextRound,
         playoffSlot: seeds.get(teamAId),
-        bestOf: 5,
+        // Grand Final is best of 7 (first to 4); earlier rounds are best of 5.
+        bestOf: isFinalRound ? 7 : 5,
         status: "SCHEDULED",
         tournamentId,
         teamAId,
@@ -534,7 +547,7 @@ const finishPendingRegisters = async (id) => {
     }
 
     const updatedMatch = await tx.match.findUnique({ where: { id } });
-    if (match.type !== "PLAYOFFS" || !match.playoffRound) {
+    if (!isBracketMatch(match)) {
       return updatedMatch;
     }
 
@@ -545,7 +558,7 @@ const finishPendingRegisters = async (id) => {
     const loserTeamId = winnerTeamId === match.teamAId ? match.teamBId : match.teamAId;
     await tx.team.update({ where: { id: loserTeamId }, data: { state: "ELIMINATED" } });
 
-    if (match.playoffRound === 3) {
+    if (isGrandFinal(match)) {
       await tx.team.update({ where: { id: winnerTeamId }, data: { state: "ACTIVE" } });
       await tx.tournament.update({
         where: { id: match.tournamentId },
@@ -560,6 +573,145 @@ const finishPendingRegisters = async (id) => {
     }
 
     return updatedMatch;
+  });
+};
+
+/**
+ * Hard reset of a match back to its initial SCHEDULED state.
+ *
+ * Wipes the draft, the scoreboard, the timers, the readiness flags and the
+ * uploaded player stats, and rolls back every side effect the match caused on
+ * the standings (team map wins/loses, victories/defeats, eliminations and the
+ * tournament state). Intended for reruns/tests of a match from scratch.
+ */
+const resetMatchToSchedule = async (id) => {
+  return prisma.$transaction(async (tx) => {
+    const match = await tx.match.findUnique({
+      where: { id },
+      include: { draft: true },
+    });
+    if (!match) {
+      throw new Error("Match not found.");
+    }
+
+    const mapResults = Array.isArray(match.mapResults) ? match.mapResults : [];
+
+    // 1. Roll back per-map team counters accumulated by this match.
+    const mapWinsByTeam = new Map();
+    const mapLosesByTeam = new Map();
+    for (const result of mapResults) {
+      const winnerTeamId = result?.winnerTeamId;
+      if (!winnerTeamId) continue; // draws never incremented anything
+      const loserTeamId =
+        winnerTeamId === match.teamAId ? match.teamBId : match.teamAId;
+      mapWinsByTeam.set(winnerTeamId, (mapWinsByTeam.get(winnerTeamId) || 0) + 1);
+      mapLosesByTeam.set(loserTeamId, (mapLosesByTeam.get(loserTeamId) || 0) + 1);
+    }
+
+    for (const [teamId, amount] of mapWinsByTeam) {
+      await tx.team.update({
+        where: { id: teamId },
+        data: { mapWins: { decrement: amount } },
+      });
+    }
+    for (const [teamId, amount] of mapLosesByTeam) {
+      await tx.team.update({
+        where: { id: teamId },
+        data: { mapLoses: { decrement: amount } },
+      });
+    }
+
+    // 2. Roll back the match-level record. Bracket matches never award these.
+    const matchWinnerTeamId = getMatchWinnerTeamId(match);
+    const awardedMatchRecord =
+      ["PENDINGREGISTERS", "FINISHED"].includes(match.status) &&
+      matchWinnerTeamId &&
+      !isBracketMatch(match);
+
+    if (awardedMatchRecord) {
+      const loserTeamId =
+        matchWinnerTeamId === match.teamAId ? match.teamBId : match.teamAId;
+      await tx.team.update({
+        where: { id: matchWinnerTeamId },
+        data: { victories: { decrement: 1 } },
+      });
+      await tx.team.update({
+        where: { id: loserTeamId },
+        data: { defeats: { decrement: 1 } },
+      });
+    }
+
+    // 3. Un-eliminate the loser of a finished bracket match and rewind the
+    //    tournament state if this Grand Final had closed it.
+    if (isBracketMatch(match) && match.status === "FINISHED" && matchWinnerTeamId) {
+      const loserTeamId =
+        matchWinnerTeamId === match.teamAId ? match.teamBId : match.teamAId;
+      await tx.team.update({
+        where: { id: loserTeamId },
+        data: { state: "ACTIVE" },
+      });
+
+      if (isGrandFinal(match)) {
+        await tx.tournament.update({
+          where: { id: match.tournamentId },
+          data: { state: "FINALS" },
+        });
+      }
+    }
+
+    // 4. Drop bracket matches this one seeded, as long as they are untouched.
+    if (isBracketMatch(match)) {
+      const laterMatches = await tx.match.findMany({
+        where: {
+          tournamentId: match.tournamentId,
+          playoffRound: { gt: match.playoffRound },
+          status: "SCHEDULED",
+        },
+        select: { id: true, mapResults: true, draft: { select: { id: true } } },
+      });
+
+      const removableIds = laterMatches
+        .filter((later) => {
+          const results = Array.isArray(later.mapResults) ? later.mapResults : [];
+          return results.length === 0 && !later.draft;
+        })
+        .map((later) => later.id);
+
+      if (removableIds.length) {
+        await tx.playerStat.deleteMany({ where: { matchId: { in: removableIds } } });
+        await tx.match.deleteMany({ where: { id: { in: removableIds } } });
+      }
+    }
+
+    // 5. Wipe the draft and the uploaded stats for this match.
+    if (match.draft) {
+      await tx.draftAction.deleteMany({ where: { draftId: match.draft.id } });
+      await tx.draftTable.delete({ where: { id: match.draft.id } });
+    }
+    await tx.playerStat.deleteMany({ where: { matchId: match.id } });
+
+    // 6. Back to square one: the schedule screen.
+    return tx.match.update({
+      where: { id: match.id },
+      data: {
+        status: "SCHEDULED",
+        startDate: null,
+        presentationStartDate: null,
+        teamAready: 0,
+        teamBready: 0,
+        pointsTeamA: 0,
+        pointsTeamB: 0,
+        mapWinsTeamA: 0,
+        mapWinsTeamB: 0,
+        gameNumber: 0,
+        mapResults: null,
+        mapStartedAt: null,
+        mapTimerPaused: false,
+        mapTimerPausedAt: null,
+        pauseRequestedAt: null,
+        pauseRequestedBy: null,
+      },
+    });
   });
 };
 
@@ -584,5 +736,9 @@ module.exports = {
   undoLastResult,
   findSoonest,
   finishPendingRegisters,
+  resetMatchToSchedule,
   bulkCreateUsers,
+  isBracketMatch,
+  isGrandFinal,
+  GRAND_FINAL_ROUND,
 };

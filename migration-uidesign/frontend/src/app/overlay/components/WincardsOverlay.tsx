@@ -12,7 +12,7 @@ interface WincardsOverlayProps {
   matchId: number;
 }
 
-type ColumnKey = "1" | "2" | "3" | "4" | "5";
+type ColumnKey = "1" | "2" | "3" | "4" | "5" | "6" | "7";
 
 interface ColumnDefinition {
   key: ColumnKey;
@@ -26,34 +26,46 @@ type MatchWithDraft = Match & { draft?: DraftPickState | null };
 
 const POLL_INTERVAL_MS = 10000;
 
+const isControl = (type: AdminGameMap["type"]) => type === "CONTROL";
+const isHybrid = (type: AdminGameMap["type"]) => type === "HYBRID";
+const isPayload = (type: AdminGameMap["type"]) => type === "PAYLOAD";
+const isPushOrFlash = (type: AdminGameMap["type"]) =>
+  type === "PUSH" || type === "FLASHPOINT";
+
+// Best of 5: round robin and playoff rounds 1-2.
 const COLUMNS: ColumnDefinition[] = [
-  {
-    key: "1",
-    title: "CONTROL",
-    accepts: (type) => type === "CONTROL",
-  },
-  {
-    key: "2",
-    title: "HYBRID",
-    accepts: (type) => type === "HYBRID",
-  },
-  {
-    key: "3",
-    title: "PAYLOAD",
-    accepts: (type) => type === "PAYLOAD",
-  },
-  {
-    key: "4",
-    title: "PUSH/FLASH",
-    accepts: (type) => type === "PUSH" || type === "FLASHPOINT",
-  },
-  {
-    key: "5",
-    title: "CONTROL",
-    accepts: (type) => type === "CONTROL",
-    includeIncognito: true,
-  },
+  { key: "1", title: "CONTROL", accepts: isControl },
+  { key: "2", title: "HYBRID", accepts: isHybrid },
+  { key: "3", title: "PAYLOAD", accepts: isPayload },
+  { key: "4", title: "PUSH/FLASH", accepts: isPushOrFlash },
+  { key: "5", title: "CONTROL", accepts: isControl, includeIncognito: true },
 ];
+
+// Best of 7 cycle for the Grand Final:
+// control, hybrid, payload, push/flash, control, hybrid, push/flash.
+const FINALS_COLUMNS: ColumnDefinition[] = [
+  { key: "1", title: "CONTROL", accepts: isControl },
+  { key: "2", title: "HYBRID", accepts: isHybrid },
+  { key: "3", title: "PAYLOAD", accepts: isPayload },
+  { key: "4", title: "PUSH/FLASH", accepts: isPushOrFlash },
+  { key: "5", title: "CONTROL", accepts: isControl },
+  { key: "6", title: "HYBRID", accepts: isHybrid },
+  { key: "7", title: "PUSH/FLASH", accepts: isPushOrFlash },
+];
+
+const isBracketMatchType = (type?: Match["type"]) =>
+  type === "PLAYOFFS" || type === "FINALS";
+
+const getColumnsForMatch = (type?: Match["type"]) =>
+  type === "FINALS" ? FINALS_COLUMNS : COLUMNS;
+
+const emptyRecord = <T,>(columns: ColumnDefinition[], value: () => T) => {
+  const result = {} as Record<ColumnKey, T>;
+  for (const column of columns) {
+    result[column.key] = value();
+  }
+  return result;
+};
 
 function parseRoundMapIds(match: Match | null, roundKey: ColumnKey): number[] {
   const source = match?.mapsAllowedByRound;
@@ -93,7 +105,7 @@ function getGamePick(draft: DraftPickState | null, gameNumber: number): number |
   return Number.isInteger(mapId) && mapId > 0 ? mapId : null;
 }
 
-function buildWinnerMap(match: Match | null): Map<number, number> {
+function buildWinnerMap(match: Match | null, maxGames: number): Map<number, number> {
   const winners = new Map<number, number>();
   if (!Array.isArray(match?.mapResults)) return winners;
 
@@ -101,7 +113,7 @@ function buildWinnerMap(match: Match | null): Map<number, number> {
     const gameNumber = Number(result.gameNumber);
     const mapId = Number(result.mapId);
     const winnerTeamId = Number(result.winnerTeamId);
-    if (!Number.isInteger(gameNumber) || gameNumber < 1 || gameNumber > 5) continue;
+    if (!Number.isInteger(gameNumber) || gameNumber < 1 || gameNumber > maxGames) continue;
     if (!Number.isInteger(mapId) || mapId <= 0) continue;
     if (!Number.isInteger(winnerTeamId) || winnerTeamId <= 0) continue;
     winners.set(mapId, winnerTeamId);
@@ -110,14 +122,14 @@ function buildWinnerMap(match: Match | null): Map<number, number> {
   return winners;
 }
 
-function buildWinnerByGame(match: Match | null): Map<number, number> {
+function buildWinnerByGame(match: Match | null, maxGames: number): Map<number, number> {
   const winners = new Map<number, number>();
   if (!Array.isArray(match?.mapResults)) return winners;
 
   for (const result of match.mapResults) {
     const gameNumber = Number(result.gameNumber);
     const winnerTeamId = Number(result.winnerTeamId);
-    if (!Number.isInteger(gameNumber) || gameNumber < 1 || gameNumber > 5) continue;
+    if (!Number.isInteger(gameNumber) || gameNumber < 1 || gameNumber > maxGames) continue;
     if (!Number.isInteger(winnerTeamId) || winnerTeamId <= 0) continue;
     winners.set(gameNumber, winnerTeamId);
   }
@@ -209,37 +221,34 @@ export function WincardsOverlay({ matchId }: WincardsOverlayProps) {
     [match, teamsById]
   );
 
-  const winnerByMapId = useMemo(() => buildWinnerMap(match), [match]);
-  const winnerByGame = useMemo(() => buildWinnerByGame(match), [match]);
-  const isPlayoffs = match?.type === "PLAYOFFS";
+  // The Grand Final is a best of 7, every other match is a best of 5.
+  const columns = useMemo(() => getColumnsForMatch(match?.type), [match?.type]);
+  const isBracket = isBracketMatchType(match?.type);
+
+  const winnerByMapId = useMemo(
+    () => buildWinnerMap(match, columns.length),
+    [match, columns.length]
+  );
+  const winnerByGame = useMemo(
+    () => buildWinnerByGame(match, columns.length),
+    [match, columns.length]
+  );
 
   const playoffMaps = useMemo(() => {
-    const result: Record<ColumnKey, AdminGameMap | null> = {
-      "1": null,
-      "2": null,
-      "3": null,
-      "4": null,
-      "5": null,
-    };
-    if (!isPlayoffs) return result;
+    const result = emptyRecord<AdminGameMap | null>(columns, () => null);
+    if (!isBracket) return result;
 
-    for (const column of COLUMNS) {
+    for (const column of columns) {
       const mapId = getGamePick(draft, Number(column.key));
       result[column.key] = mapId ? mapsById.get(mapId) ?? null : null;
     }
     return result;
-  }, [draft, isPlayoffs, mapsById]);
+  }, [draft, isBracket, mapsById, columns]);
 
   const roundMaps = useMemo(() => {
-    const result: Record<ColumnKey, AdminGameMap[]> = {
-      "1": [],
-      "2": [],
-      "3": [],
-      "4": [],
-      "5": [],
-    };
+    const result = emptyRecord<AdminGameMap[]>(columns, () => []);
 
-    for (const column of COLUMNS) {
+    for (const column of columns) {
       const ids = parseRoundMapIds(match, column.key);
       const filteredMaps = ids
         .map((id) => mapsById.get(id))
@@ -247,20 +256,22 @@ export function WincardsOverlay({ matchId }: WincardsOverlayProps) {
         .filter((map) => column.accepts(map.type));
 
       result[column.key] =
-        column.key === "5" && filteredMaps.length > 0
+        column.includeIncognito && filteredMaps.length > 0
           ? [filteredMaps[0]]
           : filteredMaps;
     }
 
     return result;
-  }, [match, mapsById]);
+  }, [match, mapsById, columns]);
 
+  // Only round robin hides a game 5 control map behind an incognito tile.
   const incognitoRevealMap = useMemo(() => {
+    if (isBracket) return null;
     const gameOnePickId = getGameOnePick(draft);
     if (!gameOnePickId) return null;
 
-    const designatedGameFiveMapId = roundMaps["5"][0]?.id ?? null;
-    const gameOneControlPool = roundMaps["1"];
+    const designatedGameFiveMapId = roundMaps["5"]?.[0]?.id ?? null;
+    const gameOneControlPool = roundMaps["1"] ?? [];
     const globalControlPool = maps.filter((map) => map.type === "CONTROL");
     const sourcePool = gameOneControlPool.length > 0 ? gameOneControlPool : globalControlPool;
 
@@ -274,7 +285,7 @@ export function WincardsOverlay({ matchId }: WincardsOverlayProps) {
     }
 
     return notDraftedOnGameOne[0] ?? null;
-  }, [draft, maps, roundMaps]);
+  }, [draft, maps, roundMaps, isBracket]);
 
   if (loading) {
     return (
@@ -332,9 +343,12 @@ export function WincardsOverlay({ matchId }: WincardsOverlayProps) {
         </div>
       </header>
 
-      <section className={clsx(styles.grid, isPlayoffs && styles.playoffGrid)}>
-        {COLUMNS.map((column) => {
-          if (isPlayoffs) {
+      <section
+        className={clsx(styles.grid, isBracket && styles.playoffGrid)}
+        style={{ "--wincards-columns": columns.length } as React.CSSProperties}
+      >
+        {columns.map((column) => {
+          if (isBracket) {
             const gameNumber = Number(column.key);
             const pickedMap = playoffMaps[column.key];
             const winnerTeamId = winnerByGame.get(gameNumber);

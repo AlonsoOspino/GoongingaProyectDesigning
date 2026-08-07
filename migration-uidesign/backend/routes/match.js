@@ -5,6 +5,7 @@ const adminMiddleware = require("../middlewares/admin");
 const captainMatchMiddleware = require("../middlewares/captainMatch");
 const authMiddleware = require("../middlewares/authMiddleware");
 const managerMiddleware = require("../middlewares/manager");
+const managerOrAdminMiddleware = require("../middlewares/managerOrAdmin");
 
 router.get("/", matchController.getAll);
 router.post("/admin/create", authMiddleware, adminMiddleware, matchController.adminCreate);
@@ -18,6 +19,7 @@ router.post("/captain/:id/request-pause", authMiddleware, captainMatchMiddleware
 router.put("/manager/update/:id", authMiddleware, managerMiddleware, matchController.managerUpdate);
 router.put("/manager/presentation-time/:id", authMiddleware, managerMiddleware, matchController.managerUpdatePresentationTime);
 router.post("/manager/presentation-reset/:id", authMiddleware, managerMiddleware, matchController.managerResetFinalsPresentation);
+router.post("/manager/reset/:id", authMiddleware, managerMiddleware, matchController.managerResetMatch);
 router.post("/manager/:id/toggle-pause", authMiddleware, managerMiddleware, matchController.managerTogglePause);
 router.post("/manager/:id/clear-pause-request", authMiddleware, managerMiddleware, matchController.managerClearPauseRequest);
 // Image endpoint must come before generic /:id routes

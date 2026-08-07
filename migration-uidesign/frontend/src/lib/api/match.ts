@@ -60,6 +60,18 @@ export async function resetManagerFinalsPresentation(token: string, matchId: num
   });
 }
 
+/**
+ * Rewinds the whole match back to the schedule stage: clears the draft, the
+ * scoreboard, the timers, the ready flags and the uploaded stats, and rolls back
+ * the standings. Manager/admin only.
+ */
+export async function resetManagerMatch(token: string, matchId: number) {
+  return apiRequest<Match>(`/match/manager/reset/${matchId}`, {
+    method: "POST",
+    token,
+  });
+}
+
 export async function submitMatchResult(token: string, matchId: number, winnerTeamId: number | null) {
   return apiRequest<Match>(`/match/${matchId}/result`, {
     method: "POST",

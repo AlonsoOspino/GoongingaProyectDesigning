@@ -25,6 +25,7 @@ import {
   getTeams,
   submitMatchResult,
   undoMatchResult,
+  resetManagerMatch,
   updateCaptainMatch,
   captainRequestPause,
   managerTogglePause,
