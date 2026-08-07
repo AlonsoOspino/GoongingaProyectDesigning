@@ -76,6 +76,18 @@ const STORY_EXIT_DURATION_MS = 850;
 const MUSIC_CROSSFADE_MS = 900;
 const MUSIC_FADE_IN_MS = 1_800;
 const STATS_INTRO_FADE_IN_MS = 2_700;
+// When no dedicated bridge track exists, the stats-intro slide ("la quinta")
+// becomes the transition zone between the two songs. The intro and highlights
+// tracks are very different in style, so instead of overlapping them (which
+// sounds muddy) we use a "dip" / V-shaped handoff: song A resolves and fades
+// out cleanly, a short breath of near-silence follows, then song B swells in
+// on its own underneath the "AND NOW..." copy and settles before the first
+// highlight — no hard cut, no clashing overlap.
+const QUINTA_MIN_SECONDS = 10; // floor so the handoff always has room to breathe
+const INTRO_RESOLVE_MS = 2_600; // song A fades out gently at the top of the quinta
+const HIGHLIGHTS_BRIDGE_DELAY_MS = 2_900; // breath before song B enters
+const HIGHLIGHTS_BRIDGE_RISE_MS = 5_200; // song B swells in slowly and alone
+const HIGHLIGHTS_BRIDGE_BED_VOLUME = 0.5; // resting bed level reached during the quinta
 
 type MusicPhase = "idle" | "intro" | "statsIntro" | "highlights";
 
@@ -165,7 +177,10 @@ function fadeAudio(audio: HTMLAudioElement, targetVolume: number, durationMs: nu
   let frame = 0;
   const tick = (now: number) => {
     const progress = Math.min(1, (now - startedAt) / durationMs);
-    audio.volume = clamp(initialVolume + (finalVolume - initialVolume) * progress, 0, 1);
+    // Smoothstep easing: gentler starts and stops than a linear ramp, so fades
+    // feel organic rather than mechanical — important when bridging two songs.
+    const eased = progress * progress * (3 - 2 * progress);
+    audio.volume = clamp(initialVolume + (finalVolume - initialVolume) * eased, 0, 1);
     if (progress < 1) frame = requestAnimationFrame(tick);
   };
   frame = requestAnimationFrame(tick);
@@ -1105,15 +1120,38 @@ export default function FinalsPage() {
     }
 
     if (musicPhase === "statsIntro") {
-      fadeOutAndPause(intro);
-      fadeOutAndPause(highlights);
-      fadeInTrack(statsIntro, MUSIC_RESTING_VOLUME, STATS_INTRO_FADE_IN_MS);
+      // "La quinta" is where we hand off from the intro song to the highlights
+      // song. The intro always resolves and fades out gently here.
+      fadeOutAndPause(intro, INTRO_RESOLVE_MS);
+      if (statsIntroTrack?.url) {
+        // A dedicated bridge track exists: let it carry the transition and keep
+        // the highlights track silent until its own slide.
+        fadeOutAndPause(highlights);
+        fadeInTrack(statsIntro, MUSIC_RESTING_VOLUME, STATS_INTRO_FADE_IN_MS);
+      } else {
+        // No bridge track: the quinta itself is the transition. Because the two
+        // songs are stylistically different, we do NOT overlap them. Song A
+        // fades out first (above), then after a short breath song B swells in
+        // on its own so it is established (at a bed level) before the first
+        // highlight — a cinematic dip rather than a muddy crossfade.
+        fadeOutAndPause(statsIntro, 250);
+        const timer = window.setTimeout(() => {
+          fadeInTrack(highlights, HIGHLIGHTS_BRIDGE_BED_VOLUME, HIGHLIGHTS_BRIDGE_RISE_MS);
+        }, HIGHLIGHTS_BRIDGE_DELAY_MS);
+        musicPauseTimersRef.current.push(timer);
+      }
       return;
     }
 
-    fadeOutAndPause(intro);
+    fadeOutAndPause(intro, 1_400);
     fadeOutAndPause(statsIntro, 1_100);
-    fadeInTrack(highlights, MUSIC_RESTING_VOLUME, MUSIC_FADE_IN_MS);
+    // If the bridge already primed the highlights track during the quinta, it is
+    // already playing at the bed level and the highlights sync effect owns its
+    // volume from here (ducking to the highlight level). Only start it fresh if
+    // it is not already playing — e.g. the viewer jumped straight to this phase.
+    if (!highlights || highlights.paused) {
+      fadeInTrack(highlights, MUSIC_RESTING_VOLUME, MUSIC_FADE_IN_MS);
+    }
   }, [highlightsTrack?.url, introTrack?.url, musicPhase, statsIntroTrack?.url]);
 
   useEffect(() => {
@@ -1158,7 +1196,9 @@ export default function FinalsPage() {
             : activeStory?.kind === "spectacular"
               ? (activeStory.durationSeconds ?? 12.5) * 1000
               : activeStory?.kind === "statsIntro"
-                ? (activeStory.durationSeconds ?? 7) * 1000
+                // Floor the quinta so the two-song handoff always has room to
+                // breathe (fade out A, breath, swell B in) before the cut.
+                ? Math.max(activeStory.durationSeconds ?? 0, QUINTA_MIN_SECONDS) * 1000
                 : STANDARD_STORY_DURATION_MS;
     const durationIncludesExit = activeIndex === 0 || activeStory?.kind === "finalists" || activeStory?.kind === "thanksBefore" || activeStory?.kind === "spectacular" || activeStory?.kind === "statsIntro";
     const exitAt = durationIncludesExit ? Math.max(0, duration - STORY_EXIT_DURATION_MS) : duration;
@@ -1246,6 +1286,15 @@ export default function FinalsPage() {
           );
         })}
       </div>
+      {started && (
+        <div
+          className={`${styles.filmOverlay} ${leavingIndex !== null ? styles.filmDipActive : ""}`}
+          aria-hidden="true"
+        >
+          <div className={styles.filmGrain} />
+          <div className={styles.filmDip} />
+        </div>
+      )}
       <div className={styles.controls}>
         <button type="button" onClick={() => goTo(activeIndex - 1)} disabled={activeIndex === 0} aria-label="Previous story">↑</button>
         <span>{String(activeIndex + 1).padStart(2, "0")} / {String(totalSlides).padStart(2, "0")}</span>
