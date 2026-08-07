@@ -150,6 +150,11 @@
 .lockedMessage strong { color: #80f2b3; font-size: .8rem; letter-spacing: .16em; }
 .lockedMessage span,.viewerMessage,.overrideNote { color: rgba(247,242,229,.48); font-size: .7rem; }
 .overrideNote { flex-basis: 100%; text-align: center; }
+/* Manager/admin only match reset, kept visually apart from the match actions. */
+.dangerZone { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1.5rem; border: 1px solid rgba(239,68,68,.28); padding: .8rem 1rem; background: rgba(239,68,68,.06); }
+.dangerZone > div { display: grid; gap: .2rem; }
+.dangerZone strong { color: #f28b82; font-size: .6rem; font-weight: 950; letter-spacing: .16em; text-transform: uppercase; }
+.dangerZone span { color: rgba(247,242,229,.55); font-size: .7rem; }
 
 @keyframes orbitSpin { to { transform: rotate(360deg); } }
 @keyframes logoArrival { from { opacity: 0; transform: translateY(4rem) scale(.7) rotate(-8deg); filter: blur(10px); } to { opacity: 1; transform: none; filter: none; } }

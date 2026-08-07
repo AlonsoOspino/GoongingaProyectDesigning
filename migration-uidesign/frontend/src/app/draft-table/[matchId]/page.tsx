@@ -35,6 +35,7 @@ import {
 import { clsx } from "clsx";
 import { resolveGenericBackendAsset, resolveHeroImageUrl, resolveMapImageUrl } from "@/lib/assetUrls";
 import { MapImage, MapBackground, useImageReady, preloadImages } from "@/components/draft/MapImage";
+import { isBracketMatch, isGrandFinalMatch, getRequiredWins } from "@/lib/match-format";
 import { FinalsPresentationStage } from "@/components/finals/FinalsPresentationStage";
 import finalsStyles from "@/components/finals/finals.module.css";
 
@@ -105,6 +106,8 @@ export default function DraftTablePage() {
   const [shareInfo, setShareInfo] = useState<{ matchId: number; key: string; url: string } | null>(null);
   const [shareLoading, setShareLoading] = useState(false);
   const [shareCopied, setShareCopied] = useState<string | null>(null);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [resetPending, setResetPending] = useState(false);
 
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -118,6 +121,9 @@ export default function DraftTablePage() {
   const overlayIdRef = useRef(0);
 
   const isManager = user?.role === "MANAGER";
+  const isAdmin = user?.role === "ADMIN";
+  // Destructive operational actions (full match reset) are open to both roles.
+  const canResetMatch = isManager || isAdmin;
   const isCaptain = user?.role === "CAPTAIN";
   const isKeyAccess = isObsKeyAccess;
   const shouldRenderCompactHeader = true;
@@ -489,6 +495,27 @@ export default function DraftTablePage() {
       handleRequestFailure("Failed to undo result:", err, "No se pudo deshacer el resultado.");
     } finally {
       setActionLoading(false);
+    }
+  }
+
+  // Rewinds the whole match to the schedule stage so it can be replayed from
+  // scratch: clears the draft, the score, the timers, the ready flags and the
+  // uploaded stats, and rolls back the standings.
+  async function handleResetMatch() {
+    if (!token) {
+      showActionError(SESSION_EXPIRED_MESSAGE);
+      return;
+    }
+    setResetPending(true);
+    try {
+      await resetManagerMatch(token, matchId);
+      setResetConfirmOpen(false);
+      setActionError(null);
+      router.push(`/schedule/${matchId}`);
+    } catch (err) {
+      handleRequestFailure("Failed to reset match:", err, "No se pudo reiniciar el match.");
+    } finally {
+      setResetPending(false);
     }
   }
 
@@ -1187,27 +1214,10 @@ export default function DraftTablePage() {
           )}
 
           {/* Phase Content */}
-        {currentPhase === "STARTING" && (
-          (draftState.match.type === "FINALS" || /grand\s*final/i.test(draftState.match.title || "")) && draftState.match.gameNumber === 0 ? (
-            <FinalsPresentationStage match={draftState.match} teamA={teamA} teamB={teamB} isManager={isManager}>
-              <StartingPhase
-                isManager={isManager}
-                isCaptain={isCaptain}
-                isObsKeyAccess={isObsKeyAccess}
-                teamA={teamA}
-                teamB={teamB}
-                match={draftState.match}
-                amIReady={amIReady}
-                onStart={handleStartMapPicking}
-                onSetReady={handleSetReady}
-                onUndoResult={handleUndoResult}
-                firstPickerTeam={firstPickerTeam}
-                canYieldFirstPick={false}
-                onYieldFirstPick={handleYieldFirstPick}
-                actionLoading={actionLoading}
-              />
-            </FinalsPresentationStage>
-          ) : (
+        {currentPhase === "STARTING" && (() => {
+          // The Grand Final wraps the same starting phase in the presentation
+          // stage. Build the phase once so both paths stay in sync.
+          const startingPhase = (
             <StartingPhase
               isManager={isManager}
               isCaptain={isCaptain}
@@ -1222,15 +1232,27 @@ export default function DraftTablePage() {
               firstPickerTeam={firstPickerTeam}
               canYieldFirstPick={
                 isCaptain &&
-                draftState.match.type === "PLAYOFFS" &&
+                isBracketMatch(draftState.match) &&
                 draftState.match.gameNumber === 0 &&
                 draftState.currentTurnTeamId === myTeamId
               }
               onYieldFirstPick={handleYieldFirstPick}
               actionLoading={actionLoading}
+              canResetMatch={canResetMatch && !isObsKeyAccess}
+              onRequestResetMatch={() => setResetConfirmOpen(true)}
             />
-          )
-        )}
+          );
+
+          if (isGrandFinalMatch(draftState.match) && draftState.match.gameNumber === 0) {
+            return (
+              <FinalsPresentationStage match={draftState.match} teamA={teamA} teamB={teamB} isManager={isManager}>
+                {startingPhase}
+              </FinalsPresentationStage>
+            );
+          }
+
+          return startingPhase;
+        })()}
 
         {currentPhase === "MAPPICKING" && (
           <MapPickingPhase
@@ -1391,6 +1413,50 @@ export default function DraftTablePage() {
               {shareCopied && (
                 <p className="mt-3 text-center text-xs font-semibold text-success">{shareCopied}</p>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {resetConfirmOpen && !isObsKeyAccess && (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="reset-match-title"
+        >
+          <div className="w-[min(92vw,460px)] rounded-lg border border-danger/50 bg-surface p-5 shadow-2xl shadow-black/50">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-danger">
+              Destructive action
+            </p>
+            <h2 id="reset-match-title" className="mt-1 text-2xl font-black text-foreground">
+              Reset match #{matchId}?
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-muted">
+              This sends the match back to the schedule stage. It will:
+            </p>
+            <ul className="mt-3 space-y-1.5 text-sm leading-relaxed text-muted">
+              <li>· Delete the draft and every pick and ban</li>
+              <li>· Clear the score, map results and uploaded player stats</li>
+              <li>· Reset both captain ready flags and all timers</li>
+              <li>· Roll back team standings and un-eliminate the loser</li>
+            </ul>
+            <p className="mt-3 text-sm font-semibold leading-relaxed text-foreground">
+              This cannot be undone.
+            </p>
+
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setResetConfirmOpen(false)}
+                disabled={resetPending}
+              >
+                Cancel
+              </Button>
+              <Button size="sm" variant="danger" onClick={handleResetMatch} disabled={resetPending}>
+                {resetPending ? "Resetting..." : "Reset match"}
+              </Button>
             </div>
           </div>
         </div>
@@ -1627,6 +1693,8 @@ function StartingPhase({
   canYieldFirstPick,
   onYieldFirstPick,
   actionLoading,
+  canResetMatch,
+  onRequestResetMatch,
 }: {
   isManager: boolean;
   isCaptain: boolean;
@@ -1642,9 +1710,17 @@ function StartingPhase({
   canYieldFirstPick: boolean;
   onYieldFirstPick: () => void;
   actionLoading: boolean;
+  canResetMatch: boolean;
+  onRequestResetMatch: () => void;
 }) {
   const bothReady = match.teamAready === 1 && match.teamBready === 1;
   const canUndoResult = isManager && match.status !== "FINISHED" && (match.mapResults?.length || 0) > 0;
+  // Anything already committed on this match is worth warning about before a reset.
+  const hasProgress =
+    (match.mapResults?.length || 0) > 0 ||
+    match.gameNumber > 0 ||
+    match.teamAready === 1 ||
+    match.teamBready === 1;
 
   return (
     <div className={clsx(finalsStyles.waitingRoom, isObsKeyAccess && finalsStyles.waitingRoomBroadcast)}>
@@ -1674,10 +1750,10 @@ function StartingPhase({
         </div>
       </div>
 
-      {match.type === "PLAYOFFS" && match.gameNumber === 0 && (
+      {isBracketMatch(match) && match.gameNumber === 0 && (
         <div className={finalsStyles.firstPickNotice}>
           <span>FIRST MOVE</span>
-          <p>{firstPickerTeam?.name || "Higher seed"} holds first map pick and first ban.</p>
+          <p>{firstPickerTeam?.name || "Best seed"} holds first map pick and first ban.</p>
           {canYieldFirstPick && <Button type="button" variant="outline" size="sm" onClick={onYieldFirstPick} disabled={actionLoading}>Yield first choice</Button>}
         </div>
       )}
@@ -1700,6 +1776,28 @@ function StartingPhase({
         )}
         {!isCaptain && !isManager && <p className={finalsStyles.viewerMessage}>Waiting for both captains to check in.</p>}
       </div>
+
+      {canResetMatch && (
+        <div className={finalsStyles.dangerZone}>
+          <div>
+            <strong>Reset match</strong>
+            <span>
+              {hasProgress
+                ? "Clears the draft, score, timers and uploaded stats, and rolls back the standings."
+                : "Nothing to roll back yet · this match is already at its initial state."}
+            </span>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onRequestResetMatch}
+            disabled={actionLoading}
+          >
+            Reset to schedule
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -2884,7 +2982,7 @@ function EndMapPhase({
   actionLoading: boolean;
   isObsKeyAccess: boolean;
 }) {
-  const winsNeeded = Math.ceil(draftState.match.bestOf / 2);
+  const winsNeeded = getRequiredWins(draftState.match);
   const teamAWins = draftState.match.mapWinsTeamA;
   const teamBWins = draftState.match.mapWinsTeamB;
   const teamA = teams.find((t) => t.id === draftState.match.teamAId);
