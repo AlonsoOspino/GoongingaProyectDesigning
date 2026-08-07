@@ -344,7 +344,8 @@ function OpeningSlide({ wrapped, variant }: { wrapped: GoongingaWrapped; variant
   );
 }
 
-function HeroBansSlide({ most, least }: { most: WrappedHeroRanking | null; least: WrappedHeroRanking | null }) {
+function HeroBansSlide({ wrapped, most, least }: { wrapped: GoongingaWrapped; most: WrappedHeroRanking | null; least: WrappedHeroRanking | null }) {
+  const assets = useMemo(() => resolveWrappedAssets(wrapped.assets), [wrapped.assets]);
   const cards = [
     { label: "MOST BANNED", hero: most, tone: "most" },
     { label: "LEAST BANNED", hero: least, tone: "least" },
@@ -355,7 +356,17 @@ function HeroBansSlide({ most, least }: { most: WrappedHeroRanking | null; least
       <div className={styles.heroBanGrid}>
         {cards.map(({ label, hero, tone }) => (
           <article key={label} className={`${styles.heroBanCard} ${styles[`heroBan${tone[0].toUpperCase()}${tone.slice(1)}`]}`}>
-            <div>{hero?.image ? <img src={resolveHeroImageUrl(hero.image)} alt={hero.name} /> : <span>?</span>}</div>
+            <div>
+              {tone === "most" && assets.images.heroBanMost ? (
+                <img src={assets.images.heroBanMost} alt={hero?.name || "Most banned hero"} />
+              ) : tone === "least" && assets.images.heroBanLeast ? (
+                <img src={assets.images.heroBanLeast} alt={hero?.name || "Least banned hero"} />
+              ) : hero?.image ? (
+                <img src={resolveHeroImageUrl(hero.image)} alt={hero.name} />
+              ) : (
+                <span>?</span>
+              )}
+            </div>
             <p>{label}</p>
             <h3>{hero?.name || "NO DATA"}</h3>
             <strong>{formatNumber(hero?.count)} <small>BANS</small></strong>
@@ -1278,7 +1289,7 @@ export default function FinalsPage() {
               {story.kind === "thanksBefore" && <ThanksBeforeSlide teams={story.teams} active={isActive} reducedMotion={reducedMotion} />}
               {story.kind === "spectacular" && <SpectacularSlide participants={story.participants} active={isActive} reducedMotion={reducedMotion} />}
               {story.kind === "statsIntro" && <StatsIntroSlide active={isActive} reducedMotion={reducedMotion} />}
-              {story.kind === "heroBans" && <HeroBansSlide most={story.most} least={story.least} />}
+              {story.kind === "heroBans" && <HeroBansSlide wrapped={wrapped} most={story.most} least={story.least} />}
               {story.kind === "finale" && <FinaleSlide wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} />}
               {story.kind === "thanks" && <EndThanksSlide />}
               {story.kind === "transition" && <FinalsTransitionSlide />}

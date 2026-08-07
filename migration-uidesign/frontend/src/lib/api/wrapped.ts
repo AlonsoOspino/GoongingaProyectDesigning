@@ -12,7 +12,9 @@ export type WrappedAssetKey =
   | "totalMitigation"
   | "bestKd"
   | "mostPickedMap"
-  | "leastPickedMap";
+  | "leastPickedMap"
+  | "heroBanMost"
+  | "heroBanLeast";
 
 export type WrappedAssetUrls = Partial<Record<WrappedAssetKey, string>>;
 export type WrappedAssetFlips = Partial<Record<WrappedAssetKey, boolean>>;
@@ -61,6 +63,8 @@ const wrappedAssetKeys = new Set<WrappedAssetKey>([
   "bestKd",
   "mostPickedMap",
   "leastPickedMap",
+  "heroBanMost",
+  "heroBanLeast",
 ]);
 
 /** Supports Wrapped records created before artwork preferences were introduced. */

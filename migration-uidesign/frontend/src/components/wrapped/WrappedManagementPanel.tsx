@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { ImageUploadField } from "@/components/ui/ImageUploadField";
 import { MediaUploadField } from "@/components/ui/MediaUploadField";
 import { Select } from "@/components/ui/Select";
 import {
@@ -18,6 +19,7 @@ import {
   type WrappedMapRanking,
   type WrappedPlayerLeader,
 } from "@/lib/api/wrapped";
+import { resolveHeroImageUrl } from "@/lib/assetUrls";
 
 type AssetField = {
   key: WrappedAssetKey;
@@ -69,6 +71,7 @@ export function WrappedManagementPanel({ token }: { token: string }) {
 
   const assetFields = useMemo(() => (wrapped ? fieldsFor(wrapped) : []), [wrapped]);
   const snapshot = wrapped ? resolveWrappedSnapshot(wrapped.snapshot) : null;
+  const heroBans = snapshot?.heroes || { mostBanned: null, leastBanned: null };
   const getStoryDurationValue = (key: string, fallback: number) => {
     const value = assets.storyDurations?.[key];
     if (typeof value === "number" && Number.isFinite(value) && value > 0) return value;
@@ -303,6 +306,53 @@ export function WrappedManagementPanel({ token }: { token: string }) {
             </div>
             <div className="mt-5 flex justify-end">
               <Button onClick={saveAssets} disabled={saving}>{saving ? "Saving audio..." : "Save Finals audio"}</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {wrapped && (
+        <Card variant="bordered">
+          <CardHeader>
+            <CardTitle>Hero Bans portraits</CardTitle>
+            <p className="mt-1 text-sm text-muted">Upload taller images for the most and least banned heroes. These overrides only affect the Hero Bans slide.</p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2">
+              {[
+                { key: "heroBanMost" as const, title: "Most banned", hero: heroBans.mostBanned, value: assets.images.heroBanMost || "", placeholder: "Paste a portrait URL or upload a vertical image" },
+                { key: "heroBanLeast" as const, title: "Least banned", hero: heroBans.leastBanned, value: assets.images.heroBanLeast || "", placeholder: "Paste a portrait URL or upload a vertical image" },
+              ].map((item) => (
+                <section key={item.key} className="space-y-4 rounded-lg border border-border bg-surface/40 p-4">
+                  <div className="flex items-center gap-3">
+                    {item.hero?.image ? (
+                      <img src={resolveHeroImageUrl(item.hero.image)} alt={item.hero.name} className="h-20 w-14 rounded-md object-cover" />
+                    ) : (
+                      <div className="flex h-20 w-14 items-center justify-center rounded-md bg-surface-elevated text-xs text-muted">HERO</div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold uppercase tracking-[0.15em] text-primary">{item.title}</p>
+                      <p className="truncate text-base font-semibold text-foreground">{item.hero?.name || "No hero data"}</p>
+                      <p className="text-sm text-muted">{item.hero ? `${item.hero.count} bans recorded` : "Waiting for snapshot data"}</p>
+                    </div>
+                  </div>
+                  <ImageUploadField
+                    label={`${item.title} image override`}
+                    type="hero"
+                    value={item.value}
+                    onChange={(url) => setAssets((current) => ({
+                      ...current,
+                      images: { ...current.images, [item.key]: url },
+                    }))}
+                    previewAlt={`${item.title} portrait preview`}
+                    previewClassName="h-56 w-40 rounded-2xl"
+                    placeholder={item.placeholder}
+                  />
+                </section>
+              ))}
+            </div>
+            <div className="mt-5 flex justify-end">
+              <Button onClick={saveAssets} disabled={saving}>{saving ? "Saving hero images..." : "Save Hero Bans images"}</Button>
             </div>
           </CardContent>
         </Card>

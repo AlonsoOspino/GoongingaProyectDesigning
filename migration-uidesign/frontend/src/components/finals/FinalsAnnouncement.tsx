@@ -16,7 +16,7 @@ function TeamLogo({ team, side }: { team?: Team; side: "a" | "b" }) {
   return (
     <article className={`${styles.teamPlate} ${side === "a" ? styles.teamPlateA : styles.teamPlateB}`}>
       <span className={styles.teamPlateNumber} aria-hidden="true">{side === "a" ? "01" : "02"}</span>
-      <div className={styles.teamPlateLabel}>FINALIST {side.toUpperCase()}</div>
+      <div className={styles.teamPlateLabel}>FINALIST</div>
       <div className={styles.logoCore}>
         {team?.logo && !logoFailed ? (
           <img src={resolveGenericBackendAsset(team.logo)} alt={`${team.name} logo`} onError={() => setLogoFailed(true)} />
@@ -90,7 +90,7 @@ export function FinalsAnnouncement({ match, teamA, teamB }: { match: Match; team
       <div className={styles.announcementFooter}>
         <span>MATCH HUB <i /> CAPTAIN CHECK-IN <i /> SEASON RECAP</span>
       <Link className={styles.enterLink} href={`/draft-table/${match.id}`}>
-        ENTER THE FINALS EXPERIENCE <span aria-hidden="true">↗</span>
+        ENTER <span aria-hidden="true">↗</span>
       </Link>
       </div>
       </div>
