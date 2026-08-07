@@ -2553,3 +2553,61 @@
     .filmGrain { animation: none; }
     .filmDip, .filmDipActive .filmDip { transition: none; opacity: 0; }
   }
+
+  /* ═══════════════════════════════════════════════════════════════
+    SCENE 1 → SCENE 2 HANDOFF
+    Scene 1 (RAT'S PRODUCTIONS) leaves with a straight fade to black
+    instead of the shared push-and-blur exit, and scene 2 (the finalists)
+    opens on an opaque black canvas so the typed GRAND FINAL headline is
+    written on black before the arena background fades in underneath it.
+    ═══════════════════════════════════════════════════════════════ */
+
+  /* Scene 1: cancel the translate/blur exit on the lockup — the whole slide
+     dissolves as one plate, which reads as a clean cinematic fade out. */
+  .introFadingOut .productionLockup,
+  .introFadingOut .productionSequence,
+  .introFadingOut .productionInterleaved {
+    animation: none;
+  }
+
+  .introFadingOut {
+    animation: introPlateFadeOut 0.85s ease-in both;
+  }
+
+  @keyframes introPlateFadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+
+  /* Scene 2: the black canvas covers the slide background and the light
+     streaks (z-index -1), while the copy and the arena sit above it. */
+  .finalistsBlackCanvas {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    background: #000;
+    opacity: 1;
+  }
+
+  .storyActive .finalistsBlackCanvas {
+    /* Held through the typing of "THE GRAND FINAL" (resolves near 3.3s),
+       then lifted so the arena background fades in as the finalists arrive. */
+    animation: finalistsCanvasReveal 1.5s 3.45s ease-out both;
+  }
+
+  @keyframes finalistsCanvasReveal {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+
+  .finalistsArena,
+  .finalistsSubtitle {
+    position: relative;
+    z-index: 2;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .introFadingOut { animation: none; opacity: 0; }
+    .finalistsBlackCanvas,
+    .storyActive .finalistsBlackCanvas { animation: none; opacity: 0; }
+  }

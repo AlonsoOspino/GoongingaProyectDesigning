@@ -289,9 +289,12 @@ function SeasonLogo({ team, index }: { team: GoongingaWrapped["snapshot"]["overv
   );
 }
 
-function IntroSlide({ onStart, active, reducedMotion }: { onStart: () => void; active: boolean; reducedMotion: boolean }) {
+function IntroSlide({ onStart, active, leaving, reducedMotion }: { onStart: () => void; active: boolean; leaving: boolean; reducedMotion: boolean }) {
   return (
-    <section className={`${styles.slide} ${styles.introSlide} ${active ? styles.storyActive : ""}`} aria-label="Rat's Productions, with the help of the Social Teams, presents">
+    <section
+      className={`${styles.slide} ${styles.introSlide} ${active ? styles.storyActive : ""} ${leaving ? styles.introFadingOut : ""}`}
+      aria-label="Rat's Productions, with the help of the Social Teams, presents"
+    >
       <div className={styles.productionLockup}>
         <h1
           aria-label="RAT'S PRODUCTIONS"
@@ -382,6 +385,9 @@ function FinalistsSlide({ teams, active, reducedMotion }: { teams: FinalsTeam[];
   return (
     <section className={`${styles.slide} ${styles.finalistsSlide}`} aria-label="Goonginga League Grand Final">
       <div className={styles.finalistsBackdrop} aria-hidden="true"><span /><span /><span /></div>
+      {/* Opaque black canvas the typed GRAND FINAL headline is written on. It
+          fades away once the typing resolves, revealing the arena background. */}
+      <div className={styles.finalistsBlackCanvas} aria-hidden="true" />
       <header className={styles.finalistsHeader}>
         <p aria-label="GOONGINGA LEAGUE">
           <TypewriterText text="GOONGINGA LEAGUE" active={active} reducedMotion={reducedMotion} delay={180} speed={68} />
@@ -592,7 +598,19 @@ function PlayerProfile({ leader }: { leader: WrappedPlayerLeader | null }) {
   );
 }
 
-function StoryAudioSequence({ sources, active, onPlaybackChange, onComplete }: { sources: string[]; active: boolean; onPlaybackChange: (playing: boolean) => void; onComplete: () => void }) {
+function StoryAudioSequence({ sources, active, masterVolume, onPlaybackChange, onComplete }: { sources: string[]; active: boolean; masterVolume: number; onPlaybackChange: (playing: boolean) => void; onComplete: () => void }) {
+  // Keep the level in a ref so changing it never restarts the cue chain.
+  const masterVolumeRef = useRef(masterVolume);
+  const activeGainRef = useRef<GainNode | null>(null);
+  const activeElementRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    masterVolumeRef.current = masterVolume;
+    const level = clamp(masterVolume, 0, 1);
+    if (activeGainRef.current) activeGainRef.current.gain.value = CUE_STABLE_GAIN * level;
+    if (activeElementRef.current && !activeGainRef.current) activeElementRef.current.volume = clamp(0.8 * level, 0, 1);
+  }, [masterVolume]);
+
   useEffect(() => {
     if (!active || !sources.length) {
       onPlaybackChange(false);
@@ -621,6 +639,8 @@ function StoryAudioSequence({ sources, active, onPlaybackChange, onComplete }: {
       currentGain?.disconnect();
       currentSource = null;
       currentGain = null;
+      activeGainRef.current = null;
+      activeElementRef.current = null;
     };
     const playNext = async () => {
       if (cancelled) return;
@@ -636,23 +656,29 @@ function StoryAudioSequence({ sources, active, onPlaybackChange, onComplete }: {
       index += 1;
       current.preload = "auto";
       current.onended = playNext;
+      activeElementRef.current = current;
+      const level = clamp(masterVolumeRef.current, 0, 1);
       try {
         if (context && compressor) {
           try {
             const gainNode = context.createGain();
             currentSource = context.createMediaElementSource(current);
             currentGain = gainNode;
+            activeGainRef.current = gainNode;
             // A fixed gain + compressor is intentionally used instead of
             // decoding every uploaded file a second time for loudness analysis.
             // That duplicate 30–40 MB download was causing playback stalls.
-            gainNode.gain.value = CUE_STABLE_GAIN;
+            // The manager's master level scales it without touching the mix.
+            gainNode.gain.value = CUE_STABLE_GAIN * level;
             currentSource.connect(gainNode).connect(compressor);
             await context.resume();
           } catch {
             // Keep the cue playable if a third-party URL does not allow the
             // Web Audio graph. Blob-hosted assets use the normalized path.
-            current.volume = 0.8;
+            current.volume = clamp(0.8 * level, 0, 1);
           }
+        } else {
+          current.volume = clamp(0.8 * level, 0, 1);
         }
         await current.play();
         if (!cancelled) onPlaybackChange(true);
@@ -682,6 +708,7 @@ function PlayerSlide({
   wrapped,
   active,
   reducedMotion,
+  masterVolume,
   onStoryAudioPlaybackChange,
   onStoryAudioCompleted,
 }: {
@@ -689,6 +716,7 @@ function PlayerSlide({
   wrapped: GoongingaWrapped;
   active: boolean;
   reducedMotion: boolean;
+  masterVolume: number;
   onStoryAudioPlaybackChange: (storyId: string, playing: boolean) => void;
   onStoryAudioCompleted: (storyId: string) => void;
 }) {
@@ -821,7 +849,7 @@ function PlayerSlide({
           <span>Maps played<small>This season</small></span>
         </div>
       )}
-      <StoryAudioSequence sources={storyAudioSources} active={active} onPlaybackChange={handleStoryAudioPlaybackChange} onComplete={handleStoryAudioComplete} />
+      <StoryAudioSequence sources={storyAudioSources} active={active} masterVolume={masterVolume} onPlaybackChange={handleStoryAudioPlaybackChange} onComplete={handleStoryAudioComplete} />
     </section>
   );
 }
@@ -945,6 +973,13 @@ export default function FinalsPage() {
   const introTrack = media?.soundtrack.intro || media?.soundtrack.recap;
   const statsIntroTrack = media?.soundtrack.statsIntro;
   const highlightsTrack = media?.soundtrack.highlights || media?.soundtrack.recap;
+  // Every music target and every story cue is scaled by this manager-set level,
+  // so the relative mix (ducking, fades, handoffs) is preserved at any volume.
+  const masterVolume = clamp(
+    typeof media?.masterVolume === "number" && Number.isFinite(media.masterVolume) ? media.masterVolume : 1,
+    0,
+    1,
+  );
   const storyDurations = media?.storyDurations || {};
   const getStoryDuration = useCallback((key: string, fallback: number) => {
     const value = storyDurations[key as keyof typeof storyDurations];
@@ -1043,12 +1078,12 @@ export default function FinalsPage() {
       if (intro) {
         intro.loop = false;
         intro.currentTime = 0;
-        intro.volume = MUSIC_RESTING_VOLUME;
+        intro.volume = clamp(MUSIC_RESTING_VOLUME * masterVolume, 0, 1);
         void intro.play().catch(() => undefined);
       }
     }
     goTo(0, "auto");
-  }, [goTo, started]);
+  }, [goTo, masterVolume, started]);
 
   useEffect(() => {
     if (!wrapped || started) return;
@@ -1103,6 +1138,8 @@ export default function FinalsPage() {
       durationMs: number,
     ) => {
       if (!audio) return;
+      // Scale the requested level by the manager's master volume.
+      const scaledVolume = clamp(targetVolume * masterVolume, 0, 1);
       audio.loop = false;
       if (audio.paused || audio.ended) {
         try {
@@ -1113,7 +1150,7 @@ export default function FinalsPage() {
         audio.volume = 0;
         void audio.play().catch(() => undefined);
       }
-      musicFadeCancelsRef.current.push(fadeAudio(audio, targetVolume, durationMs));
+      musicFadeCancelsRef.current.push(fadeAudio(audio, scaledVolume, durationMs));
     };
 
     if (musicPhase === "idle") {
@@ -1163,7 +1200,7 @@ export default function FinalsPage() {
     if (!highlights || highlights.paused) {
       fadeInTrack(highlights, MUSIC_RESTING_VOLUME, MUSIC_FADE_IN_MS);
     }
-  }, [highlightsTrack?.url, introTrack?.url, musicPhase, statsIntroTrack?.url]);
+  }, [highlightsTrack?.url, introTrack?.url, masterVolume, musicPhase, statsIntroTrack?.url]);
 
   useEffect(() => {
     const highlights = highlightsAudioRef.current;
@@ -1173,11 +1210,11 @@ export default function FinalsPage() {
     const activeStory = activeIndex > 0 ? stories[activeIndex - 1] : null;
     const isPlayerHighlight = activeStory?.kind === "player";
     const isStoryAudioPlaying = isPlayerHighlight && storyAudioPlayingId === activeStory.id;
-    const targetVolume = isStoryAudioPlaying || isPlayerHighlight
+    const targetVolume = (isStoryAudioPlaying || isPlayerHighlight
       ? MUSIC_HIGHLIGHT_VOLUME
-      : MUSIC_RESTING_VOLUME;
+      : MUSIC_RESTING_VOLUME) * masterVolume;
     return fadeAudio(highlights, targetVolume, isStoryAudioPlaying ? 360 : 650);
-  }, [activeIndex, highlightsTrack, musicPhase, started, stories, storyAudioPlayingId]);
+  }, [activeIndex, highlightsTrack, masterVolume, musicPhase, started, stories, storyAudioPlayingId]);
 
   useEffect(() => () => {
     musicFadeCancelsRef.current.forEach((cancel) => cancel());
@@ -1276,13 +1313,18 @@ export default function FinalsPage() {
         {Array.from({ length: totalSlides }).map((_, index) => <span key={index} className={index <= activeIndex ? styles.progressActive : ""} />)}
       </div>
       <div ref={scrollRef} className={styles.scrollTrack}>
-        <IntroSlide onStart={beginPlayback} active={started && activeIndex === 0} reducedMotion={reducedMotion} />
+        <IntroSlide
+          onStart={beginPlayback}
+          active={started && activeIndex === 0}
+          leaving={started && leavingIndex === 0}
+          reducedMotion={reducedMotion}
+        />
         {stories.map((story, index) => {
           const storyIndex = index + 1;
           const isActive = started && activeIndex === storyIndex;
           return (
             <div key={story.id} className={`${styles.storyViewport} ${isActive ? styles.storyActive : ""} ${leavingIndex === storyIndex ? styles.storyLeaving : ""}`}>
-              {story.kind === "player" && <PlayerSlide story={story} wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} onStoryAudioPlaybackChange={setStoryAudioPlayback} onStoryAudioCompleted={setStoryAudioCompleted} />}
+              {story.kind === "player" && <PlayerSlide story={story} wrapped={wrapped} active={isActive} reducedMotion={reducedMotion} masterVolume={masterVolume} onStoryAudioPlaybackChange={setStoryAudioPlayback} onStoryAudioCompleted={setStoryAudioCompleted} />}
               {story.kind === "map" && <MapSlide story={story} wrapped={wrapped} />}
               {story.kind === "opening" && <OpeningSlide wrapped={wrapped} variant={story.variant} />}
               {story.kind === "finalists" && <FinalistsSlide teams={story.teams} active={isActive} reducedMotion={reducedMotion} />}

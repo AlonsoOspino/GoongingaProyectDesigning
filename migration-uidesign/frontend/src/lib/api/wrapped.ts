@@ -45,6 +45,12 @@ export type WrappedAssets = {
   videoPositions: WrappedVideoPositions;
   storyAudios: WrappedStoryAudio;
   soundtrack: WrappedSoundtrack;
+  /**
+   * Global 0..1 attenuation applied to every Wrapped sound (music tracks and
+   * per-story cues). Managers set it as a percentage; per-scene ducking and
+   * fades stay relative to it, so the internal mix is preserved.
+   */
+  masterVolume?: number;
   storyDurations?: Record<string, number>;
 };
 
@@ -69,7 +75,7 @@ const wrappedAssetKeys = new Set<WrappedAssetKey>([
 
 /** Supports Wrapped records created before artwork preferences were introduced. */
 export function resolveWrappedAssets(value: unknown): WrappedAssets {
-  const empty: WrappedAssets = { images: {}, flipped: {}, videos: {}, videoPositions: {}, storyAudios: {}, soundtrack: {} };
+  const empty: WrappedAssets = { images: {}, flipped: {}, videos: {}, videoPositions: {}, storyAudios: {}, soundtrack: {}, masterVolume: 1 };
   if (!value || typeof value !== "object" || Array.isArray(value)) return empty;
 
   const raw = value as Record<string, unknown>;
@@ -147,8 +153,10 @@ export function resolveWrappedAssets(value: unknown): WrappedAssets {
       .filter(([key, value]) => ["intro", "finalists", "thanksBefore", "thanks", "community", "leaderboard", "statsIntro"].includes(key) && typeof value === "number" && Number.isFinite(value) && value > 0)
       .map(([key, value]) => [key, Number(value)])
   );
+  const rawMasterVolume = Number(raw.masterVolume);
+  const masterVolume = Number.isFinite(rawMasterVolume) ? Math.min(1, Math.max(0, rawMasterVolume)) : 1;
 
-  return { images, flipped, videos, videoPositions, storyAudios, soundtrack, storyDurations };
+  return { images, flipped, videos, videoPositions, storyAudios, soundtrack, masterVolume, storyDurations };
 }
 
 export interface WrappedPlayerLeader {

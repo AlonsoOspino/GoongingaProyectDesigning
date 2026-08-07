@@ -63,7 +63,7 @@ function fieldsFor(wrapped: GoongingaWrapped): AssetField[] {
 
 export function WrappedManagementPanel({ token }: { token: string }) {
   const [wrapped, setWrapped] = useState<GoongingaWrapped | null>(null);
-  const [assets, setAssets] = useState<WrappedAssets & { storyDurations?: Record<string, number> }>({ images: {}, flipped: {}, videos: {}, videoPositions: {}, storyAudios: {}, soundtrack: {}, storyDurations: {} });
+  const [assets, setAssets] = useState<WrappedAssets & { storyDurations?: Record<string, number> }>({ images: {}, flipped: {}, videos: {}, videoPositions: {}, storyAudios: {}, soundtrack: {}, masterVolume: 1, storyDurations: {} });
   const [loading, setLoading] = useState(true);
   const [freezing, setFreezing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -72,6 +72,9 @@ export function WrappedManagementPanel({ token }: { token: string }) {
   const assetFields = useMemo(() => (wrapped ? fieldsFor(wrapped) : []), [wrapped]);
   const snapshot = wrapped ? resolveWrappedSnapshot(wrapped.snapshot) : null;
   const heroBans = snapshot?.heroes || { mostBanned: null, leastBanned: null };
+  const masterVolumePercent = Math.round(
+    (typeof assets.masterVolume === "number" && Number.isFinite(assets.masterVolume) ? assets.masterVolume : 1) * 100
+  );
   const getStoryDurationValue = (key: string, fallback: number) => {
     const value = assets.storyDurations?.[key];
     if (typeof value === "number" && Number.isFinite(value) && value > 0) return value;
@@ -200,6 +203,58 @@ export function WrappedManagementPanel({ token }: { token: string }) {
             </p>
           </CardHeader>
           <CardContent>
+            <section className="mb-6 rounded-lg border border-primary/25 bg-primary/5 p-4">
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Master volume</p>
+                  <p className="mt-1 text-xs text-muted">
+                    Scales every sound in the recap at once — all four music tracks and every per-story audio cue.
+                    The internal mix (ducking under highlights, fades and song handoffs) stays proportional.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <strong className="text-2xl font-bold tabular-nums text-primary">{masterVolumePercent}%</strong>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setAssets((current) => ({ ...current, masterVolume: 1 }))}
+                  >
+                    Reset
+                  </Button>
+                </div>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value={masterVolumePercent}
+                aria-label="Master volume percentage"
+                onChange={(event) => {
+                  const percent = Number(event.target.value);
+                  setAssets((current) => ({
+                    ...current,
+                    masterVolume: Math.min(1, Math.max(0, percent / 100)),
+                  }));
+                }}
+                className="mt-4 w-full accent-primary"
+              />
+              <div className="mt-2 flex flex-wrap gap-2">
+                {[100, 75, 50, 30, 15, 0].map((percent) => (
+                  <Button
+                    key={percent}
+                    type="button"
+                    variant={percent === masterVolumePercent ? "primary" : "secondary"}
+                    size="sm"
+                    onClick={() => setAssets((current) => ({ ...current, masterVolume: percent / 100 }))}
+                  >
+                    {percent === 0 ? "Mute" : `${percent}%`}
+                  </Button>
+                ))}
+              </div>
+            </section>
+
             <div className="grid gap-5 lg:grid-cols-2">
               <MediaUploadField
                 label="Finals countdown track"
