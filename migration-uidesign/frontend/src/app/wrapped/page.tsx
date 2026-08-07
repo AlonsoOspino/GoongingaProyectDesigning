@@ -69,7 +69,7 @@ const MUSIC_HIGHLIGHT_VOLUME = 0.63;
 const MUSIC_RESTING_VOLUME = 1;
 const POST_COUNT_HOLD_MS = 1_500;
 const CUE_STABLE_GAIN = 1.2;
-const PLAYER_AUDIO_VOLUME = 0.83;
+const PLAYER_AUDIO_VOLUME = 0.78;
 const HIGHLIGHT_TEXT_SEQUENCE_MS = 10_000;
 const COUNT_UP_DURATION_MS = 2_500;
 const MIN_PLAYER_HIGHLIGHT_DURATION_MS = HIGHLIGHT_TEXT_SEQUENCE_MS + COUNT_UP_DURATION_MS + POST_COUNT_HOLD_MS;
@@ -359,7 +359,7 @@ function HeroBansSlide({ wrapped, most, least }: { wrapped: GoongingaWrapped; mo
       <header><p>DRAFT ROOM · SEASON RECORD</p><h2>THE HERO BAN SPLIT</h2></header>
       <div className={styles.heroBanGrid}>
         {cards.map(({ label, hero, tone }) => (
-          <article key={label} className={`${styles.heroBanCard} ${styles[`heroBan${tone[0].toUpperCase()}${tone.slice(1)}`]}`}>
+          <article key={label} className={`${styles.heroBanCard} ${styles[`heroBan${tone[0].toUpperCase()}${tone.slice(1)}`]} ${hero?.name?.trim().toLowerCase() === "kiriko" ? styles.kirikoHeroBanCard : ""}`}>
             <div>
               {tone === "most" && assets.images.heroBanMost ? (
                 <img src={assets.images.heroBanMost} alt={hero?.name || "Most banned hero"} />

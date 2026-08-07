@@ -29,7 +29,7 @@ const ASSET_KEYS = new Set([
 // count is not meaningful and they are excluded from the "least" awards.
 // One shared list covers both catalogs: a name absent from a catalog is simply
 // never matched. Add a name here whenever content lands late in a season.
-const LATE_SEASON_CONTENT_NAMES = new Set(["neon junction", "shion"]);
+const LATE_SEASON_CONTENT_NAMES = new Set(["neon junction", "antarctic peninsula", "shion"]);
 
 const normalizeEntityName = (value) =>
   String(value || "")
