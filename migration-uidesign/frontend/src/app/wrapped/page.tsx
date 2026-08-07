@@ -76,6 +76,12 @@ const STORY_EXIT_DURATION_MS = 850;
 const MUSIC_CROSSFADE_MS = 900;
 const MUSIC_FADE_IN_MS = 1_800;
 const STATS_INTRO_FADE_IN_MS = 2_700;
+// When no dedicated bridge track exists, the stats-intro slide ("la quinta")
+// becomes the crossfade zone: the highlights track swells in slowly underneath
+// it so it is already at full volume by the first player highlight instead of
+// slamming in after a silent gap.
+const HIGHLIGHTS_BRIDGE_FADE_IN_MS = 4_600;
+const HIGHLIGHTS_BRIDGE_BED_VOLUME = 0.5;
 
 type MusicPhase = "idle" | "intro" | "statsIntro" | "highlights";
 
@@ -1105,14 +1111,29 @@ export default function FinalsPage() {
     }
 
     if (musicPhase === "statsIntro") {
-      fadeOutAndPause(intro);
-      fadeOutAndPause(highlights);
-      fadeInTrack(statsIntro, MUSIC_RESTING_VOLUME, STATS_INTRO_FADE_IN_MS);
+      // "La quinta" is the moment we hand off from the intro music to the
+      // highlights music. The intro always fades out here.
+      fadeOutAndPause(intro, STATS_INTRO_FADE_IN_MS);
+      if (statsIntroTrack?.url) {
+        // A dedicated bridge track exists: let it carry the transition and keep
+        // the highlights track silent until its own slide.
+        fadeOutAndPause(highlights);
+        fadeInTrack(statsIntro, MUSIC_RESTING_VOLUME, STATS_INTRO_FADE_IN_MS);
+      } else {
+        // No bridge track: use the quinta itself as the crossfade. The
+        // highlights track swells in slowly underneath the "AND NOW..." copy so
+        // it is already playing (at a bed level) before the first highlight,
+        // removing the silent gap and the hard cut between the two songs.
+        fadeOutAndPause(statsIntro, 250);
+        fadeInTrack(highlights, HIGHLIGHTS_BRIDGE_BED_VOLUME, HIGHLIGHTS_BRIDGE_FADE_IN_MS);
+      }
       return;
     }
 
     fadeOutAndPause(intro);
     fadeOutAndPause(statsIntro, 1_100);
+    // If the bridge already started the highlights track during the quinta this
+    // simply lifts it from the bed level up to full; otherwise it starts fresh.
     fadeInTrack(highlights, MUSIC_RESTING_VOLUME, MUSIC_FADE_IN_MS);
   }, [highlightsTrack?.url, introTrack?.url, musicPhase, statsIntroTrack?.url]);
 
