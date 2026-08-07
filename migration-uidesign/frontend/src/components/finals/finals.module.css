@@ -30,8 +30,8 @@
 .versusGrid { position: relative; z-index: 2; display: grid; grid-template-columns: 1fr minmax(18rem, .85fr) 1fr; align-items: center; gap: 3vw; max-width: 1500px; margin: clamp(2.2rem, 5vh, 4rem) auto; }
 .logoStage { display: grid; justify-items: center; gap: 1rem; }
 .logoStage strong { max-width: 16ch; font-family: var(--font-display); font-size: clamp(2rem, 3.3vw, 4rem); font-weight: 400; line-height: .9; text-align: center; text-transform: uppercase; }
-.logoCore { position: relative; display: grid; width: clamp(9rem, 14vw, 15rem); aspect-ratio: 1; place-items: center; border: 1px solid rgba(246,196,67,.42); border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,.09), rgba(4,8,12,.9) 66%); box-shadow: inset 0 0 45px rgba(246,196,67,.07), 0 0 70px rgba(20,184,166,.13); }
-.logoCore img { width: 68%; height: 68%; object-fit: contain; filter: drop-shadow(0 20px 24px rgba(0,0,0,.55)); }
+.logoCore { position: relative; display: grid; width: clamp(9rem, 14vw, 15rem); aspect-ratio: 1; place-items: center; overflow: hidden; border: 1px solid rgba(246,196,67,.42); border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,.09), rgba(4,8,12,.9) 66%); box-shadow: inset 0 0 45px rgba(246,196,67,.07), 0 0 70px rgba(20,184,166,.13); }
+.logoCore img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; filter: drop-shadow(0 20px 24px rgba(0,0,0,.55)); }
 .logoCore span { font-family: var(--font-display); font-size: 4rem; color: #f6c443; }
 .logoOrbit { position: absolute; width: clamp(11rem, 17vw, 18rem); aspect-ratio: 1; border: 1px dashed rgba(246,196,67,.32); border-radius: 50%; animation: orbitSpin 13s linear infinite; }
 .versusCenter { display: grid; justify-items: center; gap: .6rem; text-align: center; }
@@ -74,9 +74,9 @@
 .teamPlateB .teamPlateNumber { right:auto; left:1rem; }
 .teamPlateLabel { position:absolute; top:.9rem; left:1.1rem; color:#66e4d1; font-size:.52rem; font-weight:950; letter-spacing:.24em; }
 .teamPlateB .teamPlateLabel { right:1.1rem; left:auto; color:#70d2ff; }
-.logoCore { width:clamp(9rem,12vw,13rem); border:1px solid rgba(247,242,229,.22); border-radius:0; background:radial-gradient(circle at 50% 42%,rgba(255,255,255,.12),rgba(2,6,9,.86) 70%); clip-path:polygon(12% 0,88% 0,100% 12%,100% 88%,88% 100%,12% 100%,0 88%,0 12%); box-shadow:inset 0 0 36px rgba(50,212,189,.1),0 25px 55px rgba(0,0,0,.38); }
+.logoCore { width:clamp(9rem,12vw,13rem); border:1px solid rgba(247,242,229,.22); border-radius:50%; background:radial-gradient(circle at 50% 42%,rgba(255,255,255,.12),rgba(2,6,9,.86) 70%); clip-path:none; box-shadow:inset 0 0 36px rgba(50,212,189,.1),0 25px 55px rgba(0,0,0,.38); }
 .teamPlateB .logoCore { grid-column:2; box-shadow:inset 0 0 36px rgba(87,201,255,.1),0 25px 55px rgba(0,0,0,.38); }
-.logoCore img { width:76%; height:76%; }
+.logoCore img { width:100%; height:100%; }
 .teamIdentity { min-width:0; padding:2.8rem 1.3rem 1rem; }
 .teamPlateB .teamIdentity { grid-column:1; grid-row:1; text-align:right; }
 .teamIdentity small { display:block; margin-bottom:.55rem; color:rgba(247,242,229,.38); font-size:.52rem; font-weight:950; letter-spacing:.21em; }
@@ -106,9 +106,9 @@
 .stageVersus { z-index: 2; display: grid; grid-template-columns: minmax(260px,1fr) minmax(180px,.48fr) minmax(260px,1fr); align-items: center; gap: 4vw; width: min(92vw,1500px); margin: 4vh 0 3vh; }
 .stageTeam { display: grid; justify-items: center; gap: 1rem; }
 .stageTeam strong { max-width: 12ch; font-family: var(--font-display); font-size: clamp(2.6rem,4vw,5rem); font-weight: 400; line-height: .82; text-align: center; }
-.stageLogoShell { display: grid; width: clamp(11rem,17vw,19rem); aspect-ratio: 1; place-items: center; border: 1px solid rgba(246,196,67,.42); border-radius: 50%; background: radial-gradient(circle,rgba(255,255,255,.1),rgba(3,6,10,.92) 68%); box-shadow: 0 0 90px rgba(20,184,166,.14),inset 0 0 40px rgba(246,196,67,.08); animation: logoArrival 1.1s cubic-bezier(.16,.84,.2,1) both; }
+.stageLogoShell { display: grid; width: clamp(11rem,17vw,19rem); aspect-ratio: 1; place-items: center; overflow: hidden; border: 1px solid rgba(246,196,67,.42); border-radius: 50%; background: radial-gradient(circle,rgba(255,255,255,.1),rgba(3,6,10,.92) 68%); box-shadow: 0 0 90px rgba(20,184,166,.14),inset 0 0 40px rgba(246,196,67,.08); animation: logoArrival 1.1s cubic-bezier(.16,.84,.2,1) both; }
 .stageTeamB .stageLogoShell { animation-delay: .12s; box-shadow: 0 0 90px rgba(56,189,248,.15),inset 0 0 40px rgba(246,196,67,.08); }
-.stageLogoShell img { width: 70%; height: 70%; object-fit: contain; filter: drop-shadow(0 20px 28px rgba(0,0,0,.6)); }
+.stageLogoShell img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; filter: drop-shadow(0 20px 28px rgba(0,0,0,.6)); }
 .stageLogoShell span { color: #f6c443; font-family: var(--font-display); font-size: 5rem; }
 .stageVs { display: grid; justify-items: center; gap: .7rem; }
 .stageVs span { color: rgba(247,242,229,.55); font-size: .65rem; font-weight: 900; letter-spacing: .24em; }

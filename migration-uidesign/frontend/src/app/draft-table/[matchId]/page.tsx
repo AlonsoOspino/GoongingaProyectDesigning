@@ -1035,7 +1035,7 @@ export default function DraftTablePage() {
                     <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-border bg-surface-elevated">
                       {activeOverlay.team?.logo ? (
                         <img
-                          src={activeOverlay.team.logo}
+                          src={resolveGenericBackendAsset(activeOverlay.team.logo)}
                           alt={activeOverlay.team.name}
                           className="w-full h-full object-cover"
                         />
@@ -1871,7 +1871,7 @@ function MapPickingPhase({
               : "border-[color:var(--color-team-a)]/40"
           )}>
             {teamA?.logo ? (
-              <img src={teamA.logo} alt={teamA.name} className="w-full h-full object-cover" />
+              <img src={resolveGenericBackendAsset(teamA.logo)} alt={teamA.name} className="w-full h-full rounded-full object-cover" />
             ) : (
               <div className="w-full h-full bg-[color:var(--color-team-a)]/20 flex items-center justify-center">
                 <span className={clsx("font-black text-[color:var(--color-team-a)]", isObsKeyAccess ? "text-6xl" : "text-5xl")}>
@@ -2022,7 +2022,7 @@ function MapPickingPhase({
               : "border-[color:var(--color-team-b)]/40"
           )}>
             {teamB?.logo ? (
-              <img src={teamB.logo} alt={teamB.name} className="w-full h-full object-cover" />
+              <img src={resolveGenericBackendAsset(teamB.logo)} alt={teamB.name} className="w-full h-full rounded-full object-cover" />
             ) : (
               <div className="w-full h-full bg-[color:var(--color-team-b)]/20 flex items-center justify-center">
                 <span className={clsx("font-black text-[color:var(--color-team-b)]", isObsKeyAccess ? "text-6xl" : "text-5xl")}>
@@ -2582,7 +2582,7 @@ function BanPhase({
               : "border-red-500/50"
           )}>
             {teamA?.logo ? (
-              <img src={teamA.logo} alt={teamA.name} className="w-full h-full object-cover" />
+              <img src={resolveGenericBackendAsset(teamA.logo)} alt={teamA.name} className="w-full h-full rounded-full object-cover" />
             ) : (
               <div className="w-full h-full bg-red-500/20 flex items-center justify-center">
                 <span className={clsx("font-black text-red-300", isObsKeyAccess ? "text-6xl" : "text-5xl")}>
@@ -2734,7 +2734,7 @@ function BanPhase({
               : "border-blue-500/50"
           )}>
             {teamB?.logo ? (
-              <img src={teamB.logo} alt={teamB.name} className="w-full h-full object-cover" />
+              <img src={resolveGenericBackendAsset(teamB.logo)} alt={teamB.name} className="w-full h-full rounded-full object-cover" />
             ) : (
               <div className="w-full h-full bg-blue-500/20 flex items-center justify-center">
                 <span className={clsx("font-black text-blue-300", isObsKeyAccess ? "text-6xl" : "text-5xl")}>
@@ -2876,7 +2876,7 @@ function PlayingPhase({
         <div className="mb-3 flex min-w-0 items-center gap-2">
           <div className={clsx("grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full border bg-surface-elevated", borderClass)}>
             {team?.logo ? (
-              <img src={team.logo} alt="" className="h-full w-full object-cover" />
+              <img src={resolveGenericBackendAsset(team.logo)} alt="" className="h-full w-full rounded-full object-cover" />
             ) : (
               <span className={clsx("text-sm font-black", accentClass)}>{team?.name?.charAt(0) || side}</span>
             )}

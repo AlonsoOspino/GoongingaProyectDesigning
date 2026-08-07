@@ -101,7 +101,19 @@ async function seedMaps({ dryRun }) {
 
   for (const map of maps) {
     const existing = await prisma.map.findFirst({
-      where: { imgPath: map.imgPath },
+      where: {
+        OR: [
+          {
+            description: {
+              equals: map.description,
+              mode: "insensitive",
+            },
+            type: map.type,
+          },
+          { imgPath: map.imgPath },
+        ],
+      },
+      orderBy: { id: "asc" },
       select: { id: true },
     });
 
