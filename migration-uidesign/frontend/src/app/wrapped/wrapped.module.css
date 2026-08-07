@@ -2624,43 +2624,15 @@
   .introSlide.storyActive .productionInterleaved,
   .introSlide.introFadingOut .productionLockup,
   .introSlide.introFadingOut .productionSequence,
-  .introSlide.introFadingOut .productionInterleaved {
+  .introSlide.introFadingOut .productionInterleaved,
+  /* Override only the generic scene-leave choreography for RAT'S PRODUCTIONS. */
+  .storyLeaving.introSlide .productionLockup,
+  .storyLeaving.introSlide .productionSequence,
+  .storyLeaving.introSlide .productionInterleaved {
     animation: none !important;
     transform: none !important;
     filter: none !important;
   }
 
-  /* The generic story-leave choreography is the downward block-like motion
-     seen on the other scenes. Do not apply it globally: scene changes should
-     be immediate, while RAT'S PRODUCTIONS alone uses the plate fade above. */
-  .storyLeaving > *,
-  .storyLeaving .highlightContent,
-  .storyLeaving .seasonFact,
-  .storyLeaving .mapCopy,
-  .storyLeaving .mapImageWrap,
-  .storyLeaving .heroBanGrid,
-  .storyLeaving .finaleHeading,
-  .storyLeaving .counterGrid,
-  .storyLeaving .communityThanks > *,
-  .storyLeaving .openingTeamCopy,
-  .storyLeaving .openingThanks > *,
-  .storyLeaving .finalsTransition > *,
-  .storyLeaving .artworkBackdrop img,
-  .storyLeaving .artworkBackdrop video.videoReady,
-  .storyLeaving .artFrame,
-  .storyLeaving .productionLockup,
-  .storyLeaving .finalistsHeader,
-  .storyLeaving .finalistsArena,
-  .storyLeaving .finalistsSubtitle,
-  .storyLeaving .thanksBeforeHeader,
-  .storyLeaving .thanksBeforeRoster,
-  .storyLeaving .spectacularCopy,
-  .storyLeaving .statsIntroCopy,
-  .storyLeaving .creditsViewport {
-    animation: none !important;
-  }
-
-  .storyLeaving > * {
-    transform: none !important;
-    filter: none !important;
-  }
+  /* Restore the shared downward exit for every scene. RAT'S PRODUCTIONS is
+     the only exception: its own plate fade and static selectors above win. */
