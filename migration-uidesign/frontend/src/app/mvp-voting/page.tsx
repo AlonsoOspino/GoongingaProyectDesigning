@@ -175,9 +175,9 @@ export default function MvpVotingPage() {
             {campaign.status === "OPEN" ? "VOTING IS LIVE · GRAND FINALS" : "GRAND FINALS · MVP"}
           </div>
           <h1 className={styles.title}>WHO WAS THE<br /><span className={styles.titleAccent}>MVP?</span></h1>
-          <p className={styles.lead}>Five finalists. One championship performance. Pick the player who made the biggest difference when everything was on the line.</p>
+          <p className={styles.lead}>Choose the player who delivered the best performance during the Grand Final.</p>
           <div className={styles.rules}>
-            <span>1 NETWORK MEMBER</span><i aria-hidden="true" /><span>1 VOTE</span><i aria-hidden="true" /><span>1 MVP</span>
+            <span></span><i aria-hidden="true" /><span></span><i aria-hidden="true" /><span></span>
           </div>
         </header>
 
