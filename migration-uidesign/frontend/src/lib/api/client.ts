@@ -41,8 +41,9 @@ export interface RequestOptions {
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers = new Headers();
 
-  if (options.token) {
-    headers.set("Authorization", `Bearer ${options.token}`);
+  const token = options.token?.trim();
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
   }
 
   const hasFormData = Boolean(options.formData);
