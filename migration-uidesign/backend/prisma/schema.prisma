@@ -54,6 +54,7 @@ model Member {
   obsWebsocketPassword String?
   team                 Team?        @relation(fields: [teamId], references: [id])
   playerStats          PlayerStat[]
+  mvpCandidates        MvpCandidate[]
 }
 
 /// Identidad de la red Goonginga. La tabla legacy `Member` se mantiene intacta
@@ -104,6 +105,7 @@ model MvpCandidate {
   sortOrder   Int
   active      Boolean      @default(true)
   campaign    MvpCampaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  member      Member       @relation(fields: [memberId], references: [id], onDelete: Cascade)
   votes       MvpVote[]
   winnerOf    MvpCampaign[] @relation("MvpWinner")
   @@unique([campaignId, memberId])

@@ -74,7 +74,8 @@ async function getManage(req, res) {
     if (result.incomplete) return res.json({ active: false, reason: "Winning roster must contain five members.", campaign: null });
     const campaign = await prisma.mvpCampaign.findUnique({ where: { id: result.campaign.id }, include: candidateInclude });
     return res.json({ active: true, campaign: serializeCampaign(campaign, true), match: { id: result.match.id, title: result.match.title, status: result.match.status, winningTeam: result.winningTeam.name } });
-  } catch {
+  } catch (error) {
+    console.error("[v0] MVP manager load failed:", error?.message || error);
     return res.status(500).json({ message: "Could not load MVP manager." });
   }
 }
