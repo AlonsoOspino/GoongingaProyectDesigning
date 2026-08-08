@@ -33,12 +33,20 @@ function TeamLogo({ team, side }: { team?: Team; side: "a" | "b" }) {
 function getParts(target: number | null, now: number) {
   if (target === null) return null;
   const seconds = Math.max(0, Math.floor((target - now) / 1000));
-  return {
-    days: Math.floor(seconds / 86400),
-    hours: Math.floor((seconds % 86400) / 3600),
-    minutes: Math.floor((seconds % 3600) / 60),
-    seconds: seconds % 60,
-  };
+
+  const units = [
+    { label: "days", value: Math.floor(seconds / 86400) },
+    { label: "hours", value: Math.floor((seconds % 86400) / 3600) },
+    { label: "minutes", value: Math.floor((seconds % 3600) / 60) },
+    { label: "seconds", value: seconds % 60 },
+  ];
+
+  // Drops leading zero units so the countdown never shows a dead "00 DAYS" cell
+  // on the broadcast. Minutes and seconds are always kept.
+  const firstMeaningful = units.findIndex((unit) => unit.value > 0);
+  const startAt = firstMeaningful === -1 ? 2 : Math.min(firstMeaningful, 2);
+
+  return units.slice(startAt);
 }
 
 export function FinalsAnnouncement({ match, teamA, teamB }: { match: Match; teamA?: Team; teamB?: Team }) {

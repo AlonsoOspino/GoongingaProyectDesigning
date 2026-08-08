@@ -174,9 +174,17 @@ export default async function HomePage() {
               Competitive Overwatch for the community: follow the schedule, track standings,
               and keep up with every match night.
             </p>
-            {data.mvpVoting.active && (
+            {/* Rendered whenever a ballot exists, not only while it is open, so
+                there is no dead gap between the Grand Final ending and the vote
+                opening, or between voting closing and the winner reveal. The
+                component itself polls for the live phase. */}
+            {data.mvpVoting.campaign && (
               <div className="mb-7">
-                <MvpLandingCta candidateCount={data.mvpVoting.campaign?.candidates.length || 5} />
+                <MvpLandingCta
+                  candidateCount={data.mvpVoting.campaign.candidates.length || 5}
+                  status={data.mvpVoting.campaign.status}
+                  published={Boolean(data.mvpVoting.campaign.publishedAt)}
+                />
               </div>
             )}
             <div className="flex flex-wrap items-center justify-center gap-4">

@@ -38,6 +38,13 @@ export function voteForMvp(token: string, candidateId: number) {
   });
 }
 
+export function getMyMvpVote(token: string) {
+  return apiRequest<{ hasVoted: boolean; candidateId: number | null }>("/mvp-voting/my-vote", {
+    token,
+    cache: "no-store",
+  });
+}
+
 export function getMvpManage(token: string) {
   return apiRequest<{
     active: boolean;
@@ -74,9 +81,17 @@ export function uploadMvpImage(token: string, candidateId: number, image: File) 
   });
 }
 
-export function publishMvpWinner(token: string) {
+export type MvpPublishError = {
+  message: string;
+  needsManualPick?: boolean;
+  tiedCandidateIds?: number[];
+  voteCount?: number;
+};
+
+export function publishMvpWinner(token: string, candidateId?: number) {
   return apiRequest("/mvp-voting/manage/publish", {
     method: "POST",
     token,
+    ...(candidateId === undefined ? {} : { body: { candidateId } }),
   });
 }

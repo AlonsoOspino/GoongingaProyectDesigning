@@ -1,9 +1,78 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { getMvpVoting, type MvpCampaign } from "@/lib/api";
 import styles from "./mvp-landing-cta.module.css";
 
-export function MvpLandingCta({ candidateCount = 5 }: { candidateCount?: number }) {
+type MvpLandingCtaProps = {
+  candidateCount?: number;
+  status?: MvpCampaign["status"];
+  published?: boolean;
+};
+
+/**
+ * Landing entry point for the MVP vote.
+ *
+ * The homepage is statically revalidated every 60s, so the server-rendered
+ * status can lag behind the manager opening the vote or revealing the winner
+ * mid-broadcast. This polls the live endpoint to keep the banner truthful, and
+ * shows the right copy for each phase instead of always claiming "VOTING LIVE".
+ */
+export function MvpLandingCta({
+  candidateCount = 5,
+  status: initialStatus,
+  published: initialPublished = false,
+}: MvpLandingCtaProps) {
+  const [status, setStatus] = useState<MvpCampaign["status"] | undefined>(initialStatus);
+  const [published, setPublished] = useState(initialPublished);
+  const [count, setCount] = useState(candidateCount);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const sync = () => {
+      getMvpVoting({ cache: "no-store" })
+        .then((data) => {
+          if (cancelled || !data.campaign) return;
+          setStatus(data.campaign.status);
+          setPublished(Boolean(data.campaign.publishedAt));
+          setCount(data.campaign.candidates.length || candidateCount);
+        })
+        .catch(() => undefined);
+    };
+
+    sync();
+    const timer = window.setInterval(sync, 20000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [candidateCount]);
+
+  const isLive = status === "OPEN";
+  const isRevealed = published;
+
+  const label = isRevealed ? "RESULT IN" : isLive ? "VOTING LIVE" : "VOTING CLOSED";
+  const title = isRevealed ? (
+    <>See the Grand Final <strong>MVP</strong></>
+  ) : (
+    <>Choose the Grand Final <strong>MVP</strong></>
+  );
+  const subtitle = isRevealed
+    ? "The community has spoken. See who took it."
+    : isLive
+      ? `${count} finalists. One vote per account.`
+      : "Voting has closed. The winner is revealed on stream.";
+  const action = isRevealed ? "SEE RESULT" : isLive ? "VOTE NOW" : "VIEW";
+
   return (
-    <Link href="/mvp-voting" className={styles.cta} aria-label="Vote for the Grand Finals MVP">
+    <Link
+      href="/mvp-voting"
+      className={styles.cta}
+      aria-label={isRevealed ? "See the Grand Final MVP result" : "Vote for the Grand Final MVP"}
+    >
       <span className={styles.ambient} aria-hidden="true" />
       <span className={styles.sweep} aria-hidden="true" />
 
@@ -17,17 +86,17 @@ export function MvpLandingCta({ candidateCount = 5 }: { candidateCount?: number 
 
       <span className={styles.copy}>
         <span className={styles.liveRow}>
-          <span className={styles.liveDot} aria-hidden="true" />
-          <span>VOTING LIVE</span>
+          {isLive && !isRevealed && <span className={styles.liveDot} aria-hidden="true" />}
+          <span>{label}</span>
           <span className={styles.separator}>•</span>
-          <span>GRAND FINALS</span>
+          <span>GRAND FINAL</span>
         </span>
-        <span className={styles.title}>Choose the Grand Finals <strong>MVP</strong></span>
-        <span className={styles.subtitle}>{candidateCount} finalists. One vote. You make the call.</span>
+        <span className={styles.title}>{title}</span>
+        <span className={styles.subtitle}>{subtitle}</span>
       </span>
 
       <span className={styles.action}>
-        <span>VOTE NOW</span>
+        <span>{action}</span>
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M5 12h13M13 7l5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>

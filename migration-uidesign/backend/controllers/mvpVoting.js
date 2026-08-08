@@ -1,6 +1,6 @@
 const path = require("node:path");
 const prisma = require("../config/prisma");
-const { saveUploadedImage } = require("../utils/contentImageUpload");
+const { saveUploadedImage, deleteStoredImage } = require("../utils/contentImageUpload");
 
 // IMPORTANT: this object is passed to MvpCampaign.include, so the relation
 // that must be included is `candidates`. The old code incorrectly put
@@ -104,6 +104,10 @@ async function getPublic(req, res) {
       });
     }
 
+    // `active` still means "there is something to show the audience", but the
+    // campaign is always returned so the ballot page and the landing banner can
+    // render the correct phase (not open yet / open / closed / revealed) instead
+    // of falling back to a generic "unavailable" screen during the handoff.
     return res.json({
       active: result.campaign.status === "OPEN" || Boolean(result.campaign.publishedAt),
       campaign: serializeCampaign(result.campaign, false),
@@ -184,6 +188,38 @@ async function vote(req, res) {
   }
 }
 
+/**
+ * Reports whether the signed-in viewer already voted.
+ *
+ * The ballot previously tracked this in client state only, so a refresh made an
+ * already-used ballot look votable again and the user only found out via a 409.
+ */
+async function getMyVote(req, res) {
+  try {
+    const result = await ensureCampaign();
+
+    if (!result || result.incomplete) {
+      return res.json({ hasVoted: false, candidateId: null });
+    }
+
+    const vote = await prisma.mvpVote.findFirst({
+      where: {
+        campaignId: result.campaign.id,
+        networkMemberId: req.networkMember.id,
+      },
+      select: { candidateId: true },
+    });
+
+    return res.json({
+      hasVoted: Boolean(vote),
+      candidateId: vote?.candidateId ?? null,
+    });
+  } catch (error) {
+    console.error("[mvp] Vote lookup failed:", error);
+    return res.status(500).json({ message: "Could not check your vote." });
+  }
+}
+
 async function updateStatus(req, res) {
   const status = String(req.body?.status || "").toUpperCase();
 
@@ -196,6 +232,15 @@ async function updateStatus(req, res) {
 
     if (!result || result.incomplete) {
       return res.status(409).json({ message: "The finished winning roster is not ready." });
+    }
+
+    // Once the MVP has been revealed on stream the election is final. Reopening
+    // it used to leave a published winner attached to a live ballot, which meant
+    // the public page showed the reveal while new votes were still landing.
+    if (result.campaign.publishedAt) {
+      return res.status(409).json({
+        message: "The MVP has already been revealed. This election is final.",
+      });
     }
 
     const data = status === "OPEN"
@@ -243,18 +288,29 @@ async function uploadCandidate(req, res) {
       process.env.MEDIA_DIR || path.join(__dirname, "..", "uploads"),
     );
 
+    // Normalized to a 4:5 portrait at broadcast resolution. Both the ballot card
+    // and the winner reveal crop from this single consistent source, so an
+    // odd-sized upload can no longer render stretched or off-center.
     const imageUrl = await saveUploadedImage({
       file: req.file,
       displayName: candidate.displayName,
       filePrefix: "mvp",
       targetDirectory: directory,
       publicPrefix: "/uploads",
+      normalize: { width: 1000, height: 1250 },
     });
 
     const updated = await prisma.mvpCandidate.update({
       where: { id: candidateId },
       data: { imageUrl },
     });
+
+    // Replacing a photo used to leave the previous file orphaned in MEDIA_DIR.
+    if (candidate.imageUrl && candidate.imageUrl !== imageUrl) {
+      await deleteStoredImage({ imgPath: candidate.imageUrl, targetDirectory: directory }).catch(
+        (error) => console.error("[mvp] Could not remove replaced image:", error),
+      );
+    }
 
     return res.status(201).json({ candidate: updated });
   } catch (error) {
@@ -271,28 +327,63 @@ async function publishWinner(req, res) {
       return res.status(409).json({ message: "The winning roster is not ready." });
     }
 
-    const winner = await prisma.mvpVote.groupBy({
-      by: ["candidateId"],
-      where: { campaignId: result.campaign.id },
-      _count: { candidateId: true },
-      orderBy: [
-        { _count: { candidateId: "desc" } },
-        { candidateId: "asc" },
-      ],
-      take: 1,
-    });
+    if (result.campaign.publishedAt) {
+      return res.status(409).json({ message: "The MVP winner has already been published." });
+    }
 
-    if (!winner[0]) {
-      return res.status(409).json({ message: "No votes have been recorded." });
+    // The manager can force a specific winner. This is what makes a tie or a
+    // zero-vote ballot resolvable instead of a dead end mid-broadcast.
+    const forcedId = req.body?.candidateId === undefined ? null : Number(req.body.candidateId);
+
+    if (forcedId !== null && !Number.isInteger(forcedId)) {
+      return res.status(400).json({ message: "Invalid MVP candidate." });
+    }
+
+    let winnerCandidateId = forcedId;
+
+    if (winnerCandidateId === null) {
+      const tally = await prisma.mvpVote.groupBy({
+        by: ["candidateId"],
+        where: { campaignId: result.campaign.id },
+        _count: { candidateId: true },
+        orderBy: { _count: { candidateId: "desc" } },
+      });
+
+      if (!tally.length) {
+        return res.status(409).json({
+          message: "No votes were recorded. Pick the MVP manually to reveal a winner.",
+          needsManualPick: true,
+        });
+      }
+
+      const topCount = tally[0]._count.candidateId;
+      const tied = tally.filter((row) => row._count.candidateId === topCount);
+
+      // The previous code broke ties by lowest candidate id, silently crowning a
+      // player who had not actually won. A tie is now surfaced to the manager.
+      if (tied.length > 1) {
+        return res.status(409).json({
+          message: "There is a tie for the MVP. Pick the winner manually to break it.",
+          needsManualPick: true,
+          tiedCandidateIds: tied.map((row) => row.candidateId),
+          voteCount: topCount,
+        });
+      }
+
+      winnerCandidateId = tally[0].candidateId;
+    }
+
+    if (!result.campaign.candidates.some((item) => item.id === winnerCandidateId)) {
+      return res.status(400).json({ message: "Choose one of the eligible MVP candidates." });
     }
 
     const campaign = await prisma.mvpCampaign.update({
       where: { id: result.campaign.id },
       data: {
         status: "CLOSED",
-        closedAt: new Date(),
+        closedAt: result.campaign.closedAt || new Date(),
         publishedAt: new Date(),
-        winnerCandidateId: winner[0].candidateId,
+        winnerCandidateId,
       },
       include: campaignInclude,
     });
@@ -308,6 +399,7 @@ module.exports = {
   getPublic,
   getManage,
   vote,
+  getMyVote,
   updateStatus,
   uploadCandidate,
   publishWinner,

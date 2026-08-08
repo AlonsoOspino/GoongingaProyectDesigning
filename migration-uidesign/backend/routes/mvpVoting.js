@@ -10,6 +10,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 *
 
 router.get("/", controller.getPublic);
 router.post("/vote", networkAuthMiddleware, controller.vote);
+router.get("/my-vote", networkAuthMiddleware, controller.getMyVote);
 router.get("/manage", authMiddleware, wrappedManagerMiddleware, controller.getManage);
 router.patch("/manage/status", authMiddleware, wrappedManagerMiddleware, controller.updateStatus);
 router.post("/manage/candidates/:candidateId/image", authMiddleware, wrappedManagerMiddleware, upload.single("image"), controller.uploadCandidate);
