@@ -234,9 +234,10 @@ async function uploadCandidate(req, res) {
       return res.status(404).json({ message: "MVP candidate not found." });
     }
 
+    // Keep MVP uploads in the same flat MEDIA_DIR used by the rest of the app.
+    // The public uploads endpoint serves /uploads/<filename>, not /uploads/mvp/<filename>.
     const directory = path.resolve(
       process.env.MEDIA_DIR || path.join(__dirname, "..", "uploads"),
-      "mvp",
     );
     const baseUrl = process.env.PUBLIC_API_BASE_URL || `${req.protocol}://${req.get("host")}`;
 
@@ -245,7 +246,7 @@ async function uploadCandidate(req, res) {
       displayName: candidate.displayName,
       filePrefix: "mvp",
       targetDirectory: directory,
-      publicPrefix: `${baseUrl.replace(/\/$/, "")}/uploads/mvp`,
+      publicPrefix: `${baseUrl.replace(/\/$/, "")}/uploads`,
     });
 
     const updated = await prisma.mvpCandidate.update({

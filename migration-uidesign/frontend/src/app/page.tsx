@@ -16,6 +16,7 @@ import { FinalsAnnouncement } from "@/components/finals/FinalsAnnouncement";
 import { getCurrentTournament } from "@/lib/api/admin";
 import type { Match, Team, NewsItem, NetworkMemberRole } from "@/lib/api/types";
 import { getMvpVoting } from "@/lib/api/mvpVoting";
+import { MvpLandingCta } from "@/components/mvp/MvpLandingCta";
 
 // Revalidate every 60 seconds. This makes the page semi-dynamic, so when you
 // delete matches from the admin dashboard and refresh, they disappear within
@@ -173,8 +174,12 @@ export default async function HomePage() {
               Competitive Overwatch for the community: follow the schedule, track standings,
               and keep up with every match night.
             </p>
+            {data.mvpVoting.active && (
+              <div className="mb-7">
+                <MvpLandingCta candidateCount={data.mvpVoting.campaign?.candidates.length || 5} />
+              </div>
+            )}
             <div className="flex flex-wrap items-center justify-center gap-4">
-              {data.mvpVoting.active && <Link href="/mvp-voting"><Button size="lg" className="glow-teal">MVP Voting for the Grand Finals</Button></Link>}
               <Link href="/schedule">
                 <Button size="lg" className="glow-teal">View Schedule</Button>
               </Link>

@@ -23,10 +23,11 @@ export function RouteAwareShell({ children }: { children: ReactNode }) {
   const isFinalsRoute = pathname.startsWith("/finals") || pathname.startsWith("/wrapped");
   const isDraftTableRoute = pathname.startsWith("/draft-table");
   const isMinigamesRoute = pathname.startsWith("/minigames");
+  const isMvpVotingRoute = pathname.startsWith("/mvp-voting");
   const hasDraftAccessKey = isDraftTableRoute && Boolean(searchParams?.get("key"));
   const isKeyViewerMode = hasDraftAccessKey && user?.role !== "MANAGER";
 
-  if (isOverlayRoute || isFinalsRoute || isMinigamesRoute || hasDraftAccessKey || isKeyViewerMode) {
+  if (isOverlayRoute || isFinalsRoute || isMinigamesRoute || isMvpVotingRoute || hasDraftAccessKey || isKeyViewerMode) {
     return <>{children}</>;
   }
 
