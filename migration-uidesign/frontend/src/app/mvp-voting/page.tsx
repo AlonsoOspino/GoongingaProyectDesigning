@@ -71,17 +71,17 @@ function VoteConfirmation({ candidate, onClose }: { candidate: MvpCandidate; onC
           {Array.from({ length: 10 }).map((_, index) => <span key={index} />)}
         </div>
         <p className={styles.confirmationKicker}>✓ YOUR VOTE IS LOCKED IN</p>
-        <h2 id="vote-confirmation-title" className={styles.confirmationTitle}>HAS VOTADO POR<span>{candidate.displayName}</span></h2>
+        <h2 id="vote-confirmation-title" className={styles.confirmationTitle}>YOU HAVE VOTED FOR<span>{candidate.displayName}</span></h2>
         <div className={styles.confirmationPortrait}>
           <div className={styles.confirmationPortraitInner}>
             {image ? <img src={image} alt={candidate.displayName} /> : <div className={styles.confirmationInitials}>{initials(candidate.displayName)}</div>}
           </div>
         </div>
         <h3 className={styles.confirmationName}>{candidate.displayName}</h3>
-        <p className={styles.confirmationText}>Tu voto quedó registrado para el MVP de la Grand Final. Gracias por ser parte de la decisión.</p>
+        <p className={styles.confirmationText}>Your vote for the Grand Final MVP has been recorded. Thank you for being part of the decision.</p>
         <div className={styles.confirmationActions}>
           <Link href="/" className={styles.confirmationPrimary}>BACK HOME</Link>
-          <button type="button" className={styles.confirmationSecondary} onClick={onClose}>VER CANDIDATOS</button>
+          <button type="button" className={styles.confirmationSecondary} onClick={onClose}>SEE CANDIDATES</button>
         </div>
       </section>
     </div>
