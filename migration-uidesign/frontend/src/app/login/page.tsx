@@ -21,8 +21,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [networkMessage, setNetworkMessage] = useState<string | null>(null);
   const [networkError, setNetworkError] = useState<string | null>(null);
-  const requestedNextPath = searchParams.get("next") || "/my-team";
-  const nextPath = requestedNextPath.startsWith("/") && !requestedNextPath.startsWith("//") ? requestedNextPath : "/my-team";
+  const requestedNextPath = searchParams.get("next") || "/";
+  const nextPath = requestedNextPath.startsWith("/") && !requestedNextPath.startsWith("//") ? requestedNextPath : "/";
 
   useEffect(() => {
     const url = new URL(window.location.href);

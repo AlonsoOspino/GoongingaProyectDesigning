@@ -13,6 +13,23 @@ interface TimeRemaining {
   seconds: number;
 }
 
+function getTimestamp(value: unknown) {
+  if (typeof value === "string" || typeof value === "number") {
+    const timestamp = new Date(value).getTime();
+    return Number.isFinite(timestamp) ? timestamp : null;
+  }
+
+  if (value && typeof value === "object") {
+    const serializedDate = (value as { $date?: unknown }).$date;
+    if (typeof serializedDate === "string" || typeof serializedDate === "number") {
+      const timestamp = new Date(serializedDate).getTime();
+      return Number.isFinite(timestamp) ? timestamp : null;
+    }
+  }
+
+  return null;
+}
+
 export function TournamentTimer() {
   const { isHydrated } = useSession();
   const [tournament, setTournament] = useState<Tournament | null>(null);
@@ -31,7 +48,9 @@ export function TournamentTimer() {
   const timeRemaining = useMemo<TimeRemaining | null>(() => {
     if (!tournament) return null;
 
-    const targetDate = new Date(tournament.startDate).getTime();
+    const targetDate = getTimestamp(tournament.startDate);
+    if (targetDate === null) return null;
+
     const distance = targetDate - serverNow;
 
     if (distance <= 0) return null;
