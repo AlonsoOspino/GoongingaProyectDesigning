@@ -464,7 +464,7 @@ function ThanksBeforeSlide({ teams, active, reducedMotion }: { teams: FinalsTeam
           }}
         >
           <TypewriterText
-            text="Thank you to every team for the commitment, the match nights, and the effort that carried this League through the season."
+            text="Thanks to all the teams for the commitment, the match nights, and the effort that carried this League through the season."
             active={active}
             reducedMotion={reducedMotion}
             delay={2_650}
