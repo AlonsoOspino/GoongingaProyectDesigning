@@ -185,3 +185,50 @@
   .waitingLogo { width: 7rem; }
 }
 @media (prefers-reduced-motion: reduce) { .announcement::before, .announcement::after, .announcementShell::after, .teamPlate, .logoOrbit, .stageLogoShell { animation: none; } }
+.countdown {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  border-top: 1px solid rgba(255, 190, 45, 0.35);
+  border-bottom: 1px solid rgba(255, 190, 45, 0.35);
+}
+
+.countdownUnit {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  padding: 14px 18px 12px;
+  text-align: center;
+}
+
+.countdownUnit:not(:last-child)::after {
+  position: absolute;
+  top: 20%;
+  right: 0;
+  width: 1px;
+  height: 60%;
+  content: "";
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.countdownNumber {
+  display: block;
+  color: #f5f1e7;
+  font-family: var(--font-league-gothic), Impact, sans-serif;
+  font-size: clamp(2rem, 3vw, 3.4rem);
+  line-height: 0.95;
+  letter-spacing: 0.03em;
+}
+
+.countdownLabel {
+  display: block;
+  margin-top: 8px;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
