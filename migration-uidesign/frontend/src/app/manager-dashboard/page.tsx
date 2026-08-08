@@ -12,6 +12,7 @@ import { PauseRequestNotification } from "@/components/match/PauseRequestNotific
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
 import { Input } from "@/components/ui/Input";
 import { WrappedManagementPanel } from "@/components/wrapped/WrappedManagementPanel";
+import { MvpManagementPanel } from "@/components/mvp/MvpManagementPanel";
 import {
   getMatches,
   getTeams,
@@ -37,7 +38,7 @@ import {
 import { formatDateEST, formatDateTimeEST } from "@/lib/dateUtils";
 import type { PlayerStat } from "@/lib/api/types";
 
-type TabValue = "scheduled" | "active" | "pending" | "stats" | "wrapped";
+type TabValue = "scheduled" | "active" | "pending" | "stats" | "wrapped" | "mvp";
 type MapType = "CONTROL" | "HYBRID" | "PAYLOAD" | "PUSH" | "FLASHPOINT";
 type HeroRole = "TANK" | "DPS" | "SUPPORT";
 
@@ -677,6 +678,7 @@ export default function ManagerDashboardPage() {
             <TabsTrigger value="pending">Pending ({pendingMatches.length})</TabsTrigger>
             <TabsTrigger value="stats">Stats</TabsTrigger>
             <TabsTrigger value="wrapped">Finals</TabsTrigger>
+  <TabsTrigger value="mvp">MVP Voting</TabsTrigger>
           </TabsList>
 
           {/* SCHEDULED TAB */}
@@ -1252,9 +1254,13 @@ export default function ManagerDashboardPage() {
             </div>
           </TabsContent>
 
-          <TabsContent value="wrapped">
-            {token ? <WrappedManagementPanel token={token} /> : null}
-          </TabsContent>
+  <TabsContent value="wrapped">
+  {token ? <WrappedManagementPanel token={token} /> : null}
+  </TabsContent>
+
+  <TabsContent value="mvp">
+  {token ? <MvpManagementPanel token={token} /> : null}
+  </TabsContent>
         </Tabs>
       </div>
     </main>

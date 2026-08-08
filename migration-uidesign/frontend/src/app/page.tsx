@@ -15,6 +15,7 @@ import { RosterCarousel } from "@/components/teams/RosterCarousel";
 import { FinalsAnnouncement } from "@/components/finals/FinalsAnnouncement";
 import { getCurrentTournament } from "@/lib/api/admin";
 import type { Match, Team, NewsItem, NetworkMemberRole } from "@/lib/api/types";
+import { getMvpVoting } from "@/lib/api/mvpVoting";
 
 // Revalidate every 60 seconds. This makes the page semi-dynamic, so when you
 // delete matches from the admin dashboard and refresh, they disappear within
@@ -24,12 +25,13 @@ export const revalidate = 60;
 
 async function getHomeData() {
   try {
-    const [matches, teams, news, recentNetworkMembers, tournament] = await Promise.all([
+    const [matches, teams, news, recentNetworkMembers, tournament, mvpVoting] = await Promise.all([
       getMatches({ cache: "no-store" }).catch(() => [] as Match[]),
       getLeaderboard().catch(() => [] as Team[]),
       getNews().catch(() => [] as NewsItem[]),
       getRecentNetworkMembers().catch(() => []),
       getCurrentTournament({ cache: "no-store" }).catch(() => null),
+      getMvpVoting({ cache: "no-store" }).catch(() => ({ active: false, campaign: null })),
     ]);
 
     // Get active matches
@@ -72,6 +74,7 @@ async function getHomeData() {
       recentNews,
       recentNetworkMembers,
       tournament,
+      mvpVoting,
     };
   } catch (error) {
     console.error("Failed to fetch home data:", error);
@@ -86,6 +89,7 @@ async function getHomeData() {
       recentNews: [],
       recentNetworkMembers: [],
       tournament: null,
+      mvpVoting: { active: false, campaign: null },
     };
   }
 }
@@ -170,6 +174,7 @@ export default async function HomePage() {
               and keep up with every match night.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4">
+              {data.mvpVoting.active && <Link href="/mvp-voting"><Button size="lg" className="glow-teal">MVP Voting for the Grand Finals</Button></Link>}
               <Link href="/schedule">
                 <Button size="lg" className="glow-teal">View Schedule</Button>
               </Link>

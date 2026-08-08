@@ -73,9 +73,60 @@ model NetworkMember {
   updatedAt             DateTime            @updatedAt
   seasonPlayers         SeasonPlayer[]
   createdMiniGames      MiniGame[]          @relation("MiniGameCreator")
-  underDevelopmentGames MiniGame[]          @relation("MiniGameDeveloper")
+  underDevelopmentGames MiniGame[]      @relation("MiniGameDeveloper")
+  mvpVotes              MvpVote[]
 
   @@index([status])
+  }
+
+model MvpCampaign {
+  id              Int          @id @default(autoincrement())
+  matchId         Int          @unique
+  status          MvpStatus    @default(DRAFT)
+  winnerCandidateId Int?
+  openedAt        DateTime?
+  closedAt        DateTime?
+  publishedAt     DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  match           Match        @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  candidates      MvpCandidate[]
+  votes           MvpVote[]
+  winnerCandidate MvpCandidate? @relation("MvpWinner", fields: [winnerCandidateId], references: [id], onDelete: SetNull)
+}
+
+model MvpCandidate {
+  id          Int          @id @default(autoincrement())
+  campaignId  Int
+  memberId    Int
+  displayName String
+  imageUrl    String?
+  sortOrder   Int
+  active      Boolean      @default(true)
+  campaign    MvpCampaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  votes       MvpVote[]
+  winnerOf    MvpCampaign[] @relation("MvpWinner")
+  @@unique([campaignId, memberId])
+  @@unique([campaignId, sortOrder])
+}
+
+model MvpVote {
+  id           Int          @id @default(autoincrement())
+  campaignId   Int
+  candidateId  Int
+  networkMemberId Int
+  createdAt    DateTime     @default(now())
+  campaign     MvpCampaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  candidate    MvpCandidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  networkMember NetworkMember @relation(fields: [networkMemberId], references: [id], onDelete: Cascade)
+  @@unique([campaignId, networkMemberId])
+  @@index([candidateId])
+}
+
+enum MvpStatus {
+  DRAFT
+  OPEN
+  CLOSED
 }
 
 /// Minijuegos publicados en Goonginga Minigames. `config` contiene la
@@ -180,6 +231,7 @@ model Match {
   playerStats        PlayerStat[]
   allowedMaps        Map[]        @relation("AllowedMaps")
   leaderboardOverlay LeaderboardOverlayAsset?
+  mvpCampaign       MvpCampaign?
 
   @@unique([tournamentId, playoffRound, playoffSlot])
 }
