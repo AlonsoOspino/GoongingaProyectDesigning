@@ -72,10 +72,12 @@ async function getManage(req, res) {
     const result = await ensureCampaign();
     if (!result) return res.json({ active: false, campaign: null });
     if (result.incomplete) return res.json({ active: false, reason: "Winning roster must contain five members.", campaign: null });
-    const campaign = await prisma.mvpCampaign.findUnique({ where: { id: result.campaign.id }, include: candidateInclude });
-    return res.json({ active: true, campaign: serializeCampaign(campaign, true), match: { id: result.match.id, title: result.match.title, status: result.match.status, winningTeam: result.winningTeam.name } });
+    // ensureCampaign already loads the campaign and its candidates. Reusing that
+    // result avoids a second query (and keeps this endpoint safe during deploys
+    // where the MVP tables may be coming online).
+    return res.json({ active: true, campaign: serializeCampaign(result.campaign, true), match: { id: result.match.id, title: result.match.title, status: result.match.status, winningTeam: result.winningTeam.name } });
   } catch (error) {
-    console.error("[v0] MVP manager load failed:", error?.message || error);
+    console.error("[v0] MVP manager load failed:", error);
     return res.status(500).json({ message: "Could not load MVP manager." });
   }
 }
