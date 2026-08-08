@@ -85,9 +85,12 @@ export function FinalsAnnouncement({ match, teamA, teamB }: { match: Match; team
           <div className={styles.vsMark}><strong>VS</strong></div>
           {parts && target && now !== null && target > now ? (
             <div className={styles.countdown} aria-label="Time until the Grand Final">
-              {Object.entries(parts).map(([label, value]) => (
-                <div key={label}><b>{String(value).padStart(2, "0")}</b><small>{label}</small></div>
-              ))}
+              {parts.map(({ label, value }) => (
+  <div key={label}>
+    {String(value).padStart(2, "0")}
+    {label}
+  </div>
+))}
             </div>
           ) : (
             <div className={styles.soon}><small>FIRST BELL</small>{now === null ? "GET READY" : target ? "STARTING NOW" : "SOON"}</div>
