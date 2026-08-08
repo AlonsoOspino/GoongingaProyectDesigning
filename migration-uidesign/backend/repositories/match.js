@@ -336,6 +336,11 @@ const undoLastResult = async (id) => {
       throw new Error("No results to undo.");
     }
 
+    // Reverting a Grand Finals result also invalidates its MVP campaign and
+    // every ballot cast for it. Keep this in the same transaction as the
+    // match rollback so the public vote can never outlive its source match.
+    await tx.mvpCampaign.deleteMany({ where: { matchId: match.id } });
+
     if (!match.draft) {
       throw new Error("Draft table not found for this match.");
     }
@@ -608,6 +613,10 @@ const resetMatchToSchedule = async (id) => {
 
     const mapResults = Array.isArray(match.mapResults) ? match.mapResults : [];
 
+    // Resetting the match invalidates the MVP campaign, its five candidates,
+    // and all votes. Cascade cleanup keeps the next finished run clean.
+    await tx.mvpCampaign.deleteMany({ where: { matchId: match.id } });
+  
     // 1. Roll back per-map team counters accumulated by this match.
     const mapWinsByTeam = new Map();
     const mapLosesByTeam = new Map();
