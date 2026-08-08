@@ -2,7 +2,20 @@ const path = require("node:path");
 const prisma = require("../config/prisma");
 const { saveUploadedImage } = require("../utils/contentImageUpload");
 
-const candidateInclude = { include: { votes: { select: { id: true } } }, orderBy: { sortOrder: "asc" } };
+const campaignInclude = {
+  candidates: {
+    orderBy: {
+      sortOrder: "asc",
+    },
+    include: {
+      votes: {
+        select: {
+          id: true,
+        },
+      },
+    },
+  },
+};
 
 function isGrandFinal(match) {
   return match && (match.type === "FINALS" || /grand\s*final/i.test(match.title || ""));
@@ -43,7 +56,11 @@ async function ensureCampaign() {
   const winningTeam = match.pointsTeamA >= match.pointsTeamB ? match.teamA : match.teamB;
   const members = (winningTeam.members || []).slice(0, 5);
   if (members.length !== 5) return { incomplete: true, match, winningTeam, members };
-  let campaign = await prisma.mvpCampaign.findUnique({ where: { matchId: match.id }, include: candidateInclude });
+  let campaign = await prisma.mvpCampaign.findUnique({
+  where: { matchId: match.id },
+  include: candidateInclude
+});
+  
   if (!campaign) {
     campaign = await prisma.mvpCampaign.create({
       data: {

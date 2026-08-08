@@ -1259,8 +1259,7 @@ export default function ManagerDashboardPage() {
   </TabsContent>
 
   <TabsContent value="mvp">
-  <MvpManagementPanel />
-  </TabsContent>
+{token ? <MvpManagementPanel token={token} /> : null}  </TabsContent>
         </Tabs>
       </div>
     </main>
