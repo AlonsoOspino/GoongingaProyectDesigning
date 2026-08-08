@@ -38,10 +38,25 @@ export interface RequestOptions {
   timeoutMs?: number;
 }
 
+function getPersistedSessionToken() {
+  if (typeof window === "undefined") return "";
+
+  try {
+    const raw = window.localStorage.getItem("goon.live.session");
+    if (!raw) return "";
+    const parsed = JSON.parse(raw) as { token?: unknown };
+    return typeof parsed.token === "string" ? parsed.token.trim() : "";
+  } catch {
+    return "";
+  }
+}
+
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers = new Headers();
 
-  const token = options.token?.trim();
+  // Keep protected requests authenticated even if a component rendered during
+  // session hydration and received an empty token prop.
+  const token = options.token?.trim() || getPersistedSessionToken();
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
