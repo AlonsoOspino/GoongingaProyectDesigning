@@ -21,7 +21,8 @@ CREATE TABLE "MvpCandidate" (
   "imageUrl" TEXT,
   "sortOrder" INTEGER NOT NULL,
   "active" BOOLEAN NOT NULL DEFAULT true,
-  CONSTRAINT "MvpCandidate_campaignId_fkey" FOREIGN KEY ("campaignId") REFERENCES "MvpCampaign"("id") ON DELETE CASCADE ON UPDATE CASCADE
+  CONSTRAINT "MvpCandidate_campaignId_fkey" FOREIGN KEY ("campaignId") REFERENCES "MvpCampaign"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT "MvpCandidate_memberId_fkey" FOREIGN KEY ("memberId") REFERENCES "Member"("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE "MvpVote" (
