@@ -77,10 +77,59 @@ async function ensureCampaign() {
           create: members.map((member, index) => ({
             memberId: member.id,
             displayName: member.nickname,
+            imageUrl: member.profilePic,
             sortOrder: index,
           })),
         },
       },
+      include: campaignInclude,
+    });
+  } else if (campaign.status === "DRAFT" && !campaign.publishedAt && !campaign.candidates.some((candidate) => candidate.votes.length)) {
+    const winningMemberIds = new Set(members.map((member) => member.id));
+    const staleCandidateIds = campaign.candidates
+      .filter((candidate) => !winningMemberIds.has(candidate.memberId))
+      .map((candidate) => candidate.id);
+
+    await prisma.$transaction(async (tx) => {
+      if (staleCandidateIds.length) {
+        await tx.mvpCandidate.deleteMany({ where: { id: { in: staleCandidateIds } } });
+      }
+
+      // Free the unique sort-order slots before reassigning them. This makes
+      // swaps in a changed winning roster safe inside the same transaction.
+      for (const candidate of campaign.candidates.filter((item) => !staleCandidateIds.includes(item.id))) {
+        await tx.mvpCandidate.update({
+          where: { id: candidate.id },
+          data: { sortOrder: -(candidate.id + 1) },
+        });
+      }
+
+      for (const [index, member] of members.entries()) {
+        const existing = campaign.candidates.find((candidate) => candidate.memberId === member.id);
+        if (existing) {
+          await tx.mvpCandidate.update({
+            where: { id: existing.id },
+            data: {
+              displayName: member.nickname,
+              sortOrder: index,
+            },
+          });
+        } else {
+          await tx.mvpCandidate.create({
+            data: {
+              campaignId: campaign.id,
+              memberId: member.id,
+              displayName: member.nickname,
+              imageUrl: member.profilePic,
+              sortOrder: index,
+            },
+          });
+        }
+      }
+    });
+
+    campaign = await prisma.mvpCampaign.findUnique({
+      where: { id: campaign.id },
       include: campaignInclude,
     });
   }
