@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { ArrowLeft, ArrowRight, Gamepad2, LogIn, Users } from "lucide-react";
 import { apiRequest } from "@/lib/api/client";
 import type { MemberProfile } from "@/lib/api/types";
 import { getMemberProfileById } from "@/lib/api/auth";
@@ -16,6 +17,7 @@ import { ImageUploadField } from "@/components/ui/ImageUploadField";
 import { Input } from "@/components/ui/Input";
 import { clsx } from "clsx";
 import styles from "./family-feud.module.css";
+import directoryStyles from "./minigames-directory.module.css";
 
 type TeamId = "alpha" | "beta";
 type ViewMode = "manager" | "user" | "stream";
@@ -894,11 +896,50 @@ function StreamBoard({ room }: { room: RoomState }) {
   );
 }
 
+function MinigamesDirectory({ isAuthenticated }: { isAuthenticated: boolean }) {
+  return (
+    <main className={directoryStyles.page}>
+      <section className={directoryStyles.hero}>
+        <img src="/ramattra-login-cropped.webp" alt="" />
+        <div className={directoryStyles.shade} />
+        <div className={directoryStyles.heroInner}>
+          <Link href="/" className={directoryStyles.back}><ArrowLeft size={17} /> Back to Goonginga</Link>
+          <div className={directoryStyles.heroCopy}>
+            <span>Overtime Productions</span>
+            <h1>Minigames</h1>
+            <p>Join community games using your Goonginga Network Member profile.</p>
+            {!isAuthenticated ? <Link href="/login?next=%2Fminigames" className={directoryStyles.signIn}><LogIn size={18} /> Sign in with Discord</Link> : <div className={directoryStyles.signedIn}><Users size={18} /> Network Member connected</div>}
+          </div>
+        </div>
+      </section>
+
+      <section className={directoryStyles.games}>
+        <div className={directoryStyles.gamesInner}>
+          <header><span>Available games</span><h2>Choose a Minigame</h2></header>
+          <div className={directoryStyles.gameList}>
+            <Link href="/minigames/jeopardy" className={directoryStyles.game}>
+              <span className={directoryStyles.gameIcon}><Gamepad2 /></span>
+              <div><small>Current game</small><strong>Jeopardy</strong><p>Open the active Jeopardy output and final podium.</p></div>
+              <ArrowRight />
+            </Link>
+            <Link href="/minigames?view=user" className={directoryStyles.game}>
+              <span className={directoryStyles.gameIcon}><Users /></span>
+              <div><small>Invite access</small><strong>Family Feud</strong><p>Join a team with the private link issued by the game manager.</p></div>
+              <ArrowRight />
+            </Link>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
+
 export default function MinigamesPage() {
   const searchParams = useSearchParams();
   const { token, user, isAuthenticated, isHydrated } = useSession();
   const inviteToken = (searchParams?.get("invite") || "").trim().toUpperCase();
   const requestedView = searchParams?.get("view");
+  const showDirectory = !inviteToken && !requestedView && !searchParams?.get("game");
   const loginReturnPath = `/minigames${searchParams?.toString() ? `?${searchParams.toString()}` : ""}`;
   const initialViewMode: ViewMode = inviteToken ? "user" : (requestedView === "stream" ? "stream" : requestedView === "user" ? "user" : "manager");
   const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode);
@@ -1709,6 +1750,10 @@ export default function MinigamesPage() {
     if (!room || room.round.number <= 0) return "Choose a participant to start.";
     return `Selected players sit out until round ${room.round.number + COOLDOWN_ROUNDS}.`;
   }, [room]);
+
+  if (showDirectory) {
+    return <MinigamesDirectory isAuthenticated={isAuthenticated} />;
+  }
 
   if (!loaded) {
     return (

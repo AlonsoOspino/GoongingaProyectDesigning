@@ -18,7 +18,7 @@ export type JeopardyGame = {
   phase: JeopardyPhase;
   currentPlayer: MiniGameMember | null;
   participants: JeopardyParticipant[];
-  board: { categories: Array<{ id: string; name: string; questions: Array<{ id: string; reward: number; used: boolean; selected: boolean; requested: boolean }> }> } | null;
+  board: { categories: Array<{ id: string; name: string; questions: Array<{ id: string; reward: number; used: boolean; selected: boolean; requested: boolean; answeredMemberId: number | null; unanswered: boolean }> }> } | null;
   gameState: {
     turnMemberId: number | null;
     requestedQuestionId: string | null;
@@ -27,6 +27,7 @@ export type JeopardyGame = {
     responseText: string;
     answerCorrect: boolean | null;
     currentQuestion: (JeopardyQuestion & { categoryName: string }) | null;
+    questionResults: Array<{ questionId: string; memberId: number | null; reward: number }>;
   };
   config?: { categories: JeopardyCategory[] };
   state?: JeopardyGame["gameState"] & { usedQuestionIds: string[]; respondedAt: string | null };
@@ -50,10 +51,6 @@ export function getActiveJeopardy() {
   return apiRequest<JeopardyGame>("/minigames/jeopardy/active", { cache: "no-store" });
 }
 
-export function getActiveJeopardyPlayer(token: string) {
-  return apiRequest<JeopardyGame>("/minigames/jeopardy/player", { token, cache: "no-store" });
-}
-
 export function getManagedMiniGame(token: string, slug: string) {
   return apiRequest<JeopardyGame>(`/minigames/games/${slug}/manage`, { token, cache: "no-store" });
 }
@@ -70,12 +67,6 @@ function gameAction(token: string, slug: string, action: string, body?: unknown)
   return apiRequest<JeopardyGame>(`/minigames/games/${slug}/${action}`, { method: "POST", token, body: body ?? {} });
 }
 
-export const joinJeopardy = (token: string, slug: string) => gameAction(token, slug, "join");
 export const startJeopardy = (token: string, slug: string) => gameAction(token, slug, "start");
-export const pickJeopardyMember = (token: string, slug: string, memberId: number) => apiRequest<JeopardyGame>(`/minigames/games/${slug}/turn`, { method: "PUT", token, body: { memberId } });
-export const requestJeopardyQuestion = (token: string, slug: string, questionId: string) => gameAction(token, slug, "request", { questionId });
-export const selectJeopardyQuestion = (token: string, slug: string, questionId: string) => gameAction(token, slug, "select", { questionId });
-export const submitJeopardyResponse = (token: string, slug: string, responseText: string) => gameAction(token, slug, "respond", { responseText });
-export const resolveJeopardyQuestion = (token: string, slug: string, responseText: string, correct: boolean) => gameAction(token, slug, "resolve", { responseText, correct });
-export const advanceJeopardy = (token: string, slug: string) => gameAction(token, slug, "advance");
+export const awardJeopardyQuestion = (token: string, slug: string, questionId: string, memberId: number | null) => gameAction(token, slug, "award", { questionId, memberId });
 export const finalizeJeopardy = (token: string, slug: string) => gameAction(token, slug, "finalize");

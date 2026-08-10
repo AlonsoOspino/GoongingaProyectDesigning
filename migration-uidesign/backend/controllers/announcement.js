@@ -9,7 +9,12 @@ function normalizeMode(value) {
 
 function normalizeConfig(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-  return value;
+  const config = { ...value };
+  if (Object.prototype.hasOwnProperty.call(config, "countdownAt")) {
+    const timestamp = config.countdownAt ? new Date(config.countdownAt).getTime() : NaN;
+    config.countdownAt = Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : null;
+  }
+  return config;
 }
 
 async function getState() {

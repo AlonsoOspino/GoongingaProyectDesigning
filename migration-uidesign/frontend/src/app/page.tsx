@@ -7,7 +7,6 @@ import {
   ExternalLink,
   GitBranch,
   Map,
-  MessageCircle,
   Radio,
   RadioTower,
   UserPlus,
@@ -60,20 +59,6 @@ export default async function HomePage() {
 
   return (
     <div className="home-page home-editorial">
-      <section className="home-hero">
-        <div className="home-hero-shade" />
-        <div className="ow-container home-hero-content">
-          <span className="ow-eyebrow">Overtime Productions · Season 9</span>
-          <h1 className="display-title">Goonginga Season</h1>
-          <p>Season 9 registration is now open.</p>
-          <div className="home-hero-actions">
-            <Link href="/login" className="ow-button">Register with Discord <ArrowRight size={20} /></Link>
-            <Link href="/season-9" className="ow-button ow-button-secondary">View Season 9</Link>
-          </div>
-          <div className="home-hero-meta"><span>Est. 2023</span><span>8 completed seasons</span><span>Overwatch</span><span>Community league</span></div>
-        </div>
-      </section>
-
       <AnnouncementRenderer />
 
       <section className="season-overview ow-section">
@@ -198,15 +183,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="season-registration-band">
-        <div className="ow-container season-registration-grid">
-          <div><span className="ow-eyebrow">Season 9</span><h2>Registration is open</h2><p>Join the Goonginga Discord before registering for the season.</p></div>
-          <div className="season-registration-actions">
-            <Link href="/login" className="ow-button"><MessageCircle size={19} /> Register with Discord</Link>
-            <Link href="/season-9" className="ow-button ow-button-secondary">Season details</Link>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }

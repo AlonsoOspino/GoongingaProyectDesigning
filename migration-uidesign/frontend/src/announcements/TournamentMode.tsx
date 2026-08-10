@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { ArrowRight, CalendarClock, Radio, Swords } from "lucide-react";
 import type { PointerEvent } from "react";
-import type { TournamentAnnouncementPayload } from "@/announcements/types";
+import { AnnouncementCountdown } from "@/announcements/AnnouncementCountdown";
+import type { AnnouncementConfig, TournamentAnnouncementPayload } from "@/announcements/types";
 import styles from "@/announcements/announcements.module.css";
 
 function Team({ name, logo }: { name: string; logo: string | null }) {
@@ -15,24 +16,9 @@ function Team({ name, logo }: { name: string; logo: string | null }) {
   );
 }
 
-function countdown(target: string | null, now: number) {
-  if (!target) return null;
-  const remaining = Math.max(0, new Date(target).getTime() - now);
-  const days = Math.floor(remaining / 86400000);
-  const hours = Math.floor((remaining % 86400000) / 3600000);
-  const minutes = Math.floor((remaining % 3600000) / 60000);
-  const seconds = Math.floor((remaining % 60000) / 1000);
-  return [
-    [days, "Days"],
-    [hours, "Hours"],
-    [minutes, "Minutes"],
-    [seconds, "Seconds"],
-  ] as const;
-}
-
-export function TournamentMode({ payload, now, standalone = false }: { payload: TournamentAnnouncementPayload; now: number; standalone?: boolean }) {
+export function TournamentMode({ payload, config, now, standalone = false }: { payload: TournamentAnnouncementPayload; config: AnnouncementConfig; now: number; standalone?: boolean }) {
   const match = payload.match;
-  const time = match ? countdown(match.startDate, now) : null;
+  const countdownAt = config.countdownAt || match?.startDate;
 
   function followPointer(event: PointerEvent<HTMLElement>) {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -52,7 +38,10 @@ export function TournamentMode({ payload, now, standalone = false }: { payload: 
         {!match ? (
           <div className={styles.idle}>
             <div><span>Goonginga Season 9</span><h2>Match schedule in preparation</h2></div>
-            <Link href="/season-9">Season details <ArrowRight size={18} /></Link>
+            <div className={styles.idleActions}>
+              <AnnouncementCountdown target={config.countdownAt} now={now} />
+              <Link href="/season-9">Season details <ArrowRight size={18} /></Link>
+            </div>
           </div>
         ) : (
           <div className={styles.matchLayout}>
@@ -74,9 +63,7 @@ export function TournamentMode({ payload, now, standalone = false }: { payload: 
               {payload.state === "LIVE" ? (
                 <div className={styles.liveStatus}><i /><span>Game {Math.max(1, match.gameNumber + 1)}</span></div>
               ) : (
-                <div className={styles.countdown} aria-label="Time until the next match">
-                  {time?.map(([value, label]) => <div key={label}><strong>{String(value).padStart(2, "0")}</strong><span>{label}</span></div>)}
-                </div>
+                <AnnouncementCountdown target={countdownAt} now={now} />
               )}
               <Link href={`/schedule/${match.id}`} className={styles.matchLink}>
                 {payload.state === "LIVE" ? "Open live match" : <><CalendarClock size={17} /> Match details</>} <ArrowRight size={18} />

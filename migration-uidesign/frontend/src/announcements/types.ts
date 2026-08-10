@@ -1,5 +1,10 @@
 export type AnnouncementMode = "TOURNAMENT" | "JEOPARDY";
 
+export type AnnouncementConfig = {
+  countdownAt?: string | null;
+  [key: string]: unknown;
+};
+
 export type AnnouncementTeam = {
   id: number;
   name: string;
@@ -41,7 +46,7 @@ export type JeopardyAnnouncementPayload = {
 export type ActiveAnnouncement = {
   enabled: boolean;
   mode: AnnouncementMode;
-  config: Record<string, unknown>;
+  config: AnnouncementConfig;
   updatedAt: string;
   payload: TournamentAnnouncementPayload | JeopardyAnnouncementPayload;
 };
@@ -50,7 +55,7 @@ export type AnnouncementSettings = {
   id: number;
   activeMode: AnnouncementMode;
   enabled: boolean;
-  config: Record<string, unknown>;
+  config: AnnouncementConfig;
   updatedById: number | null;
   createdAt: string;
   updatedAt: string;

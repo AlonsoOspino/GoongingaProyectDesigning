@@ -2,17 +2,32 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Check, ExternalLink, Power, RefreshCw, Save } from "lucide-react";
+import { CalendarClock, Check, ExternalLink, Power, RefreshCw, Save, X } from "lucide-react";
 import { announcementModes } from "@/announcements/registry";
 import type { AnnouncementMode, AnnouncementSettings } from "@/announcements/types";
 import { getAnnouncementSettings, updateAnnouncementSettings } from "@/lib/api/announcement";
 import { readNetworkSessionToken } from "@/features/networkSession/storage";
 import styles from "@/app/social-media-dashboard/social-dashboard.module.css";
 
+function toDateTimeInput(value: unknown) {
+  if (typeof value !== "string" || !value) return "";
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "";
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
+function toIsoDate(value: string) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? date.toISOString() : null;
+}
+
 export function AnnouncementModeControl() {
   const [settings, setSettings] = useState<AnnouncementSettings | null>(null);
   const [selectedMode, setSelectedMode] = useState<AnnouncementMode>("TOURNAMENT");
   const [enabled, setEnabled] = useState(true);
+  const [countdownAt, setCountdownAt] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -27,6 +42,7 @@ export function AnnouncementModeControl() {
       setSettings(next);
       setSelectedMode(next.activeMode);
       setEnabled(next.enabled);
+      setCountdownAt(toDateTimeInput(next.config.countdownAt));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not load announcement settings.");
     } finally {
@@ -44,8 +60,13 @@ export function AnnouncementModeControl() {
     setSaving(true);
     setMessage("");
     try {
-      const next = await updateAnnouncementSettings(token, { activeMode: selectedMode, enabled });
+      const next = await updateAnnouncementSettings(token, {
+        activeMode: selectedMode,
+        enabled,
+        config: { ...(settings?.config || {}), countdownAt: toIsoDate(countdownAt) },
+      });
       setSettings(next);
+      setCountdownAt(toDateTimeInput(next.config.countdownAt));
       setMessage(enabled ? `${announcementModes.find((mode) => mode.id === selectedMode)?.title} is live.` : "Announcement area is hidden.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not publish this mode.");
@@ -64,7 +85,7 @@ export function AnnouncementModeControl() {
         <div>
           <span className={styles.kicker}>Homepage mode</span>
           <h2>Announcements</h2>
-          <p>Select the module shown below the homepage hero.</p>
+          <p>Select the single module used as the homepage hero.</p>
         </div>
         <Link href="/announcements" target="_blank" className={styles.outlineAction}>
           Open output <ExternalLink size={16} />
@@ -88,6 +109,18 @@ export function AnnouncementModeControl() {
             </button>
           );
         })}
+      </div>
+
+      <div className={styles.countdownControl}>
+        <div className={styles.countdownCopy}>
+          <span className={styles.modeIcon}><CalendarClock size={22} /></span>
+          <div><strong>Announcement countdown</strong><small>Optional. Uses your local time and appears inside the selected homepage mode.</small></div>
+        </div>
+        <label>
+          <span>Target date and time</span>
+          <input type="datetime-local" value={countdownAt} onChange={(event) => setCountdownAt(event.target.value)} />
+        </label>
+        <button type="button" className={styles.clearCountdown} onClick={() => setCountdownAt("")} disabled={!countdownAt} title="Clear countdown" aria-label="Clear countdown"><X size={18} /></button>
       </div>
 
       <div className={styles.controlFooter}>

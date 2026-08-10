@@ -2,7 +2,7 @@
   --pointer-x: 50%;
   --pointer-y: 50%;
   position: relative;
-  min-height: 330px;
+  min-height: clamp(560px, calc(100vh - 110px), 760px);
   overflow: hidden;
   border-block: 1px solid var(--color-border);
   background: var(--color-bg-deep);
@@ -11,7 +11,7 @@
 }
 
 .standalone { min-height: calc(100vh - 68px); display: grid; align-items: center; }
-.inner { position: relative; z-index: 3; width: min(1500px, calc(100% - 56px)); margin: 0 auto; padding: 42px 0; }
+.inner { position: relative; z-index: 3; display: flex; min-height: inherit; width: min(1500px, calc(100% - 56px)); justify-content: center; flex-direction: column; margin: 0 auto; padding: 54px 0; }
 .grid { position: absolute; inset: 0; z-index: -2; background-image: linear-gradient(rgba(160,185,200,.055) 1px, transparent 1px), linear-gradient(90deg, rgba(160,185,200,.055) 1px, transparent 1px); background-size: 48px 48px; mask-image: linear-gradient(90deg, black, transparent 86%); }
 .pointerLight { position: absolute; z-index: -1; width: 420px; height: 420px; border-radius: 50%; background: rgba(0,167,199,.08); filter: blur(90px); opacity: .8; transform: translate(calc(var(--pointer-x) - 210px), calc(var(--pointer-y) - 210px)); transition: transform 110ms linear; }
 .modeLabel { display: inline-flex; align-items: center; gap: 8px; color: var(--color-accent-muted); font-size: .72rem; font-weight: 850; text-transform: uppercase; }
@@ -38,6 +38,7 @@
 .liveStatus { display: inline-flex; align-items: center; gap: 9px; color: var(--color-text-secondary); font-size: .75rem; font-weight: 800; text-transform: uppercase; }
 .liveStatus i { width: 9px; height: 9px; border-radius: 50%; background: var(--color-accent); animation: livePulse 1.3s ease-in-out infinite; }
 .idle { display: flex; align-items: end; justify-content: space-between; gap: 40px; margin-top: 34px; }
+.idleActions,.jeopardyActions { display: grid; min-width: min(100%, 430px); justify-items: end; gap: 16px; }
 .idle span { color: var(--color-accent-muted); font-size: .72rem; font-weight: 850; text-transform: uppercase; }
 .idle h2 { margin-top: 8px; font-family: var(--font-display); font-size: 4.4rem; font-weight: 400; line-height: .85; text-transform: uppercase; }
 .jeopardyCover { position: absolute; inset: 0; z-index: -3; width: 100%; height: 100%; object-fit: cover; }
@@ -46,7 +47,8 @@
 .jeopardyContent > div > span { display: inline-flex; align-items: center; gap: 7px; color: var(--color-accent-muted); font-size: .72rem; font-weight: 850; text-transform: uppercase; }
 .jeopardyContent h2 { margin-top: 7px; font-family: var(--font-display); font-size: 4.8rem; font-weight: 400; line-height: .85; text-transform: uppercase; }
 .jeopardyContent p { max-width: 720px; margin-top: 12px; color: var(--color-text-secondary); }
-.loading { display: grid; min-height: calc(100vh - 68px); place-items: center; background: var(--color-bg-deep); color: var(--color-text-secondary); }
+.loading { display: grid; min-height: clamp(560px, calc(100vh - 110px), 760px); place-items: center; background: var(--color-bg-deep); color: var(--color-text-secondary); }
+.loadingStandalone { min-height: calc(100vh - 68px); }
 
 @keyframes livePulse { 0%,100% { opacity:.45; transform:scale(.8); } 50% { opacity:1; transform:scale(1.2); } }
 
@@ -64,6 +66,7 @@
   .actionArea { width: 100%; }
   .countdown { width: 100%; }
   .idle,.jeopardyContent { align-items: flex-start; flex-direction: column; }
+  .idleActions,.jeopardyActions { width: 100%; min-width: 0; justify-items: start; }
   .idle h2,.jeopardyContent h2 { font-size: 3.5rem; }
   .pointerLight { display: none; }
 }

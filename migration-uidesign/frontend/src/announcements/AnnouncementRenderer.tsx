@@ -20,11 +20,11 @@ export function AnnouncementRenderer({ standalone = false }: { standalone?: bool
     return () => { mounted = false; window.clearInterval(poll); window.clearInterval(clock); };
   }, []);
 
-  if (!announcement) return standalone ? <div className={styles.loading}>Loading announcement mode...</div> : null;
+  if (!announcement) return <div className={`${styles.loading} ${standalone ? styles.loadingStandalone : ""}`}>Loading announcement mode...</div>;
   if (!announcement.enabled) return standalone ? <div className={styles.loading}>Announcement modes are currently disabled.</div> : null;
 
   if (announcement.mode === "JEOPARDY") {
-    return <JeopardyMode payload={announcement.payload as JeopardyAnnouncementPayload} standalone={standalone} />;
+    return <JeopardyMode payload={announcement.payload as JeopardyAnnouncementPayload} config={announcement.config} now={now} standalone={standalone} />;
   }
-  return <TournamentMode payload={announcement.payload as TournamentAnnouncementPayload} now={now} standalone={standalone} />;
+  return <TournamentMode payload={announcement.payload as TournamentAnnouncementPayload} config={announcement.config} now={now} standalone={standalone} />;
 }

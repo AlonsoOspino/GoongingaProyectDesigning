@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowRight, Gamepad2, Radio } from "lucide-react";
-import type { JeopardyAnnouncementPayload } from "@/announcements/types";
+import { AnnouncementCountdown } from "@/announcements/AnnouncementCountdown";
+import type { AnnouncementConfig, JeopardyAnnouncementPayload } from "@/announcements/types";
 import styles from "@/announcements/announcements.module.css";
 
-export function JeopardyMode({ payload, standalone = false }: { payload: JeopardyAnnouncementPayload; standalone?: boolean }) {
+export function JeopardyMode({ payload, config, now, standalone = false }: { payload: JeopardyAnnouncementPayload; config: AnnouncementConfig; now: number; standalone?: boolean }) {
   const game = payload.game;
   const fallbackCover = "/ramattra-login-cropped.webp";
   const [cover, setCover] = useState(game?.coverImageUrl || fallbackCover);
@@ -25,7 +26,10 @@ export function JeopardyMode({ payload, standalone = false }: { payload: Jeopard
             <h2>{game?.title || "Jeopardy is not live"}</h2>
             <p>{game?.description || "The next Jeopardy game will appear here when it is published."}</p>
           </div>
-          <Link href="/minigames" className={styles.jeopardyLink}>Open Minigames <ArrowRight size={18} /></Link>
+          <div className={styles.jeopardyActions}>
+            <AnnouncementCountdown target={config.countdownAt} now={now} />
+            <Link href="/minigames/jeopardy" className={styles.jeopardyLink}>Open Jeopardy <ArrowRight size={18} /></Link>
+          </div>
         </div>
       </div>
     </section>

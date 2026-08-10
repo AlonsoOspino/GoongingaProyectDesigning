@@ -10,6 +10,8 @@ test("announcement mode normalization accepts supported modes only", () => {
 
 test("announcement config only accepts plain objects", () => {
   assert.deepEqual(__testables.normalizeConfig({ label: "Live" }), { label: "Live" });
+  assert.deepEqual(__testables.normalizeConfig({ countdownAt: "2026-08-20T18:30:00-05:00" }), { countdownAt: "2026-08-20T23:30:00.000Z" });
+  assert.deepEqual(__testables.normalizeConfig({ countdownAt: "not-a-date" }), { countdownAt: null });
   assert.deepEqual(__testables.normalizeConfig(["invalid"]), {});
   assert.deepEqual(__testables.normalizeConfig(null), {});
 });

@@ -17,7 +17,20 @@ test("Jeopardy state keeps response and result fields explicit", () => {
     responseText: "Tracer",
     answerCorrect: true,
     respondedAt: null,
+    questionResults: [],
   });
+});
+
+test("Jeopardy state normalizes direct question awards", () => {
+  assert.deepEqual(__testables.normalizeState({
+    questionResults: [
+      { questionId: "question-1", memberId: 42, reward: 200 },
+      { questionId: "question-2", memberId: null, reward: 300 },
+    ],
+  }).questionResults, [
+    { questionId: "question-1", memberId: 42, reward: 200 },
+    { questionId: "question-2", memberId: null, reward: 300 },
+  ]);
 });
 
 test("Jeopardy exposes the six supported lifecycle phases", () => {
