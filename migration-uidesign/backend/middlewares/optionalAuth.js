@@ -1,9 +1,9 @@
 const jwt = require("jsonwebtoken");
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRETS = [...new Set([process.env.NETWORK_JWT_SECRET, process.env.JWT_SECRET].filter(Boolean))];
 
-if (!JWT_SECRET) {
-  throw new Error("JWT_SECRET is not set");
+if (!JWT_SECRETS.length) {
+  throw new Error("JWT_SECRET or NETWORK_JWT_SECRET is not set");
 }
 
 function optionalAuth(req, _res, next) {
@@ -17,10 +17,13 @@ function optionalAuth(req, _res, next) {
     return next();
   }
 
-  try {
-    req.user = jwt.verify(token, JWT_SECRET);
-  } catch (_error) {
-    // Ignore invalid/expired token on optional auth paths.
+  for (const secret of JWT_SECRETS) {
+    try {
+      req.user = jwt.verify(token, secret);
+      break;
+    } catch {
+      // Ignore this secret and try the next configured one.
+    }
   }
 
   return next();

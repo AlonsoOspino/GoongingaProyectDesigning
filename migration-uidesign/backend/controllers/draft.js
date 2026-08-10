@@ -1,4 +1,5 @@
 const prisma = require("../config/prisma");
+const { hasManagerAccess } = require("../utils/permissions");
 
 const mapOrder = ["CONTROL", "HYBRID", "PAYLOAD", "PUSH", "FLASHPOINT"];
 // Best of 5 cycle used by playoff rounds 1 and 2.
@@ -112,8 +113,8 @@ const getDraftByIdOrThrow = async (id) => {
 };
 
 const ensureManagerRole = (user) => {
-  if (!user || (user.role !== "MANAGER" && user.role !== "ADMIN")) {
-    throw new Error("Only manager/admin can perform this action.");
+  if (!hasManagerAccess(user)) {
+    throw new Error("Only manager, Social Media, or admin can perform this action.");
   }
 };
 
@@ -130,7 +131,7 @@ const resolveActingTeamId = (user, bodyTeamId, match) => {
     return captainTeamId;
   }
 
-  if (user.role === "MANAGER" || user.role === "ADMIN") {
+  if (hasManagerAccess(user)) {
     const parsed = assertPositiveInt(bodyTeamId, "teamId");
     if (parsed !== match.teamAId && parsed !== match.teamBId) {
       throw new Error("teamId must be one of the match teams.");
@@ -984,7 +985,7 @@ const getDraftShareInfo = async (matchId, user) => {
     throw new Error("Draft not found for this match.");
   }
 
-  const isManager = user.role === "MANAGER" || user.role === "ADMIN";
+  const isManager = hasManagerAccess(user);
   const isMatchCaptain =
     user.role === "CAPTAIN" &&
     (Number(user.teamId) === draft.match.teamAId || Number(user.teamId) === draft.match.teamBId);

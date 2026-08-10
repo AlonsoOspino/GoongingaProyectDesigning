@@ -4,10 +4,15 @@ const { saveUploadedImage } = require("../utils/contentImageUpload");
 
 const GAME_TYPES = new Set(["JEOPARDY", "FAMILY_FEUD", "CUSTOM"]);
 const GAME_STATUSES = new Set(["LIVE", "UNDER_DEVELOPMENT"]);
+const JEOPARDY_PHASES = new Set(["CREATED", "PICKING_MEMBER", "PICKING_QUESTION", "RESPONDING", "RESPONDED", "FINALIZED"]);
 const memberSelect = { id: true, username: true, avatarUrl: true };
 const gameInclude = {
   createdBy: { select: memberSelect },
   underDevelopmentBy: { select: memberSelect },
+  participants: {
+    include: { member: { select: memberSelect } },
+    orderBy: [{ score: "desc" }, { id: "asc" }],
+  },
 };
 
 function asText(value, maxLength = 4000) {
@@ -106,6 +111,9 @@ function normalizeState(input) {
     currentQuestionId: asText(input?.currentQuestionId, 100) || null,
     usedQuestionIds: used,
     revealed: Boolean(input?.revealed),
+    responseText: asText(input?.responseText, 1000),
+    answerCorrect: typeof input?.answerCorrect === "boolean" ? input.answerCorrect : null,
+    respondedAt: asText(input?.respondedAt, 80) || null,
   };
 }
 
@@ -125,6 +133,16 @@ async function withTurnMember(game) {
     ? await prisma.networkMember.findUnique({ where: { id: state.turnMemberId }, select: memberSelect })
     : null;
   return { ...game, state, currentPlayer };
+}
+
+function participantPayload(participant) {
+  return {
+    id: participant.id,
+    memberId: participant.memberId,
+    score: participant.score,
+    joinedAt: participant.joinedAt,
+    member: participant.member,
+  };
 }
 
 function publicBoard(config, state) {
@@ -149,6 +167,8 @@ function publicBoard(config, state) {
 
 function toPublicGame(game) {
   const state = normalizeState(game.state);
+  const currentQuestion = state.currentQuestionId ? findQuestion(game.config, state.currentQuestionId) : null;
+  const showResponse = game.phase === "RESPONDED" || game.phase === "FINALIZED";
   return {
     id: game.id,
     slug: game.slug,
@@ -157,32 +177,79 @@ function toPublicGame(game) {
     coverImageUrl: game.coverImageUrl,
     gameType: game.gameType,
     status: game.status,
+    phase: game.phase,
     createdAt: game.createdAt,
     updatedAt: game.updatedAt,
     createdBy: game.createdBy,
     underDevelopmentBy: game.underDevelopmentBy,
     currentPlayer: game.currentPlayer || null,
+    participants: (game.participants || []).map(participantPayload),
     board: game.gameType === "JEOPARDY" ? publicBoard(game.config, state) : null,
     gameState: {
       turnMemberId: state.turnMemberId,
       requestedQuestionId: state.requestedQuestionId,
       currentQuestionId: state.currentQuestionId,
       revealed: state.revealed,
+      responseText: showResponse ? state.responseText : "",
+      answerCorrect: showResponse ? state.answerCorrect : null,
+      currentQuestion: currentQuestion ? {
+        id: currentQuestion.id,
+        categoryName: currentQuestion.categoryName,
+        reward: currentQuestion.reward,
+        question: currentQuestion.question,
+      } : null,
     },
   };
 }
 
 function toManageGame(game) {
+  const state = normalizeState(game.state);
+  const currentQuestion = state.currentQuestionId ? findQuestion(game.config, state.currentQuestionId) : null;
   return {
     ...toPublicGame(game),
     config: game.gameType === "JEOPARDY" ? normalizeJeopardyConfig(game.config) : game.config,
-    state: normalizeState(game.state),
+    state,
+    currentQuestion: currentQuestion ? { ...currentQuestion } : null,
   };
 }
 
 async function findGame(slug) {
   const game = await prisma.miniGame.findUnique({ where: { slug }, include: gameInclude });
   return game ? withTurnMember(game) : null;
+}
+
+async function findActiveJeopardy() {
+  const game = await prisma.miniGame.findFirst({
+    where: { gameType: "JEOPARDY", status: "LIVE" },
+    include: gameInclude,
+    orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+  });
+  return game ? withTurnMember(game) : null;
+}
+
+function playerPayload(game, memberId) {
+  const publicGame = toPublicGame(game);
+  const state = normalizeState(game.state);
+  const participant = (game.participants || []).find((entry) => entry.memberId === memberId) || null;
+  const isTurn = state.turnMemberId === memberId;
+  const currentQuestion = isTurn && state.currentQuestionId ? findQuestion(game.config, state.currentQuestionId) : null;
+  return {
+    ...publicGame,
+    player: {
+      isParticipant: Boolean(participant),
+      joined: Boolean(participant?.joinedAt),
+      isTurn,
+      score: participant?.score || 0,
+      requestedQuestionId: state.requestedQuestionId,
+      responseText: isTurn ? state.responseText : "",
+      currentQuestion: currentQuestion ? {
+        id: currentQuestion.id,
+        categoryName: currentQuestion.categoryName,
+        reward: currentQuestion.reward,
+        question: currentQuestion.question,
+      } : null,
+    },
+  };
 }
 
 async function listGames(_req, res) {
@@ -230,30 +297,32 @@ async function getPublicGame(req, res) {
   }
 }
 
+async function getActiveJeopardy(_req, res) {
+  try {
+    const game = await findActiveJeopardy();
+    if (!game) return res.status(404).json({ message: "No Jeopardy game is currently available." });
+    return res.json(toPublicGame(game));
+  } catch (error) {
+    return res.status(500).json({ message: error?.message || "Could not load Jeopardy." });
+  }
+}
+
+async function getActiveJeopardyPlayer(req, res) {
+  try {
+    const game = await findActiveJeopardy();
+    if (!game) return res.status(404).json({ message: "No Jeopardy game is currently available." });
+    return res.json(playerPayload(game, req.networkMember.id));
+  } catch (error) {
+    return res.status(500).json({ message: error?.message || "Could not load the Jeopardy player view." });
+  }
+}
+
 async function getPlayerGame(req, res) {
   try {
     const game = await findGame(slugify(req.params.slug));
     if (!game) return res.status(404).json({ message: "Minigame not found." });
 
-    const publicGame = toPublicGame(game);
-    const state = normalizeState(game.state);
-    const isTurn = state.turnMemberId === req.networkMember.id;
-    const currentQuestion = isTurn && state.currentQuestionId ? findQuestion(game.config, state.currentQuestionId) : null;
-
-    return res.json({
-      ...publicGame,
-      player: {
-        isTurn,
-        requestedQuestionId: state.requestedQuestionId,
-        currentQuestion: currentQuestion ? {
-          id: currentQuestion.id,
-          categoryName: currentQuestion.categoryName,
-          reward: currentQuestion.reward,
-          question: currentQuestion.question,
-          revealed: state.revealed,
-        } : null,
-      },
-    });
+    return res.json(playerPayload(game, req.networkMember.id));
   } catch (error) {
     return res.status(500).json({ message: error?.message || "Could not load player view." });
   }
@@ -278,6 +347,18 @@ async function createGame(req, res) {
     if (!slug) return res.status(400).json({ message: "Enter a valid route, for example /quiz-night." });
     if (!GAME_TYPES.has(gameType)) return res.status(400).json({ message: "Unknown game type." });
 
+    const participantIds = Array.isArray(req.body?.participantIds)
+      ? [...new Set(req.body.participantIds.map(Number).filter((value) => Number.isInteger(value) && value > 0))].slice(0, 100)
+      : [];
+    if (gameType === "JEOPARDY" && !participantIds.length) {
+      return res.status(400).json({ message: "Select at least one Network Member for this Jeopardy game." });
+    }
+
+    if (participantIds.length) {
+      const validMembers = await prisma.networkMember.count({ where: { id: { in: participantIds }, status: "ACTIVE" } });
+      if (validMembers !== participantIds.length) return res.status(400).json({ message: "One or more selected members are unavailable." });
+    }
+
     const game = await prisma.miniGame.create({
       data: {
         title,
@@ -285,9 +366,13 @@ async function createGame(req, res) {
         description: asText(req.body?.description, 1500),
         coverImageUrl: asText(req.body?.coverImageUrl, 2048) || null,
         gameType,
+        phase: "CREATED",
         config: gameType === "JEOPARDY" ? normalizeJeopardyConfig(req.body?.config) : {},
         state: normalizeState({}),
         createdById: req.networkMember.id,
+        participants: participantIds.length ? {
+          create: participantIds.map((memberId) => ({ memberId })),
+        } : undefined,
       },
       include: gameInclude,
     });
@@ -309,7 +394,22 @@ async function updateGame(req, res) {
     const nextSlug = req.body?.slug === undefined ? existing.slug : slugify(req.body.slug);
     if (!nextSlug) return res.status(400).json({ message: "Enter a valid route." });
 
-    const game = await prisma.miniGame.update({
+    const participantIds = req.body?.participantIds === undefined
+      ? null
+      : [...new Set((Array.isArray(req.body.participantIds) ? req.body.participantIds : []).map(Number).filter((value) => Number.isInteger(value) && value > 0))].slice(0, 100);
+    if (participantIds && existing.phase !== "CREATED") {
+      return res.status(409).json({ message: "Participants can only be changed before the game starts." });
+    }
+
+    const game = await prisma.$transaction(async (tx) => {
+      if (participantIds) {
+        if (!participantIds.length) throw new Error("Select at least one Network Member.");
+        const validMembers = await tx.networkMember.count({ where: { id: { in: participantIds }, status: "ACTIVE" } });
+        if (validMembers !== participantIds.length) throw new Error("One or more selected members are unavailable.");
+        await tx.miniGameParticipant.deleteMany({ where: { gameId: existing.id } });
+        await tx.miniGameParticipant.createMany({ data: participantIds.map((memberId) => ({ gameId: existing.id, memberId })) });
+      }
+      return tx.miniGame.update({
       where: { slug },
       data: {
         title: nextTitle,
@@ -321,6 +421,7 @@ async function updateGame(req, res) {
           : normalizeJeopardyConfig(req.body.config),
       },
       include: gameInclude,
+      });
     });
     return res.json(toManageGame(await withTurnMember(game)));
   } catch (error) {
@@ -367,23 +468,70 @@ async function searchMembers(req, res) {
   }
 }
 
+async function joinGame(req, res) {
+  try {
+    const slug = slugify(req.params.slug);
+    const game = await prisma.miniGame.findUnique({ where: { slug } });
+    if (!game) return res.status(404).json({ message: "Minigame not found." });
+    const participant = await prisma.miniGameParticipant.findUnique({
+      where: { gameId_memberId: { gameId: game.id, memberId: req.networkMember.id } },
+    });
+    if (!participant) return res.status(403).json({ message: "You are not on this Jeopardy roster." });
+    await prisma.miniGameParticipant.update({
+      where: { id: participant.id },
+      data: { joinedAt: participant.joinedAt || new Date() },
+    });
+    const updated = await findGame(slug);
+    return res.json(playerPayload(updated, req.networkMember.id));
+  } catch (error) {
+    return res.status(400).json({ message: error?.message || "Could not join this Jeopardy game." });
+  }
+}
+
+async function startJeopardy(req, res) {
+  try {
+    const slug = slugify(req.params.slug);
+    const game = await prisma.miniGame.findUnique({ where: { slug }, include: { participants: true } });
+    if (!game) return res.status(404).json({ message: "Minigame not found." });
+    if (game.gameType !== "JEOPARDY") return res.status(400).json({ message: "This is not a Jeopardy game." });
+    if (!game.participants.length) return res.status(409).json({ message: "Add participants before starting." });
+    if (game.phase !== "CREATED") return res.status(409).json({ message: "This game has already started." });
+    const updated = await prisma.miniGame.update({
+      where: { slug },
+      data: { phase: "PICKING_MEMBER", state: normalizeState({}) },
+      include: gameInclude,
+    });
+    return res.json(toManageGame(await withTurnMember(updated)));
+  } catch (error) {
+    return res.status(400).json({ message: error?.message || "Could not start Jeopardy." });
+  }
+}
+
 async function setTurn(req, res) {
   try {
     const slug = slugify(req.params.slug);
     const game = await prisma.miniGame.findUnique({ where: { slug } });
     if (!game) return res.status(404).json({ message: "Minigame not found." });
     if (game.gameType !== "JEOPARDY") return res.status(400).json({ message: "Turns are only configured for Jeopardy games." });
+    if (game.phase !== "PICKING_MEMBER") return res.status(409).json({ message: "Jeopardy is not waiting for a member." });
 
     const memberId = Number(req.body?.memberId);
     const member = Number.isInteger(memberId) && memberId > 0
       ? await prisma.networkMember.findFirst({ where: { id: memberId, status: "ACTIVE" }, select: memberSelect })
       : null;
     if (!member) return res.status(400).json({ message: "Choose an active Network User." });
+    const participant = await prisma.miniGameParticipant.findUnique({
+      where: { gameId_memberId: { gameId: game.id, memberId: member.id } },
+    });
+    if (!participant) return res.status(400).json({ message: "Choose a member from this Jeopardy roster." });
 
     const state = normalizeState(game.state);
     const updated = await prisma.miniGame.update({
       where: { slug },
-      data: { state: { ...state, turnMemberId: member.id, requestedQuestionId: null, currentQuestionId: null, revealed: false } },
+      data: {
+        phase: "PICKING_QUESTION",
+        state: { ...state, turnMemberId: member.id, requestedQuestionId: null, currentQuestionId: null, revealed: false, responseText: "", answerCorrect: null, respondedAt: null },
+      },
       include: gameInclude,
     });
     return res.json(toManageGame(await withTurnMember(updated)));
@@ -403,6 +551,7 @@ async function requestQuestion(req, res) {
     if (game.gameType !== "JEOPARDY" || state.turnMemberId !== req.networkMember.id) {
       return res.status(403).json({ message: "It is not your turn." });
     }
+    if (game.phase !== "PICKING_QUESTION") return res.status(409).json({ message: "The board is not accepting a question pick." });
     if (state.currentQuestionId) return res.status(409).json({ message: "The host has already selected a question." });
     if (state.usedQuestionIds.includes(questionId) || !findQuestion(game.config, questionId)) {
       return res.status(400).json({ message: "That question is not available." });
@@ -427,19 +576,46 @@ async function selectQuestion(req, res) {
     if (!game) return res.status(404).json({ message: "Minigame not found." });
     const state = normalizeState(game.state);
     if (game.gameType !== "JEOPARDY") return res.status(400).json({ message: "This is not a Jeopardy game." });
+    if (game.phase !== "PICKING_QUESTION") return res.status(409).json({ message: "Jeopardy is not waiting for a question." });
     if (!state.turnMemberId) return res.status(409).json({ message: "Choose whose turn it is first." });
     if (state.usedQuestionIds.includes(questionId) || !findQuestion(game.config, questionId)) {
       return res.status(400).json({ message: "That question is not available." });
     }
+    if (state.requestedQuestionId && state.requestedQuestionId !== questionId) {
+      return res.status(409).json({ message: "Select the question highlighted by the player." });
+    }
 
     const updated = await prisma.miniGame.update({
       where: { slug },
-      data: { state: { ...state, currentQuestionId: questionId, requestedQuestionId: null, revealed: false } },
+      data: {
+        phase: "RESPONDING",
+        state: { ...state, currentQuestionId: questionId, requestedQuestionId: null, revealed: false, responseText: "", answerCorrect: null, respondedAt: null },
+      },
       include: gameInclude,
     });
     return res.json(toManageGame(await withTurnMember(updated)));
   } catch (error) {
     return res.status(400).json({ message: error?.message || "Could not select question." });
+  }
+}
+
+async function submitResponse(req, res) {
+  try {
+    const slug = slugify(req.params.slug);
+    const game = await prisma.miniGame.findUnique({ where: { slug } });
+    if (!game) return res.status(404).json({ message: "Minigame not found." });
+    const state = normalizeState(game.state);
+    if (game.phase !== "RESPONDING" || state.turnMemberId !== req.networkMember.id) {
+      return res.status(403).json({ message: "You are not the responding player." });
+    }
+    const updated = await prisma.miniGame.update({
+      where: { slug },
+      data: { state: { ...state, responseText: asText(req.body?.responseText, 1000) } },
+      include: gameInclude,
+    });
+    return res.json(playerPayload(await withTurnMember(updated), req.networkMember.id));
+  } catch (error) {
+    return res.status(400).json({ message: error?.message || "Could not submit the response." });
   }
 }
 
@@ -450,32 +626,72 @@ async function resolveQuestion(req, res) {
     if (!game) return res.status(404).json({ message: "Minigame not found." });
     const state = normalizeState(game.state);
     if (!state.currentQuestionId) return res.status(409).json({ message: "No question is selected." });
+    if (game.phase !== "RESPONDING") return res.status(409).json({ message: "Jeopardy is not waiting for a result." });
+    if (typeof req.body?.correct !== "boolean") return res.status(400).json({ message: "Mark the response as correct or incorrect." });
+    const question = findQuestion(game.config, state.currentQuestionId);
+    if (!question || !state.turnMemberId) return res.status(409).json({ message: "The active turn is incomplete." });
+    const responseText = req.body?.responseText === undefined ? state.responseText : asText(req.body.responseText, 1000);
 
-    const action = asText(req.body?.action, 20).toLowerCase();
-    if (action === "reveal") {
-      const updated = await prisma.miniGame.update({
-        where: { slug }, data: { state: { ...state, revealed: true } }, include: gameInclude,
+    const updated = await prisma.$transaction(async (tx) => {
+      if (req.body.correct) {
+        await tx.miniGameParticipant.update({
+          where: { gameId_memberId: { gameId: game.id, memberId: state.turnMemberId } },
+          data: { score: { increment: question.reward } },
+        });
+      }
+      return tx.miniGame.update({
+        where: { slug },
+        data: {
+          phase: "RESPONDED",
+          state: {
+            ...state,
+            responseText,
+            answerCorrect: req.body.correct,
+            respondedAt: new Date().toISOString(),
+            revealed: true,
+            usedQuestionIds: [...new Set([...state.usedQuestionIds, state.currentQuestionId])],
+          },
+        },
+        include: gameInclude,
       });
-      return res.json(toManageGame(await withTurnMember(updated)));
-    }
+    });
+    return res.json(toManageGame(await withTurnMember(updated)));
+  } catch (error) {
+    return res.status(400).json({ message: error?.message || "Could not resolve question." });
+  }
+}
 
-    if (action !== "complete") return res.status(400).json({ message: "Unknown question action." });
+async function advanceJeopardy(req, res) {
+  try {
+    const slug = slugify(req.params.slug);
+    const game = await prisma.miniGame.findUnique({ where: { slug } });
+    if (!game) return res.status(404).json({ message: "Minigame not found." });
+    if (game.phase !== "RESPONDED") return res.status(409).json({ message: "Resolve the current question first." });
+    const state = normalizeState(game.state);
     const updated = await prisma.miniGame.update({
       where: { slug },
       data: {
-        state: {
-          ...state,
-          currentQuestionId: null,
-          requestedQuestionId: null,
-          revealed: false,
-          usedQuestionIds: [...new Set([...state.usedQuestionIds, state.currentQuestionId])],
-        },
+        phase: "PICKING_MEMBER",
+        state: { ...state, turnMemberId: null, requestedQuestionId: null, currentQuestionId: null, revealed: false, responseText: "", answerCorrect: null, respondedAt: null },
       },
       include: gameInclude,
     });
     return res.json(toManageGame(await withTurnMember(updated)));
   } catch (error) {
-    return res.status(400).json({ message: error?.message || "Could not resolve question." });
+    return res.status(400).json({ message: error?.message || "Could not continue Jeopardy." });
+  }
+}
+
+async function finalizeJeopardy(req, res) {
+  try {
+    const slug = slugify(req.params.slug);
+    const game = await prisma.miniGame.findUnique({ where: { slug } });
+    if (!game) return res.status(404).json({ message: "Minigame not found." });
+    if (game.gameType !== "JEOPARDY" || game.phase === "CREATED") return res.status(409).json({ message: "Start Jeopardy before finalizing it." });
+    const updated = await prisma.miniGame.update({ where: { slug }, data: { phase: "FINALIZED" }, include: gameInclude });
+    return res.json(toManageGame(await withTurnMember(updated)));
+  } catch (error) {
+    return res.status(400).json({ message: error?.message || "Could not finalize Jeopardy." });
   }
 }
 
@@ -504,15 +720,23 @@ module.exports = {
   listGames,
   getFamilyFeudStatus,
   getPublicGame,
+  getActiveJeopardy,
+  getActiveJeopardyPlayer,
   getPlayerGame,
   getManageGame,
   createGame,
   updateGame,
   updateStatus,
   searchMembers,
+  joinGame,
+  startJeopardy,
   setTurn,
   requestQuestion,
   selectQuestion,
+  submitResponse,
   resolveQuestion,
+  advanceJeopardy,
+  finalizeJeopardy,
   uploadCover,
+  __testables: { normalizeJeopardyConfig, normalizeState, publicBoard, JEOPARDY_PHASES },
 };

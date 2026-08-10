@@ -1,9 +1,13 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "@/features/session/SessionProvider";
+import {
+  readNetworkSessionUser,
+  type NetworkSessionUser,
+} from "@/features/networkSession/storage";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -117,9 +121,11 @@ function findBestPlayerMatch(
   return bestScore >= 0.7 ? best : null;
 }
 
-export default function ManagerDashboardPage() {
+function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean }) {
   const router = useRouter();
   const { user, token, isAuthenticated, isHydrated } = useSession();
+  const [networkUser, setNetworkUser] = useState<NetworkSessionUser | null>(null);
+  const [networkReady, setNetworkReady] = useState(false);
   const [activeTab, setActiveTab] = useState<TabValue>("scheduled");
   const [matches, setMatches] = useState<Match[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -143,11 +149,30 @@ export default function ManagerDashboardPage() {
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const prevMatchesRef = useRef<Match[]>([]);
 
+  const canManage = user?.role === "MANAGER"
+    || user?.role === "ADMIN"
+    || Boolean(networkUser?.roles.some((role) => role === "SOCIAL_MEDIA" || role === "ADMIN"));
+  const accessReady = isHydrated && networkReady;
+
   useEffect(() => {
-    if (isHydrated && (!isAuthenticated || user?.role !== "MANAGER")) {
+    const refreshNetworkUser = () => {
+      setNetworkUser(readNetworkSessionUser());
+      setNetworkReady(true);
+    };
+    refreshNetworkUser();
+    window.addEventListener("network-session-changed", refreshNetworkUser);
+    window.addEventListener("storage", refreshNetworkUser);
+    return () => {
+      window.removeEventListener("network-session-changed", refreshNetworkUser);
+      window.removeEventListener("storage", refreshNetworkUser);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (accessReady && (!isAuthenticated || !canManage)) {
       router.push("/login");
     }
-  }, [isHydrated, isAuthenticated, user, router]);
+  }, [accessReady, isAuthenticated, canManage, router]);
 
   useEffect(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
@@ -159,19 +184,19 @@ export default function ManagerDashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated && user?.role === "MANAGER") {
+    if (isAuthenticated && canManage) {
       loadData();
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, canManage]);
 
   useEffect(() => {
-    if (!isAuthenticated || user?.role !== "MANAGER") return;
+    if (!isAuthenticated || !canManage) return;
     pollRef.current = setInterval(() => {
       if (typeof document !== "undefined" && document.hidden) return;
       loadData(true);
     }, POLL_INTERVAL);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, canManage]);
 
   const sendNotification = useCallback((title: string, body: string) => {
     if (notificationPermission === "granted" && typeof window !== "undefined" && "Notification" in window) {
@@ -528,18 +553,18 @@ export default function ManagerDashboardPage() {
     ) || null;
   })();
 
-  if (!isHydrated) {
+  if (!accessReady) {
     return <div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-muted">Loading...</div></div>;
   }
 
-  if (!isAuthenticated || user?.role !== "MANAGER") return null;
+  if (!isAuthenticated || !canManage) return null;
 
   return (
-    <main className="min-h-screen bg-background py-8">
+    <main className={embedded ? "manager-workspace py-4" : "min-h-screen bg-background py-8"}>
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Manager Dashboard</h1>
+            <h1 className="text-3xl font-bold text-foreground">{embedded ? "League operations" : "Manager Dashboard"}</h1>
             <p className="text-muted mt-1">Manage matches, create draft tables, and upload results</p>
           </div>
           <div className="flex items-center gap-3">
@@ -1150,4 +1175,9 @@ export default function ManagerDashboardPage() {
       </div>
     </main>
   );
+}
+
+export default function ManagerDashboardPage() {
+  const searchParams = useSearchParams();
+  return <ManagerDashboardWorkspace embedded={searchParams.get("embedded") === "1"} />;
 }

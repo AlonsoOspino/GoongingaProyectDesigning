@@ -2,7 +2,7 @@ const jwt = require("jsonwebtoken");
 const prisma = require("../config/prisma");
 
 function getNetworkJwtSecret() {
-  return process.env.NETWORK_JWT_SECRET || null;
+  return process.env.NETWORK_JWT_SECRET || process.env.JWT_SECRET || null;
 }
 
 async function networkAuthMiddleware(req, res, next) {

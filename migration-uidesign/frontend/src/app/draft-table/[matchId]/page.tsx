@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "@/features/session/SessionProvider";
+import { readNetworkSessionUser, type NetworkSessionUser } from "@/features/networkSession/storage";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -107,6 +108,7 @@ export default function DraftTablePage() {
   const [shareCopied, setShareCopied] = useState<string | null>(null);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [resetPending, setResetPending] = useState(false);
+  const [networkUser, setNetworkUser] = useState<NetworkSessionUser | null>(null);
 
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -119,7 +121,20 @@ export default function DraftTablePage() {
   const prevPhaseRef = useRef<Phase | null>(null);
   const overlayIdRef = useRef(0);
 
-  const isManager = user?.role === "MANAGER";
+  useEffect(() => {
+    const refresh = () => setNetworkUser(readNetworkSessionUser());
+    refresh();
+    window.addEventListener("network-session-changed", refresh);
+    window.addEventListener("storage", refresh);
+    return () => {
+      window.removeEventListener("network-session-changed", refresh);
+      window.removeEventListener("storage", refresh);
+    };
+  }, []);
+
+  const isManager = user?.role === "MANAGER"
+    || user?.role === "ADMIN"
+    || Boolean(networkUser?.roles.some((role) => role === "SOCIAL_MEDIA" || role === "ADMIN"));
   const isAdmin = user?.role === "ADMIN";
   // Destructive operational actions (full match reset) are open to both roles.
   const canResetMatch = isManager || isAdmin;

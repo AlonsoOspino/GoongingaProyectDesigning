@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { History, Home, LogIn, Menu, Newspaper, Trophy, X } from "lucide-react";
+import { Gauge, History, Home, LogIn, Menu, Newspaper, Trophy, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { clsx } from "clsx";
 import { Avatar } from "@/components/ui/Avatar";
@@ -40,14 +40,16 @@ export function Navbar() {
     setNetworkUser(null);
   };
 
+  const hasSocialDashboard = networkUser?.roles.some((role) => role === "SOCIAL_MEDIA" || role === "ADMIN");
+
   return (
     <header className="sticky top-0 z-40 h-[68px] border-b border-border bg-surface/95 backdrop-blur-xl">
       <div className="ow-container flex h-full items-center justify-between gap-5">
         <Link href="/" className="flex min-w-0 items-center gap-3" aria-label="Goonginga home">
           <img src="/winton.jpg" alt="" className="h-10 w-10 rounded-sm bg-white object-contain" />
           <div className="hidden leading-none sm:block">
-            <span className="block font-display text-[1.65rem] uppercase text-foreground">Goonginga</span>
-            <span className="mt-0.5 block text-[0.62rem] font-extrabold uppercase text-accent">Overwatch League</span>
+            <span className="block font-display text-[1.5rem] uppercase text-foreground">Overtime Productions</span>
+            <span className="mt-0.5 block text-[0.62rem] font-extrabold uppercase text-accent">Goonginga Season</span>
           </div>
         </Link>
 
@@ -73,6 +75,11 @@ export function Navbar() {
         <div className="flex items-center gap-2">
           {networkUser ? (
             <div className="hidden items-center gap-2 sm:flex">
+              {hasSocialDashboard ? (
+                <Link href="/social-media-dashboard" className="ow-icon-button" title="Production control" aria-label="Open production control">
+                  <Gauge size={17} />
+                </Link>
+              ) : null}
               <Avatar size="sm" src={networkUser.avatarUrl || undefined} fallback={networkUser.username} />
               <span className="max-w-28 truncate text-sm font-bold">{networkUser.username}</span>
               <button type="button" onClick={logout} className="ow-icon-button" title="Log out" aria-label="Log out">
@@ -106,6 +113,12 @@ export function Navbar() {
                 Register / Login
               </Link>
             )}
+            {networkUser && hasSocialDashboard ? (
+              <Link href="/social-media-dashboard" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-sm px-3 py-3 text-sm font-bold hover:bg-surface-elevated">
+                <Gauge size={18} />
+                Production control
+              </Link>
+            ) : null}
           </div>
         </nav>
       )}

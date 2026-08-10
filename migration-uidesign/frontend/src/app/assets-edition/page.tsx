@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { useSession } from "@/features/session/SessionProvider";
+import { readNetworkSessionUser, type NetworkSessionUser } from "@/features/networkSession/storage";
 import {
   getLeaderboard,
   getLeaderboardOverlayAsset,
@@ -148,6 +149,8 @@ export default function AssetsEditionPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, token, isAuthenticated, isHydrated } = useSession();
+  const [networkUser, setNetworkUser] = useState<NetworkSessionUser | null>(null);
+  const [networkReady, setNetworkReady] = useState(false);
   const queryMatchId = useMemo(() => Number(searchParams.get("matchId")), [searchParams]);
 
   const [matches, setMatches] = useState<Match[]>([]);
@@ -169,14 +172,33 @@ export default function AssetsEditionPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (isHydrated && (!isAuthenticated || user?.role !== "MANAGER")) {
-      router.push("/login");
-    }
-  }, [isHydrated, isAuthenticated, user, router]);
+  const canManage = user?.role === "MANAGER"
+    || user?.role === "ADMIN"
+    || Boolean(networkUser?.roles.some((role) => role === "SOCIAL_MEDIA" || role === "ADMIN"));
+  const accessReady = isHydrated && networkReady;
 
   useEffect(() => {
-    if (!isAuthenticated || user?.role !== "MANAGER") return;
+    const refresh = () => {
+      setNetworkUser(readNetworkSessionUser());
+      setNetworkReady(true);
+    };
+    refresh();
+    window.addEventListener("network-session-changed", refresh);
+    window.addEventListener("storage", refresh);
+    return () => {
+      window.removeEventListener("network-session-changed", refresh);
+      window.removeEventListener("storage", refresh);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (accessReady && (!isAuthenticated || !canManage)) {
+      router.push("/login");
+    }
+  }, [accessReady, isAuthenticated, canManage, router]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !canManage) return;
 
     let cancelled = false;
 
@@ -208,7 +230,7 @@ export default function AssetsEditionPage() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, user, queryMatchId]);
+  }, [isAuthenticated, canManage, queryMatchId]);
 
   useEffect(() => {
     if (backgroundPreviewUrl) {
@@ -245,7 +267,7 @@ export default function AssetsEditionPage() {
   }, [selectedMatch, settings.weekNumber]);
 
   useEffect(() => {
-    if (!selectedMatchId || !isAuthenticated || user?.role !== "MANAGER") return;
+    if (!selectedMatchId || !isAuthenticated || !canManage) return;
 
     let cancelled = false;
 
@@ -392,7 +414,7 @@ export default function AssetsEditionPage() {
     }
   };
 
-  if (!isHydrated) {
+  if (!accessReady) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <p className="text-muted">Loading...</p>
@@ -400,7 +422,7 @@ export default function AssetsEditionPage() {
     );
   }
 
-  if (!isAuthenticated || user?.role !== "MANAGER") return null;
+  if (!isAuthenticated || !canManage) return null;
 
   return (
     <main className="min-h-screen bg-background py-8">

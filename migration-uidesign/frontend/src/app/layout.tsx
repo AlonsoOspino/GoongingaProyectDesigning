@@ -42,7 +42,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} ${leagueGothic.variable} ${bebasNeue.variable} bg-background`}>
+    <html lang="en" data-scroll-behavior="smooth" className={`${inter.variable} ${jetbrainsMono.variable} ${leagueGothic.variable} ${bebasNeue.variable} bg-background`}>
       <body className="min-h-screen flex flex-col font-sans antialiased">
         <SessionProvider>
           <Suspense fallback={null}>

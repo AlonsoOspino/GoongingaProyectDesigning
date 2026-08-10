@@ -55,8 +55,9 @@ model NetworkMember {
   seasonPlayers         SeasonPlayer[]
   team                  Team?               @relation(fields: [teamId], references: [id])
   playerStats           PlayerStat[]
-  createdMiniGames      MiniGame[]          @relation("MiniGameCreator")
-  underDevelopmentGames MiniGame[]          @relation("MiniGameDeveloper")
+    createdMiniGames      MiniGame[]          @relation("MiniGameCreator")
+    underDevelopmentGames MiniGame[]          @relation("MiniGameDeveloper")
+    miniGameParticipations MiniGameParticipant[]
 
   @@index([status])
   @@index([teamId])
@@ -72,7 +73,8 @@ model MiniGame {
   description          String         @default("")
   coverImageUrl        String?
   gameType             MiniGameType   @default(JEOPARDY)
-  status               MiniGameStatus @default(LIVE)
+    status               MiniGameStatus @default(LIVE)
+    phase                JeopardyPhase  @default(CREATED)
   config               Json           @default("{}")
   state                Json           @default("{}")
   createdById          Int
@@ -80,10 +82,39 @@ model MiniGame {
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
   createdBy            NetworkMember  @relation("MiniGameCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  underDevelopmentBy   NetworkMember? @relation("MiniGameDeveloper", fields: [underDevelopmentById], references: [id], onDelete: SetNull)
+    underDevelopmentBy   NetworkMember? @relation("MiniGameDeveloper", fields: [underDevelopmentById], references: [id], onDelete: SetNull)
+    participants         MiniGameParticipant[]
 
   @@index([status, createdAt])
   @@index([createdById])
+}
+
+model MiniGameParticipant {
+    id        Int           @id @default(autoincrement())
+    gameId    Int
+    memberId  Int
+    score     Int           @default(0)
+    joinedAt  DateTime?
+    createdAt DateTime      @default(now())
+    updatedAt DateTime      @updatedAt
+    game      MiniGame      @relation(fields: [gameId], references: [id], onDelete: Cascade)
+    member    NetworkMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+    @@unique([gameId, memberId])
+    @@index([gameId, score])
+    @@index([memberId])
+}
+
+/// Estado editorial principal del sitio. Se mantiene como un singleton (id 1)
+/// para que la landing y los overlays compartan el mismo modo activo.
+model AnnouncementMode {
+  id          Int                  @id @default(1)
+  activeMode  AnnouncementModeType @default(TOURNAMENT)
+  enabled     Boolean              @default(true)
+  config      Json                 @default("{}")
+  updatedById Int?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
 }
 
 /// Participación de un miembro de la red en una temporada o torneo.
@@ -290,6 +321,20 @@ enum MiniGameType {
 enum MiniGameStatus {
   LIVE
   UNDER_DEVELOPMENT
+}
+
+enum JeopardyPhase {
+  CREATED
+  PICKING_MEMBER
+  PICKING_QUESTION
+  RESPONDING
+  RESPONDED
+  FINALIZED
+}
+
+enum AnnouncementModeType {
+  TOURNAMENT
+  JEOPARDY
 }
 
 enum NetworkMemberStatus {

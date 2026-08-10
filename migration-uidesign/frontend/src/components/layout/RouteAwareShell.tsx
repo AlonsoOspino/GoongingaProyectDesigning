@@ -22,10 +22,11 @@ export function RouteAwareShell({ children }: { children: ReactNode }) {
   const isWrappedRoute = pathname.startsWith("/wrapped") || pathname.startsWith("/history/season-8/wrapped");
   const isDraftTableRoute = pathname.startsWith("/draft-table");
   const isMinigamesRoute = pathname.startsWith("/minigames");
+  const isEmbeddedManager = pathname === "/manager-dashboard" && searchParams?.get("embedded") === "1";
   const hasDraftAccessKey = isDraftTableRoute && Boolean(searchParams?.get("key"));
   const isKeyViewerMode = hasDraftAccessKey && user?.role !== "MANAGER";
 
-  if (isOverlayRoute || isWrappedRoute || isMinigamesRoute || hasDraftAccessKey || isKeyViewerMode) {
+  if (isOverlayRoute || isWrappedRoute || isMinigamesRoute || isEmbeddedManager || hasDraftAccessKey || isKeyViewerMode) {
     return <>{children}</>;
   }
 

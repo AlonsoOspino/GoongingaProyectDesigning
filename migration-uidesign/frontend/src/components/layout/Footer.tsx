@@ -6,8 +6,8 @@ export function Footer() {
     <footer className="mt-auto border-t border-border bg-bg-deep text-white">
       <div className="ow-container flex flex-col gap-8 py-10 md:flex-row md:items-center md:justify-between">
         <div className="max-w-md">
-          <p className="font-display text-3xl uppercase">Goonginga League</p>
-          <p className="mt-2 text-sm leading-6 text-text-secondary">Season information, match records and league archives.</p>
+          <p className="font-display text-3xl uppercase">Overtime Productions</p>
+          <p className="mt-2 text-sm leading-6 text-text-secondary">Goonginga Season information, match records and league archives.</p>
         </div>
         <nav className="flex flex-wrap gap-x-5 gap-y-2 text-sm font-bold" aria-label="Footer navigation">
           <Link href="/season-9" className="hover:text-primary">Season 9</Link>

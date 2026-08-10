@@ -22,7 +22,7 @@ function getRequiredConfig() {
     redirectUri: process.env.DISCORD_REDIRECT_URI,
     frontendUrl: process.env.NETWORK_FRONTEND_URL,
     minigamesFrontendUrl: process.env.NETWORK_MINIGAMES_FRONTEND_URL || "",
-    jwtSecret: process.env.NETWORK_JWT_SECRET,
+    jwtSecret: process.env.NETWORK_JWT_SECRET || process.env.JWT_SECRET,
   };
 
   const missing = Object.entries(config)

@@ -1,0 +1,66 @@
+.dashboard { min-height: 100vh; background: var(--color-bg-light); color: var(--color-text-dark); }
+.loading { display: grid; min-height: calc(100vh - 68px); place-items: center; background: var(--color-bg-deep); color: var(--color-text-secondary); }
+.dashboardHeader { border-bottom: 1px solid var(--color-border); background: var(--color-bg-deep); color: var(--color-text-primary); }
+.dashboardHeader > div { padding-top: 40px; }
+.kicker { color: var(--color-accent); font-size: .7rem; font-weight: 850; text-transform: uppercase; }
+.titleRow { display: flex; align-items: end; justify-content: space-between; gap: 30px; margin-top: 8px; }
+.titleRow h1,.sectionHeading h2,.controlHeader h2 { font-family: var(--font-display); font-weight: 400; letter-spacing: 0; line-height: .9; text-transform: uppercase; }
+.titleRow h1 { font-size: 4rem; }
+.titleRow p,.sectionHeading p,.controlHeader p { margin-top: 8px; color: var(--color-text-secondary); font-size: .9rem; }
+.operator { border: 1px solid var(--color-border); padding: 8px 11px; color: var(--color-text-secondary); font-size: .72rem; font-weight: 800; text-transform: uppercase; }
+.workspaceTabs { display: flex; gap: 5px; margin-top: 34px; overflow-x: auto; }
+.workspaceTabs button { position: relative; display: inline-flex; min-width: max-content; min-height: 52px; align-items: center; gap: 9px; border: 0; background: transparent; padding: 0 18px; color: var(--color-text-secondary); font: inherit; font-size: .8rem; font-weight: 800; cursor: pointer; }
+.workspaceTabs button::after { position: absolute; right: 18px; bottom: 0; left: 18px; height: 3px; background: transparent; content: ""; }
+.workspaceTabs button:hover,.workspaceTabs .workspaceActive { color: white; background: rgba(255,255,255,.04); }
+.workspaceTabs .workspaceActive::after { background: var(--color-accent); }
+.workspaceBody { padding: 40px 0 70px; }
+.announcementControl { border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); box-shadow: 0 16px 42px rgba(16,26,35,.07); }
+.controlHeader { display: flex; align-items: start; justify-content: space-between; gap: 30px; padding: 28px 30px; border-bottom: 1px solid var(--color-border-subtle); }
+.controlHeader h2 { margin-top: 4px; font-size: 2.4rem; }
+.controlHeader p { color: var(--color-muted); }
+.outlineAction,.publishButton { display: inline-flex; min-height: 42px; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--color-border); border-radius: 4px; padding: 0 14px; color: var(--color-text-dark); font-size: .78rem; font-weight: 800; text-decoration: none; }
+.outlineAction:hover { border-color: var(--color-accent); background: var(--color-bg-light); }
+.modeOptions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; padding: 22px 30px; }
+.modeOption { display: grid; grid-template-columns: 44px 1fr 24px; min-height: 108px; align-items: center; gap: 14px; border: 1px solid var(--color-border); border-radius: 5px; background: white; padding: 18px; color: var(--color-text-dark); text-align: left; cursor: pointer; transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease; }
+.modeOption:hover { transform: translateY(-2px); border-color: var(--color-border-strong); box-shadow: 0 10px 24px rgba(16,26,35,.08); }
+.modeOption.modeSelected { border-color: var(--color-accent); box-shadow: inset 3px 0 var(--color-accent); }
+.modeIcon { display: grid; width: 42px; height: 42px; place-items: center; background: var(--color-bg-primary); color: var(--color-accent-muted); }
+.modeOption strong,.modeOption small { display: block; }
+.modeOption strong { font-size: .88rem; }
+.modeOption small { margin-top: 6px; color: var(--color-muted); font-size: .74rem; line-height: 1.45; }
+.modeCheck { color: var(--color-accent); }
+.controlFooter { display: flex; align-items: center; justify-content: space-between; gap: 24px; border-top: 1px solid var(--color-border-subtle); padding: 20px 30px; }
+.visibilityToggle { display: inline-flex; min-height: 40px; align-items: center; gap: 8px; border: 1px solid var(--color-border); border-radius: 4px; background: transparent; padding: 0 13px; color: var(--color-muted); font-size: .76rem; font-weight: 800; cursor: pointer; }
+.visibilityToggle.toggleEnabled { border-color: rgba(0,167,199,.45); color: #087b91; }
+.publishArea { display: flex; align-items: center; justify-content: flex-end; gap: 14px; }
+.publishButton { border-color: var(--color-accent); background: var(--color-accent); color: var(--color-bg-deep); cursor: pointer; }
+.publishButton:hover { background: var(--color-accent-hover); }
+.publishButton:disabled { opacity: .6; cursor: wait; }
+.saveMessage,.lastUpdated { color: var(--color-muted); font-size: .72rem; }
+.lastUpdated { margin: -8px 30px 20px; }
+.controlLoading { display: flex; min-height: 220px; align-items: center; justify-content: center; gap: 10px; border: 1px solid var(--color-border); background: white; color: var(--color-muted); }
+.sectionHeading { max-width: 650px; margin-bottom: 30px; }
+.sectionHeading h2 { margin-top: 7px; font-size: 3.7rem; }
+.sectionHeading p { color: var(--color-muted); }
+.toolGrid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.toolLink { display: grid; grid-template-columns: 48px 1fr auto; min-height: 124px; align-items: center; gap: 16px; border: 1px solid var(--color-border); border-radius: 5px; background: white; padding: 22px; color: var(--color-text-dark); text-decoration: none; transition: transform 160ms ease, border-color 160ms ease; }
+.toolLink > svg:first-child { color: var(--color-accent); }
+.toolLink:hover { transform: translateY(-3px); border-color: var(--color-accent); }
+.toolLink strong,.toolLink small { display: block; }
+.toolLink small { margin-top: 6px; color: var(--color-muted); line-height: 1.5; }
+
+@media (max-width: 760px) {
+  .dashboardHeader > div { padding-top: 28px; }
+  .titleRow { align-items: flex-start; flex-direction: column; }
+  .titleRow h1 { font-size: 3.2rem; }
+  .operator { display: none; }
+  .workspaceTabs { margin-top: 24px; }
+  .workspaceTabs button { min-height: 48px; padding-inline: 12px; }
+  .workspaceTabs button::after { right: 12px; left: 12px; }
+  .workspaceBody { padding-top: 24px; }
+  .controlHeader,.controlFooter { align-items: stretch; flex-direction: column; }
+  .modeOptions,.toolGrid { grid-template-columns: 1fr; }
+  .controlHeader,.modeOptions,.controlFooter { padding-right: 18px; padding-left: 18px; }
+  .publishArea { align-items: stretch; flex-direction: column; }
+  .lastUpdated { margin-inline: 18px; }
+}

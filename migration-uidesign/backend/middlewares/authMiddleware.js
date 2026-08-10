@@ -1,10 +1,21 @@
 const jwt = require("jsonwebtoken");
 const prisma = require("../config/prisma");
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRETS = [...new Set([process.env.NETWORK_JWT_SECRET, process.env.JWT_SECRET].filter(Boolean))];
 
-if (!JWT_SECRET) {
-  throw new Error("JWT_SECRET is not set");
+if (!JWT_SECRETS.length) {
+  throw new Error("JWT_SECRET or NETWORK_JWT_SECRET is not set");
+}
+
+function verifyToken(token) {
+  for (const secret of JWT_SECRETS) {
+    try {
+      return jwt.verify(token, secret);
+    } catch {
+      // Try the next configured signing secret.
+    }
+  }
+  throw new Error("Invalid token");
 }
 
 async function authMiddleware(req, res, next) {
@@ -19,14 +30,14 @@ async function authMiddleware(req, res, next) {
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = verifyToken(token);
     if (decoded.accountType !== "NETWORK_MEMBER") {
       return res.status(401).json({ error: "Discord sign-in is required" });
     }
 
     const member = await prisma.networkMember.findUnique({
       where: { id: Number(decoded.id) },
-      select: { id: true, username: true, avatarUrl: true, role: true, teamId: true, status: true },
+      select: { id: true, username: true, avatarUrl: true, roles: true, role: true, teamId: true, status: true },
     });
 
     if (!member || member.status !== "ACTIVE") {
@@ -40,6 +51,7 @@ async function authMiddleware(req, res, next) {
       teamId: member.teamId,
       username: member.username,
       avatarUrl: member.avatarUrl,
+      roles: member.roles,
       accountType: "NETWORK_MEMBER",
     };
     next();

@@ -39,20 +39,23 @@ export default function LoginPage() {
 
   return (
     <div className="login-page">
-      <div className="login-content">
-        <div className="login-copy">
-          <Link href="/" className="inline-flex items-center gap-2 text-sm font-bold text-white/80 hover:text-white"><ArrowLeft size={17} /> Back to Goonginga</Link>
-          <div className="mt-12"><span className="ow-eyebrow !text-[#9ce5f3]">Goonginga Network</span><h1 className="display-title">Register for Goonginga</h1></div>
-          <p>Use Discord to create or access your Goonginga Network Member profile.</p>
+      <div className="login-stage">
+        <div className="login-art" aria-hidden="true" />
+        <div className="login-content">
+          <div className="login-copy">
+            <Link href="/" className="login-back"><ArrowLeft size={17} /> Back</Link>
+            <div className="login-heading"><span className="ow-eyebrow"></span><h1 className="display-title">Register for Goonginga</h1></div>
+            <p>Use Discord to create or access your Goonginga Network Member profile.</p>
 
-          {message && <div className="login-notice flex items-center gap-2"><CheckCircle2 size={17} className="text-[#72d39d]" />{message}</div>}
-          {error && <div className="login-notice !border-danger text-[#ffd5d5]">{error}</div>}
+            {message && <div className="login-notice flex items-center gap-2"><CheckCircle2 size={17} className="text-[#72d39d]" />{message}</div>}
+            {error && <div className="login-notice !border-danger text-[#ffd5d5]">{error}</div>}
 
-          <button type="button" className="discord-action" onClick={() => window.location.assign(getDiscordLoginUrl())}>
-            <MessageCircle size={22} /> Continue with Discord
-          </button>
-          <div className="login-notice flex items-start gap-2"><ShieldCheck size={17} className="mt-0.5 shrink-0 text-[#9ce5f3]" /><span>You must be a member of the GGL Discord server. No separate password is stored by Goonginga.</span></div>
-          <p className="mt-4 text-sm">Not in the server? <a href="https://discord.gg/QMukTWr32f" className="font-bold text-[#9ce5f3] hover:underline">Join GGL on Discord</a></p>
+            <button type="button" className="discord-action" onClick={() => window.location.assign(getDiscordLoginUrl())}>
+              <MessageCircle size={22} /> Continue with Discord
+            </button>
+            <div className="login-notice flex items-start gap-2"><ShieldCheck size={17} className="mt-0.5 shrink-0 text-[#9ce5f3]" /><span>You must be a member of the GGL Discord server. No separate password is stored by Goonginga.</span></div>
+            <p className="login-server-link">Not in the server? <a href="https://discord.gg/QMukTWr32f">Join GGL on Discord</a></p>
+          </div>
         </div>
       </div>
     </div>
