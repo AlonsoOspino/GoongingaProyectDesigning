@@ -15,6 +15,7 @@ router.get("/games/:slug/manage", ...socialMedia, minigameController.getManageGa
 router.get("/games/:slug", minigameController.getPublicGame);
 router.post("/games", ...socialMedia, minigameController.createGame);
 router.patch("/games/:slug", ...socialMedia, minigameController.updateGame);
+router.delete("/games/:slug", ...socialMedia, minigameController.deleteGame);
 router.patch("/games/:slug/status", ...developer, minigameController.updateStatus);
 router.post("/games/:slug/cover", ...socialMedia, upload.single("image"), minigameController.uploadCover);
 router.get("/members", ...socialMedia, minigameController.searchMembers);

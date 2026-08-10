@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Check, ExternalLink, Gamepad2, Plus, Search, Trophy, X } from "lucide-react";
+import { ArrowLeft, Check, ExternalLink, Gamepad2, Plus, Search, Trash2, Trophy, X } from "lucide-react";
 import {
   awardJeopardyQuestion,
   createJeopardy,
+  deleteMiniGame,
   finalizeJeopardy,
   getManagedMiniGame,
   listMiniGames,
@@ -76,6 +77,7 @@ export function JeopardyDashboard() {
   const [memberSearch, setMemberSearch] = useState("");
   const [memberResults, setMemberResults] = useState<MiniGameMember[]>([]);
   const [selectedMembers, setSelectedMembers] = useState<MiniGameMember[]>([]);
+  const [deleteSlug, setDeleteSlug] = useState<string | null>(null);
 
   const loadGames = useCallback(async () => {
     try { setGames(await listMiniGames()); }
@@ -144,6 +146,28 @@ export function JeopardyDashboard() {
     finally { setBusy(false); }
   }
 
+  async function removeGame(slug: string) {
+    if (deleteSlug !== slug) {
+      setDeleteSlug(slug);
+      setMessage("Click Delete again to confirm.");
+      return;
+    }
+    const token = readNetworkSessionToken();
+    if (!token) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      await deleteMiniGame(token, slug);
+      setGames((current) => current.filter((item) => item.slug !== slug));
+      setDeleteSlug(null);
+      setMessage("Jeopardy game deleted.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not delete this Jeopardy game.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (loading) return <div className={styles.loading}>Loading Minigames...</div>;
 
   if (screen === "list") return (
@@ -151,7 +175,7 @@ export function JeopardyDashboard() {
       <header className={styles.heading}><div><span>Minigames</span><h2>Available games</h2></div><button onClick={() => setScreen("create")}><Plus size={17} /> Create Jeopardy</button></header>
       {message ? <p className={styles.message}>{message}</p> : null}
       <div className={styles.gameGrid}>
-        {games.filter((item) => item.gameType === "JEOPARDY").map((item) => <button className={styles.gameCard} key={item.id} onClick={() => void openGame(item.slug)}><Gamepad2 /><span><small>{item.phase.replace(/_/g," ")}</small><strong>{item.title}</strong><b>{item.participants.length} players</b></span></button>)}
+        {games.filter((item) => item.gameType === "JEOPARDY").map((item) => <article className={styles.gameItem} key={item.id}><button className={styles.gameCard} onClick={() => void openGame(item.slug)}><Gamepad2 /><span><small>{item.phase.replace(/_/g," ")}</small><strong>{item.title}</strong><b>{item.participants.length} players</b></span></button><button className={`${styles.deleteGame} ${deleteSlug===item.slug?styles.deleteConfirm:""}`} disabled={busy} onClick={()=>void removeGame(item.slug)} title={deleteSlug===item.slug?"Confirm deletion":"Delete Jeopardy"}><Trash2 size={16}/>{deleteSlug===item.slug?"Confirm":"Delete"}</button></article>)}
         <Link className={styles.gameCard} href="/minigames?view=manager"><Gamepad2 /><span><small>Available</small><strong>Family Feud</strong><b>Open manager</b></span></Link>
       </div>
     </section>
@@ -192,7 +216,7 @@ export function JeopardyDashboard() {
       <header className={styles.manageHeader}>
         <button className={styles.back} onClick={() => { setScreen("list"); void loadGames(); }}><ArrowLeft size={17}/> All Minigames</button>
         <div><span>{game.phase.replace(/_/g," ")}</span><h2>{game.title}</h2><p>{answered} / {total} questions recorded</p></div>
-        <nav><Link href="/minigames/jeopardy-overview" target="_blank">Overview <ExternalLink size={15}/></Link><Link href="/minigames/jeopardy" target="_blank">Podium <ExternalLink size={15}/></Link></nav>
+        <nav><Link href="/minigames/jeopardy-overview" target="_blank">Score overlay <ExternalLink size={15}/></Link><Link href="/minigames/jeopardy" target="_blank">Podium overlay <ExternalLink size={15}/></Link></nav>
       </header>
       {message ? <p className={styles.message}>{message}</p> : null}
 

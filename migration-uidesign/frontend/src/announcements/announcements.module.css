@@ -47,8 +47,7 @@
 .jeopardyContent > div > span { display: inline-flex; align-items: center; gap: 7px; color: var(--color-accent-muted); font-size: .72rem; font-weight: 850; text-transform: uppercase; }
 .jeopardyContent h2 { margin-top: 7px; font-family: var(--font-display); font-size: 4.8rem; font-weight: 400; line-height: .85; text-transform: uppercase; }
 .jeopardyContent p { max-width: 720px; margin-top: 12px; color: var(--color-text-secondary); }
-.loading { display: grid; min-height: clamp(560px, calc(100vh - 110px), 760px); place-items: center; background: var(--color-bg-deep); color: var(--color-text-secondary); }
-.loadingStandalone { min-height: calc(100vh - 68px); }
+.loading { display: grid; min-height: calc(100vh - 68px); place-items: center; background: var(--color-bg-deep); color: var(--color-text-secondary); }
 
 @keyframes livePulse { 0%,100% { opacity:.45; transform:scale(.8); } 50% { opacity:1; transform:scale(1.2); } }
 

@@ -1,22 +1,38 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Crown } from "lucide-react";
 import { getActiveJeopardy, type JeopardyGame, type JeopardyParticipant } from "@/lib/api/minigame";
+import { useAnimatedScore } from "@/minigames/useAnimatedScore";
 import styles from "./jeopardy.module.css";
 
-const REVEAL_ORDER = [1, 0, 2];
+const PODIUM_ORDER = [1, 0, 2];
 
 function initials(name: string) {
   return name.trim().slice(0, 2).toUpperCase();
 }
 
-function PlayerAvatar({ participant }: { participant: JeopardyParticipant }) {
-  const { member } = participant;
+function AnimatedPoints({ score, delay }: { score: number; delay: number }) {
+  const display = useAnimatedScore(score, delay, 1200);
+  return <>{display.toLocaleString()} <small>PTS</small></>;
+}
+
+function PodiumSlot({ participant, place, slotIndex }: { participant?: JeopardyParticipant; place: number; slotIndex: number }) {
+  const revealDelay = slotIndex * 350;
   return (
-    <span className={styles.avatar}>
-      {member.avatarUrl ? <img src={member.avatarUrl} alt="" /> : <strong>{initials(member.username)}</strong>}
-    </span>
+    <article className={`${styles.slot} ${styles[`slot${slotIndex + 1}`]}`} style={{ "--slot-delay": `${revealDelay}ms` } as React.CSSProperties}>
+      <div className={styles.nameplate}>
+        <span>0{place}</span>
+        <strong>{participant?.member.username || "Waiting"}</strong>
+      </div>
+      <div className={styles.portrait}>
+        {participant?.member.avatarUrl
+          ? <img src={participant.member.avatarUrl} alt="" />
+          : <strong>{participant ? initials(participant.member.username) : "?"}</strong>}
+      </div>
+      <div className={styles.points}>
+        {participant ? <AnimatedPoints score={participant.score} delay={revealDelay + 600} /> : <>0 <small>PTS</small></>}
+      </div>
+    </article>
   );
 }
 
@@ -27,52 +43,27 @@ function Podium({ game }: { game: JeopardyGame }) {
   );
 
   return (
-    <section className={styles.podiumScene}>
-      <div className={styles.motionLines} aria-hidden="true" />
-      <header className={styles.heading}>
-        <span>Final standings</span>
-        <h1>{game.title}</h1>
-      </header>
-
-      <div className={styles.podium}>
-        {REVEAL_ORDER.map((leaderIndex, columnIndex) => {
-          const participant = leaders[leaderIndex];
-          const place = leaderIndex + 1;
-          if (!participant) return <div key={place} className={styles.emptyPlace} />;
-          return (
-            <article
-              className={`${styles.place} ${place === 1 ? styles.first : place === 2 ? styles.second : styles.third}`}
-              key={participant.id}
-              style={{ "--reveal-delay": `${columnIndex * 0.65 + 0.3}s` } as React.CSSProperties}
-            >
-              {place === 1 ? <Crown className={styles.crown} aria-hidden="true" /> : null}
-              <span className={styles.placeNumber}>0{place}</span>
-              <PlayerAvatar participant={participant} />
-              <div className={styles.playerName}>{participant.member.username}</div>
-              <div className={styles.score}>{participant.score.toLocaleString()} <small>PTS</small></div>
-              <div className={styles.plinth}><b>{place}</b></div>
-            </article>
-          );
-        })}
-      </div>
-
-      <footer className={styles.footer}>
-        <span>GOONGINGA JEOPARDY</span>
-        <i />
-        <span>OVERTIME PRODUCTIONS</span>
-      </footer>
-    </section>
+    <div className={styles.rig}>
+      <img className={styles.artwork} src="/jeopardy-podium.png" alt="" />
+      {PODIUM_ORDER.map((leaderIndex, slotIndex) => (
+        <PodiumSlot key={slotIndex} participant={leaders[leaderIndex]} place={leaderIndex + 1} slotIndex={slotIndex} />
+      ))}
+    </div>
   );
 }
 
-export default function JeopardyPodiumPage() {
+export default function JeopardyPodiumOverlay() {
   const [game, setGame] = useState<JeopardyGame | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   const load = useCallback(async () => {
-    try { setGame(await getActiveJeopardy()); }
-    catch { setGame(null); }
-    finally { setLoading(false); }
+    try {
+      setGame(await getActiveJeopardy());
+      setLoadError("");
+    } catch (error) {
+      setGame(null);
+      setLoadError(error instanceof Error ? error.message : "Unable to load Jeopardy");
+    }
   }, []);
 
   useEffect(() => {
@@ -81,23 +72,9 @@ export default function JeopardyPodiumPage() {
     return () => window.clearInterval(poll);
   }, [load]);
 
-  const backgroundImage = game?.coverImageUrl
-    ? `url("${game.coverImageUrl}"), url("/ramattra-login-cropped.webp")`
-    : `url("/ramattra-login-cropped.webp")`;
-
   return (
-    <main className={styles.viewport}>
-      <div className={styles.stage} style={{ backgroundImage }}>
-        <div className={styles.backdrop} />
-        {game?.phase === "FINALIZED" ? (
-          <Podium game={game} />
-        ) : (
-          <div className={styles.idle}>
-            <span>Jeopardy podium</span>
-            <strong>{loading ? "Loading output" : "Waiting for final results"}</strong>
-          </div>
-        )}
-      </div>
+    <main className={styles.viewport} data-overlay-state={loadError ? "error" : game?.phase || "loading"} data-overlay-error={loadError || undefined}>
+      <section className={styles.stage}>{game?.phase === "FINALIZED" ? <Podium game={game} /> : null}</section>
     </main>
   );
 }

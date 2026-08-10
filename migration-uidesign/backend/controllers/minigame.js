@@ -423,6 +423,19 @@ async function updateStatus(req, res) {
   }
 }
 
+async function deleteGame(req, res) {
+  try {
+    const slug = slugify(req.params.slug);
+    const game = await prisma.miniGame.findUnique({ where: { slug }, select: { id: true, slug: true, gameType: true } });
+    if (!game) return res.status(404).json({ message: "Minigame not found." });
+    if (game.gameType !== "JEOPARDY") return res.status(400).json({ message: "Only Jeopardy games can be removed here." });
+    await prisma.miniGame.delete({ where: { id: game.id } });
+    return res.json({ deleted: true, slug: game.slug });
+  } catch (error) {
+    return res.status(400).json({ message: error?.message || "Could not delete this Jeopardy game." });
+  }
+}
+
 async function searchMembers(req, res) {
   try {
     const search = asText(req.query.search, 80);
@@ -547,6 +560,7 @@ module.exports = {
   createGame,
   updateGame,
   updateStatus,
+  deleteGame,
   searchMembers,
   startJeopardy,
   awardJeopardyQuestion,

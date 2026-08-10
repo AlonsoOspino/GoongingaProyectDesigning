@@ -1,30 +1,27 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { X } from "lucide-react";
-import { getActiveJeopardy, type JeopardyGame, type MiniGameMember } from "@/lib/api/minigame";
+import { getActiveJeopardy, type JeopardyGame, type JeopardyParticipant } from "@/lib/api/minigame";
+import { useAnimatedScore } from "@/minigames/useAnimatedScore";
 import styles from "./jeopardy-overview.module.css";
 
-function initials(name: string) {
-  return name.trim().slice(0, 2).toUpperCase();
-}
-
-function Avatar({ member }: { member: MiniGameMember }) {
+function ScoreCard({ participant, index }: { participant?: JeopardyParticipant; index: number }) {
+  const score = useAnimatedScore(participant?.score || 0, index * 120, 700);
   return (
-    <span className={styles.avatar} title={member.username}>
-      {member.avatarUrl ? <img src={member.avatarUrl} alt={member.username} /> : <strong>{initials(member.username)}</strong>}
-    </span>
+    <article className={styles.card}>
+      <strong title={participant?.member.username}>{participant?.member.username || "Waiting"}</strong>
+      <div className={styles.score}>{score.toLocaleString()}</div>
+      <div className={styles.controls} aria-hidden="true"><span>+</span><span>-</span></div>
+    </article>
   );
 }
 
-export default function JeopardyOverviewPage() {
+export default function JeopardyScoreOverlay() {
   const [game, setGame] = useState<JeopardyGame | null>(null);
-  const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     try { setGame(await getActiveJeopardy()); }
     catch { setGame(null); }
-    finally { setLoading(false); }
   }, []);
 
   useEffect(() => {
@@ -33,67 +30,15 @@ export default function JeopardyOverviewPage() {
     return () => window.clearInterval(poll);
   }, [load]);
 
-  const members = useMemo(
-    () => new Map(game?.participants.map((participant) => [participant.memberId, participant.member]) || []),
+  const leaders = useMemo(
+    () => [...(game?.participants || [])].sort((a, b) => b.score - a.score || a.member.username.localeCompare(b.member.username)).slice(0, 3),
     [game?.participants],
   );
-  const standings = useMemo(
-    () => [...(game?.participants || [])].sort((a, b) => b.score - a.score || a.member.username.localeCompare(b.member.username)),
-    [game?.participants],
-  );
-
-  if (!game?.board) {
-    return <main className={styles.viewport}><div className={styles.empty}>{loading ? "Loading overview" : "No active Jeopardy game"}</div></main>;
-  }
 
   return (
     <main className={styles.viewport}>
       <section className={styles.stage}>
-        <header className={styles.header}>
-          <div><span>Jeopardy overview</span><h1>{game.title}</h1></div>
-          <p>{game.gameState.questionResults.length} answers recorded</p>
-        </header>
-
-        <div className={styles.board}>
-          {game.board.categories.map((category) => (
-            <div
-              className={styles.category}
-              key={category.id}
-              style={{ gridTemplateRows: `1.08fr repeat(${category.questions.length}, 1fr)` }}
-            >
-              <h2>{category.name}</h2>
-              {category.questions.map((question) => {
-                const member = question.answeredMemberId ? members.get(question.answeredMemberId) : null;
-                return (
-                  <div className={`${styles.question} ${question.used ? styles.recorded : styles.open}`} key={question.id}>
-                    <span className={styles.value}>{question.reward}</span>
-                    {member ? (
-                      <div className={styles.answerer}><Avatar member={member} /><strong>{member.username}</strong></div>
-                    ) : question.unanswered ? (
-                      <span className={styles.missed} aria-label="No one answered"><X /></span>
-                    ) : (
-                      <span className={styles.pending}>OPEN</span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ))}
-        </div>
-
-        <footer className={styles.standings}>
-          <span className={styles.standingsLabel}>Standings</span>
-          <div className={styles.players}>
-            {standings.map((participant, index) => (
-              <article key={participant.id}>
-                <b>{String(index + 1).padStart(2, "0")}</b>
-                <Avatar member={participant.member} />
-                <span>{participant.member.username}</span>
-                <strong>{participant.score}</strong>
-              </article>
-            ))}
-          </div>
-        </footer>
+        {game ? <div className={styles.scoreboard}>{[0,1,2].map((index) => <ScoreCard key={leaders[index]?.id || index} participant={leaders[index]} index={index} />)}</div> : null}
       </section>
     </main>
   );

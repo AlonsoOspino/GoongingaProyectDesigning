@@ -63,6 +63,10 @@ export function createJeopardy(token: string, payload: { title: string; descript
   return apiRequest<JeopardyGame>("/minigames/games", { method: "POST", token, body: { ...payload, gameType: "JEOPARDY" } });
 }
 
+export function deleteMiniGame(token: string, slug: string) {
+  return apiRequest<{ deleted: true; slug: string }>(`/minigames/games/${slug}`, { method: "DELETE", token });
+}
+
 function gameAction(token: string, slug: string, action: string, body?: unknown) {
   return apiRequest<JeopardyGame>(`/minigames/games/${slug}/${action}`, { method: "POST", token, body: body ?? {} });
 }
