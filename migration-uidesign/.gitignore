@@ -121,6 +121,8 @@ backend/uploads/
 backend/tmp/
 backend/temp/
 media/
+.local-postgres/
+.local-dev/
 
 # Local launcher workspace (kept out of repo/pushes)
 launcher/

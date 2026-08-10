@@ -145,9 +145,9 @@ async function joinGameTeam(req, res) {
         : null;
     if (!teamId) return res.status(403).json({ message: "This player link does not belong to the game." });
 
-    const member = await prisma.member.findUnique({
+    const member = await prisma.networkMember.findUnique({
       where: { id: Number(req.user?.id) },
-      select: { id: true, nickname: true, profilePic: true },
+      select: { id: true, username: true, nickname: true, avatarUrl: true, profilePic: true },
     });
     if (!member) return res.status(401).json({ message: "Your Goonginga account could not be found." });
 
@@ -168,8 +168,8 @@ async function joinGameTeam(req, res) {
     const participant = {
       id: participantId,
       memberId: member.id,
-      name: member.nickname,
-      profilePic: member.profilePic || null,
+      name: member.nickname || member.username,
+      profilePic: member.profilePic || member.avatarUrl || null,
       joinedAt: existingPlayer?.joinedAt || timestamp,
       lastSeenAt: timestamp,
       cooldownUntilRound: existingPlayer?.cooldownUntilRound || 0,

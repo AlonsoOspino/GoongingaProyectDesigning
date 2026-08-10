@@ -20,12 +20,16 @@ async function authMiddleware(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    const member = await prisma.member.findUnique({
+    if (decoded.accountType !== "NETWORK_MEMBER") {
+      return res.status(401).json({ error: "Discord sign-in is required" });
+    }
+
+    const member = await prisma.networkMember.findUnique({
       where: { id: Number(decoded.id) },
-      select: { id: true, role: true, teamId: true },
+      select: { id: true, username: true, avatarUrl: true, role: true, teamId: true, status: true },
     });
 
-    if (!member) {
+    if (!member || member.status !== "ACTIVE") {
       return res.status(401).json({ error: "Invalid token" });
     }
 
@@ -34,6 +38,9 @@ async function authMiddleware(req, res, next) {
       id: member.id,
       role: member.role,
       teamId: member.teamId,
+      username: member.username,
+      avatarUrl: member.avatarUrl,
+      accountType: "NETWORK_MEMBER",
     };
     next();
   } catch (err) {

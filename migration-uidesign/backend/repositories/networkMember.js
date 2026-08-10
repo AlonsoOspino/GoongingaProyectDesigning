@@ -5,6 +5,11 @@ const discordMemberSelect = {
   username: true,
   avatarUrl: true,
   roles: true,
+  nickname: true,
+  profilePic: true,
+  role: true,
+  rank: true,
+  teamId: true,
 };
 
 const NETWORK_MEMBER_ROLES = [
@@ -28,12 +33,16 @@ async function upsertFromDiscord({ discordUserId, username, avatarUrl, joinedAt 
       discordUserId,
       username,
       avatarUrl,
+      nickname: username,
+      profilePic: avatarUrl,
       discordJoinedGglAt: joinedAt,
       discordLastVerifiedAt: verifiedAt,
     },
     update: {
       username,
       avatarUrl,
+      nickname: username,
+      profilePic: avatarUrl,
       status: "ACTIVE",
       discordJoinedGglAt: joinedAt,
       discordLastVerifiedAt: verifiedAt,
@@ -93,11 +102,30 @@ function updateRoles(id, roles) {
   });
 }
 
+function findLeagueMembers() {
+  return prisma.networkMember.findMany({
+    where: { status: "ACTIVE" },
+    select: discordMemberSelect,
+    orderBy: [{ teamId: "asc" }, { username: "asc" }],
+  });
+}
+
+function findCompetitiveProfile(id) {
+  return prisma.networkMember.findUnique({ where: { id }, });
+}
+
+function updateCompetitiveProfile(id, data) {
+  return prisma.networkMember.update({ where: { id }, data });
+}
+
 module.exports = {
   findRecent,
   upsertFromDiscord,
   findForAdmin,
   findById,
   updateRoles,
+  findLeagueMembers,
+  findCompetitiveProfile,
+  updateCompetitiveProfile,
   NETWORK_MEMBER_ROLES,
 };

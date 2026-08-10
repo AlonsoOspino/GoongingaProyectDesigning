@@ -1,4 +1,4 @@
-import { apiRequest, ApiError } from "@/lib/api/client";
+import { apiRequest } from "@/lib/api/client";
 import type { Match, Team, MatchType, MatchStatus, Tournament, GenerateRoundRobinPayload } from "@/lib/api/types";
 
 export type { Tournament };
@@ -178,64 +178,6 @@ export async function adminDeleteTeam(token: string, teamId: number) {
   });
 }
 
-// ==================== MEMBERS (Admin) ====================
-export interface Member {
-  id: number;
-  nickname: string;
-  user: string;
-  role: "ADMIN" | "MANAGER" | "CAPTAIN" | "EDITOR" | "DEFAULT";
-  profilePic?: string | null;
-  rank: number;
-  teamId: number | null;
-  heroVideoFolderPath?: string | null;
-  obsWebsocketUrl?: string | null;
-  obsWebsocketPassword?: string | null;
-}
-
-export async function getMembers() {
-  return apiRequest<Member[]>("/member/all");
-}
-
-export async function getMemberById(token: string, id: number) {
-  return apiRequest<Member>(`/member/${id}`, {
-    token,
-  });
-}
-
-export async function adminRegisterMember(
-  token: string,
-  payload: { nickname: string; user: string; password: string; role?: string; teamId?: number }
-) {
-  return apiRequest<Member>("/member/register", {
-    method: "POST",
-    token,
-    body: payload,
-  });
-}
-
-export async function adminUpdateMember(
-  token: string,
-  memberId: number,
-  payload: Partial<Member>
-) {
-  return apiRequest<Member>(`/member/admin/${memberId}`, {
-    method: "PUT",
-    token,
-    body: payload,
-  });
-}
-
-export async function adminBulkImportUsers(
-  token: string,
-  script: string
-): Promise<{ created: number; errors: number; results: Member[]; errorDetails: string[] }> {
-  return apiRequest("/member/bulk-import", {
-    method: "POST",
-    token,
-    body: { script },
-  });
-}
-
 // ==================== MAPS & HEROES ====================
 export interface AdminGameMap {
   id: number;
@@ -347,49 +289,4 @@ export async function adminCreateHero(
     token,
     formData: form,
   });
-}
-
-// ==================== DATABASE TOOLS (Admin) ====================
-export async function adminDownloadBackupSql(token: string) {
-  return apiRequest<string>("/system-db/backup", {
-    token,
-  });
-}
-
-export async function adminRestoreBackupSql(
-  token: string,
-  payload: { confirmationText: string; script: string }
-) {
-  return apiRequest<{ message: string; executedStatements: number }>("/system-db/restore", {
-    method: "POST",
-    token,
-    body: payload,
-  });
-}
-
-export async function adminWipeDatabase(token: string, payload: { confirmationText: string }) {
-  try {
-    return await apiRequest<{ message: string }>("/system-db/wipe", {
-      method: "POST",
-      token,
-      body: payload,
-    });
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 404) {
-      if (payload.confirmationText !== "DELETE DATABASE") {
-        throw error;
-      }
-
-      const fallback = await adminRestoreBackupSql(token, {
-        confirmationText: "RESTORE DATABASE",
-        script:
-          'TRUNCATE TABLE "PlayerStat", "DraftAction", "DraftTable", "LeaderboardOverlayAsset", "News", "Match", "Member", "Team", "Tournament", "_AllowedMaps" RESTART IDENTITY CASCADE;',
-      });
-
-      return {
-        message: `${fallback.message} (compatibility mode)` ,
-      };
-    }
-    throw error;
-  }
 }

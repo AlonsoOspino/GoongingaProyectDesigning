@@ -1,13 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
+import { History, Home, LogIn, Menu, Newspaper, Trophy, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { clsx } from "clsx";
-import { useSession } from "@/features/session/SessionProvider";
-import { getNews } from "@/lib/api";
-import { getServerNow } from "@/lib/serverTime";
-import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
 import {
   clearNetworkSession,
@@ -15,396 +12,103 @@ import {
   type NetworkSessionUser,
 } from "@/features/networkSession/storage";
 
-const publicNavLinks = [
-  { href: "/", label: "Home" },
-  { href: "/schedule", label: "Schedule" },
-  { href: "/news", label: "News" },
-  { href: "/standings", label: "Leaderboard" },
-  { href: "/stats", label: "Top Players" },
-  { href: "/teams", label: "Teams" },
+const links = [
+  { href: "/", label: "Home", icon: Home },
+  { href: "/season-9", label: "Season 9", icon: Trophy },
+  { href: "/history", label: "History", icon: History },
+  { href: "/news", label: "News", icon: Newspaper },
 ];
-
-const RECENT_NEWS_WINDOW_HOURS = 72;
-const RECENT_NEWS_WINDOW_MS = RECENT_NEWS_WINDOW_HOURS * 60 * 60 * 1000;
 
 export function Navbar() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const { isAuthenticated, user, clearSession, isHydrated } = useSession();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isNavHidden, setIsNavHidden] = useState(false);
-  const [hasRecentNews, setHasRecentNews] = useState(false);
+  const [open, setOpen] = useState(false);
   const [networkUser, setNetworkUser] = useState<NetworkSessionUser | null>(null);
-  const isDraftTable = pathname.startsWith("/draft-table");
-  const NAVBAR_STORAGE_KEY = "draftTableHideNavbar";
-  const hasDraftAccessKey = isDraftTable && Boolean(searchParams?.get("key"));
-  const shouldHideForKeyAccess = hasDraftAccessKey && user?.role !== "MANAGER";
 
   useEffect(() => {
-    if (!isDraftTable) {
-      setIsNavHidden(false);
-      return;
-    }
-
-    const readHidden = () => {
-      const stored = localStorage.getItem(NAVBAR_STORAGE_KEY);
-      setIsNavHidden(stored === "true");
-    };
-
-    readHidden();
-
-    const handleStorage = (event: StorageEvent) => {
-      if (event.key === NAVBAR_STORAGE_KEY) readHidden();
-    };
-
-    const handleCustom = () => readHidden();
-
-    window.addEventListener("storage", handleStorage);
-    window.addEventListener("draft-navbar-toggle", handleCustom);
-
+    const refresh = () => setNetworkUser(readNetworkSessionUser());
+    refresh();
+    window.addEventListener("network-session-changed", refresh);
+    window.addEventListener("storage", refresh);
     return () => {
-      window.removeEventListener("storage", handleStorage);
-      window.removeEventListener("draft-navbar-toggle", handleCustom);
-    };
-  }, [isDraftTable]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const checkRecentNews = async () => {
-      try {
-        const items = await getNews();
-        if (!isMounted) return;
-
-        const latestCreatedAt = items.reduce((latest, item) => {
-          const createdAt = new Date(item.createdAt).getTime();
-          return createdAt > latest ? createdAt : latest;
-        }, 0);
-
-        if (!latestCreatedAt) {
-          setHasRecentNews(false);
-          return;
-        }
-
-        const now = getServerNow();
-        setHasRecentNews(now - latestCreatedAt <= RECENT_NEWS_WINDOW_MS);
-      } catch {
-        if (isMounted) setHasRecentNews(false);
-      }
-    };
-
-    void checkRecentNews();
-
-    return () => {
-      isMounted = false;
+      window.removeEventListener("network-session-changed", refresh);
+      window.removeEventListener("storage", refresh);
     };
   }, []);
 
-  useEffect(() => {
-    const refreshNetworkUser = () => setNetworkUser(readNetworkSessionUser());
-    refreshNetworkUser();
-    window.addEventListener("network-session-changed", refreshNetworkUser);
-    window.addEventListener("storage", refreshNetworkUser);
-
-    return () => {
-      window.removeEventListener("network-session-changed", refreshNetworkUser);
-      window.removeEventListener("storage", refreshNetworkUser);
-    };
-  }, []);
-
-  // Get role-based dashboard link
-  const getDashboardLink = () => {
-    if (!user) return null;
-    switch (user.role) {
-      case "ADMIN":
-        return { href: "/admin-dashboard", label: "Admin Dashboard" };
-      case "MANAGER":
-        return { href: "/manager-dashboard", label: "Manager Dashboard" };
-      case "CAPTAIN":
-        return { href: "/captain-dashboard", label: "Captain Dashboard" };
-      case "EDITOR":
-        return { href: "/editor-dashboard", label: "Editor Dashboard" };
-      default:
-        return null;
-    }
-  };
-
-  const dashboardLink = getDashboardLink();
-  const restartDiscordLogin = () => {
+  const logout = () => {
     clearNetworkSession();
     setNetworkUser(null);
-    window.location.assign("/login");
   };
 
-  if (isDraftTable && (isNavHidden || shouldHideForKeyAccess)) return null;
-
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 relative">
-      {/* Decorative top accent */}
-      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent" />
-      {/* Subtle corner accents */}
-      <div className="absolute top-0 left-0 w-32 h-16 bg-gradient-to-br from-primary/10 to-transparent pointer-events-none" />
-      <div className="absolute top-0 right-0 w-32 h-16 bg-gradient-to-bl from-accent/10 to-transparent pointer-events-none" />
-      
-      <div className="container mx-auto px-4 relative">
-        <div className="flex h-16 items-center justify-between">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="relative">
-              <div className="absolute -inset-1 bg-gradient-to-r from-primary/50 to-accent/50 rounded-full blur opacity-0 group-hover:opacity-75 transition-opacity" />
-              <div className="relative w-12 h-12 rounded-full bg-white overflow-hidden flex items-center justify-center ring-2 ring-primary/20 group-hover:ring-primary/50 transition-all">
-                <img src="/winton.jpg" alt="Goonginga League Logo" className="w-full h-full object-contain" />
-              </div>
-            </div>
-            <div className="hidden sm:flex flex-col">
-              <span className="font-bold text-xl text-foreground leading-tight">
-                Goonginga League
-              </span>
-              <span className="text-xs text-primary/80 font-medium tracking-wide">COMPETITIVE OVERWATCH</span>
-            </div>
-          </Link>
-
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-1 px-2 py-1 rounded-full bg-surface/50 border border-border/50">
-            {publicNavLinks.map((link) => {
-              const isActive =
-                link.href === "/"
-                  ? pathname === "/"
-                  : pathname.startsWith(link.href);
-              const showNewsBadge = link.href === "/news" && hasRecentNews;
-
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={clsx(
-                    "relative px-4 py-1.5 text-sm font-medium rounded-full transition-all",
-                    isActive
-                      ? "bg-primary text-primary-foreground shadow-sm shadow-primary/25"
-                      : "text-muted hover:text-foreground hover:bg-surface-elevated"
-                  )}
-                >
-                  <span className="inline-flex items-center gap-1.5">
-                    <span>{link.label}</span>
-                    {showNewsBadge && (
-                      <span className="inline-flex items-center justify-center rounded-full bg-accent/30 text-accent text-[10px] px-1.5 py-0.5">
-                        +1
-                        <span className="sr-only"> new</span>
-                      </span>
-                    )}
-                  </span>
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* Auth Section */}
-          <div className="flex items-center gap-3">
-            {!isHydrated ? (
-              <div className="w-20 h-8 bg-surface animate-pulse rounded-md" />
-            ) : isAuthenticated && user ? (
-              <div className="hidden md:flex items-center gap-3">
-                {/* Role-based dashboard button */}
-                {dashboardLink && (
-                  <Link
-                    href={dashboardLink.href}
-                    className={clsx(
-                      "px-3 py-2 text-sm font-medium rounded-md transition-colors",
-                      pathname.startsWith(dashboardLink.href)
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-accent/20 text-accent hover:bg-accent/30"
-                    )}
-                  >
-                    {dashboardLink.label}
-                  </Link>
-                )}
-                
-                {/* Profile shortcut with profile picture of the user */}
-                <Link
-                  href="/profile"
-                  className={clsx(
-                    "flex items-center gap-2 px-2 py-1 rounded-md transition-colors",
-                    pathname.startsWith("/profile")
-                      ? "bg-primary/15"
-                      : "bg-surface hover:bg-surface-elevated"
-                  )}
-                >
-                  <Avatar size="sm" src={user.profilePic || undefined} fallback={user.nickname} />
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-foreground">{user.nickname}</span>
-                    <span className="text-xs text-muted capitalize">{user.role.toLowerCase()}</span>
-                  </div>
-                </Link>
-                <Button variant="ghost" size="sm" onClick={clearSession}>
-                  Logout
-                </Button>
-              </div>
-            ) : networkUser ? (
-              <div className="hidden md:flex items-center gap-2 rounded-md bg-surface px-2 py-1">
-                <Avatar size="sm" src={networkUser.avatarUrl || undefined} fallback={networkUser.username} />
-                <div className="flex flex-col leading-tight">
-                  <span className="max-w-28 truncate text-sm font-medium text-foreground">{networkUser.username}</span>
-                  <span className="text-xs text-primary">Discord member</span>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  aria-label="Log out and sign in to Discord again"
-                  onClick={restartDiscordLogin}
-                >
-                  Re-login
-                </Button>
-              </div>
-            ) : (
-              <div className="hidden md:flex items-center gap-2">
-                <Link href="/login">
-                  <Button size="sm">Login</Button>
-                </Link>
-              </div>
-            )}
-
-            {/* Mobile Menu Button */}
-            <button
-              type="button"
-              className="md:hidden p-2 rounded-md text-muted hover:text-foreground hover:bg-surface"
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              aria-label="Toggle menu"
-              aria-expanded={isMobileMenuOpen}
-            >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                aria-hidden="true"
-              >
-                {isMobileMenuOpen ? (
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                ) : (
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 6h16M4 12h16M4 18h16"
-                  />
-                )}
-              </svg>
-            </button>
+    <header className="sticky top-0 z-40 h-[68px] border-b border-border bg-surface/95 backdrop-blur-xl">
+      <div className="ow-container flex h-full items-center justify-between gap-5">
+        <Link href="/" className="flex min-w-0 items-center gap-3" aria-label="Goonginga home">
+          <img src="/winton.jpg" alt="" className="h-10 w-10 rounded-sm bg-white object-contain" />
+          <div className="hidden leading-none sm:block">
+            <span className="block font-display text-[1.65rem] uppercase text-foreground">Goonginga</span>
+            <span className="mt-0.5 block text-[0.62rem] font-extrabold uppercase text-accent">Overwatch League</span>
           </div>
-        </div>
+        </Link>
 
-        {/* Mobile Navigation */}
-        {isMobileMenuOpen && (
-          <nav className="md:hidden py-4 border-t border-border">
-            <div className="flex flex-col gap-1">
-              {publicNavLinks.map((link) => {
-                const isActive =
-                  link.href === "/"
-                    ? pathname === "/"
-                    : pathname.startsWith(link.href);
-                const showNewsBadge = link.href === "/news" && hasRecentNews;
+        <nav className="hidden items-center gap-1 md:flex" aria-label="Primary navigation">
+          {links.map(({ href, label, icon: Icon }) => {
+            const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={clsx(
+                  "flex h-10 items-center gap-2 rounded-sm px-3 text-sm font-bold transition-colors",
+                  active ? "bg-bg-primary text-white shadow-[inset_0_-2px_var(--color-accent)]" : "text-muted hover:bg-surface-elevated hover:text-foreground"
+                )}
+              >
+                <Icon size={16} aria-hidden="true" />
+                {label}
+              </Link>
+            );
+          })}
+        </nav>
 
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className={clsx(
-                      "px-3 py-2 text-sm font-medium rounded-md transition-colors",
-                      isActive
-                        ? "bg-surface-elevated text-foreground"
-                        : "text-muted hover:text-foreground hover:bg-surface"
-                    )}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    <span className="inline-flex items-center gap-2">
-                      <span>{link.label}</span>
-                      {showNewsBadge && (
-                        <span className="inline-flex items-center justify-center rounded-full bg-accent/30 text-accent text-[10px] px-1.5 py-0.5">
-                          +1
-                          <span className="sr-only"> new</span>
-                        </span>
-                      )}
-                    </span>
-                  </Link>
-                );
-              })}
-
-              {isAuthenticated && user ? (
-                <>
-                  {dashboardLink && (
-                    <Link
-                      href={dashboardLink.href}
-                      className={clsx(
-                        "px-3 py-2 text-sm font-medium rounded-md transition-colors mt-2",
-                        pathname.startsWith(dashboardLink.href)
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-accent/20 text-accent hover:bg-accent/30"
-                      )}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      {dashboardLink.label}
-                    </Link>
-                  )}
-                  <Link
-                    href="/profile"
-                    className="flex items-center gap-2 px-3 py-2 mt-2 border-t border-border rounded-md hover:bg-surface"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    <Avatar size="sm" src={user.profilePic || undefined} fallback={user.nickname} />
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium text-foreground">{user.nickname}</span>
-                      <span className="text-xs text-muted capitalize">{user.role.toLowerCase()}</span>
-                    </div>
-                  </Link>
-                  <button
-                    type="button"
-                    className="px-3 py-2 text-sm font-medium text-left text-danger hover:bg-surface rounded-md"
-                    onClick={() => {
-                      clearSession();
-                      setIsMobileMenuOpen(false);
-                    }}
-                  >
-                    Logout
-                  </button>
-                </>
-              ) : networkUser ? (
-                <div className="mt-2 flex items-center justify-between gap-2 border-t border-border px-3 py-2">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <Avatar size="sm" src={networkUser.avatarUrl || undefined} fallback={networkUser.username} />
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-foreground">{networkUser.username}</p>
-                      <p className="text-xs text-primary">Discord member</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className="text-sm font-medium text-danger"
-                    onClick={() => {
-                      restartDiscordLogin();
-                      setIsMobileMenuOpen(false);
-                    }}
-                  >
-                    Re-login
-                  </button>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2 pt-2 border-t border-border mt-2">
-                  <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
-                    <Button size="sm" className="w-full">
-                      Login
-                    </Button>
-                  </Link>
-                </div>
-              )}
+        <div className="flex items-center gap-2">
+          {networkUser ? (
+            <div className="hidden items-center gap-2 sm:flex">
+              <Avatar size="sm" src={networkUser.avatarUrl || undefined} fallback={networkUser.username} />
+              <span className="max-w-28 truncate text-sm font-bold">{networkUser.username}</span>
+              <button type="button" onClick={logout} className="ow-icon-button" title="Log out" aria-label="Log out">
+                <X size={17} />
+              </button>
             </div>
-          </nav>
-        )}
+          ) : (
+            <Link href="/login" className="nav-auth-button hidden sm:inline-flex">
+              <LogIn size={17} />
+              Register / Login
+            </Link>
+          )}
+          <button type="button" className="ow-icon-button nav-mobile-toggle" onClick={() => setOpen((value) => !value)} aria-label="Toggle menu" aria-expanded={open}>
+            {open ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
       </div>
+
+      {open && (
+        <nav className="border-t border-border bg-surface p-3 shadow-lg md:hidden" aria-label="Mobile navigation">
+          <div className="ow-container grid gap-1">
+            {links.map(({ href, label, icon: Icon }) => (
+              <Link key={href} href={href} onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-sm px-3 py-3 text-sm font-bold hover:bg-surface-elevated">
+                <Icon size={18} />
+                {label}
+              </Link>
+            ))}
+            {!networkUser && (
+              <Link href="/login" onClick={() => setOpen(false)} className="nav-auth-button mt-2">
+                <LogIn size={17} />
+                Register / Login
+              </Link>
+            )}
+          </div>
+        </nav>
+      )}
     </header>
   );
 }

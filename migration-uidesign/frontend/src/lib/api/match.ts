@@ -41,25 +41,6 @@ export async function updateManagerMatch(token: string, matchId: number, payload
   });
 }
 
-export async function updateManagerPresentationTime(
-  token: string,
-  matchId: number,
-  presentationStartDate: string | null
-) {
-  return apiRequest<Match>(`/match/manager/presentation-time/${matchId}`, {
-    method: "PUT",
-    token,
-    body: { presentationStartDate },
-  });
-}
-
-export async function resetManagerFinalsPresentation(token: string, matchId: number) {
-  return apiRequest<Match>(`/match/manager/presentation-reset/${matchId}`, {
-    method: "POST",
-    token,
-  });
-}
-
 /**
  * Rewinds the whole match back to the schedule stage: clears the draft, the
  * scoreboard, the timers, the ready flags and the uploaded stats, and rolls back

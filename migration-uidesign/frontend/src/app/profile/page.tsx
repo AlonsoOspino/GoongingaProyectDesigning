@@ -1,203 +1,47 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Save, UserRound } from "lucide-react";
 import { useSession } from "@/features/session/SessionProvider";
-import { getMemberProfileById, updateMemberProfile } from "@/lib/api/auth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Input } from "@/components/ui/Input";
-import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
-import { Badge } from "@/components/ui/Badge";
-import { Skeleton } from "@/components/ui/Skeleton";
-import { ImageUploadField } from "@/components/ui/ImageUploadField";
-import { deleteReplacedBlobImage } from "@/lib/blobUpload";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { getMemberProfileById, updateMemberProfile } from "@/lib/api/auth";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { isHydrated, isAuthenticated, user, token, setSession } = useSession();
-  const [loading, setLoading] = useState(true);
+  const { token, user, isHydrated } = useSession();
+  const [form, setForm] = useState({ nickname: "", profilePic: "", obsWebsocketUrl: "" });
+  const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [originalProfilePic, setOriginalProfilePic] = useState("");
-
-  const [form, setForm] = useState({
-    nickname: "",
-    user: "",
-    password: "",
-    profilePic: "",
-    rank: "0",
-  });
 
   useEffect(() => {
-    async function loadProfile() {
-      if (!isAuthenticated || !user?.id) {
-        setLoading(false);
-        return;
-      }
+    if (!isHydrated) return;
+    if (!token || !user) { router.replace("/login?next=/profile"); return; }
+    getMemberProfileById(user.id, token).then((profile) => setForm({
+      nickname: profile.nickname || "",
+      profilePic: profile.profilePic || "",
+      obsWebsocketUrl: profile.obsWebsocketUrl || "",
+    })).catch((error) => setMessage(error instanceof Error ? error.message : "Unable to load profile."));
+  }, [isHydrated, router, token, user]);
 
-      try {
-        if (!token) throw new Error("Missing auth token.");
-        const profile = await getMemberProfileById(user.id, token);
-        setForm({
-          nickname: profile.nickname || "",
-          user: profile.user || "",
-          password: "",
-          profilePic: profile.profilePic || "",
-          rank: String(profile.rank ?? 0),
-        });
-        setOriginalProfilePic(profile.profilePic || "");
-      } catch (err: any) {
-        setError(err?.message || "Failed to load profile");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    if (isHydrated) {
-      loadProfile();
-    }
-  }, [isHydrated, isAuthenticated, user?.id]);
-
-  const handleSave = async () => {
-    if (!token || !user?.id) return;
-
+  const save = async () => {
+    if (!token || !user) return;
     setSaving(true);
-    setError(null);
-    setSuccess(null);
-
+    setMessage(null);
     try {
-      const rankNumber = Number(form.rank);
-      const payload = {
-        nickname: form.nickname.trim() || undefined,
-        user: form.user.trim() || undefined,
-        password: form.password.trim() || undefined,
+      await updateMemberProfile(token, user.id, {
+        nickname: form.nickname.trim(),
         profilePic: form.profilePic.trim() || undefined,
-        rank: Number.isFinite(rankNumber) ? rankNumber : undefined,
-      };
-
-      const updated = await updateMemberProfile(token, user.id, payload);
-      await deleteReplacedBlobImage(originalProfilePic, updated.profilePic);
-
-      setSession(token, {
-        id: updated.id,
-        nickname: updated.nickname,
-        role: updated.role,
-        teamId: updated.teamId,
-        profilePic: updated.profilePic ?? null,
+        obsWebsocketUrl: form.obsWebsocketUrl.trim() || null,
       });
-
-      setForm((prev) => ({ ...prev, password: "" }));
-      setOriginalProfilePic(updated.profilePic || "");
-      setSuccess("Profile updated successfully");
-    } catch (err: any) {
-      setError(err?.message || "Failed to update profile");
-    } finally {
-      setSaving(false);
-    }
+      setMessage("Profile updated.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to update profile.");
+    } finally { setSaving(false); }
   };
 
-  if (!isHydrated || loading) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <Skeleton className="mb-3 h-10 w-56" />
-        <Skeleton className="mb-8 h-5 w-80" variant="text" />
-        <Skeleton className="h-[520px] rounded-2xl" />
-      </div>
-    );
-  }
-
-  if (!isAuthenticated || !user) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <Card variant="featured">
-          <CardContent className="py-12 text-center">
-            <h2 className="mb-3 text-xl font-semibold text-foreground">Sign in required</h2>
-            <p className="mb-5 text-muted">You need to log in to manage your profile.</p>
-            <Link href="/login">
-              <Button>Go to Login</Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  return (
-    <div className="container mx-auto max-w-3xl px-4 py-8">
-      <div className="mb-6">
-        <Link href="/" className="text-sm text-muted hover:text-foreground">
-          &larr; Back to Home
-        </Link>
-      </div>
-
-      <Card variant="featured">
-        <CardHeader>
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <CardTitle>My Profile</CardTitle>
-              <p className="mt-1 text-sm text-muted">Update your nickname, username, password, picture, and rank.</p>
-            </div>
-            <Badge variant="outline">{user.role}</Badge>
-          </div>
-        </CardHeader>
-
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-4 rounded-lg border border-border bg-surface p-4">
-            <Avatar size="lg" src={form.profilePic || undefined} fallback={form.nickname || user.nickname} className="h-16 w-16 text-xl" />
-            <div>
-              <p className="font-medium text-foreground">{form.nickname || user.nickname}</p>
-              <p className="text-sm text-muted">Preview of profile picture and nickname</p>
-            </div>
-          </div>
-
-          <Input
-            label="Nickname"
-            value={form.nickname}
-            onChange={(e) => setForm((prev) => ({ ...prev, nickname: e.target.value }))}
-            placeholder="Your display nickname"
-          />
-
-          <Input
-            label="Username"
-            value={form.user}
-            onChange={(e) => setForm((prev) => ({ ...prev, user: e.target.value }))}
-            placeholder="Your login username"
-          />
-
-          <Input
-            label="New Password"
-            type="password"
-            value={form.password}
-            onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
-            placeholder="Leave empty to keep current password"
-          />
-
-          <ImageUploadField
-            label="Profile Picture"
-            type="profile"
-            value={form.profilePic}
-            onChange={(profilePic) => setForm((prev) => ({ ...prev, profilePic }))}
-            previewAlt="Profile picture"
-          />
-
-          
-
-          {error && <p className="text-sm text-danger">{error}</p>}
-          {success && <p className="text-sm text-success">{success}</p>}
-
-          <div className="flex gap-3 pt-2">
-            <Button variant="ghost" onClick={() => router.back()}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave} isLoading={saving}>
-              Save Profile
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
+  if (!user) return null;
+  return <main className="ow-section"><div className="ow-container max-w-3xl"><span className="ow-eyebrow"><UserRound size={15} /> Network Member</span><h1 className="mt-3 font-display text-6xl uppercase">Your profile</h1><div className="ow-panel mt-7 grid gap-6 p-6 md:grid-cols-[100px_1fr]"><Avatar size="xl" className="h-24 w-24" src={form.profilePic || user.profilePic || undefined} fallback={form.nickname || user.nickname} /><div className="grid gap-4"><Input label="Display name" value={form.nickname} onChange={(event) => setForm({ ...form, nickname: event.target.value })} /><Input label="Profile image URL" value={form.profilePic} onChange={(event) => setForm({ ...form, profilePic: event.target.value })} /><Input label="OBS WebSocket URL" value={form.obsWebsocketUrl} onChange={(event) => setForm({ ...form, obsWebsocketUrl: event.target.value })} placeholder="Optional" />{message && <p className="text-sm text-muted">{message}</p>}<Button onClick={save} isLoading={saving} className="w-fit"><Save size={17} /> Save profile</Button></div></div></div></main>;
 }

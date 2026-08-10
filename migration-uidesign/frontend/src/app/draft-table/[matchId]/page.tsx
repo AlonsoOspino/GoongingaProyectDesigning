@@ -35,9 +35,8 @@ import {
 import { clsx } from "clsx";
 import { resolveGenericBackendAsset, resolveHeroImageUrl, resolveMapImageUrl } from "@/lib/assetUrls";
 import { MapImage, MapBackground, useImageReady, preloadImages } from "@/components/draft/MapImage";
-import { isBracketMatch, isGrandFinalMatch, getRequiredWins, getSeriesLength } from "@/lib/match-format";
-import { FinalsPresentationStage } from "@/components/finals/FinalsPresentationStage";
-import finalsStyles from "@/components/finals/finals.module.css";
+import waitingStyles from "@/components/draft/waiting-room.module.css";
+import { isBracketMatch, getRequiredWins, getSeriesLength } from "@/lib/match-format";
 
 const POLL_INTERVAL = 3000;
 const TURN_DURATION = 95;
@@ -1243,14 +1242,6 @@ export default function DraftTablePage() {
             />
           );
 
-          if (isGrandFinalMatch(draftState.match) && draftState.match.gameNumber === 0) {
-            return (
-              <FinalsPresentationStage match={draftState.match} teamA={teamA} teamB={teamB} isManager={isManager}>
-                {startingPhase}
-              </FinalsPresentationStage>
-            );
-          }
-
           return startingPhase;
         })()}
 
@@ -1733,27 +1724,27 @@ function StartingPhase({
     match.teamBready === 1;
 
   return (
-    <div className={clsx(finalsStyles.waitingRoom, isObsKeyAccess && finalsStyles.waitingRoomBroadcast)}>
-      <div className={finalsStyles.waitingGrid} aria-hidden="true" />
-      <header className={finalsStyles.waitingHeading}>
+    <div className={clsx(waitingStyles.waitingRoom, isObsKeyAccess && waitingStyles.waitingRoomBroadcast)}>
+      <div className={waitingStyles.waitingGrid} aria-hidden="true" />
+      <header className={waitingStyles.waitingHeading}>
         <p>{match.gameNumber === 0 ? "CAPTAIN CHECK-IN" : `GAME ${match.gameNumber + 1} · RESET`}</p>
         <h2>{match.gameNumber === 0 ? "THE LOBBY IS OPEN" : "READY FOR THE NEXT MAP"}</h2>
         <span>{bothReady ? "Both teams are locked in." : "Captains, confirm your team when you are ready."}</span>
       </header>
 
-      <div className={finalsStyles.waitingMatchup}>
+      <div className={waitingStyles.waitingMatchup}>
         {[{ team: teamA, ready: match.teamAready, side: "a" }, { team: teamB, ready: match.teamBready, side: "b" }].map(({ team, ready, side }) => (
-          <div key={side} className={`${finalsStyles.waitingTeam} ${finalsStyles[`waitingTeam${side.toUpperCase()}`]}`}>
-            <div className={finalsStyles.waitingLogo}>
+          <div key={side} className={`${waitingStyles.waitingTeam} ${waitingStyles[`waitingTeam${side.toUpperCase()}`]}`}>
+            <div className={waitingStyles.waitingLogo}>
               <WaitingTeamLogo team={team} fallback={side.toUpperCase()} />
             </div>
             <h3>{team?.name || `Team ${side.toUpperCase()}`}</h3>
-            <div className={`${finalsStyles.readyState} ${ready ? finalsStyles.readyStateActive : ""}`}>
+            <div className={`${waitingStyles.readyState} ${ready ? waitingStyles.readyStateActive : ""}`}>
               <i /> {ready ? "READY" : "AWAITING CAPTAIN"}
             </div>
           </div>
         ))}
-        <div className={finalsStyles.waitingVs}>
+        <div className={waitingStyles.waitingVs}>
           <small>BEST OF {getSeriesLength(match)}</small>
           <strong>VS</strong>
           <span>{Number(Boolean(match.teamAready)) + Number(Boolean(match.teamBready))} / 2 READY</span>
@@ -1761,34 +1752,34 @@ function StartingPhase({
       </div>
 
       {isBracketMatch(match) && match.gameNumber === 0 && (
-        <div className={finalsStyles.firstPickNotice}>
+        <div className={waitingStyles.firstPickNotice}>
           <span>FIRST MOVE</span>
           <p>{firstPickerTeam?.name || "Best seed"} holds first map pick and first ban.</p>
           {canYieldFirstPick && <Button type="button" variant="outline" size="sm" onClick={onYieldFirstPick} disabled={actionLoading}>Yield first choice</Button>}
         </div>
       )}
 
-      <div className={finalsStyles.waitingActions}>
+      <div className={waitingStyles.waitingActions}>
         {isCaptain && !amIReady && (
           <Button size="lg" onClick={onSetReady} disabled={actionLoading} className="px-10">
             {actionLoading ? "CONFIRMING..." : "CONFIRM TEAM READY"}
           </Button>
         )}
-        {isCaptain && amIReady && <div className={finalsStyles.lockedMessage}><strong>YOU ARE LOCKED IN</strong><span>The manager will open map picking.</span></div>}
+        {isCaptain && amIReady && <div className={waitingStyles.lockedMessage}><strong>YOU ARE LOCKED IN</strong><span>The manager will open map picking.</span></div>}
         {isManager && (
           <>
             {canUndoResult && <Button size="lg" variant="secondary" onClick={onUndoResult} disabled={actionLoading}>Fix Last Result</Button>}
             <Button size="lg" onClick={onStart} disabled={actionLoading} className="px-10">
               {actionLoading ? "OPENING..." : "OPEN MAP PICKING"}
             </Button>
-            {!bothReady && <span className={finalsStyles.overrideNote}>Manager override available · captains are not both ready</span>}
+            {!bothReady && <span className={waitingStyles.overrideNote}>Manager override available · captains are not both ready</span>}
           </>
         )}
-        {!isCaptain && !isManager && <p className={finalsStyles.viewerMessage}>Waiting for both captains to check in.</p>}
+        {!isCaptain && !isManager && <p className={waitingStyles.viewerMessage}>Waiting for both captains to check in.</p>}
       </div>
 
       {canResetMatch && (
-        <div className={finalsStyles.dangerZone}>
+        <div className={waitingStyles.dangerZone}>
           <div>
             <strong>Reset match</strong>
             <span>

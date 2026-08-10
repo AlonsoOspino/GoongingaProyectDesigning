@@ -5,7 +5,7 @@ import { getApiBase } from "@/lib/api/client";
 import { saveNetworkToken } from "@/lib/networkSession";
 
 export default function LoginPage() {
-  const [message, setMessage] = useState("Connecting your Goonginga Network account…");
+  const [message, setMessage] = useState("Connecting your Discord account...");
 
   useEffect(() => {
     const hash = new URLSearchParams(window.location.hash.slice(1));
@@ -17,11 +17,11 @@ export default function LoginPage() {
         window.location.replace("/");
         return;
       }
-      setMessage("The Network Users session could not be verified. Please sign in again.");
+      setMessage("The Discord session could not be verified. Please sign in again.");
     } else if (error) {
       setMessage(error);
     } else {
-      setMessage("Sign in with Discord to join games and access the appropriate team dashboards.");
+      setMessage("Use the Discord account linked to the Goonginga server.");
     }
   }, []);
 
@@ -30,5 +30,12 @@ export default function LoginPage() {
     window.location.assign(`${getApiBase()}/network-auth/discord?return_to=${returnTo}`);
   };
 
-  return <section className="staff-only"><p className="eyebrow">Network Users</p><h1 className="font-display">Ready player one?</h1><p>{message}</p><button className="primary-button" onClick={startSignIn}>Sign in with Discord</button></section>;
+  return (
+    <section className="staff-only">
+      <p className="eyebrow">Goonginga account</p>
+      <h1 className="font-display">Sign in with Discord</h1>
+      <p>{message}</p>
+      <button className="primary-button" onClick={startSignIn}>Continue with Discord</button>
+    </section>
+  );
 }

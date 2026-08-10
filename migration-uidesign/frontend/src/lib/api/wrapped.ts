@@ -1,4 +1,5 @@
 import { apiRequest } from "@/lib/api/client";
+import seasonEightArchive from "@/data/history/season-8.json";
 
 export type WrappedAssetKey =
   | "averageKills"
@@ -27,7 +28,7 @@ export type WrappedSoundtrackTrack = {
   durationSeconds?: number;
 };
 export type WrappedSoundtrack = {
-  /** Legacy alias kept for FinalsPresentationStage and older saved records. */
+  /** Legacy alias retained for older saved Wrapped records. */
   recap?: WrappedSoundtrackTrack;
   /** Music for the opening screens before the stats transition. */
   intro?: WrappedSoundtrackTrack;
@@ -280,7 +281,7 @@ export function resolveWrappedSnapshot(snapshot: WrappedSnapshot) {
 }
 
 export async function getGoongingaWrapped() {
-  return apiRequest<GoongingaWrapped>("/wrapped", { cache: "no-store" });
+  return seasonEightArchive.wrapped as unknown as GoongingaWrapped;
 }
 
 export async function getManageGoongingaWrapped(token: string) {

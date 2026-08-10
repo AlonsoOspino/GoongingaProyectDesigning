@@ -4,7 +4,6 @@ import { useEffect, useState, type ReactNode } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import { TournamentTimer } from "@/components/layout/TournamentTimer";
 import { useSession } from "@/features/session/SessionProvider";
 
 export function RouteAwareShell({ children }: { children: ReactNode }) {
@@ -20,20 +19,18 @@ export function RouteAwareShell({ children }: { children: ReactNode }) {
   if (!shellReady) return <>{children}</>;
 
   const isOverlayRoute = pathname.startsWith("/overlay");
-  const isFinalsRoute = pathname.startsWith("/finals") || pathname.startsWith("/wrapped");
+  const isWrappedRoute = pathname.startsWith("/wrapped") || pathname.startsWith("/history/season-8/wrapped");
   const isDraftTableRoute = pathname.startsWith("/draft-table");
   const isMinigamesRoute = pathname.startsWith("/minigames");
-  const isMvpVotingRoute = pathname.startsWith("/mvp-voting");
   const hasDraftAccessKey = isDraftTableRoute && Boolean(searchParams?.get("key"));
   const isKeyViewerMode = hasDraftAccessKey && user?.role !== "MANAGER";
 
-  if (isOverlayRoute || isFinalsRoute || isMinigamesRoute || isMvpVotingRoute || hasDraftAccessKey || isKeyViewerMode) {
+  if (isOverlayRoute || isWrappedRoute || isMinigamesRoute || hasDraftAccessKey || isKeyViewerMode) {
     return <>{children}</>;
   }
 
   return (
     <>
-      {!isDraftTableRoute && <TournamentTimer />}
       <Navbar />
       <main className="flex-1">{children}</main>
       <Footer />

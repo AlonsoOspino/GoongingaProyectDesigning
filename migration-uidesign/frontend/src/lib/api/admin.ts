@@ -193,23 +193,12 @@ export interface Member {
 }
 
 export async function getMembers() {
-  return apiRequest<Member[]>("/member/all");
+  return apiRequest<Member[]>("/network-members/players");
 }
 
 export async function getMemberById(token: string, id: number) {
-  return apiRequest<Member>(`/member/${id}`, {
+  return apiRequest<Member>(`/network-members/players/${id}`, {
     token,
-  });
-}
-
-export async function adminRegisterMember(
-  token: string,
-  payload: { nickname: string; user: string; password: string; role?: string; teamId?: number }
-) {
-  return apiRequest<Member>("/member/register", {
-    method: "POST",
-    token,
-    body: payload,
   });
 }
 
@@ -218,21 +207,10 @@ export async function adminUpdateMember(
   memberId: number,
   payload: Partial<Member>
 ) {
-  return apiRequest<Member>(`/member/admin/${memberId}`, {
+  return apiRequest<Member>(`/network-members/admin/players/${memberId}`, {
     method: "PUT",
     token,
     body: payload,
-  });
-}
-
-export async function adminBulkImportUsers(
-  token: string,
-  script: string
-): Promise<{ created: number; errors: number; results: Member[]; errorDetails: string[] }> {
-  return apiRequest("/member/bulk-import", {
-    method: "POST",
-    token,
-    body: { script },
   });
 }
 

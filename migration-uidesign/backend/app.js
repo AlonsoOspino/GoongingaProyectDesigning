@@ -3,7 +3,6 @@ require("dotenv").config();
 const express = require("express");
 const path = require("path");
 const prisma = require("./config/prisma");
-const memberRoutes = require("./routes/member");
 const tournamentRoutes = require("./routes/tournament");
 const draftActionRoutes = require("./routes/draftAction");
 const draftTableRoutes = require("./routes/draftTable");
@@ -14,15 +13,11 @@ const playerStatRoutes = require("./routes/playerStat");
 const newsRoutes = require("./routes/news");
 const mapRoutes = require("./routes/map");
 const heroRoutes = require("./routes/hero");
-const systemDbRoutes = require("./routes/systemDb");
 const leaderboardOverlayAssetRoutes = require("./routes/leaderboardOverlayAsset");
-const wrappedRoutes = require("./routes/wrapped");
 const familyFeudRoutes = require("./routes/familyFeud");
 const networkAuthRoutes = require("./routes/networkAuth");
 const networkMemberRoutes = require("./routes/networkMember");
 const minigameRoutes = require("./routes/minigame");
-const mvpVotingRoutes = require("./routes/mvpVoting");
-const { ensureAdminUser } = require("./utils/ensureAdminUser");
 const cors = require("cors");
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -70,7 +65,6 @@ app.use("/assets/heroes", express.static(path.join(__dirname, "../frontend/HeroI
 app.use("/assets/maps", express.static(path.join(__dirname, "../frontend/MapImages")));
 app.use("/uploads", express.static(MEDIA_DIR, { maxAge: "1y", immutable: true }));
 
-app.use("/member", memberRoutes);
 app.use("/tournament", tournamentRoutes);
 app.use("/draftAction", draftActionRoutes);
 app.use("/draftTable", draftTableRoutes);
@@ -81,27 +75,17 @@ app.use("/playerStat", playerStatRoutes);
 app.use("/news", newsRoutes);
 app.use("/map", mapRoutes);
 app.use("/hero", heroRoutes);
-app.use("/system-db", systemDbRoutes);
 app.use("/overlay-assets", leaderboardOverlayAssetRoutes);
-app.use("/wrapped", wrappedRoutes);
 app.use("/family-feud", familyFeudRoutes);
 app.use("/network-auth", networkAuthRoutes);
 app.use("/network-members", networkMemberRoutes);
 app.use("/minigames", minigameRoutes);
-app.use("/mvp-voting", mvpVotingRoutes);
 
 const startServer = async () => {
   if (!process.env.DATABASE_URL) {
     throw new Error("DATABASE_URL is not set");
   }
 
-  // Guarantee a working admin account on every deployment / restart.
-  // Fail-soft: never block server startup on this.
-  try {
-    await ensureAdminUser();
-  } catch (err) {
-    console.error("[ensureAdminUser] Failed to bootstrap admin:", err?.message || err);
-  }
   if (typeof prisma.$disconnectWhenIdle === "function") {
     prisma.$disconnectWhenIdle();
   }

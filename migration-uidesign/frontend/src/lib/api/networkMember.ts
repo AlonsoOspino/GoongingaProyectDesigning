@@ -21,6 +21,14 @@ export function updateNetworkMemberRoles(token: string, memberId: number, roles:
   });
 }
 
+export function updateNetworkMemberCompetitiveRole(token: string, memberId: number, role: NonNullable<NetworkMember["role"]>) {
+  return apiRequest<NetworkMember>(`/network-members/admin/players/${memberId}`, {
+    method: "PUT",
+    token,
+    body: { role },
+  });
+}
+
 export function getDiscordLoginUrl() {
   return `${getApiBase()}/network-auth/discord`;
 }

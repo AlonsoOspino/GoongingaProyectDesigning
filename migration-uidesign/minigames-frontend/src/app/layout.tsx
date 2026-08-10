@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { MinigamesHeader } from "@/components/MinigamesHeader";
-import { SessionProvider } from "@/features/session/SessionProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,10 +15,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <SessionProvider>
-          <MinigamesHeader />
-          <main>{children}</main>
-        </SessionProvider>
+        <MinigamesHeader />
+        <main>{children}</main>
       </body>
     </html>
   );

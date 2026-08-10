@@ -28,14 +28,14 @@ const bebasNeue = Bebas_Neue({
 
 export const metadata: Metadata = {
   title: {
-    default: "Goonginga League",
-    template: "%s | Goonginga League",
+    default: "Goonginga",
+    template: "%s | Goonginga",
   },
-  description: "The premier competitive Overwatch league. Track teams, matches, stats, and participate in live drafts.",
+  description: "Goonginga Overwatch League seasons, registration, and match history.",
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0a0a0a",
+  themeColor: "#172532",
   width: "device-width",
   initialScale: 1,
 };

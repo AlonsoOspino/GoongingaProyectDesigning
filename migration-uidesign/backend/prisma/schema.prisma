@@ -8,24 +8,13 @@ datasource db {
 }
 
 model Tournament {
-  id        Int             @id @default(autoincrement())
-  name      String
-  startDate DateTime
-  state     TournamentState @default(SCHEDULED)
-  matches   Match[]
-  teams     Team[]
-  wrapped   Wrapped?
+  id            Int             @id @default(autoincrement())
+  name          String
+  startDate     DateTime
+  state         TournamentState @default(SCHEDULED)
+  matches       Match[]
+  teams         Team[]
   seasonPlayers SeasonPlayer[]
-}
-
-model Wrapped {
-  id           Int        @id @default(autoincrement())
-  tournamentId Int        @unique
-  snapshot     Json
-  assets       Json       @default("{}")
-  generatedAt  DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 }
 
 model FamilyFeudGame {
@@ -40,23 +29,6 @@ model FamilyFeudGame {
   updatedAt        DateTime @updatedAt
 }
 
-model Member {
-  id                   Int          @id @default(autoincrement())
-  nickname             String
-  user                 String       @unique
-  passwordHash         String
-  role                 MemberRole   @default(DEFAULT)
-  profilePic           String?
-  rank                 Int          @default(0)
-  teamId               Int?
-  heroVideoFolderPath  String?
-  obsWebsocketUrl      String?
-  obsWebsocketPassword String?
-  team                 Team?        @relation(fields: [teamId], references: [id])
-  playerStats          PlayerStat[]
-  mvpCandidates        MvpCandidate[]
-}
-
 /// Identidad de la red Goonginga. La tabla legacy `Member` se mantiene intacta
 /// durante la temporada actual de GGL; no deben mezclarse ambas entidades.
 /// La pertenencia al Discord de GGL se verifica antes de crear este registro y
@@ -68,88 +40,47 @@ model NetworkMember {
   avatarUrl             String?
   roles                 NetworkMemberRole[] @default([MEMBER])
   status                NetworkMemberStatus @default(ACTIVE)
+  nickname              String?
+  profilePic            String?
+  role                  MemberRole          @default(DEFAULT)
+  rank                  Int                 @default(0)
+  teamId                Int?
+  heroVideoFolderPath   String?
+  obsWebsocketUrl       String?
+  obsWebsocketPassword  String?
   discordJoinedGglAt    DateTime?
   discordLastVerifiedAt DateTime?
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
   seasonPlayers         SeasonPlayer[]
+  team                  Team?               @relation(fields: [teamId], references: [id])
+  playerStats           PlayerStat[]
   createdMiniGames      MiniGame[]          @relation("MiniGameCreator")
-  underDevelopmentGames MiniGame[]      @relation("MiniGameDeveloper")
-  mvpVotes              MvpVote[]
+  underDevelopmentGames MiniGame[]          @relation("MiniGameDeveloper")
 
   @@index([status])
-  }
-
-model MvpCampaign {
-  id              Int          @id @default(autoincrement())
-  matchId         Int          @unique
-  status          MvpStatus    @default(DRAFT)
-  winnerCandidateId Int?
-  openedAt        DateTime?
-  closedAt        DateTime?
-  publishedAt     DateTime?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  match           Match        @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  candidates      MvpCandidate[]
-  votes           MvpVote[]
-  winnerCandidate MvpCandidate? @relation("MvpWinner", fields: [winnerCandidateId], references: [id], onDelete: SetNull)
-}
-
-model MvpCandidate {
-  id          Int          @id @default(autoincrement())
-  campaignId  Int
-  memberId    Int
-  displayName String
-  imageUrl    String?
-  sortOrder   Int
-  active      Boolean      @default(true)
-  campaign    MvpCampaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  member      Member       @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  votes       MvpVote[]
-  winnerOf    MvpCampaign[] @relation("MvpWinner")
-  @@unique([campaignId, memberId])
-  @@unique([campaignId, sortOrder])
-}
-
-model MvpVote {
-  id           Int          @id @default(autoincrement())
-  campaignId   Int
-  candidateId  Int
-  networkMemberId Int
-  createdAt    DateTime     @default(now())
-  campaign     MvpCampaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  candidate    MvpCandidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
-  networkMember NetworkMember @relation(fields: [networkMemberId], references: [id], onDelete: Cascade)
-  @@unique([campaignId, networkMemberId])
-  @@index([candidateId])
-}
-
-enum MvpStatus {
-  DRAFT
-  OPEN
-  CLOSED
+  @@index([teamId])
 }
 
 /// Minijuegos publicados en Goonginga Minigames. `config` contiene la
 /// configuracion propia del tipo de juego y `state` solo el estado vivo de la
 /// partida, para poder actualizarlo sin sobrescribir el contenido editorial.
 model MiniGame {
-  id                   Int             @id @default(autoincrement())
-  slug                 String          @unique
+  id                   Int            @id @default(autoincrement())
+  slug                 String         @unique
   title                String
-  description          String          @default("")
+  description          String         @default("")
   coverImageUrl        String?
-  gameType             MiniGameType    @default(JEOPARDY)
-  status               MiniGameStatus  @default(LIVE)
-  config               Json            @default("{}")
-  state                Json            @default("{}")
+  gameType             MiniGameType   @default(JEOPARDY)
+  status               MiniGameStatus @default(LIVE)
+  config               Json           @default("{}")
+  state                Json           @default("{}")
   createdById          Int
   underDevelopmentById Int?
-  createdAt            DateTime        @default(now())
-  updatedAt            DateTime        @updatedAt
-  createdBy            NetworkMember   @relation("MiniGameCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  underDevelopmentBy   NetworkMember?  @relation("MiniGameDeveloper", fields: [underDevelopmentById], references: [id], onDelete: SetNull)
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  createdBy            NetworkMember  @relation("MiniGameCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  underDevelopmentBy   NetworkMember? @relation("MiniGameDeveloper", fields: [underDevelopmentById], references: [id], onDelete: SetNull)
 
   @@index([status, createdAt])
   @@index([createdById])
@@ -173,47 +104,45 @@ model SeasonPlayer {
 }
 
 model Team {
-  id            Int           @id @default(autoincrement())
+  id            Int             @id @default(autoincrement())
   name          String
   logo          String?
   roster        String?
-  state         TeamState     @default(ACTIVE)
-  victories     Int           @default(0)
-  mapWins       Int           @default(0)
-  mapLoses      Int           @default(0)
+  state         TeamState       @default(ACTIVE)
+  victories     Int             @default(0)
+  mapWins       Int             @default(0)
+  mapLoses      Int             @default(0)
   tournamentId  Int
   discordRoleId String?
-  defeats       Int           @default(0)
+  defeats       Int             @default(0)
   bannerLeft    String?
   bannerRight   String?
   playoffSeed   Int?
   draftActions  DraftAction[]
-  matchesA      Match[]       @relation("TeamA")
-  matchesB      Match[]       @relation("TeamB")
-  members       Member[]
-  tournament    Tournament    @relation(fields: [tournamentId], references: [id])
+  matchesA      Match[]         @relation("TeamA")
+  matchesB      Match[]         @relation("TeamB")
+  members       NetworkMember[]
+  tournament    Tournament      @relation(fields: [tournamentId], references: [id])
 
   @@unique([tournamentId, playoffSeed])
 }
 
 model Match {
-  id                 Int          @id @default(autoincrement())
+  id                 Int                      @id @default(autoincrement())
   type               MatchType
   bestOf             Int
-  status             MatchStatus  @default(SCHEDULED)
+  status             MatchStatus              @default(SCHEDULED)
   startDate          DateTime?
-  presentationStartDate DateTime?
-  presentationVersion Int         @default(0)
   tournamentId       Int
   teamAId            Int
   teamBId            Int
-  teamAready         Int          @default(0)
-  teamBready         Int          @default(0)
-  pointsTeamA        Int          @default(0)
-  pointsTeamB        Int          @default(0)
-  mapWinsTeamA       Int          @default(0)
-  mapWinsTeamB       Int          @default(0)
-  gameNumber         Int          @default(0)
+  teamAready         Int                      @default(0)
+  teamBready         Int                      @default(0)
+  pointsTeamA        Int                      @default(0)
+  pointsTeamB        Int                      @default(0)
+  mapWinsTeamA       Int                      @default(0)
+  mapWinsTeamB       Int                      @default(0)
+  gameNumber         Int                      @default(0)
   semanas            Int?
   title              String?
   playoffRound       Int?
@@ -221,19 +150,18 @@ model Match {
   mapsAllowedByRound Json?
   mapResults         Json?
   mapStartedAt       DateTime?
-  mapTimerPaused     Boolean      @default(false)
+  mapTimerPaused     Boolean                  @default(false)
   mapTimerPausedAt   DateTime?
   pauseRequestedAt   DateTime?
   pauseRequestedBy   Int?
   discordMessageId   String?
   draft              DraftTable?
-  teamA              Team         @relation("TeamA", fields: [teamAId], references: [id])
-  teamB              Team         @relation("TeamB", fields: [teamBId], references: [id])
-  tournament         Tournament   @relation(fields: [tournamentId], references: [id])
+  teamA              Team                     @relation("TeamA", fields: [teamAId], references: [id])
+  teamB              Team                     @relation("TeamB", fields: [teamBId], references: [id])
+  tournament         Tournament               @relation(fields: [tournamentId], references: [id])
   playerStats        PlayerStat[]
-  allowedMaps        Map[]        @relation("AllowedMaps")
+  allowedMaps        Map[]                    @relation("AllowedMaps")
   leaderboardOverlay LeaderboardOverlayAsset?
-  mvpCampaign       MvpCampaign?
 
   @@unique([tournamentId, playoffRound, playoffSlot])
 }
@@ -300,7 +228,7 @@ model Hero {
 }
 
 model PlayerStat {
-  id              Int      @id @default(autoincrement())
+  id              Int           @id @default(autoincrement())
   damage          Int
   healing         Int
   mitigation      Int
@@ -308,20 +236,20 @@ model PlayerStat {
   assists         Int
   deaths          Int
   gameDuration    Int
-  damagePer10     Float    @default(0)
-  healingPer10    Float    @default(0)
-  mitigationPer10 Float    @default(0)
-  killsPer10      Float    @default(0)
-  assistsPer10    Float    @default(0)
-  deathsPer10     Float    @default(0)
+  damagePer10     Float         @default(0)
+  healingPer10    Float         @default(0)
+  mitigationPer10 Float         @default(0)
+  killsPer10      Float         @default(0)
+  assistsPer10    Float         @default(0)
+  deathsPer10     Float         @default(0)
   mapType         MapType
   role            HeroRole
   userId          Int
-  createdAt       DateTime @default(now())
+  createdAt       DateTime      @default(now())
   matchId         Int
   gameNumber      Int
-  match           Match    @relation(fields: [matchId], references: [id])
-  user            Member   @relation(fields: [userId], references: [id])
+  match           Match         @relation(fields: [matchId], references: [id])
+  user            NetworkMember @relation(fields: [userId], references: [id])
 }
 
 enum TournamentState {

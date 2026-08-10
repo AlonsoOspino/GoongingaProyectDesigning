@@ -74,7 +74,7 @@ export function MatchCard({ match, teamA, teamB }: MatchCardProps) {
             <div className="flex items-center gap-2">
               <span className={clsx(
                 "text-xs px-2 py-0.5 rounded-full",
-                match.type === "FINALS" && "bg-amber-500/10 text-amber-500 font-medium",
+                match.type === "FINALS" && "bg-accent/10 text-accent font-medium",
                 match.type === "SEMIFINALS" && "bg-purple-500/10 text-purple-500 font-medium",
                 match.type === "PLAYOFFS" && "bg-blue-500/10 text-blue-500 font-medium",
                 match.type === "PLAYINS" && "bg-cyan-500/10 text-cyan-500 font-medium",

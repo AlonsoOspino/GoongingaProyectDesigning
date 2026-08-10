@@ -9,7 +9,7 @@ const findAll = () =>
         select: {
           id: true,
           nickname: true,
-          user: true,
+          username: true,
           role: true,
           teamId: true,
         },

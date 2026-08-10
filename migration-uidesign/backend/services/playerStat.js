@@ -1,5 +1,5 @@
 const playerStatRepo = require("../repositories/playerStat");
-const memberRepo = require("../repositories/member");
+const networkMemberRepo = require("../repositories/networkMember");
 const prisma = require("../config/prisma");
 
 const MAP_TYPES = ["CONTROL", "HYBRID", "PAYLOAD", "PUSH", "FLASHPOINT"];
@@ -2297,7 +2297,7 @@ const validateUser = async (userId) => {
     throw new Error("userId must be a positive integer.");
   }
 
-  const member = await memberRepo.findById(parsedUserId);
+  const member = await networkMemberRepo.findById(parsedUserId);
   if (!member) {
     throw new Error("User not found.");
   }

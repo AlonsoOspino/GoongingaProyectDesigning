@@ -45,7 +45,6 @@ const collections = [
   { model: "hero", scalarFields: ["imgPath", "heroGift"] },
   { model: "news", scalarFields: ["imageUrl", "content"] },
   { model: "leaderboardOverlayAsset", scalarFields: ["backgroundImageUrl"], jsonFields: ["settings"] },
-  { model: "wrapped", jsonFields: ["snapshot", "assets"] },
   { model: "familyFeudGame", jsonFields: ["state"] },
   { model: "match", jsonFields: ["mapsAllowedByRound", "mapResults"] },
   { model: "draftTable", jsonFields: ["bannedHeroes", "pickedMaps"] },

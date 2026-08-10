@@ -4,10 +4,10 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { apiRequest } from "@/lib/api/client";
-import type { MemberProfile } from "@/lib/api/types";
-import { getMemberProfileById } from "@/lib/api/auth";
+import type { NetworkPlayerProfile } from "@/lib/api/types";
+import { getNetworkPlayerProfile } from "@/lib/api/networkMember";
 import { parseSurveyQuestionBlocks } from "@/lib/familyFeud/surveyImport";
-import { useSession } from "@/features/session/SessionProvider";
+import { useNetworkSession } from "@/lib/networkSession";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -898,7 +898,8 @@ function StreamBoard({ room }: { room: RoomState }) {
 
 function MinigamesPage() {
   const searchParams = useSearchParams();
-  const { token, user, isAuthenticated, isHydrated } = useSession();
+  const { token, user, isHydrated } = useNetworkSession();
+  const isAuthenticated = Boolean(token && user);
   const inviteToken = (searchParams?.get("invite") || "").trim().toUpperCase();
   const requestedView = searchParams?.get("view");
   const loginReturnPath = `/minigames${searchParams?.toString() ? `?${searchParams.toString()}` : ""}`;
@@ -916,7 +917,7 @@ function MinigamesPage() {
   const [stealGuess, setStealGuess] = useState("");
   const [managerGuess, setManagerGuess] = useState("");
   const [playerGuess, setPlayerGuess] = useState("");
-  const [currentMember, setCurrentMember] = useState<MemberProfile | null>(null);
+  const [currentMember, setCurrentMember] = useState<NetworkPlayerProfile | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
@@ -1056,7 +1057,7 @@ function MinigamesPage() {
       return;
     }
 
-    void getMemberProfileById(user.id, token)
+    void getNetworkPlayerProfile(user.id, token)
       .then((member) => {
         if (!cancelled) setCurrentMember(member);
       })

@@ -54,6 +54,8 @@ export interface NetworkMember {
   username: string;
   avatarUrl: string | null;
   roles: NetworkMemberRole[];
+  role?: MemberRole;
+  teamId?: number | null;
   createdAt: string;
   status?: "ACTIVE" | "SUSPENDED";
   updatedAt?: string;
@@ -137,8 +139,6 @@ export interface Match {
   status: MatchStatus;
   bestOf: number;
   startDate: string;
-  presentationStartDate?: string | null;
-  presentationVersion?: number;
   tournamentId: number;
   teamAId: number;
   teamBId: number;

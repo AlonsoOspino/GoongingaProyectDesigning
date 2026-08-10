@@ -1,101 +1,12 @@
 import Link from "next/link";
-import Image from "next/image";
-import { getMatches, getSoonestMatch, getActiveMatches } from "@/lib/api/match";
-import { getLeaderboard } from "@/lib/api/team";
-import { getNews } from "@/lib/api/news";
-import { getRecentNetworkMembers } from "@/lib/api/networkMember";
-import { Button } from "@/components/ui/Button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
+import { ArrowRight, Ban, CalendarDays, ExternalLink, History, Play, Radio, ShieldCheck, Swords, Users } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
-import { MatchCard } from "@/components/matches/MatchCard";
-import { TeamCard } from "@/components/teams/TeamCard";
-import { NewsCard } from "@/components/news/NewsCard";
-import { RosterCarousel } from "@/components/teams/RosterCarousel";
-import { FinalsAnnouncement } from "@/components/finals/FinalsAnnouncement";
-import { getCurrentTournament } from "@/lib/api/admin";
-import type { Match, Team, NewsItem, NetworkMemberRole } from "@/lib/api/types";
-import { getMvpVoting } from "@/lib/api/mvpVoting";
-import { MvpLandingCta } from "@/components/mvp/MvpLandingCta";
+import { getRecentNetworkMembers } from "@/lib/api/networkMember";
+import type { NetworkMemberRole } from "@/lib/api/types";
 
-// Revalidate every 60 seconds. This makes the page semi-dynamic, so when you
-// delete matches from the admin dashboard and refresh, they disappear within
-// a minute instead of staying cached indefinitely. See:
-// https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#revalidate
 export const revalidate = 60;
 
-async function getHomeData() {
-  try {
-    const [matches, teams, news, recentNetworkMembers, tournament, mvpVoting] = await Promise.all([
-      getMatches({ cache: "no-store" }).catch(() => [] as Match[]),
-      getLeaderboard().catch(() => [] as Team[]),
-      getNews().catch(() => [] as NewsItem[]),
-      getRecentNetworkMembers().catch(() => []),
-      getCurrentTournament({ cache: "no-store" }).catch(() => null),
-      getMvpVoting({ cache: "no-store" }).catch(() => ({ active: false, campaign: null })),
-    ]);
-
-    // Get active matches
-    const activeMatches = matches.filter((m) => m.status === "ACTIVE");
-
-    // Get upcoming matches (any match still in SCHEDULED status).
-    //
-    // We deliberately do NOT filter by "startDate > now" here: a match that is
-    // still SCHEDULED should be surfaced to users even if its date has just
-    // passed (e.g. clock drift, pending admin transition to ACTIVE). Otherwise
-    // the landing page can appear empty right around match time.
-    const upcomingMatches = matches
-      .filter((m) => m.status === "SCHEDULED" && m.startDate)
-      .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
-      .slice(0, 1);
-
-    // Get recent matches (finished)
-    const recentMatches = matches
-      .filter((m) => m.status === "FINISHED")
-      .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())
-      .slice(0, 3);
-
-    // Top 5 teams
-    const topTeams = teams.slice(0, 5);
-
-    // Create team lookup
-    const teamsById = new Map(teams.map((t) => [t.id, t]));
-
-    // Recent news
-    const recentNews = news.slice(0, 4);
-
-    return {
-      matches,
-      activeMatches,
-      upcomingMatches,
-      recentMatches,
-      allTeams: teams,
-      topTeams,
-      teamsById,
-      recentNews,
-      recentNetworkMembers,
-      tournament,
-      mvpVoting,
-    };
-  } catch (error) {
-    console.error("Failed to fetch home data:", error);
-    return {
-      matches: [],
-      activeMatches: [],
-      upcomingMatches: [],
-      recentMatches: [],
-      allTeams: [],
-      topTeams: [],
-      teamsById: new Map(),
-      recentNews: [],
-      recentNetworkMembers: [],
-      tournament: null,
-      mvpVoting: { active: false, campaign: null },
-    };
-  }
-}
-
-const networkRankLabels: Record<NetworkMemberRole, string> = {
+const roleLabels: Record<NetworkMemberRole, string> = {
   MEMBER: "Member",
   ADMIN: "Admin",
   CASTER: "Caster",
@@ -107,513 +18,107 @@ const networkRankLabels: Record<NetworkMemberRole, string> = {
   SOCIAL_MEDIA: "Social Media",
 };
 
-function getNetworkMemberRank(roles: NetworkMemberRole[]) {
-  return networkRankLabels[roles[0] || "MEMBER"];
-}
-
-function resolveRosterSrc(roster?: string | null) {
-  if (!roster) return null;
-  if (roster.startsWith("http")) return roster;
-  if (roster.startsWith("/")) return roster;
-  return `/${roster}`;
-}
+const rules = [
+  { icon: Ban, title: "2 bans per map", copy: "Two bans limit per role between both teams. Both sides share that limit and must coordinate their choices." },
+  { icon: Swords, title: "Regular season", copy: "Scheduled team matches build the standings before the highest seeds advance to playoffs." },
+  { icon: ShieldCheck, title: "Role structure", copy: "Every lineup is organized around Tank, Damage, and Support roles." },
+  { icon: CalendarDays, title: "Published match nights", copy: "Schedules, results, and format updates stay available throughout the season." },
+];
 
 export default async function HomePage() {
-  const data = await getHomeData();
-  const finalsMatch = data.tournament?.state === "FINALS"
-    ? data.matches
-        .filter((match) => (
-          match.type === "FINALS" || /grand\s*final/i.test(match.title || "")
-        ) && match.status !== "FINISHED")
-        .sort((left, right) => {
-          const leftTime = left.presentationStartDate || left.startDate;
-          const rightTime = right.presentationStartDate || right.startDate;
-          return (leftTime ? new Date(leftTime).getTime() : Number.MAX_SAFE_INTEGER)
-            - (rightTime ? new Date(rightTime).getTime() : Number.MAX_SAFE_INTEGER);
-        })[0] || null
-    : null;
-  const hasRecentResults = data.recentMatches.length > 0;
-  const rosterTeams = data.allTeams.filter((team) => Boolean(team.roster));
-  const rosterItems = rosterTeams
-    .map((team) => ({
-      id: team.id,
-      name: team.name,
-      rosterSrc: resolveRosterSrc(team.roster),
-    }))
-    .filter((item): item is { id: number; name: string; rosterSrc: string } => Boolean(item.rosterSrc));
-  const shouldStretchSingleRoster = !hasRecentResults && rosterTeams.length === 1;
+  const members = await getRecentNetworkMembers().catch(() => []);
 
   return (
-    <div className="min-h-screen relative">
-      {/* Global decorative elements */}
-      <div className="fixed inset-0 bg-grid-pattern-subtle pointer-events-none" />
-
-      {finalsMatch && (
-        <FinalsAnnouncement
-          match={finalsMatch}
-          teamA={data.teamsById.get(finalsMatch.teamAId)}
-          teamB={data.teamsById.get(finalsMatch.teamBId)}
-        />
-      )}
-      
-      {/* Hero Section */}
-      <section className="relative py-24 overflow-hidden">
-        {/* Hero background effects */}
-        <div className="absolute inset-0 bg-gradient-radial" />
-        <div className="absolute inset-0 bg-gradient-to-b from-primary/10 via-transparent to-transparent" />
-        
-        <div className="container mx-auto px-4 relative">
-          <div className="max-w-3xl mx-auto text-center">
-            <Badge variant="primary" className="mb-4 glow-teal">
-              Season 2026
-            </Badge>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-4 text-balance text-glow">
-              Goonginga League
-            </h1>
-            <p className="text-lg text-muted mb-8 text-pretty max-w-2xl mx-auto">
-              Competitive Overwatch for the community: follow the schedule, track standings,
-              and keep up with every match night.
-            </p>
-            {/* Rendered whenever a ballot exists, not only while it is open, so
-                there is no dead gap between the Grand Final ending and the vote
-                opening, or between voting closing and the winner reveal. The
-                component itself polls for the live phase. */}
-            {data.mvpVoting.campaign && (
-              <div className="mb-7">
-                <MvpLandingCta
-                  candidateCount={data.mvpVoting.campaign.candidates.length || 5}
-                  status={data.mvpVoting.campaign.status}
-                  published={Boolean(data.mvpVoting.campaign.publishedAt)}
-                />
-              </div>
-            )}
-            <div className="flex flex-wrap items-center justify-center gap-4">
-              <Link href="/schedule">
-                <Button size="lg" className="glow-teal">View Schedule</Button>
-              </Link>
-              <Link href="/standings">
-                <Button variant="outline" size="lg" className="animate-border-pulse">
-                  Standings
-                </Button>
-              </Link>
-            </div>
-            
-            {/* Decorative line */}
-            <div className="mt-12 flex items-center justify-center gap-2">
-              <div className="h-px w-16 bg-gradient-to-r from-transparent to-primary/50" />
-              <div className="w-2 h-2 rotate-45 border border-primary/50" />
-              <div className="h-px w-16 bg-gradient-to-l from-transparent to-primary/50" />
-            </div>
+    <div className="home-page">
+      <section className="home-hero">
+        <div className="home-hero-shade" />
+        <div className="home-hero-accent" />
+        <div className="ow-container home-hero-content">
+          <span className="ow-eyebrow">Goonginga League</span>
+          <h1 className="display-title">Season 9</h1>
+          <p>Season 9 registration is now open.</p>
+          <div className="home-hero-actions">
+            <Link href="/login" className="ow-button">Register with Discord <ArrowRight size={20} /></Link>
+            <Link href="/season-9" className="ow-button ow-button-secondary">Season 9 details</Link>
           </div>
+          <div className="home-hero-meta"><span>Est. 2023</span><span>8 completed seasons</span><span>Overwatch</span><span>Community league</span></div>
         </div>
       </section>
 
-      {/* Live/Active Matches */}
-      {data.activeMatches.length > 0 && (
-        <section className="py-8 bg-primary/5 border-y border-primary/20 relative overflow-hidden">
-          {/* Animated background for live section */}
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-accent/5" />
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-          
-          <div className="container mx-auto px-4 relative">
-            <div className="flex items-center gap-3 mb-6">
-              <span className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-danger opacity-75" />
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-danger" />
-              </span>
-              <h2 className="text-xl font-bold text-foreground">Live Now</h2>
-              <div className="h-px flex-1 bg-gradient-to-r from-danger/30 to-transparent" />
+      <section className="ow-section format-section">
+        <div className="ow-container">
+          <div className="section-lead">
+            <div><span className="ow-eyebrow">Competition format</span><h2>How the season works</h2></div>
+            <p>Season 9 teams, dates and match windows will be published after registration.</p>
+          </div>
+
+          <div className="format-grid">
+            <div className="format-image">
+              <img src="/PREMATCH.png" alt="Goonginga match broadcast" />
+              <div className="format-image-label"><Play size={18} /> Match night format</div>
             </div>
-            <div className={data.activeMatches.length === 1 ? "grid gap-4 grid-cols-1" : "grid gap-4 md:grid-cols-2 lg:grid-cols-3"}>
-              {data.activeMatches.map((match) => (
-                <MatchCard
-                  key={match.id}
-                  match={match}
-                  teamA={data.teamsById.get(match.teamAId)}
-                  teamB={data.teamsById.get(match.teamBId)}
-                />
+            <div className="format-rules">
+              {rules.map(({ icon: Icon, title, copy }, index) => (
+                <article className="format-rule" key={title} style={{ animationDelay: `${index * 80}ms` }}>
+                  <div className="format-rule-number">0{index + 1}</div>
+                  <div className="format-rule-icon"><Icon size={24} /></div>
+                  <div><strong>{title}</strong><p>{copy}</p></div>
+                </article>
               ))}
             </div>
           </div>
-        </section>
-      )}
+        </div>
+      </section>
 
-      {/* Main Content Grid */}
-      <section className="py-12">
-        <div className="container mx-auto px-4">
-          <div className="grid gap-8 lg:grid-cols-3">
-            {/* Upcoming Matches */}
-            <div className="lg:col-span-2 flex flex-col h-full">
-              <Card variant="featured">
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle>Upcoming Matches</CardTitle>
-                  <Link href="/schedule">
-                    <Button variant="ghost" size="sm">
-                      View All
-                    </Button>
-                  </Link>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {data.upcomingMatches.length > 0 ? (
-                    data.upcomingMatches.map((match) => (
-                      <MatchCard
-                        key={match.id}
-                        match={match}
-                        teamA={data.teamsById.get(match.teamAId)}
-                        teamB={data.teamsById.get(match.teamBId)}
-                      />
-                    ))
-                  ) : (
-                    <div className="text-center py-8 text-muted">
-                      <p>No upcoming matches scheduled</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Team Rosters */}
-              <Card
-                variant="featured"
-                className={`mt-8 flex flex-col ${hasRecentResults ? "" : "lg:flex-1"}`}
-              >
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle>Team Rosters</CardTitle>
-                  <Link href="/teams">
-                    <Button variant="ghost" size="sm">
-                      View Teams
-                    </Button>
-                  </Link>
-                </CardHeader>
-                <CardContent className={hasRecentResults ? undefined : "flex-1 flex"}>
-                  <RosterCarousel
-                    items={rosterItems}
-                    shouldStretchSingleRoster={shouldStretchSingleRoster}
-                  />
-                </CardContent>
-              </Card>
-
-              {/* Recent Results */}
-              {data.recentMatches.length > 0 && (
-                <Card variant="featured" className="mt-8">
-                  <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>Recent Results</CardTitle>
-                    <Link href="/schedule">
-                      <Button variant="ghost" size="sm">
-                        View All
-                      </Button>
-                    </Link>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {data.recentMatches.map((match) => (
-                      <MatchCard
-                        key={match.id}
-                        match={match}
-                        teamA={data.teamsById.get(match.teamAId)}
-                        teamB={data.teamsById.get(match.teamBId)}
-                      />
-                    ))}
-                  </CardContent>
-                </Card>
-              )}
+      <section className="league-story">
+        <div className="ow-container league-story-grid">
+          <div className="league-story-media">
+            <img className="story-main-image" src="/emotionalsupport.png" alt="Goonginga League match night" />
+            <img className="story-secondary-image" src="/community.png" alt="Goonginga League community" />
+            <div className="story-image-caption"><Radio size={18} /> Goonginga since 2023</div>
+          </div>
+          <div className="league-story-copy">
+            <span className="ow-eyebrow">League history</span>
+            <h2>Goonginga<br />since 2023</h2>
+            <p>Goonginga is an Overwatch league founded in 2023. The league has completed eight seasons with drafted teams, regular-season matches, broadcasts and playoffs.</p>
+            <p>Season results, team rosters and player statistics are preserved in the league archive.</p>
+            <div className="league-story-facts">
+              <div><strong>2023</strong><span>First season</span></div>
+              <div><strong>08</strong><span>Completed seasons</span></div>
+              <div><strong>122</strong><span>Maps in Season 8</span></div>
             </div>
-
-            {/* Sidebar */}
-            <div className="space-y-8">
-              {/* Latest Network Members */}
-              <Card variant="featured">
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>New Members</CardTitle>
-                    <p className="mt-0.5 text-xs text-muted">Goonginga Network</p>
-                  </div>
-                  <Badge variant="primary">Discord</Badge>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {data.recentNetworkMembers.length > 0 ? (
-                    data.recentNetworkMembers.map((member) => (
-                      <div
-                        key={member.id}
-                        className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-surface-elevated"
-                      >
-                        <Avatar
-                          src={member.avatarUrl || undefined}
-                          alt={`${member.username}'s Discord profile`}
-                          fallback={member.username}
-                          size="md"
-                        />
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-foreground">{member.username}</p>
-                          <p className="text-xs text-primary">{getNetworkMemberRank(member.roles)}</p>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="py-3 text-center text-sm text-muted">
-                      <p>No new members yet.</p>
-                      <Link href="/login" className="mt-1 inline-block text-primary hover:underline">
-                        Join through Discord
-                      </Link>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Standings Preview */}
-              <Card variant="featured">
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle>Standings</CardTitle>
-                  <Link href="/standings">
-                    <Button variant="ghost" size="sm">
-                      Full Table
-                    </Button>
-                  </Link>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {data.topTeams.length > 0 ? (
-                    data.topTeams.map((team, idx) => (
-                      <TeamCard key={team.id} team={team} rank={idx + 1} />
-                    ))
-                  ) : (
-                    <div className="text-center py-4 text-muted">
-                      <p>No teams available</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Quick Links */}
-              <Card variant="featured">
-                <CardHeader>
-                  <CardTitle>Quick Links</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <Link
-                    href="/stats"
-                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-surface-elevated transition-colors"
-                  >
-                    <div className="w-10 h-10 rounded-lg bg-accent/20 flex items-center justify-center">
-                      <svg
-                        className="w-5 h-5 text-accent"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                        />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">Stats Center</p>
-                      <p className="text-xs text-muted">Player performance data</p>
-                    </div>
-                  </Link>
-                  <Link
-                    href="/teams"
-                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-surface-elevated transition-colors"
-                  >
-                    <div className="w-10 h-10 rounded-lg bg-success/20 flex items-center justify-center">
-                      <svg
-                        className="w-5 h-5 text-success"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                        />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">All Teams</p>
-                      <p className="text-xs text-muted">View all league teams</p>
-                    </div>
-                  </Link>
-                </CardContent>
-              </Card>
-            </div>
+            <a href="https://www.twitch.tv/goongingatournament" target="_blank" rel="noopener noreferrer" className="story-link"><Radio size={19} /> Watch Goonginga on Twitch <ExternalLink size={16} /></a>
           </div>
         </div>
       </section>
 
-      {/* About the League Section */}
-      <section className="py-16 relative overflow-hidden">
-        {/* Decorative background */}
-        <div className="absolute inset-0 bg-gradient-to-b from-surface/50 to-transparent pointer-events-none" />
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
-        
-        <div className="container mx-auto px-4 relative">
-          {/* Section Header */}
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium mb-4">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              About Us
-            </div>
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4 text-balance">
-              The Goonginga League Story
-            </h2>
-            <p className="text-muted max-w-2xl mx-auto text-pretty">
-              Building a community of passionate Overwatch players since 2022
-            </p>
+      <section className="ow-section members-section">
+        <div className="ow-container">
+          <div className="section-lead compact">
+            <div><span className="ow-eyebrow">Goonginga Network</span><h2>New members</h2></div>
+            <Link href="/login" className="section-link">Join through Discord <ArrowRight size={18} /></Link>
           </div>
-
-          {/* Content Grid with Images */}
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-            {/* Left Column - Text Content */}
-            <div className="space-y-6">
-              <div className="content-panel p-6 rounded-lg relative overflow-hidden group hover:border-primary/30 transition-colors">
-                <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-primary to-accent" />
-                <div className="pl-4">
-                  <h3 className="text-xl font-semibold text-foreground mb-3 flex items-center gap-2">
-                    <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Our Beginning
-                  </h3>
-                  <p className="text-muted leading-relaxed">
-                    The Goonginga League was founded in 2023 by a group of friends who shared a passion for competitive Overwatch. What started as casual scrims among friends quickly grew into a full-fledged competitive league with teams from across the community.
-                  </p>
+          {members.length ? (
+            <div className="members-strip">
+              {members.map((member, index) => (
+                <div className="member-cell" key={member.id} style={{ animationDelay: `${index * 70}ms` }}>
+                  <Avatar src={member.avatarUrl || undefined} fallback={member.username} />
+                  <div className="min-w-0"><p>{member.username}</p><span>{roleLabels[member.roles[0] || "MEMBER"]}</span></div>
                 </div>
-              </div>
-
-              <div className="content-panel p-6 rounded-lg relative overflow-hidden group hover:border-primary/30 transition-colors">
-                <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-accent to-success" />
-                <div className="pl-4">
-                  <h3 className="text-xl font-semibold text-foreground mb-3 flex items-center gap-2">
-                    <svg className="w-5 h-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                    Live on Twitch
-                  </h3>
-                  <p className="text-muted leading-relaxed">
-                    All our matches are streamed live on Twitch! Catch the action, watch player highlights, and experience the excitement of competitive Overwatch with our dedicated casting team and community chat.
-                  </p>
-                  <a 
-                    href="https://www.twitch.tv/goongingatournament" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 mt-3 text-[#9146FF] hover:text-[#9146FF]/80 font-medium text-sm transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z" />
-                    </svg>
-                    Watch our streams
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                  </a>
-                </div>
-              </div>
-
-              <div className="content-panel p-6 rounded-lg relative overflow-hidden group hover:border-primary/30 transition-colors">
-                <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-success to-primary" />
-                <div className="pl-4">
-                  <h3 className="text-xl font-semibold text-foreground mb-3 flex items-center gap-2">
-                    <svg className="w-5 h-5 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                    Our Community
-                  </h3>
-                  <p className="text-muted leading-relaxed">
-                    We pride ourselves on fostering a positive, welcoming environment. Our players range from aspiring pros to casual competitors, all united by their love for the game. Skill and sportsmanship go hand in hand here.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Column - Images */}
-            <div className="space-y-6">
-              <div className="relative group">
-                <div className="relative aspect-video rounded-lg media-frame overflow-hidden">
-                  <img 
-                    src="/emotionalsupport.png" 
-                    alt="Goonginga League Match" 
-                    className="w-full h-full object-contain"
-                  />
-                  <div className="hidden absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-primary/20 to-accent/20">
-                    <svg className="w-12 h-12 text-muted mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <span className="text-sm text-muted">Match Highlight Image</span>
-                  </div>
-                </div>
-                <div className="absolute bottom-3 left-3 px-3 py-1 rounded-md bg-background/85 backdrop-blur text-xs text-foreground font-medium">
-                  Match Night
-                </div>
-              </div>
-
-              <div className="relative group">
-                <div className="relative aspect-video rounded-lg media-frame overflow-hidden">
-                  <img 
-                    src="/community.png" 
-                    alt="Goonginga League Community" 
-                    className="w-full h-full object-contain"
-                  />
-                  <div className="hidden absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-accent/20 to-success/20">
-                    <svg className="w-12 h-12 text-muted mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <span className="text-sm text-muted">Community Image</span>
-                  </div>
-                </div>
-                <div className="absolute bottom-3 left-3 px-3 py-1 rounded-md bg-background/85 backdrop-blur text-xs text-foreground font-medium">
-                  Community
-                </div>
-              </div>
-
-              {/* Stats Row */}
-              <div className="grid grid-cols-3 gap-4">
-                <div className="content-panel p-4 rounded-lg text-center group hover:border-primary/30 transition-colors">
-                  <div className="text-2xl font-bold text-primary mb-1">2022</div>
-                  <div className="text-xs text-muted">Founded</div>
-                </div>
-                <div className="content-panel p-4 rounded-lg text-center group hover:border-accent/30 transition-colors">
-                  <div className="text-2xl font-bold text-accent mb-1">8+</div>
-                  <div className="text-xs text-muted">Teams</div>
-                </div>
-                <div className="content-panel p-4 rounded-lg text-center group hover:border-success/30 transition-colors">
-                  <div className="text-2xl font-bold text-success mb-1">50+</div>
-                  <div className="text-xs text-muted">Players</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* News Section */}
-      {data.recentNews.length > 0 && (
-        <section className="py-12 bg-surface relative overflow-hidden">
-          {/* Decorative elements */}
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
-          
-          <div className="container mx-auto px-4 relative">
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-3">
-                <div className="w-1 h-6 bg-gradient-to-b from-primary to-accent rounded-full" />
-                <h2 className="text-2xl font-bold text-foreground">Latest News</h2>
-              </div>
-              <Link href="/news">
-                <Button variant="ghost">View All News</Button>
-              </Link>
-            </div>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-              {data.recentNews.map((article) => (
-                <NewsCard key={article.id} article={article} />
               ))}
             </div>
-          </div>
-        </section>
-      )}
+          ) : (
+            <div className="members-empty"><Users size={23} /> New Discord members will appear here.</div>
+          )}
+        </div>
+      </section>
+
+      <section className="home-history-band">
+        <div className="ow-container home-history-grid">
+          <div><span className="ow-eyebrow">League archive</span><h2>Season 8 is preserved</h2><p>Final standings, category leaders, rosters, playoffs, Grand Finals, MVP, and Wrapped media now live in one static snapshot.</p></div>
+          <Link href="/history" className="ow-button"><History size={20} /> Explore History</Link>
+        </div>
+      </section>
     </div>
   );
 }

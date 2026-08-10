@@ -12,15 +12,7 @@ export type MatchType =
 export type MapType = "CONTROL" | "HYBRID" | "PAYLOAD" | "PUSH" | "FLASHPOINT";
 export type HeroRole = "TANK" | "DPS" | "SUPPORT";
 
-export interface AuthUser {
-  id: number;
-  nickname: string;
-  role: MemberRole;
-  teamId: number | null;
-  profilePic?: string | null;
-}
-
-export interface MemberProfile {
+export interface NetworkPlayerProfile {
   id: number;
   nickname: string;
   user: string;
@@ -31,11 +23,6 @@ export interface MemberProfile {
   heroVideoFolderPath?: string | null;
   obsWebsocketUrl?: string | null;
   obsWebsocketPassword?: string | null;
-}
-
-export interface LoginResponse {
-  token: string;
-  user: AuthUser;
 }
 
 export type NetworkMemberRole =

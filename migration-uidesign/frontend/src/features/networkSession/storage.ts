@@ -1,4 +1,6 @@
 import type { NetworkMemberRole } from "@/lib/api/types";
+import type { MemberRole } from "@/lib/api/types";
+import { clearSessionInStorage, writeSessionToStorage } from "@/features/session/storage";
 
 const STORAGE_KEY = "goonginga.network.session";
 
@@ -7,6 +9,10 @@ export interface NetworkSessionUser {
   username: string;
   avatarUrl: string | null;
   roles: NetworkMemberRole[];
+  nickname: string;
+  profilePic: string | null;
+  role: MemberRole;
+  teamId: number | null;
 }
 
 function getUserFromToken(token: string): NetworkSessionUser | null {
@@ -35,6 +41,10 @@ function getUserFromToken(token: string): NetworkSessionUser | null {
       username: decoded.username,
       avatarUrl: typeof decoded.avatarUrl === "string" ? decoded.avatarUrl : null,
       roles: Array.isArray(decoded.roles) ? (decoded.roles as NetworkMemberRole[]) : ["MEMBER"],
+      nickname: typeof decoded.nickname === "string" ? decoded.nickname : decoded.username,
+      profilePic: typeof decoded.profilePic === "string" ? decoded.profilePic : (typeof decoded.avatarUrl === "string" ? decoded.avatarUrl : null),
+      role: typeof decoded.role === "string" ? decoded.role as MemberRole : "DEFAULT",
+      teamId: typeof decoded.teamId === "number" ? decoded.teamId : null,
     };
   } catch {
     return null;
@@ -52,6 +62,17 @@ export function saveNetworkToken(token: string) {
     // A user can still finish Discord sign-in in privacy-restricted browsers;
     // protected network features will ask them to sign in again when needed.
   }
+
+  writeSessionToStorage({
+    token,
+    user: {
+      id: user.id,
+      nickname: user.nickname,
+      profilePic: user.profilePic,
+      role: user.role,
+      teamId: user.teamId,
+    },
+  });
 
   window.dispatchEvent(new Event("network-session-changed"));
   return user;
@@ -87,6 +108,8 @@ export function clearNetworkSession() {
   } catch {
     // Nothing else is required when browser storage is unavailable.
   }
+
+  clearSessionInStorage();
 
   window.dispatchEvent(new Event("network-session-changed"));
 }

@@ -8,7 +8,11 @@ const STORAGE_KEY = "goonginga.network.session";
 export interface NetworkSessionUser {
   id: number;
   username: string;
+  nickname: string;
   avatarUrl: string | null;
+  profilePic: string | null;
+  role: "ADMIN" | "MANAGER" | "CAPTAIN" | "EDITOR" | "DEFAULT";
+  teamId: number | null;
   roles: NetworkMemberRole[];
 }
 
@@ -19,7 +23,16 @@ function fromToken(token: string): NetworkSessionUser | null {
     const normalized = payload.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(payload.length / 4) * 4, "=");
     const decoded = JSON.parse(window.atob(normalized)) as Partial<NetworkSessionUser> & { accountType?: string; exp?: number };
     if (decoded.accountType !== "NETWORK_MEMBER" || typeof decoded.id !== "number" || typeof decoded.username !== "string" || (decoded.exp && decoded.exp * 1000 <= Date.now())) return null;
-    return { id: decoded.id, username: decoded.username, avatarUrl: typeof decoded.avatarUrl === "string" ? decoded.avatarUrl : null, roles: Array.isArray(decoded.roles) ? decoded.roles as NetworkMemberRole[] : ["MEMBER"] };
+    return {
+      id: decoded.id,
+      username: decoded.username,
+      nickname: typeof decoded.nickname === "string" ? decoded.nickname : decoded.username,
+      avatarUrl: typeof decoded.avatarUrl === "string" ? decoded.avatarUrl : null,
+      profilePic: typeof decoded.profilePic === "string" ? decoded.profilePic : null,
+      role: typeof decoded.role === "string" ? decoded.role as NetworkSessionUser["role"] : "DEFAULT",
+      teamId: typeof decoded.teamId === "number" ? decoded.teamId : null,
+      roles: Array.isArray(decoded.roles) ? decoded.roles as NetworkMemberRole[] : ["MEMBER"],
+    };
   } catch {
     return null;
   }
@@ -50,16 +63,18 @@ export function clearNetworkSession() {
 
 export function useNetworkSession() {
   const [user, setUser] = useState<NetworkSessionUser | null>(null);
+  const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => {
     const refresh = () => {
       const token = getNetworkToken();
       setUser(token ? fromToken(token) : null);
     };
     refresh();
+    setIsHydrated(true);
     window.addEventListener("network-session-changed", refresh);
     return () => window.removeEventListener("network-session-changed", refresh);
   }, []);
-  return { user, token: getNetworkToken() };
+  return { user, token: getNetworkToken(), isHydrated };
 }
 
 export function hasNetworkRole(user: NetworkSessionUser | null, ...roles: NetworkMemberRole[]) {
