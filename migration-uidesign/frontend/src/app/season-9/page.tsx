@@ -8,7 +8,7 @@ export default function SeasonNinePage() {
     <div>
       <section className="season-nine-hero">
         <div className="ow-container season-nine-grid">
-          <div><span className="ow-eyebrow">Goonginga League</span><h1 className="mt-3 font-display text-7xl uppercase md:text-8xl">Season 9</h1><p className="mt-4 max-w-2xl text-base leading-7 text-text-secondary">Registration is open. Teams and the match calendar will be published here.</p><Link href="/login" className="ow-button mt-7">Register with Discord <ArrowRight size={18} /></Link></div>
+          <div><span className="ow-eyebrow">Goonginga League · Coming soon</span><h1 className="mt-3 font-display text-7xl uppercase md:text-8xl">Season 9</h1><p className="mt-4 max-w-2xl text-base leading-7 text-text-secondary">Season 9 is currently in preparation. Registration dates, captain selection, team draft information, and the match calendar will be published here once confirmed.</p><Link href="/login" className="ow-button mt-7">Join Goonginga Network <ArrowRight size={18} /></Link></div>
           <div className="season-nine-number">09</div>
         </div>
       </section>

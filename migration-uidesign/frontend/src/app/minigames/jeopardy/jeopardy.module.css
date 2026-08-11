@@ -1,23 +1,134 @@
-.viewport { position:fixed; inset:0; display:grid; place-items:center; overflow:hidden; background:transparent; color:#fff; }
-.stage { position:relative; width:min(100%,calc(100vh * 16 / 9)); aspect-ratio:16/9; overflow:hidden; background:transparent; }
-.rig { position:absolute; left:50%; bottom:4.8%; width:84%; aspect-ratio:1597/602; opacity:0; transform:translate(-50%,5%); animation:rigIn 700ms cubic-bezier(.16,1,.3,1) forwards; }
-.artwork { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; }
-.slot { position:absolute; top:0; width:31.1%; height:100%; opacity:0; transform:translateY(7%); animation:slotIn 720ms var(--slot-delay) cubic-bezier(.16,1,.3,1) forwards; }
-.slot1 { left:2.8%; }.slot2 { left:34.5%; }.slot3 { left:66.5%; }
-.nameplate { position:absolute; top:6.3%; left:19.4%; display:grid; width:60.3%; height:16.1%; place-items:center; padding:4% 7% 2%; color:#f7f4ef; text-align:center; text-transform:uppercase; }
-.nameplate span { position:absolute; top:8%; left:5%; color:#d8b09a; font-family:var(--font-display); font-size:clamp(8px,.65vw,13px); }
-.nameplate strong { width:100%; overflow:hidden; font-size:clamp(11px,1.15vw,22px); line-height:1; text-overflow:ellipsis; text-transform:uppercase; white-space:nowrap; }
-.chalkboard { position:absolute; top:30.3%; left:23.4%; display:grid; width:52.8%; height:35%; place-items:center; overflow:hidden; border:3px solid rgba(0,0,0,.75); background:#2e3994; color:#fff; isolation:isolate; }
-.chalkboard::before { position:absolute; inset:0; z-index:-1; background:repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0 1px,transparent 1px 5px),radial-gradient(circle at 32% 42%,rgba(255,255,255,.05),transparent 28%); content:""; }
-.chalkWriting { position:relative; display:block; max-width:88%; overflow:hidden; padding:.18em .1em .26em; color:#fff; font-family:"Segoe Print","Comic Sans MS",cursive; font-size:clamp(1.1rem,2.15vw,2.65rem); font-weight:600; line-height:1.15; text-align:center; text-overflow:ellipsis; text-shadow:0 0 1px #fff,1px 0 rgba(255,255,255,.45); white-space:nowrap; clip-path:inset(0 100% 0 0); animation:chalkWrite 1.35s calc(var(--slot-delay) + 650ms) steps(18,end) forwards; }
-.chalkWriting::after { position:absolute; top:18%; width:.2em; height:64%; border-radius:50%; background:#fff; box-shadow:0 0 .32em rgba(255,255,255,.85); content:""; opacity:0; animation:chalkTip 1.35s calc(var(--slot-delay) + 650ms) linear forwards; }
-.chalkLine { position:absolute; bottom:26%; left:15%; width:70%; height:2px; background:rgba(255,255,255,.8); box-shadow:0 0 2px rgba(255,255,255,.6); opacity:0; transform:scaleX(0) rotate(-1deg); transform-origin:left; animation:chalkLine 450ms calc(var(--slot-delay) + 1.95s) ease-out forwards; }
-.points { position:absolute; top:90.2%; left:16%; display:flex; width:68%; height:7.3%; align-items:center; justify-content:center; color:#fff; font-family:var(--font-display); font-size:clamp(15px,1.8vw,35px); line-height:1; text-shadow:0 2px 2px #000; }
-.points small { margin-left:.3em; color:#d8b09a; font-family:inherit; font-size:.4em; }
+.viewport {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: transparent;
+  color: #fff;
+}
 
-@keyframes rigIn { to { opacity:1; transform:translate(-50%,0); } }
-@keyframes slotIn { to { opacity:1; transform:translateY(0); } }
-@keyframes chalkWrite { to { clip-path:inset(0 0 0 0); } }
-@keyframes chalkTip { 0% { left:4%; opacity:0; } 8% { opacity:1; } 92% { opacity:1; } 100% { left:96%; opacity:0; } }
-@keyframes chalkLine { to { opacity:1; transform:scaleX(1) rotate(-1deg); } }
-@media(prefers-reduced-motion:reduce){.stage *{animation-duration:1ms!important;animation-delay:0ms!important}}
+.stage {
+  position: relative;
+  width: min(100%, calc(100vh * 16 / 9));
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: transparent;
+}
+
+.rig {
+  position: absolute;
+  left: 50%;
+  bottom: 4.8%;
+  width: 84%;
+  aspect-ratio: 1597 / 602;
+  opacity: 0;
+  transform: translate(-50%, 5%);
+  animation: rigIn 700ms cubic-bezier(.16, 1, .3, 1) forwards;
+}
+
+.artwork {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: saturate(1.06) contrast(1.04);
+}
+
+.slot {
+  position: absolute;
+  top: 0;
+  width: 31.1%;
+  height: 100%;
+  opacity: 0;
+  transform: translateY(7%);
+  animation: slotIn 720ms var(--slot-delay) cubic-bezier(.16, 1, .3, 1) forwards;
+}
+
+.slot1 { left: 2.8%; }
+.slot2 { left: 34.5%; }
+.slot3 { left: 66.5%; }
+
+.scorePanel,
+.namePanel {
+  position: absolute;
+  left: 15.5%;
+  display: grid;
+  width: 69%;
+  place-items: center;
+  overflow: hidden;
+  border: clamp(1px, .16vw, 3px) solid rgba(145, 207, 255, .62);
+  background:
+    linear-gradient(180deg, rgba(35, 95, 232, .96), rgba(3, 26, 119, .98)),
+    #092293;
+  box-shadow:
+    inset 0 0 0 clamp(2px, .22vw, 4px) rgba(2, 13, 67, .62),
+    inset 0 0 clamp(14px, 2vw, 38px) rgba(95, 174, 255, .24),
+    0 clamp(5px, .7vw, 14px) clamp(14px, 2vw, 40px) rgba(0, 7, 48, .58),
+    0 0 clamp(10px, 1.2vw, 24px) rgba(31, 115, 255, .28);
+  isolation: isolate;
+}
+
+.scorePanel::before,
+.namePanel::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(112deg, transparent 0 42%, rgba(255, 255, 255, .08) 43% 47%, transparent 48%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, .025) 0 1px, transparent 1px 5px);
+  content: "";
+}
+
+.scorePanel {
+  top: 14.5%;
+  height: 17.5%;
+  color: #fff;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: clamp(1.25rem, 2.7vw, 3.65rem);
+  font-weight: 900;
+  letter-spacing: -.035em;
+  line-height: 1;
+  text-align: center;
+  text-shadow: 0 .08em .08em rgba(0, 7, 48, .8), 0 0 .32em rgba(145, 207, 255, .46);
+  animation: panelGlow 2.8s calc(var(--slot-delay) + 900ms) ease-in-out infinite;
+}
+
+.namePanel {
+  top: 36%;
+  height: 30.5%;
+  padding: 4% 7%;
+}
+
+.namePanel strong {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  color: #fff;
+  font-family: "Segoe Print", "Bradley Hand", cursive;
+  font-size: clamp(1.05rem, 2.2vw, 3rem);
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  text-overflow: ellipsis;
+  text-shadow: 0 .08em .08em rgba(0, 7, 48, .75), 0 0 .26em rgba(145, 207, 255, .32);
+  white-space: nowrap;
+}
+
+@keyframes rigIn {
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@keyframes slotIn {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes panelGlow {
+  0%, 100% { filter: brightness(.96); }
+  50% { filter: brightness(1.1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage * { animation-duration: 1ms !important; animation-delay: 0ms !important; }
+}

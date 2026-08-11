@@ -1,0 +1,46 @@
+
+> dev
+> cd migration-uidesign/frontend && npm run dev
+
+
+> goon-live-frontend@0.1.0 dev
+> next dev
+
+   ▲ Next.js 15.5.15
+   - Local:        http://localhost:3002
+   - Network:      http://192.168.18.241:3002
+   - Environments: .env.development.local, .env.local
+
+ ✓ Starting...
+ ✓ Ready in 2.7s
+ ○ Compiling / ...
+ ✓ Compiled / in 6.1s (784 modules)
+ GET / 200 in 7559ms
+ ○ Compiling /season-9 ...
+ ✓ Compiled /season-9 in 1388ms (747 modules)
+ GET /season-9 200 in 1877ms
+ GET / 200 in 1582ms
+ GET /season-9 200 in 71ms
+ GET / 200 in 139ms
+ ○ Compiling /history ...
+ ✓ Compiled /history in 2.2s (753 modules)
+ GET /history 200 in 3098ms
+ GET /history 200 in 149ms
+ GET /history 200 in 87ms
+ GET /history 200 in 199ms
+ GET /history 200 in 135ms
+ GET /history 200 in 95ms
+ ○ Compiling /news ...
+ ✓ Compiled /news in 3.4s (1040 modules)
+ GET /news 200 in 4191ms
+ GET /news 200 in 216ms
+ ✓ Compiled in 928ms (297 modules)
+ GET /news 200 in 485ms
+ GET / 200 in 217ms
+ ✓ Compiled in 1957ms (1031 modules)
+ GET / 200 in 527ms
+ GET / 200 in 430ms
+ ○ Compiling /minigames/jeopardy ...
+ ✓ Compiled /minigames/jeopardy in 1205ms (1054 modules)
+ GET /minigames/jeopardy 200 in 1593ms
+ GET / 200 in 498ms

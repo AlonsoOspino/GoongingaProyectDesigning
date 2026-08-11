@@ -1,0 +1,36 @@
+
+> dev
+> cd migration-uidesign/frontend && npm run dev
+
+
+> goon-live-frontend@0.1.0 dev
+> next dev
+
+   ▲ Next.js 15.5.15
+   - Local:        http://localhost:3002
+   - Network:      http://192.168.18.241:3002
+   - Environments: .env.development.local, .env.local
+
+ ✓ Starting...
+ ✓ Ready in 3.9s
+ ○ Compiling / ...
+ ✓ Compiled / in 4.2s (726 modules)
+ GET / 200 in 6134ms
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /favicon.ico in 2.8s (750 modules)
+ GET /favicon.ico 307 in 3281ms
+ GET / 200 in 518ms
+ ✓ Compiled in 1382ms (745 modules)
+ GET / 200 in 512ms
+ ✓ Compiled in 876ms (745 modules)
+ GET / 200 in 269ms
+ ✓ Compiled in 1364ms (745 modules)
+ GET / 200 in 355ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 4.5s (1091 modules)
+ GET / 500 in 9843ms
+ GET / 200 in 2863ms
+ GET / 200 in 529ms
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /favicon.ico in 1667ms (663 modules)
+ GET /favicon.ico 307 in 2176ms

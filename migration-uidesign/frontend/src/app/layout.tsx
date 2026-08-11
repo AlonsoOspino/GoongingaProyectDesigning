@@ -28,10 +28,10 @@ const bebasNeue = Bebas_Neue({
 
 export const metadata: Metadata = {
   title: {
-    default: "Goonginga",
+    default: "Goonginga | Overwatch League",
     template: "%s | Goonginga",
   },
-  description: "Goonginga Overwatch League seasons, registration, and match history.",
+  description: "Goonginga is a community Overwatch league with drafted rosters, scheduled matches, live broadcasts, standings, and playoffs.",
 };
 
 export const viewport: Viewport = {

@@ -9,23 +9,19 @@ const PODIUM_ORDER = [1, 0, 2];
 
 function AnimatedPoints({ score, delay }: { score: number; delay: number }) {
   const display = useAnimatedScore(score, delay, 1200);
-  return <>{display.toLocaleString()} <small>PTS</small></>;
+  const value = Math.abs(display).toLocaleString();
+  return <>{display < 0 ? `-$${value}` : `$${value}`}</>;
 }
 
-function PodiumSlot({ participant, place, slotIndex }: { participant?: JeopardyParticipant; place: number; slotIndex: number }) {
+function PodiumSlot({ participant, slotIndex }: { participant?: JeopardyParticipant; slotIndex: number }) {
   const revealDelay = slotIndex * 350;
   return (
     <article className={`${styles.slot} ${styles[`slot${slotIndex + 1}`]}`} style={{ "--slot-delay": `${revealDelay}ms` } as React.CSSProperties}>
-      <div className={styles.nameplate}>
-        <span>0{place}</span>
-        <strong>{place === 1 ? "Winner" : `${place}${place === 2 ? "nd" : "rd"} place`}</strong>
+      <div className={styles.scorePanel}>
+        {participant ? <AnimatedPoints score={participant.score} delay={revealDelay + 700} /> : "$0"}
       </div>
-      <div className={styles.chalkboard}>
-        <strong className={styles.chalkWriting}>{participant?.member.username || "Waiting"}</strong>
-        <i className={styles.chalkLine} aria-hidden="true" />
-      </div>
-      <div className={styles.points}>
-        {participant ? <AnimatedPoints score={participant.score} delay={revealDelay + 2200} /> : <>0 <small>PTS</small></>}
+      <div className={styles.namePanel}>
+        <strong title={participant?.member.username}>{participant?.member.username || "Waiting"}</strong>
       </div>
     </article>
   );
@@ -41,7 +37,7 @@ function Podium({ game }: { game: JeopardyGame }) {
     <div className={styles.rig}>
       <img className={styles.artwork} src="/jeopardy-podium.png" alt="" />
       {PODIUM_ORDER.map((leaderIndex, slotIndex) => (
-        <PodiumSlot key={slotIndex} participant={leaders[leaderIndex]} place={leaderIndex + 1} slotIndex={slotIndex} />
+        <PodiumSlot key={slotIndex} participant={leaders[leaderIndex]} slotIndex={slotIndex} />
       ))}
     </div>
   );

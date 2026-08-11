@@ -1,0 +1,56 @@
+
+> dev
+> cd migration-uidesign/frontend && npm run dev
+
+
+> goon-live-frontend@0.1.0 dev
+> next dev
+
+   ▲ Next.js 15.5.15
+   - Local:        http://localhost:3002
+   - Network:      http://192.168.18.241:3002
+   - Environments: .env.development.local, .env.local
+
+ ✓ Starting...
+ ✓ Ready in 3.3s
+ ○ Compiling / ...
+ ✓ Compiled / in 9.4s (789 modules)
+ GET / 200 in 10332ms
+ GET / 200 in 1116ms
+ GET / 200 in 562ms
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /favicon.ico in 1300ms (764 modules)
+ GET /favicon.ico 307 in 1573ms
+ GET / 200 in 531ms
+ ✓ Compiled in 1230ms (745 modules)
+ GET / 200 in 435ms
+ ✓ Compiled in 1118ms (745 modules)
+ GET / 200 in 345ms
+ ✓ Compiled in 876ms (745 modules)
+ GET / 200 in 285ms
+ ✓ Compiled in 782ms (745 modules)
+ GET / 200 in 228ms
+ ✓ Compiled in 423ms (295 modules)
+ ✓ Compiled in 470ms (295 modules)
+ GET / 200 in 639ms
+ GET / 200 in 173ms
+ GET / 200 in 567ms
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /favicon.ico in 570ms (469 modules)
+ GET /favicon.ico 307 in 810ms
+ ✓ Compiled in 1581ms (740 modules)
+ GET / 200 in 514ms
+ GET / 200 in 515ms
+ ✓ Compiled in 867ms (740 modules)
+ ✓ Compiled /_not-found in 371ms (731 modules)
+ GET / 404 in 685ms
+ GET / 404 in 686ms
+ GET / 200 in 1197ms
+ GET / 200 in 913ms
+ ✓ Compiled in 944ms (745 modules)
+ GET / 200 in 314ms
+ GET / 200 in 316ms
+ ✓ Compiled in 419ms (298 modules)
+ GET / 200 in 260ms
+ GET / 200 in 263ms
+ ✓ Compiled in 395ms (298 modules)

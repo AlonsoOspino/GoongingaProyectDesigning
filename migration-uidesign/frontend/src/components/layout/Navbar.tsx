@@ -43,13 +43,13 @@ export function Navbar() {
   const hasSocialDashboard = networkUser?.roles.some((role) => role === "SOCIAL_MEDIA" || role === "ADMIN");
 
   return (
-    <header className="sticky top-0 z-40 h-[68px] border-b border-border bg-surface/95 backdrop-blur-xl">
+    <header className={clsx("site-navbar sticky top-0 z-40 h-[68px] border-b border-border bg-surface/95 backdrop-blur-xl", pathname === "/" && "site-navbar-home")}>
       <div className="ow-container flex h-full items-center justify-between gap-5">
         <Link href="/" className="flex min-w-0 items-center gap-3" aria-label="Goonginga home">
           <img src="/winton.jpg" alt="" className="h-10 w-10 rounded-sm bg-white object-contain" />
           <div className="hidden leading-none sm:block">
             <span className="block font-display text-[1.5rem] uppercase text-foreground">Overtime Productions</span>
-            <span className="mt-0.5 block text-[0.62rem] font-extrabold uppercase text-accent">Goonginga Season</span>
+            <span className="mt-0.5 block text-[0.62rem] font-extrabold uppercase text-accent">Goonginga League</span>
           </div>
         </Link>
 
@@ -89,7 +89,7 @@ export function Navbar() {
           ) : (
             <Link href="/login" className="nav-auth-button hidden sm:inline-flex">
               <LogIn size={17} />
-              Register / Login
+              Register / Log in
             </Link>
           )}
           <button type="button" className="ow-icon-button nav-mobile-toggle" onClick={() => setOpen((value) => !value)} aria-label="Toggle menu" aria-expanded={open}>
@@ -110,7 +110,7 @@ export function Navbar() {
             {!networkUser && (
               <Link href="/login" onClick={() => setOpen(false)} className="nav-auth-button mt-2">
                 <LogIn size={17} />
-                Register / Login
+                Register / Log in
               </Link>
             )}
             {networkUser && hasSocialDashboard ? (

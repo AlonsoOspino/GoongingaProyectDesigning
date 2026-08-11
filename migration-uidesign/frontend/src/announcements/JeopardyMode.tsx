@@ -19,12 +19,12 @@ export function JeopardyMode({ payload, config, now, standalone = false }: { pay
       {game ? <img className={styles.jeopardyCover} src={cover} onError={() => setCover(fallbackCover)} alt="" /> : null}
       <div className={styles.jeopardyShade} />
       <div className={styles.inner}>
-        <div className={styles.modeLabel}><Gamepad2 size={16} /> Jeopardy Minigame mode</div>
+        <div className={styles.modeLabel}><Gamepad2 size={16} /> Jeopardy event</div>
         <div className={styles.jeopardyContent}>
           <div>
-            <span>{game ? <><Radio size={14} /> {game.phase === "CREATED" ? "Starting soon" : game.phase === "FINALIZED" ? "Final standings" : "Live Minigame"}</> : "Minigames"}</span>
-            <h2>{game?.title || "Jeopardy is not live"}</h2>
-            <p>{game?.description || "The next Jeopardy game will appear here when it is published."}</p>
+            <span>{game ? <><Radio size={14} /> {game.phase === "CREATED" ? "Starts soon" : game.phase === "FINALIZED" ? "Final standings" : "Live"}</> : "Minigames"}</span>
+            <h2>{game?.title || "Upcoming Jeopardy"}</h2>
+            <p>{game?.description || "The next game will appear here when it is published."}</p>
           </div>
           <div className={styles.jeopardyActions}>
             <AnnouncementCountdown target={config.countdownAt} now={now} />

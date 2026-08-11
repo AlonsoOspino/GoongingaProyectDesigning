@@ -20,8 +20,8 @@ export function AnnouncementRenderer({ standalone = false }: { standalone?: bool
     return () => { mounted = false; window.clearInterval(poll); window.clearInterval(clock); };
   }, []);
 
-  if (!announcement) return standalone ? <div className={styles.loading}>Loading announcement mode...</div> : null;
-  if (!announcement.enabled) return standalone ? <div className={styles.loading}>Announcement modes are currently disabled.</div> : null;
+  if (!announcement) return standalone ? <div className={styles.loading}>Loading event...</div> : null;
+  if (!announcement.enabled) return standalone ? <div className={styles.loading}>No active league event.</div> : null;
 
   if (announcement.mode === "JEOPARDY") {
     return <JeopardyMode payload={announcement.payload as JeopardyAnnouncementPayload} config={announcement.config} now={now} standalone={standalone} />;
