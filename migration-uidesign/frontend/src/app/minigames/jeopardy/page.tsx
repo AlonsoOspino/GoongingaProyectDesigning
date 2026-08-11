@@ -7,10 +7,6 @@ import styles from "./jeopardy.module.css";
 
 const PODIUM_ORDER = [1, 0, 2];
 
-function initials(name: string) {
-  return name.trim().slice(0, 2).toUpperCase();
-}
-
 function AnimatedPoints({ score, delay }: { score: number; delay: number }) {
   const display = useAnimatedScore(score, delay, 1200);
   return <>{display.toLocaleString()} <small>PTS</small></>;
@@ -22,15 +18,14 @@ function PodiumSlot({ participant, place, slotIndex }: { participant?: JeopardyP
     <article className={`${styles.slot} ${styles[`slot${slotIndex + 1}`]}`} style={{ "--slot-delay": `${revealDelay}ms` } as React.CSSProperties}>
       <div className={styles.nameplate}>
         <span>0{place}</span>
-        <strong>{participant?.member.username || "Waiting"}</strong>
+        <strong>{place === 1 ? "Winner" : `${place}${place === 2 ? "nd" : "rd"} place`}</strong>
       </div>
-      <div className={styles.portrait}>
-        {participant?.member.avatarUrl
-          ? <img src={participant.member.avatarUrl} alt="" />
-          : <strong>{participant ? initials(participant.member.username) : "?"}</strong>}
+      <div className={styles.chalkboard}>
+        <strong className={styles.chalkWriting}>{participant?.member.username || "Waiting"}</strong>
+        <i className={styles.chalkLine} aria-hidden="true" />
       </div>
       <div className={styles.points}>
-        {participant ? <AnimatedPoints score={participant.score} delay={revealDelay + 600} /> : <>0 <small>PTS</small></>}
+        {participant ? <AnimatedPoints score={participant.score} delay={revealDelay + 2200} /> : <>0 <small>PTS</small></>}
       </div>
     </article>
   );

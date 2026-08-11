@@ -56,10 +56,10 @@ function Avatar({ member }: { member: MiniGameMember }) {
     : <span className={styles.avatar}>{member.username.slice(0, 2)}</span>;
 }
 
-function QuestionResult({ game, memberId, unanswered }: { game: JeopardyGame; memberId: number | null; unanswered: boolean }) {
+function QuestionResult({ game, memberId, unanswered, scoreDelta }: { game: JeopardyGame; memberId: number | null; unanswered: boolean; scoreDelta: number }) {
   if (unanswered) return <X />;
   const participant = game.participants.find((item) => item.memberId === memberId);
-  return participant ? <Avatar member={participant.member} /> : <X />;
+  return participant ? <span className={styles.recordedResult}><Avatar member={participant.member} /><b>{scoreDelta > 0 ? "+" : ""}{scoreDelta}</b></span> : <X />;
 }
 
 export function JeopardyDashboard() {
@@ -118,10 +118,10 @@ export function JeopardyDashboard() {
     finally { setBusy(false); }
   }
 
-  async function saveResult(memberId: number | null) {
+  async function saveResult(memberId: number | null, result: "ADD" | "SUBTRACT" | "NO_ANSWER") {
     const token = readNetworkSessionToken();
     if (!token || !game || !selectedQuestionId) return;
-    await run(() => awardJeopardyQuestion(token, game.slug, selectedQuestionId, memberId));
+    await run(() => awardJeopardyQuestion(token, game.slug, selectedQuestionId, memberId, result));
     setSelectedQuestionId(null);
   }
 
@@ -224,14 +224,14 @@ export function JeopardyDashboard() {
 
       {game.phase === "PICKING_QUESTION" ? <>
         <div className={styles.board}>
-          {game.board?.categories.map((category)=><div key={category.id}><h3>{category.name}</h3>{category.questions.map((question)=><button key={question.id} disabled={question.used||busy} className={question.used?styles.used:""} onClick={()=>setSelectedQuestionId(question.id)}>{question.used?<QuestionResult game={game} memberId={question.answeredMemberId} unanswered={question.unanswered}/>:question.reward}</button>)}</div>)}
+          {game.board?.categories.map((category)=><div key={category.id}><h3>{category.name}</h3>{category.questions.map((question)=><button key={question.id} disabled={question.used||busy} className={question.used?styles.used:""} onClick={()=>setSelectedQuestionId(question.id)}>{question.used?<QuestionResult game={game} memberId={question.answeredMemberId} unanswered={question.unanswered} scoreDelta={question.scoreDelta}/>:question.reward}</button>)}</div>)}
         </div>
         <div className={styles.boardFooter}><span>Select a question, then assign the points.</span><button disabled={!answered||busy} onClick={()=>void run(()=>finalizeJeopardy(token,game.slug))}><Trophy size={16}/> Finalize and reveal podium</button></div>
       </> : null}
 
       {game.phase === "FINALIZED" ? <div className={styles.finalized}><Trophy size={42}/><h3>Podium ready</h3><p>The final standings are now available on the stream output.</p><Link href="/minigames/jeopardy" target="_blank">Open podium <ExternalLink size={16}/></Link></div> : null}
 
-      {selectedQuestion ? <div className={styles.resultDialog} role="dialog" aria-modal="true"><div className={styles.dialogPanel}><button className={styles.close} onClick={()=>setSelectedQuestionId(null)} aria-label="Close"><X/></button><span>{selectedQuestion.categoryName} / {selectedQuestion.reward}</span><h3>{selectedQuestion.question}</h3><p className={styles.answer}>Answer: <strong>{selectedQuestion.answer}</strong></p><h4>Who answered correctly?</h4><div className={styles.awardList}>{game.participants.map((participant)=><button disabled={busy} key={participant.id} onClick={()=>void saveResult(participant.memberId)}><Avatar member={participant.member}/><span>{participant.member.username}<small>{participant.score} points</small></span><b>+{selectedQuestion.reward}</b></button>)}</div><button disabled={busy} className={styles.noAnswer} onClick={()=>void saveResult(null)}><X size={18}/> No one answered</button></div></div> : null}
+      {selectedQuestion ? <div className={styles.resultDialog} role="dialog" aria-modal="true"><div className={styles.dialogPanel}><button className={styles.close} onClick={()=>setSelectedQuestionId(null)} aria-label="Close"><X/></button><span>{selectedQuestion.categoryName} / {selectedQuestion.reward}</span><h3>{selectedQuestion.question}</h3><p className={styles.answer}>Answer: <strong>{selectedQuestion.answer}</strong></p><h4>Assign the result</h4><div className={styles.awardList}>{game.participants.map((participant)=><div className={styles.awardRow} key={participant.id}><Avatar member={participant.member}/><span>{participant.member.username}<small>{participant.score} points</small></span><div className={styles.scoreActions}><button disabled={busy} className={styles.addScore} onClick={()=>void saveResult(participant.memberId,"ADD")} aria-label={`Add ${selectedQuestion.reward} points to ${participant.member.username}`}>+{selectedQuestion.reward}</button><button disabled={busy} className={styles.subtractScore} onClick={()=>void saveResult(participant.memberId,"SUBTRACT")} aria-label={`Subtract ${selectedQuestion.reward} points from ${participant.member.username}`}>-{selectedQuestion.reward}</button></div></div>)}</div><button disabled={busy} className={styles.noAnswer} onClick={()=>void saveResult(null,"NO_ANSWER")}><X size={18}/> No one answered</button></div></div> : null}
     </section>
   );
 }

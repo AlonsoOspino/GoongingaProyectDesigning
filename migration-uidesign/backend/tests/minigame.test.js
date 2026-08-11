@@ -26,10 +26,40 @@ test("Jeopardy state normalizes direct question awards", () => {
     questionResults: [
       { questionId: "question-1", memberId: 42, reward: 200 },
       { questionId: "question-2", memberId: null, reward: 300 },
+      { questionId: "question-3", memberId: 42, reward: -400 },
     ],
   }).questionResults, [
     { questionId: "question-1", memberId: 42, reward: 200 },
     { questionId: "question-2", memberId: null, reward: 300 },
+    { questionId: "question-3", memberId: 42, reward: -400 },
+  ]);
+});
+
+test("Jeopardy board exposes added, subtracted, and unanswered results", () => {
+  const config = {
+    categories: [{
+      id: "category-1",
+      name: "Test",
+      questions: [
+        { id: "add", question: "Add?", answer: "Yes", reward: 100 },
+        { id: "subtract", question: "Subtract?", answer: "Yes", reward: 200 },
+        { id: "none", question: "No answer?", answer: "Yes", reward: 300 },
+      ],
+    }],
+  };
+  const board = __testables.publicBoard(config, {
+    usedQuestionIds: ["add", "subtract", "none"],
+    questionResults: [
+      { questionId: "add", memberId: 42, reward: 100 },
+      { questionId: "subtract", memberId: 42, reward: -200 },
+      { questionId: "none", memberId: null, reward: 0 },
+    ],
+  });
+
+  assert.deepEqual(board.categories[0].questions.map(({ answeredMemberId, unanswered, scoreDelta }) => ({ answeredMemberId, unanswered, scoreDelta })), [
+    { answeredMemberId: 42, unanswered: false, scoreDelta: 100 },
+    { answeredMemberId: 42, unanswered: false, scoreDelta: -200 },
+    { answeredMemberId: null, unanswered: true, scoreDelta: 0 },
   ]);
 });
 

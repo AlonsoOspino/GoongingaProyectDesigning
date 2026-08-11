@@ -6,15 +6,18 @@
 .slot1 { left:2.8%; }.slot2 { left:34.5%; }.slot3 { left:66.5%; }
 .nameplate { position:absolute; top:6.3%; left:19.4%; display:grid; width:60.3%; height:16.1%; place-items:center; padding:4% 7% 2%; color:#f7f4ef; text-align:center; text-transform:uppercase; }
 .nameplate span { position:absolute; top:8%; left:5%; color:#d8b09a; font-family:var(--font-display); font-size:clamp(8px,.65vw,13px); }
-.nameplate strong { width:100%; overflow:hidden; font-size:clamp(11px,1.15vw,22px); line-height:1; text-overflow:ellipsis; white-space:nowrap; }
-.portrait { position:absolute; top:30.3%; left:23.4%; display:grid; width:52.8%; height:35%; place-items:center; overflow:hidden; background:#2e3994; color:#fff; }
-.portrait::after { position:absolute; inset:0; border:3px solid rgba(0,0,0,.75); content:""; pointer-events:none; }
-.portrait img { width:100%; height:100%; object-fit:cover; animation:portraitIn 850ms calc(var(--slot-delay) + 250ms) cubic-bezier(.16,1,.3,1) both; }
-.portrait strong { font-family:var(--font-display); font-size:clamp(2rem,5vw,6rem); font-weight:400; }
+.nameplate strong { width:100%; overflow:hidden; font-size:clamp(11px,1.15vw,22px); line-height:1; text-overflow:ellipsis; text-transform:uppercase; white-space:nowrap; }
+.chalkboard { position:absolute; top:30.3%; left:23.4%; display:grid; width:52.8%; height:35%; place-items:center; overflow:hidden; border:3px solid rgba(0,0,0,.75); background:#2e3994; color:#fff; isolation:isolate; }
+.chalkboard::before { position:absolute; inset:0; z-index:-1; background:repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0 1px,transparent 1px 5px),radial-gradient(circle at 32% 42%,rgba(255,255,255,.05),transparent 28%); content:""; }
+.chalkWriting { position:relative; display:block; max-width:88%; overflow:hidden; padding:.18em .1em .26em; color:#fff; font-family:"Segoe Print","Comic Sans MS",cursive; font-size:clamp(1.1rem,2.15vw,2.65rem); font-weight:600; line-height:1.15; text-align:center; text-overflow:ellipsis; text-shadow:0 0 1px #fff,1px 0 rgba(255,255,255,.45); white-space:nowrap; clip-path:inset(0 100% 0 0); animation:chalkWrite 1.35s calc(var(--slot-delay) + 650ms) steps(18,end) forwards; }
+.chalkWriting::after { position:absolute; top:18%; width:.2em; height:64%; border-radius:50%; background:#fff; box-shadow:0 0 .32em rgba(255,255,255,.85); content:""; opacity:0; animation:chalkTip 1.35s calc(var(--slot-delay) + 650ms) linear forwards; }
+.chalkLine { position:absolute; bottom:26%; left:15%; width:70%; height:2px; background:rgba(255,255,255,.8); box-shadow:0 0 2px rgba(255,255,255,.6); opacity:0; transform:scaleX(0) rotate(-1deg); transform-origin:left; animation:chalkLine 450ms calc(var(--slot-delay) + 1.95s) ease-out forwards; }
 .points { position:absolute; top:90.2%; left:16%; display:flex; width:68%; height:7.3%; align-items:center; justify-content:center; color:#fff; font-family:var(--font-display); font-size:clamp(15px,1.8vw,35px); line-height:1; text-shadow:0 2px 2px #000; }
 .points small { margin-left:.3em; color:#d8b09a; font-family:inherit; font-size:.4em; }
 
 @keyframes rigIn { to { opacity:1; transform:translate(-50%,0); } }
 @keyframes slotIn { to { opacity:1; transform:translateY(0); } }
-@keyframes portraitIn { from { opacity:0; transform:scale(.72); } to { opacity:1; transform:scale(1); } }
+@keyframes chalkWrite { to { clip-path:inset(0 0 0 0); } }
+@keyframes chalkTip { 0% { left:4%; opacity:0; } 8% { opacity:1; } 92% { opacity:1; } 100% { left:96%; opacity:0; } }
+@keyframes chalkLine { to { opacity:1; transform:scaleX(1) rotate(-1deg); } }
 @media(prefers-reduced-motion:reduce){.stage *{animation-duration:1ms!important;animation-delay:0ms!important}}

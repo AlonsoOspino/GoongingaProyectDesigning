@@ -111,7 +111,7 @@ function normalizeState(input) {
         memberId: result?.memberId !== null && result?.memberId !== undefined && Number.isInteger(Number(result.memberId))
           ? Number(result.memberId)
           : null,
-        reward: Math.max(0, Number(result?.reward) || 0),
+        reward: Math.min(Math.max(Number(result?.reward) || 0, -1000000), 1000000),
       })).filter((result) => result.questionId)
     : [];
   return {
@@ -177,6 +177,7 @@ function publicBoard(config, state) {
           requested: normalizedState.requestedQuestionId === question.id,
           answeredMemberId: result?.memberId ?? null,
           unanswered: Boolean(result && result.memberId === null),
+          scoreDelta: result?.memberId === null ? 0 : result?.reward ?? 0,
         };
       }),
     })),
@@ -478,6 +479,7 @@ async function awardJeopardyQuestion(req, res) {
     const slug = slugify(req.params.slug);
     const questionId = asText(req.body?.questionId, 100);
     const requestedMemberId = req.body?.memberId === null ? null : Number(req.body?.memberId);
+    const result = ["ADD", "SUBTRACT", "NO_ANSWER"].includes(req.body?.result) ? req.body.result : requestedMemberId === null ? "NO_ANSWER" : "ADD";
     const game = await prisma.miniGame.findUnique({ where: { slug }, include: { participants: true } });
     if (!game) return res.status(404).json({ message: "Minigame not found." });
     if (game.gameType !== "JEOPARDY" || game.phase !== "PICKING_QUESTION") {
@@ -488,15 +490,19 @@ async function awardJeopardyQuestion(req, res) {
     if (!question || state.usedQuestionIds.includes(questionId)) {
       return res.status(400).json({ message: "That question is not available." });
     }
-    if (requestedMemberId !== null && !game.participants.some((participant) => participant.memberId === requestedMemberId)) {
+    if (result === "NO_ANSWER" && requestedMemberId !== null) {
+      return res.status(400).json({ message: "No-answer results cannot be assigned to a participant." });
+    }
+    if (result !== "NO_ANSWER" && (requestedMemberId === null || !game.participants.some((participant) => participant.memberId === requestedMemberId))) {
       return res.status(400).json({ message: "Choose a participant from this Jeopardy roster." });
     }
+    const scoreDelta = result === "SUBTRACT" ? -question.reward : result === "ADD" ? question.reward : 0;
 
     const updated = await prisma.$transaction(async (tx) => {
       if (requestedMemberId !== null) {
         await tx.miniGameParticipant.update({
           where: { gameId_memberId: { gameId: game.id, memberId: requestedMemberId } },
-          data: { score: { increment: question.reward } },
+          data: { score: { increment: scoreDelta } },
         });
       }
       return tx.miniGame.update({
@@ -505,7 +511,7 @@ async function awardJeopardyQuestion(req, res) {
           state: {
             ...state,
             usedQuestionIds: [...state.usedQuestionIds, questionId],
-            questionResults: [...state.questionResults, { questionId, memberId: requestedMemberId, reward: question.reward }],
+            questionResults: [...state.questionResults, { questionId, memberId: requestedMemberId, reward: scoreDelta }],
           },
         },
         include: gameInclude,

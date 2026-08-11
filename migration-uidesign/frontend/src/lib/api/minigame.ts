@@ -18,7 +18,7 @@ export type JeopardyGame = {
   phase: JeopardyPhase;
   currentPlayer: MiniGameMember | null;
   participants: JeopardyParticipant[];
-  board: { categories: Array<{ id: string; name: string; questions: Array<{ id: string; reward: number; used: boolean; selected: boolean; requested: boolean; answeredMemberId: number | null; unanswered: boolean }> }> } | null;
+  board: { categories: Array<{ id: string; name: string; questions: Array<{ id: string; reward: number; used: boolean; selected: boolean; requested: boolean; answeredMemberId: number | null; unanswered: boolean; scoreDelta: number }> }> } | null;
   gameState: {
     turnMemberId: number | null;
     requestedQuestionId: string | null;
@@ -72,5 +72,5 @@ function gameAction(token: string, slug: string, action: string, body?: unknown)
 }
 
 export const startJeopardy = (token: string, slug: string) => gameAction(token, slug, "start");
-export const awardJeopardyQuestion = (token: string, slug: string, questionId: string, memberId: number | null) => gameAction(token, slug, "award", { questionId, memberId });
+export const awardJeopardyQuestion = (token: string, slug: string, questionId: string, memberId: number | null, result: "ADD" | "SUBTRACT" | "NO_ANSWER") => gameAction(token, slug, "award", { questionId, memberId, result });
 export const finalizeJeopardy = (token: string, slug: string) => gameAction(token, slug, "finalize");
