@@ -53,20 +53,17 @@
 .scorePanel,
 .namePanel {
   position: absolute;
-  left: 15.5%;
   display: grid;
-  width: 69%;
   place-items: center;
   overflow: hidden;
-  border: clamp(1px, .16vw, 3px) solid rgba(145, 207, 255, .62);
+  border: clamp(1px, .14vw, 2px) solid rgba(55, 84, 255, .72);
   background:
-    linear-gradient(180deg, rgba(35, 95, 232, .96), rgba(3, 26, 119, .98)),
-    #092293;
+    linear-gradient(180deg, #1429c3 0%, #08178b 52%, #030858 100%),
+    #060c79;
   box-shadow:
-    inset 0 0 0 clamp(2px, .22vw, 4px) rgba(2, 13, 67, .62),
-    inset 0 0 clamp(14px, 2vw, 38px) rgba(95, 174, 255, .24),
-    0 clamp(5px, .7vw, 14px) clamp(14px, 2vw, 40px) rgba(0, 7, 48, .58),
-    0 0 clamp(10px, 1.2vw, 24px) rgba(31, 115, 255, .28);
+    inset 0 0 0 clamp(2px, .2vw, 4px) rgba(1, 5, 49, .7),
+    inset 0 0 clamp(12px, 1.6vw, 30px) rgba(31, 69, 255, .18),
+    0 clamp(3px, .45vw, 9px) clamp(8px, 1.2vw, 22px) rgba(0, 3, 32, .58);
   isolation: isolate;
 }
 
@@ -76,44 +73,64 @@
   inset: 0;
   z-index: -1;
   background:
-    linear-gradient(112deg, transparent 0 42%, rgba(255, 255, 255, .08) 43% 47%, transparent 48%),
-    repeating-linear-gradient(0deg, rgba(255, 255, 255, .025) 0 1px, transparent 1px 5px);
+    linear-gradient(112deg, transparent 0 42%, rgba(255, 255, 255, .045) 43% 47%, transparent 48%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, .018) 0 1px, transparent 1px 5px);
   content: "";
 }
 
 .scorePanel {
-  top: 14.5%;
-  height: 17.5%;
+  top: 7.3%;
+  left: 20.6%;
+  width: 58%;
+  height: 13.7%;
   color: #fff;
   font-family: Arial, Helvetica, sans-serif;
-  font-size: clamp(1.25rem, 2.7vw, 3.65rem);
+  font-size: clamp(1.05rem, 2.25vw, 3rem);
   font-weight: 900;
   letter-spacing: -.035em;
   line-height: 1;
   text-align: center;
-  text-shadow: 0 .08em .08em rgba(0, 7, 48, .8), 0 0 .32em rgba(145, 207, 255, .46);
+  text-shadow: 0 .08em .08em rgba(0, 3, 35, .9), 0 0 .24em rgba(60, 91, 255, .4);
   animation: panelGlow 2.8s calc(var(--slot-delay) + 900ms) ease-in-out infinite;
 }
 
 .namePanel {
-  top: 36%;
-  height: 30.5%;
+  top: 31.2%;
+  left: 24.2%;
+  width: 51.2%;
+  height: 33.2%;
   padding: 4% 7%;
 }
 
 .namePanel strong {
+  position: relative;
   display: block;
-  width: 100%;
+  max-width: 100%;
   overflow: hidden;
   color: #fff;
   font-family: "Segoe Print", "Bradley Hand", cursive;
-  font-size: clamp(1.05rem, 2.2vw, 3rem);
+  font-size: clamp(1rem, 2.05vw, 2.75rem);
   font-weight: 600;
   line-height: 1.15;
   text-align: center;
   text-overflow: ellipsis;
-  text-shadow: 0 .08em .08em rgba(0, 7, 48, .75), 0 0 .26em rgba(145, 207, 255, .32);
+  text-shadow: 0 .06em .07em rgba(0, 3, 35, .85), 0 0 .2em rgba(255, 255, 255, .28);
   white-space: nowrap;
+  clip-path: inset(0 100% 0 0);
+  animation: chalkWrite 1.4s calc(var(--slot-delay) + 650ms) steps(20, end) forwards;
+}
+
+.namePanel strong::after {
+  position: absolute;
+  top: 12%;
+  width: .17em;
+  height: 74%;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 .28em rgba(255, 255, 255, .9);
+  content: "";
+  opacity: 0;
+  animation: chalkTip 1.4s calc(var(--slot-delay) + 650ms) linear forwards;
 }
 
 @keyframes rigIn {
@@ -125,8 +142,19 @@
 }
 
 @keyframes panelGlow {
-  0%, 100% { filter: brightness(.96); }
-  50% { filter: brightness(1.1); }
+  0%, 100% { filter: brightness(.94); }
+  50% { filter: brightness(1.04); }
+}
+
+@keyframes chalkWrite {
+  to { clip-path: inset(0 0 0 0); }
+}
+
+@keyframes chalkTip {
+  0% { left: 1%; opacity: 0; }
+  8% { opacity: 1; }
+  92% { opacity: 1; }
+  100% { left: 99%; opacity: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {

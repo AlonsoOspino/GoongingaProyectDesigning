@@ -44,3 +44,7 @@
  ✓ Compiled /minigames/jeopardy in 1205ms (1054 modules)
  GET /minigames/jeopardy 200 in 1593ms
  GET / 200 in 498ms
+ ✓ Compiled in 1481ms (1046 modules)
+ ✓ Compiled /minigames/jeopardy in 452ms (742 modules)
+ GET /minigames/jeopardy 200 in 1030ms
+ GET /minigames/jeopardy 200 in 94ms
