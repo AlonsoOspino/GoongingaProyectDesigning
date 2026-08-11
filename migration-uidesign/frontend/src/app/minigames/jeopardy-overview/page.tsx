@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { getActiveJeopardy, type JeopardyGame, type JeopardyParticipant } from "@/lib/api/minigame";
 import { useAnimatedScore } from "@/minigames/useAnimatedScore";
 import styles from "./jeopardy-overview.module.css";
@@ -30,15 +30,30 @@ export default function JeopardyScoreOverlay() {
     return () => window.clearInterval(poll);
   }, [load]);
 
+  useEffect(() => {
+    const htmlBackground = document.documentElement.style.background;
+    const bodyBackground = document.body.style.background;
+    document.documentElement.style.background = "transparent";
+    document.body.style.background = "transparent";
+    return () => {
+      document.documentElement.style.background = htmlBackground;
+      document.body.style.background = bodyBackground;
+    };
+  }, []);
+
   const leaders = useMemo(
-    () => [...(game?.participants || [])].sort((a, b) => b.score - a.score || a.member.username.localeCompare(b.member.username)).slice(0, 3),
+    () => [...(game?.participants || [])].sort((a, b) => b.score - a.score || a.member.username.localeCompare(b.member.username)).slice(0, 6),
     [game?.participants],
   );
 
   return (
     <main className={styles.viewport}>
       <section className={styles.stage}>
-        {game ? <div className={styles.scoreboard}>{[0,1,2].map((index) => <ScoreCard key={leaders[index]?.id || index} participant={leaders[index]} index={index} />)}</div> : null}
+        {leaders.length ? (
+          <div className={styles.scoreboard} style={{ "--player-count": leaders.length } as CSSProperties}>
+            {leaders.map((participant, index) => <ScoreCard key={participant.id} participant={participant} index={index} />)}
+          </div>
+        ) : null}
       </section>
     </main>
   );
