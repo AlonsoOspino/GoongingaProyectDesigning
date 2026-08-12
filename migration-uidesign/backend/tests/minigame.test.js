@@ -18,7 +18,15 @@ test("Jeopardy state keeps response and result fields explicit", () => {
     answerCorrect: true,
     respondedAt: null,
     questionResults: [],
+    displayOrderMemberIds: [],
   });
+});
+
+test("Jeopardy display order keeps five unique valid member ids", () => {
+  assert.deepEqual(
+    __testables.normalizeState({ displayOrderMemberIds: [9, 4, 9, "7", 0, -1, 2, 3, 8] }).displayOrderMemberIds,
+    [9, 4, 7, 2, 3],
+  );
 });
 
 test("Jeopardy state normalizes direct question awards", () => {

@@ -114,6 +114,9 @@ function normalizeState(input) {
         reward: Math.min(Math.max(Number(result?.reward) || 0, -1000000), 1000000),
       })).filter((result) => result.questionId)
     : [];
+  const displayOrderMemberIds = Array.isArray(input?.displayOrderMemberIds)
+    ? [...new Set(input.displayOrderMemberIds.map(Number).filter((value) => Number.isInteger(value) && value > 0))].slice(0, 5)
+    : [];
   return {
     turnMemberId: input?.turnMemberId !== null && input?.turnMemberId !== undefined && Number.isInteger(Number(input.turnMemberId))
       ? Number(input.turnMemberId)
@@ -126,6 +129,7 @@ function normalizeState(input) {
     answerCorrect: typeof input?.answerCorrect === "boolean" ? input.answerCorrect : null,
     respondedAt: asText(input?.respondedAt, 80) || null,
     questionResults,
+    displayOrderMemberIds,
   };
 }
 
@@ -225,6 +229,7 @@ function toPublicGame(game) {
         question: currentQuestion.question,
       } : null,
       questionResults: state.questionResults,
+      displayOrderMemberIds: state.displayOrderMemberIds,
     },
   };
 }
@@ -349,7 +354,7 @@ async function createGame(req, res) {
         gameType,
         phase: "CREATED",
         config: gameType === "JEOPARDY" ? normalizeJeopardyConfig(req.body?.config) : {},
-        state: normalizeState({}),
+        state: normalizeState({ displayOrderMemberIds: participantIds.slice(0, 5) }),
         createdById: req.networkMember.id,
         participants: participantIds.length ? {
           create: participantIds.map((memberId) => ({ memberId })),
@@ -472,7 +477,14 @@ async function startJeopardy(req, res) {
     if (game.phase !== "CREATED") return res.status(409).json({ message: "This game has already started." });
     const updated = await prisma.miniGame.update({
       where: { slug },
-      data: { phase: "PICKING_QUESTION", state: normalizeState({}) },
+      data: {
+        phase: "PICKING_QUESTION",
+        state: normalizeState({
+          displayOrderMemberIds: normalizeState(game.state).displayOrderMemberIds.length
+            ? normalizeState(game.state).displayOrderMemberIds
+            : game.participants.map((participant) => participant.memberId).sort((a, b) => a - b).slice(0, 5),
+        }),
+      },
       include: gameInclude,
     });
     return res.json(toManageGame(await withTurnMember(updated)));
@@ -576,6 +588,29 @@ async function adjustJeopardyScore(req, res) {
   }
 }
 
+async function publishJeopardyDisplayOrder(req, res) {
+  try {
+    const slug = slugify(req.params.slug);
+    const game = await prisma.miniGame.findUnique({ where: { slug }, include: { participants: true } });
+    if (!game) return res.status(404).json({ message: "Minigame not found." });
+    if (game.gameType !== "JEOPARDY") return res.status(400).json({ message: "This is not a Jeopardy game." });
+    const roster = new Set(game.participants.map((participant) => participant.memberId));
+    const requestedOrder = Array.isArray(req.body?.memberIds)
+      ? [...new Set(req.body.memberIds.map(Number))].filter((memberId) => Number.isInteger(memberId) && roster.has(memberId)).slice(0, 5)
+      : [];
+    if (!requestedOrder.length) return res.status(400).json({ message: "Choose at least one participant for the stream layout." });
+    const state = normalizeState(game.state);
+    const updated = await prisma.miniGame.update({
+      where: { slug },
+      data: { state: { ...state, displayOrderMemberIds: requestedOrder } },
+      include: gameInclude,
+    });
+    return res.json(toManageGame(await withTurnMember(updated)));
+  } catch (error) {
+    return res.status(400).json({ message: error?.message || "Could not publish the stream order." });
+  }
+}
+
 async function finalizeJeopardy(req, res) {
   try {
     const slug = slugify(req.params.slug);
@@ -624,6 +659,7 @@ module.exports = {
   startJeopardy,
   awardJeopardyQuestion,
   adjustJeopardyScore,
+  publishJeopardyDisplayOrder,
   finalizeJeopardy,
   uploadCover,
   __testables: { normalizeJeopardyConfig, normalizeState, publicBoard, shouldCloseQuestion, JEOPARDY_PHASES },

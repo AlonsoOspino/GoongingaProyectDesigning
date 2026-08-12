@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
-import { ArrowLeft, Check, ExternalLink, Gamepad2, Minus, Plus, Search, Trash2, Trophy, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, ExternalLink, Gamepad2, Minus, Plus, Radio, Search, Trash2, Trophy, X } from "lucide-react";
 import {
   adjustJeopardyScore,
   awardJeopardyQuestion,
@@ -11,6 +11,7 @@ import {
   finalizeJeopardy,
   getManagedMiniGame,
   listMiniGames,
+  publishJeopardyDisplayOrder,
   searchMiniGameMembers,
   startJeopardy,
   type JeopardyCategory,
@@ -80,6 +81,7 @@ export function JeopardyDashboard() {
   const [selectedMembers, setSelectedMembers] = useState<MiniGameMember[]>([]);
   const [deleteSlug, setDeleteSlug] = useState<string | null>(null);
   const [scoreAmount, setScoreAmount] = useState(100);
+  const [orderDraft, setOrderDraft] = useState<number[]>([]);
 
   const loadGames = useCallback(async () => {
     try { setGames(await listMiniGames()); }
@@ -94,6 +96,14 @@ export function JeopardyDashboard() {
   }, []);
 
   useEffect(() => { void loadGames(); }, [loadGames]);
+  const publishedOrderKey = game?.gameState.displayOrderMemberIds.join(",") || "";
+  useEffect(() => {
+    if (!game) return;
+    const published = game.gameState.displayOrderMemberIds;
+    setOrderDraft(
+      (published.length ? published : [...game.participants].sort((a, b) => a.id - b.id).map((participant) => participant.memberId)).slice(0, 5),
+    );
+  }, [game?.slug, publishedOrderKey]);
   useEffect(() => {
     if (screen !== "create") return;
     const token = readNetworkSessionToken();
@@ -145,6 +155,24 @@ export function JeopardyDashboard() {
     if (!token || !game) return;
     setScoreAmount(amount);
     await run(() => adjustJeopardyScore(token, game.slug, memberId, amount * direction));
+  }
+
+  function moveDisplayBox(memberId: number, direction: -1 | 1) {
+    setOrderDraft((current) => {
+      const index = current.indexOf(memberId);
+      const target = index + direction;
+      if (index < 0 || target < 0 || target >= current.length) return current;
+      const next = [...current];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }
+
+  async function publishDisplayOrder() {
+    const token = readNetworkSessionToken();
+    if (!token || !game || !orderDraft.length) return;
+    await run(() => publishJeopardyDisplayOrder(token, game.slug, orderDraft));
+    setMessage("Stream order published. Boxes will stay in these positions while scores update.");
   }
 
   async function createGame() {
@@ -235,6 +263,10 @@ export function JeopardyDashboard() {
     0,
   ) || 0;
   const total = game.config?.categories.reduce((sum, category) => sum + category.questions.length, 0) || 0;
+  const previewParticipants = orderDraft
+    .map((memberId) => game.participants.find((participant) => participant.memberId === memberId))
+    .filter((participant): participant is JeopardyGame["participants"][number] => Boolean(participant));
+  const orderHasChanges = orderDraft.join(",") !== game.gameState.displayOrderMemberIds.join(",");
 
   return (
     <section className={styles.dashboard}>
@@ -260,6 +292,28 @@ export function JeopardyDashboard() {
             </div>
           </article>)}
         </div>
+      </section>
+
+      <section className={styles.streamOrder} aria-labelledby="stream-order-title">
+        <header>
+          <div><span>Preview before publishing</span><h3 id="stream-order-title">Stream box order</h3><p>Move boxes into position here. The live overlay changes only when you publish.</p></div>
+          <div className={orderHasChanges ? styles.draftStatus : styles.liveStatus}><Radio size={14}/>{orderHasChanges ? "Draft not live" : "Live order"}</div>
+        </header>
+        <div className={styles.orderPreview} style={{ "--preview-count": previewParticipants.length } as CSSProperties}>
+          {previewParticipants.map((participant, index)=><article key={participant.id}>
+            <div className={styles.previewScore}>${participant.score.toLocaleString()}</div>
+            <div className={styles.previewName} title={participant.member.username}>{participant.member.username}</div>
+            <footer>
+              <button disabled={busy||index===0} onClick={()=>moveDisplayBox(participant.memberId,-1)} aria-label={`Move ${participant.member.username} left`}><ChevronLeft size={16}/></button>
+              <span>Box {index+1}</span>
+              <button disabled={busy||index===previewParticipants.length-1} onClick={()=>moveDisplayBox(participant.memberId,1)} aria-label={`Move ${participant.member.username} right`}><ChevronRight size={16}/></button>
+            </footer>
+          </article>)}
+        </div>
+        <footer className={styles.publishOrder}>
+          <span>{orderHasChanges ? "Preview ready. The stream is still showing the previous order." : "This exact order is currently on stream."}</span>
+          <button disabled={busy||!orderHasChanges} onClick={()=>void publishDisplayOrder()}><Radio size={16}/>{busy?"Publishing...":"Publish order to stream"}</button>
+        </footer>
       </section>
 
       {game.phase === "CREATED" ? <div className={styles.ready}><Gamepad2 size={36}/><h3>Board ready</h3><p>Starting the game opens the private board. Nothing from this screen is sent to OBS.</p><button disabled={busy} onClick={()=>void run(()=>startJeopardy(token,game.slug))}>Start Jeopardy</button></div> : null}

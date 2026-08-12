@@ -41,10 +41,14 @@ export default function JeopardyScoreOverlay() {
     };
   }, []);
 
-  const leaders = useMemo(
-    () => [...(game?.participants || [])].sort((a, b) => b.score - a.score || a.member.username.localeCompare(b.member.username)).slice(0, 6),
-    [game?.participants],
-  );
+  const leaders = useMemo(() => {
+    if (!game) return [];
+    const byMemberId = new Map(game.participants.map((participant) => [participant.memberId, participant]));
+    const published = game.gameState.displayOrderMemberIds
+      .map((memberId) => byMemberId.get(memberId))
+      .filter((participant): participant is JeopardyParticipant => Boolean(participant));
+    return published.length ? published : [...game.participants].sort((a, b) => a.id - b.id).slice(0, 6);
+  }, [game]);
 
   return (
     <main className={styles.viewport}>

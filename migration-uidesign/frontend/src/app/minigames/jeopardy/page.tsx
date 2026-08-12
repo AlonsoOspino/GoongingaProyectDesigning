@@ -7,14 +7,6 @@ import styles from "./jeopardy.module.css";
 
 const MAX_PODIUMS = 5;
 
-function podiumOrder(count: number) {
-  if (count >= 5) return [3, 1, 0, 2, 4];
-  if (count === 4) return [3, 1, 0, 2];
-  if (count === 3) return [1, 0, 2];
-  if (count === 2) return [1, 0];
-  return [0];
-}
-
 function AnimatedPoints({ score, delay }: { score: number; delay: number }) {
   const display = useAnimatedScore(score, delay, 1200);
   const value = Math.abs(display).toLocaleString();
@@ -86,20 +78,19 @@ function PodiumSlot({ participant, slotIndex }: { participant: JeopardyParticipa
 }
 
 function Podium({ game }: { game: JeopardyGame }) {
-  const leaders = useMemo(
-    () => [...game.participants].sort((a, b) => b.score - a.score || a.member.username.localeCompare(b.member.username)).slice(0, MAX_PODIUMS),
-    [game.participants],
-  );
-  const orderedLeaders = podiumOrder(leaders.length)
-    .map((leaderIndex) => leaders[leaderIndex])
-    .filter(
-      (participant): participant is JeopardyParticipant => Boolean(participant),
-    );
+  const orderedParticipants = useMemo(() => {
+    const byMemberId = new Map(game.participants.map((participant) => [participant.memberId, participant]));
+    const published = game.gameState.displayOrderMemberIds
+      .map((memberId) => byMemberId.get(memberId))
+      .filter((participant): participant is JeopardyParticipant => Boolean(participant));
+    if (published.length) return published.slice(0, MAX_PODIUMS);
+    return [...game.participants].sort((a, b) => a.id - b.id).slice(0, MAX_PODIUMS);
+  }, [game.gameState.displayOrderMemberIds, game.participants]);
 
   return (
-    <div className={styles.rig} style={{ "--podium-count": orderedLeaders.length } as CSSProperties}>
+    <div className={styles.rig} style={{ "--podium-count": orderedParticipants.length } as CSSProperties}>
       <div className={styles.podiumRow}>
-      {orderedLeaders.map((participant, slotIndex) => (
+      {orderedParticipants.map((participant, slotIndex) => (
         <PodiumSlot key={participant.id} participant={participant} slotIndex={slotIndex} />
       ))}
       </div>
