@@ -70,6 +70,12 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+html.jeopardy-overlay-root,
+body.jeopardy-overlay-root {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
 ::selection { background: rgba(0, 167, 199, 0.24); }
 
 *:focus-visible {

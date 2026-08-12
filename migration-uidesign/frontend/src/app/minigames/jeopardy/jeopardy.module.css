@@ -4,7 +4,7 @@
   display: grid;
   place-items: center;
   overflow: hidden;
-  background: transparent;
+  background: transparent !important;
   color: #fff;
 }
 
@@ -13,7 +13,7 @@
   width: min(100%, calc(100vh * 16 / 9));
   aspect-ratio: 16 / 9;
   overflow: hidden;
-  background: transparent;
+  background: transparent !important;
 }
 
 .rig {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { getActiveJeopardy, type JeopardyGame, type JeopardyParticipant } from "@/lib/api/minigame";
 import { useAnimatedScore } from "@/minigames/useAnimatedScore";
 import styles from "./jeopardy.module.css";
@@ -37,7 +37,7 @@ function Podium({ game }: { game: JeopardyGame }) {
     <div className={styles.rig}>
       <img className={styles.artwork} src="/jeopardy-podium.png" alt="" />
       {PODIUM_ORDER.map((leaderIndex, slotIndex) => (
-        <PodiumSlot key={slotIndex} participant={leaders[leaderIndex]} slotIndex={slotIndex} />
+        <PodiumSlot key={`${slotIndex}-${leaders[leaderIndex]?.id || "empty"}`} participant={leaders[leaderIndex]} slotIndex={slotIndex} />
       ))}
     </div>
   );
@@ -63,9 +63,30 @@ export default function JeopardyPodiumOverlay() {
     return () => window.clearInterval(poll);
   }, [load]);
 
+  useLayoutEffect(() => {
+    const htmlBackground = document.documentElement.style.background;
+    const htmlBackgroundColor = document.documentElement.style.backgroundColor;
+    const bodyBackground = document.body.style.background;
+    const bodyBackgroundColor = document.body.style.backgroundColor;
+    document.documentElement.classList.add("jeopardy-overlay-root");
+    document.body.classList.add("jeopardy-overlay-root");
+    document.documentElement.style.setProperty("background", "transparent", "important");
+    document.documentElement.style.setProperty("background-color", "transparent", "important");
+    document.body.style.setProperty("background", "transparent", "important");
+    document.body.style.setProperty("background-color", "transparent", "important");
+    return () => {
+      document.documentElement.classList.remove("jeopardy-overlay-root");
+      document.body.classList.remove("jeopardy-overlay-root");
+      document.documentElement.style.background = htmlBackground;
+      document.documentElement.style.backgroundColor = htmlBackgroundColor;
+      document.body.style.background = bodyBackground;
+      document.body.style.backgroundColor = bodyBackgroundColor;
+    };
+  }, []);
+
   return (
     <main className={styles.viewport} data-overlay-state={loadError ? "error" : game?.phase || "loading"} data-overlay-error={loadError || undefined}>
-      <section className={styles.stage}>{game?.phase === "FINALIZED" ? <Podium game={game} /> : null}</section>
+      <section className={styles.stage}>{game?.participants?.length ? <Podium game={game} /> : null}</section>
     </main>
   );
 }
