@@ -228,7 +228,7 @@
 
 @media (max-aspect-ratio: 4 / 3) {
   .rig { width: min(98%, calc(var(--podium-count) * 20%)); }
-  .slot { height: clamp(220px, 31vw, 430px); }
+  .slot { height: clamp(154px, 22vw, 301px); }
 }
 
 @media (prefers-reduced-motion: reduce) {
