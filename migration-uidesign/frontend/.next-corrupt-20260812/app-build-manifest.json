@@ -1,0 +1,21 @@
+{
+  "pages": {
+    "/layout": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/layout.css",
+      "static/chunks/app/layout.js"
+    ],
+    "/minigames/jeopardy-overview/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/minigames/jeopardy-overview/page.css",
+      "static/chunks/app/minigames/jeopardy-overview/page.js"
+    ],
+    "/favicon.ico/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/favicon.ico/route.js"
+    ]
+  }
+}
