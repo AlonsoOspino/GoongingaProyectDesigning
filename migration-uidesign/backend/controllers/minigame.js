@@ -106,7 +106,7 @@ function normalizeState(input) {
     ? [...new Set(input.usedQuestionIds.map((value) => asText(value, 100)).filter(Boolean))].slice(0, 25)
     : [];
   const questionResults = Array.isArray(input?.questionResults)
-    ? input.questionResults.slice(0, 25).map((result) => ({
+    ? input.questionResults.slice(0, 150).map((result) => ({
         questionId: asText(result?.questionId, 100),
         memberId: result?.memberId !== null && result?.memberId !== undefined && Number.isInteger(Number(result.memberId))
           ? Number(result.memberId)
@@ -127,6 +127,13 @@ function normalizeState(input) {
     respondedAt: asText(input?.respondedAt, 80) || null,
     questionResults,
   };
+}
+
+function shouldCloseQuestion(result, participantMemberIds, attemptedMemberIds) {
+  if (result === "ADD" || result === "NO_ANSWER") return true;
+  const roster = new Set(participantMemberIds.map(Number));
+  const attempts = new Set(attemptedMemberIds.map(Number));
+  return roster.size > 0 && [...roster].every((memberId) => attempts.has(memberId));
 }
 
 function allQuestions(config) {
@@ -496,7 +503,28 @@ async function awardJeopardyQuestion(req, res) {
     if (result !== "NO_ANSWER" && (requestedMemberId === null || !game.participants.some((participant) => participant.memberId === requestedMemberId))) {
       return res.status(400).json({ message: "Choose a participant from this Jeopardy roster." });
     }
+    const priorWrongMemberIds = state.questionResults
+      .filter((entry) => entry.questionId === questionId && entry.memberId !== null && entry.reward < 0)
+      .map((entry) => entry.memberId);
+    if (result === "SUBTRACT" && priorWrongMemberIds.includes(requestedMemberId)) {
+      return res.status(409).json({ message: "This participant has already attempted this question." });
+    }
+    const attemptedMemberIds = result === "SUBTRACT"
+      ? [...priorWrongMemberIds, requestedMemberId]
+      : priorWrongMemberIds;
+    const closesQuestion = shouldCloseQuestion(
+      result,
+      game.participants.map((participant) => participant.memberId),
+      attemptedMemberIds,
+    );
     const scoreDelta = result === "SUBTRACT" ? -question.reward : result === "ADD" ? question.reward : 0;
+    const nextResults = [
+      ...state.questionResults,
+      { questionId, memberId: requestedMemberId, reward: scoreDelta },
+    ];
+    if (result === "SUBTRACT" && closesQuestion) {
+      nextResults.push({ questionId, memberId: null, reward: 0 });
+    }
 
     const updated = await prisma.$transaction(async (tx) => {
       if (requestedMemberId !== null) {
@@ -510,8 +538,8 @@ async function awardJeopardyQuestion(req, res) {
         data: {
           state: {
             ...state,
-            usedQuestionIds: [...state.usedQuestionIds, questionId],
-            questionResults: [...state.questionResults, { questionId, memberId: requestedMemberId, reward: scoreDelta }],
+            usedQuestionIds: closesQuestion ? [...state.usedQuestionIds, questionId] : state.usedQuestionIds,
+            questionResults: nextResults,
           },
         },
         include: gameInclude,
@@ -520,6 +548,31 @@ async function awardJeopardyQuestion(req, res) {
     return res.json(toManageGame(await withTurnMember(updated)));
   } catch (error) {
     return res.status(400).json({ message: error?.message || "Could not save this Jeopardy result." });
+  }
+}
+
+async function adjustJeopardyScore(req, res) {
+  try {
+    const slug = slugify(req.params.slug);
+    const memberId = Number(req.body?.memberId);
+    const delta = Math.trunc(Number(req.body?.delta));
+    if (!Number.isInteger(memberId) || !Number.isInteger(delta) || delta === 0 || Math.abs(delta) > 1000000) {
+      return res.status(400).json({ message: "Choose a participant and a point amount between 1 and 1,000,000." });
+    }
+    const game = await prisma.miniGame.findUnique({ where: { slug }, include: { participants: true } });
+    if (!game) return res.status(404).json({ message: "Minigame not found." });
+    if (game.gameType !== "JEOPARDY") return res.status(400).json({ message: "This is not a Jeopardy game." });
+    if (!game.participants.some((participant) => participant.memberId === memberId)) {
+      return res.status(400).json({ message: "Choose a participant from this Jeopardy roster." });
+    }
+    await prisma.miniGameParticipant.update({
+      where: { gameId_memberId: { gameId: game.id, memberId } },
+      data: { score: { increment: delta } },
+    });
+    const updated = await findGame(slug);
+    return res.json(toManageGame(updated));
+  } catch (error) {
+    return res.status(400).json({ message: error?.message || "Could not adjust this participant's score." });
   }
 }
 
@@ -570,7 +623,8 @@ module.exports = {
   searchMembers,
   startJeopardy,
   awardJeopardyQuestion,
+  adjustJeopardyScore,
   finalizeJeopardy,
   uploadCover,
-  __testables: { normalizeJeopardyConfig, normalizeState, publicBoard, JEOPARDY_PHASES },
+  __testables: { normalizeJeopardyConfig, normalizeState, publicBoard, shouldCloseQuestion, JEOPARDY_PHASES },
 };

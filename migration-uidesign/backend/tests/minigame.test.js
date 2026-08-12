@@ -73,3 +73,12 @@ test("Jeopardy exposes the six supported lifecycle phases", () => {
     "FINALIZED",
   ]);
 });
+
+test("Jeopardy keeps a question open until a correct answer or every player misses", () => {
+  const roster = [10, 20, 30];
+  assert.equal(__testables.shouldCloseQuestion("SUBTRACT", roster, [10]), false);
+  assert.equal(__testables.shouldCloseQuestion("SUBTRACT", roster, [10, 20]), false);
+  assert.equal(__testables.shouldCloseQuestion("SUBTRACT", roster, [10, 20, 30]), true);
+  assert.equal(__testables.shouldCloseQuestion("ADD", roster, [10]), true);
+  assert.equal(__testables.shouldCloseQuestion("NO_ANSWER", roster, []), true);
+});

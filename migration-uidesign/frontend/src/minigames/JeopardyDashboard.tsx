@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Check, ExternalLink, Gamepad2, Plus, Search, Trash2, Trophy, X } from "lucide-react";
+import { ArrowLeft, Check, ExternalLink, Gamepad2, Minus, Plus, Search, Trash2, Trophy, X } from "lucide-react";
 import {
+  adjustJeopardyScore,
   awardJeopardyQuestion,
   createJeopardy,
   deleteMiniGame,
@@ -78,6 +79,7 @@ export function JeopardyDashboard() {
   const [memberResults, setMemberResults] = useState<MiniGameMember[]>([]);
   const [selectedMembers, setSelectedMembers] = useState<MiniGameMember[]>([]);
   const [deleteSlug, setDeleteSlug] = useState<string | null>(null);
+  const [scoreAmount, setScoreAmount] = useState(100);
 
   const loadGames = useCallback(async () => {
     try { setGames(await listMiniGames()); }
@@ -121,8 +123,28 @@ export function JeopardyDashboard() {
   async function saveResult(memberId: number | null, result: "ADD" | "SUBTRACT" | "NO_ANSWER") {
     const token = readNetworkSessionToken();
     if (!token || !game || !selectedQuestionId) return;
-    await run(() => awardJeopardyQuestion(token, game.slug, selectedQuestionId, memberId, result));
-    setSelectedQuestionId(null);
+    setBusy(true);
+    setMessage("");
+    try {
+      const updated = await awardJeopardyQuestion(token, game.slug, selectedQuestionId, memberId, result);
+      setGame(updated);
+      const questionClosed = updated.board?.categories
+        .flatMap((category) => category.questions)
+        .find((question) => question.id === selectedQuestionId)?.used;
+      if (questionClosed) setSelectedQuestionId(null);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Jeopardy action failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function changeScore(memberId: number, direction: 1 | -1) {
+    const amount = Math.max(1, Math.min(1000000, Math.trunc(Math.abs(scoreAmount) || 0)));
+    const token = readNetworkSessionToken();
+    if (!token || !game) return;
+    setScoreAmount(amount);
+    await run(() => adjustJeopardyScore(token, game.slug, memberId, amount * direction));
   }
 
   async function createGame() {
@@ -208,7 +230,10 @@ export function JeopardyDashboard() {
   if (!game) return null;
   const token = readNetworkSessionToken();
   if (!token) return null;
-  const answered = game.gameState.questionResults.length;
+  const answered = game.board?.categories.reduce(
+    (sum, category) => sum + category.questions.filter((question) => question.used).length,
+    0,
+  ) || 0;
   const total = game.config?.categories.reduce((sum, category) => sum + category.questions.length, 0) || 0;
 
   return (
@@ -219,6 +244,23 @@ export function JeopardyDashboard() {
         <nav><Link href="/minigames/jeopardy-overview" target="_blank">Score overlay <ExternalLink size={15}/></Link><Link href="/minigames/jeopardy" target="_blank">Podium overlay <ExternalLink size={15}/></Link></nav>
       </header>
       {message ? <p className={styles.message}>{message}</p> : null}
+
+      <section className={styles.scoreManager} aria-labelledby="score-manager-title">
+        <header>
+          <div><span>Live controls</span><h3 id="score-manager-title">Player scores</h3></div>
+          <label>Points<input type="number" min="1" max="1000000" step="1" value={scoreAmount} onChange={(event)=>setScoreAmount(Number(event.target.value))}/></label>
+        </header>
+        <div className={styles.scoreRoster}>
+          {game.participants.map((participant)=><article key={participant.id}>
+            <Avatar member={participant.member}/>
+            <span title={participant.member.username}>{participant.member.username}<small>{participant.score.toLocaleString()} points</small></span>
+            <div>
+              <button disabled={busy} className={styles.manualSubtract} onClick={()=>void changeScore(participant.memberId,-1)} aria-label={`Subtract ${scoreAmount || 0} points from ${participant.member.username}`}><Minus size={15}/></button>
+              <button disabled={busy} className={styles.manualAdd} onClick={()=>void changeScore(participant.memberId,1)} aria-label={`Add ${scoreAmount || 0} points to ${participant.member.username}`}><Plus size={15}/></button>
+            </div>
+          </article>)}
+        </div>
+      </section>
 
       {game.phase === "CREATED" ? <div className={styles.ready}><Gamepad2 size={36}/><h3>Board ready</h3><p>Starting the game opens the private board. Nothing from this screen is sent to OBS.</p><button disabled={busy} onClick={()=>void run(()=>startJeopardy(token,game.slug))}>Start Jeopardy</button></div> : null}
 
@@ -231,7 +273,7 @@ export function JeopardyDashboard() {
 
       {game.phase === "FINALIZED" ? <div className={styles.finalized}><Trophy size={42}/><h3>Podium ready</h3><p>The final standings are now available on the stream output.</p><Link href="/minigames/jeopardy" target="_blank">Open podium <ExternalLink size={16}/></Link></div> : null}
 
-      {selectedQuestion ? <div className={styles.resultDialog} role="dialog" aria-modal="true"><div className={styles.dialogPanel}><button className={styles.close} onClick={()=>setSelectedQuestionId(null)} aria-label="Close"><X/></button><span>{selectedQuestion.categoryName} / {selectedQuestion.reward}</span><h3>{selectedQuestion.question}</h3><p className={styles.answer}>Answer: <strong>{selectedQuestion.answer}</strong></p><h4>Assign the result</h4><div className={styles.awardList}>{game.participants.map((participant)=><div className={styles.awardRow} key={participant.id}><Avatar member={participant.member}/><span>{participant.member.username}<small>{participant.score} points</small></span><div className={styles.scoreActions}><button disabled={busy} className={styles.addScore} onClick={()=>void saveResult(participant.memberId,"ADD")} aria-label={`Add ${selectedQuestion.reward} points to ${participant.member.username}`}>+{selectedQuestion.reward}</button><button disabled={busy} className={styles.subtractScore} onClick={()=>void saveResult(participant.memberId,"SUBTRACT")} aria-label={`Subtract ${selectedQuestion.reward} points from ${participant.member.username}`}>-{selectedQuestion.reward}</button></div></div>)}</div><button disabled={busy} className={styles.noAnswer} onClick={()=>void saveResult(null,"NO_ANSWER")}><X size={18}/> No one answered</button></div></div> : null}
+      {selectedQuestion ? <div className={styles.resultDialog} role="dialog" aria-modal="true"><div className={styles.dialogPanel}><button className={styles.close} onClick={()=>setSelectedQuestionId(null)} aria-label="Close"><X/></button><span>{selectedQuestion.categoryName} / {selectedQuestion.reward}</span><h3>{selectedQuestion.question}</h3><p className={styles.answer}>Answer: <strong>{selectedQuestion.answer}</strong></p><h4>Assign the result</h4><div className={styles.awardList}>{game.participants.map((participant)=>{const alreadyMissed=game.gameState.questionResults.some((entry)=>entry.questionId===selectedQuestion.id&&entry.memberId===participant.memberId&&entry.reward<0);return <div className={`${styles.awardRow} ${alreadyMissed?styles.alreadyMissed:""}`} key={participant.id}><Avatar member={participant.member}/><span>{participant.member.username}<small>{alreadyMissed?"Already attempted":`${participant.score} points`}</small></span><div className={styles.scoreActions}><button disabled={busy||alreadyMissed} className={styles.addScore} onClick={()=>void saveResult(participant.memberId,"ADD")} aria-label={`Add ${selectedQuestion.reward} points to ${participant.member.username}`}>+{selectedQuestion.reward}</button><button disabled={busy||alreadyMissed} className={styles.subtractScore} onClick={()=>void saveResult(participant.memberId,"SUBTRACT")} aria-label={`Subtract ${selectedQuestion.reward} points from ${participant.member.username}`}>-{selectedQuestion.reward}</button></div></div>})}</div><button disabled={busy} className={styles.noAnswer} onClick={()=>void saveResult(null,"NO_ANSWER")}><X size={18}/> Close: no correct answer</button></div></div> : null}
     </section>
   );
 }

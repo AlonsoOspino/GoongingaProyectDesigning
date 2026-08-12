@@ -54,12 +54,26 @@ function FittedName({ name }: { name: string }) {
 
 function PodiumSlot({ participant, slotIndex }: { participant: JeopardyParticipant; slotIndex: number }) {
   const revealDelay = slotIndex * 350;
+  const previousScore = useRef(participant.score);
+  const [scoreChange, setScoreChange] = useState<{ delta: number; sequence: number } | null>(null);
+
+  useEffect(() => {
+    const delta = participant.score - previousScore.current;
+    previousScore.current = participant.score;
+    if (!delta) return;
+    const sequence = Date.now();
+    setScoreChange({ delta, sequence });
+    const timeout = window.setTimeout(() => setScoreChange((current) => current?.sequence === sequence ? null : current), 1200);
+    return () => window.clearTimeout(timeout);
+  }, [participant.score]);
+
   return (
-    <article className={styles.slot} style={{ "--slot-delay": `${revealDelay}ms` } as CSSProperties}>
+    <article className={`${styles.slot} ${scoreChange ? scoreChange.delta > 0 ? styles.scoreGain : styles.scoreLoss : ""}`} style={{ "--slot-delay": `${revealDelay}ms` } as CSSProperties}>
       <div className={styles.scoreHousing}>
         <div className={styles.scorePanel}>
           <AnimatedPoints score={participant.score} delay={revealDelay + 700} />
         </div>
+        {scoreChange ? <span key={scoreChange.sequence} className={styles.scoreChange}>{scoreChange.delta > 0 ? "+" : "−"}${Math.abs(scoreChange.delta).toLocaleString()}</span> : null}
       </div>
       <div className={styles.bodyFrame}>
         <div className={styles.namePanel}>

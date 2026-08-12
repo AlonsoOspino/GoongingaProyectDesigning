@@ -73,4 +73,5 @@ function gameAction(token: string, slug: string, action: string, body?: unknown)
 
 export const startJeopardy = (token: string, slug: string) => gameAction(token, slug, "start");
 export const awardJeopardyQuestion = (token: string, slug: string, questionId: string, memberId: number | null, result: "ADD" | "SUBTRACT" | "NO_ANSWER") => gameAction(token, slug, "award", { questionId, memberId, result });
+export const adjustJeopardyScore = (token: string, slug: string, memberId: number, delta: number) => gameAction(token, slug, "score", { memberId, delta });
 export const finalizeJeopardy = (token: string, slug: string) => gameAction(token, slug, "finalize");
