@@ -193,10 +193,10 @@
 
 .sharedBase {
   position: relative;
-  z-index: 0;
+  z-index: 5;
   width: 100%;
   height: clamp(20px, 2.7vw, 52px);
-  margin: -4px auto 0;
+  margin: -12px auto 0;
   border: clamp(2px, .2vw, 4px) solid #070707;
   border-radius: 0 0 .35vw .35vw;
   background: #1c1a1a;
