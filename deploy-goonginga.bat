@@ -43,10 +43,14 @@ if errorlevel 1 goto test_failed_from_backend
 popd
 
 echo.
-echo [2/7] Building frontend locally...
+echo [2/7] Building both frontends locally...
 pushd "migration-uidesign\frontend"
 call npm run build
 if errorlevel 1 goto build_failed_from_frontend
+popd
+pushd "migration-uidesign\minigames-frontend"
+call npm run build
+if errorlevel 1 goto build_failed_from_minigames
 popd
 
 echo.
@@ -73,11 +77,12 @@ git push origin "%DEPLOY_BRANCH%"
 if errorlevel 1 goto push_failed
 
 echo.
-echo [6/7] Pulling and deploying backend + frontend on the VPS...
-rem Caddyfile and compose.yaml are intentionally NOT restored: the VPS keeps
-rem its Adara/network configuration. The explicit clean paths below only
-rem reconcile files from the older manual Finals deployment on the first run.
-ssh -i "%SSH_KEY%" -o StrictHostKeyChecking=accept-new "%VPS_HOST%" "cd '%VPS_PROJECT%' && git restore --source=HEAD --worktree -- backend frontend && git clean -fd -- backend/prisma/migrations/20260805000000_add_finals_presentation_time backend/prisma/migrations/20260805010000_add_finals_presentation_version backend/tests/finalsPresentation.test.js frontend/src/app/finals frontend/src/components/finals && git pull --ff-only origin '%DEPLOY_BRANCH%' && bash scripts/deploy-vps.sh"
+echo [6/7] Pulling and deploying backend + frontends on the VPS...
+rem The VPS has intentional Caddyfile and compose.yaml changes for Adara and
+rem its Docker network. Stash only those tracked files, pull the application,
+rem then reapply them. If reapplying conflicts, deployment stops and the stash
+rem remains recoverable on the VPS.
+ssh -i "%SSH_KEY%" -o StrictHostKeyChecking=accept-new "%VPS_HOST%" "set -e; cd '%VPS_PROJECT%'; git restore --source=HEAD --worktree -- backend frontend minigames-frontend; git clean -fd -- backend/prisma/migrations/20260805000000_add_finals_presentation_time backend/prisma/migrations/20260805010000_add_finals_presentation_version backend/tests/finalsPresentation.test.js frontend/src/app/finals frontend/src/components/finals; config_stashed=0; if ! git diff --quiet -- Caddyfile compose.yaml; then git stash push -m 'vps-local-caddy-compose' -- Caddyfile compose.yaml; config_stashed=1; fi; git pull --ff-only origin '%DEPLOY_BRANCH%'; if [ $config_stashed = 1 ]; then git stash pop; fi; bash scripts/deploy-vps.sh"
 if errorlevel 1 goto deploy_failed
 
 echo.
@@ -98,6 +103,12 @@ goto failed
 popd
 echo.
 echo ERROR: Frontend build failed. Nothing was committed or deployed.
+goto failed
+
+:build_failed_from_minigames
+popd
+echo.
+echo ERROR: Minigames frontend build failed. Nothing was committed or deployed.
 goto failed
 
 :not_a_repo

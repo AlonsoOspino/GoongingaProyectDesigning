@@ -16,10 +16,10 @@ test -s "$backup_file"
 echo "Backup created: $backup_file"
 
 echo "[VPS 2/5] Building backend and frontend images..."
-docker compose build backend frontend
+docker compose build backend frontend minigames
 
-echo "[VPS 3/5] Starting the new backend and frontend..."
-docker compose up -d --no-deps backend frontend
+echo "[VPS 3/5] Starting the new backend and frontends..."
+docker compose up -d --no-deps backend frontend minigames
 
 echo "[VPS 4/5] Waiting for both services..."
 backend_ready=0
@@ -47,7 +47,8 @@ echo "[VPS 5/5] Verifying public routes..."
 curl --fail --silent --show-error --max-time 15 https://goongingaleague.duckdns.org/ >/dev/null
 curl --fail --silent --show-error --max-time 15 https://goongingaleague.duckdns.org/backend/tournament/current >/dev/null
 curl --fail --silent --show-error --max-time 15 https://goongingaleague.duckdns.org/minigames/jeopardy >/dev/null
+curl --fail --silent --show-error --max-time 15 https://goonginga-gamenights.duckdns.org/feud >/dev/null
 curl --fail --silent --show-error --max-time 15 https://adara.pe/ >/dev/null
 
-docker compose ps backend frontend database
+docker compose ps backend frontend minigames database
 echo "Deployment successful. Goonginga and Adara are responding."
