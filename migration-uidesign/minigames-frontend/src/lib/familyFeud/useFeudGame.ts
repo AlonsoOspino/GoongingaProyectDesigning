@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getNetworkToken } from "@/lib/networkSession";
-import { feudEventsUrl, getFeudGame, sendFeudAction, sendFeudHeartbeat, type FeudView } from "./api";
+import { feudEventsUrl, getFeudGame, leaveFeudDevelopmentGuestUrl, sendFeudAction, sendFeudHeartbeat, type FeudView } from "./api";
+import { getFeudAccessToken, getFeudGuestToken, releaseFeudGuestTab } from "./developmentGuest";
 import type { FeudProjection } from "./types";
 
 export function useFeudGame(gameCode: string, view: FeudView) {
@@ -16,7 +16,7 @@ export function useFeudGame(gameCode: string, view: FeudView) {
     if (!gameCode || refreshing.current) return;
     refreshing.current = true;
     try {
-      const next = await getFeudGame(gameCode, view, getNetworkToken());
+      const next = await getFeudGame(gameCode, view, getFeudAccessToken(gameCode));
       setData(next);
       setError(null);
     } catch (cause) {
@@ -35,7 +35,7 @@ export function useFeudGame(gameCode: string, view: FeudView) {
     let retry: ReturnType<typeof setTimeout> | null = null;
     const connect = async () => {
       try {
-        const token = getNetworkToken();
+        const token = getFeudAccessToken(gameCode);
         const response = await fetch(feudEventsUrl(gameCode, view), {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
           signal: controller.signal,
@@ -68,7 +68,7 @@ export function useFeudGame(gameCode: string, view: FeudView) {
   }, [gameCode, refresh, view]);
 
   useEffect(() => {
-    const token = getNetworkToken();
+    const token = getFeudAccessToken(gameCode);
     if (!token || !gameCode || view === "spectator") return;
     const beat = () => void sendFeudHeartbeat(token, gameCode).catch(() => undefined);
     beat();
@@ -76,8 +76,24 @@ export function useFeudGame(gameCode: string, view: FeudView) {
     return () => clearInterval(interval);
   }, [gameCode, view]);
 
+  useEffect(() => {
+    if (!gameCode) return;
+    const leave = () => {
+      const token = getFeudGuestToken(gameCode);
+      if (!token) return;
+      void fetch(leaveFeudDevelopmentGuestUrl(gameCode), {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+        keepalive: true,
+      }).catch(() => undefined);
+      releaseFeudGuestTab(gameCode, token);
+    };
+    window.addEventListener("pagehide", leave);
+    return () => window.removeEventListener("pagehide", leave);
+  }, [gameCode]);
+
   const action = useCallback(async (name: string, payload: Record<string, unknown> = {}) => {
-    const token = getNetworkToken();
+    const token = getFeudAccessToken(gameCode);
     if (!token) throw new Error("Sign in before performing this action.");
     const next = await sendFeudAction(token, gameCode, name, payload);
     setData(next);

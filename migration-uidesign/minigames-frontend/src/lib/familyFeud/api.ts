@@ -1,5 +1,5 @@
 import { apiRequest, getApiBase } from "@/lib/api/client";
-import type { FeudProjection, FeudQuestionAnswerDraft, FeudQuestionRecord, TeamSide } from "./types";
+import type { FeudGameSummary, FeudProjection, FeudQuestionAnswerDraft, FeudQuestionRecord, TeamSide } from "./types";
 
 export type FeudView = "lobby" | "player" | "manager" | "spectator";
 
@@ -9,6 +9,26 @@ export function getFeudGame(gameCode: string, view: FeudView, token?: string | n
 
 export function createFeudGame(token: string, input: { title: string; teamAlphaName: string; teamBetaName: string; config: Record<string, unknown> }) {
   return apiRequest<FeudProjection>("/family-feud/games", { method: "POST", token, body: input });
+}
+
+export function listFeudGames(token: string) {
+  return apiRequest<FeudGameSummary[]>("/family-feud/games", { token, cache: "no-store" });
+}
+
+export function setFeudDevelopmentMode(token: string, gameCode: string, enabled: boolean) {
+  return apiRequest<FeudGameSummary>(`/family-feud/games/${encodeURIComponent(gameCode)}/development-mode`, { method: "PATCH", token, body: { enabled } });
+}
+
+export function joinFeudDevelopmentGuest(gameCode: string, input: { name: string; side: TeamSide }) {
+  return apiRequest<{ token: string; game: FeudProjection }>(`/family-feud/games/${encodeURIComponent(gameCode)}/development-guests`, { method: "POST", body: input });
+}
+
+export function deleteFeudGame(token: string, gameCode: string) {
+  return apiRequest<void>(`/family-feud/games/${encodeURIComponent(gameCode)}`, { method: "DELETE", token });
+}
+
+export function leaveFeudDevelopmentGuestUrl(gameCode: string) {
+  return `${getApiBase()}/family-feud/games/${encodeURIComponent(gameCode)}/development-guests/me`;
 }
 
 export function joinFeudGame(token: string, gameCode: string, role: "PLAYER" | "SPECTATOR", side?: TeamSide, inviteToken?: string) {

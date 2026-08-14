@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createFeudGame, importFeudQuestions, listFeudQuestions } from "@/lib/familyFeud/api";
 import { parseSurveyQuestionBlocks } from "@/lib/familyFeud/surveyImport";
 import { hasNetworkRole, useNetworkSession } from "@/lib/networkSession";
+import { FeudLogo } from "./Shared";
 import styles from "./network-feud.module.css";
 
 const QUESTION_EXAMPLE = `Name something people do before going to bed
@@ -103,17 +104,24 @@ export function LandingPage() {
 
   return <div className={styles.shell}>
     <main className={`${styles.container} ${styles.landing}`}>
-      <header className={styles.pageIntro}>
-        <p className={styles.eyebrow}>Live team game</p>
-        <h1 className={styles.landingTitle}>Family Feud</h1>
-        <p className={styles.subhead}>The manager creates the game and sends one private invitation to each team captain.</p>
+      <header className={`${styles.pageIntro} ${styles.landingHero}`}>
+        <div className={styles.landingHeroCopy}>
+          <FeudLogo />
+          <p className={styles.eyebrow}>Game setup</p>
+          <h1 className={styles.landingTitle}>Family Feud</h1>
+          <p className={styles.subhead}>Create the match, send one link to each captain, then run the board live.</p>
+        </div>
+        <div className={styles.landingArt} aria-hidden="true">
+          <img className={styles.landingCoins} src="/feud-coins.webp" alt="" />
+          <img className={styles.landingDoom} src="/feud-doomfist.webp" alt="" />
+        </div>
       </header>
 
       <div className={styles.entryGrid}>
         <section className={`${styles.card} ${styles.cardPad} ${styles.entryCard}`}>
           <span className={styles.stepNumber}>1</span>
           <div><h2 className={styles.sectionTitle}>Manager creates the game</h2><p className={styles.sectionCopy}>Set the team names, rounds and questions. The manager room will generate two captain invitations.</p></div>
-          <button className={styles.button} disabled={!isHydrated || Boolean(user && !canHost)} onClick={openSetup}>{canHost ? "Create Family Feud" : user ? "Social Media access required" : "Sign in as manager"}</button>
+          <div className={styles.buttonRow}><button className={styles.button} disabled={!isHydrated || Boolean(user && !canHost)} onClick={openSetup}>{canHost ? "Create Family Feud" : user ? "Social Media access required" : "Sign in as manager"}</button>{canHost ? <Link className={`${styles.button} ${styles.buttonSecondary}`} href="/admin/feud/games">Manage existing games</Link> : null}</div>
         </section>
 
         <section className={`${styles.card} ${styles.cardPad} ${styles.entryCard}`}>

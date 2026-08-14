@@ -4,8 +4,8 @@ const { __testables } = require("../controllers/familyFeud");
 
 function gameFixture() {
   const joinedAt = new Date();
-  const alphaMember = { id: 11, username: "alpha", nickname: "Alex", avatarUrl: null, profilePic: null };
-  const betaMember = { id: 12, username: "beta", nickname: "Jordan", avatarUrl: null, profilePic: null };
+  const alphaMember = { id: 11, discordUserId: "111", username: "alpha", nickname: "Alex", avatarUrl: null, profilePic: null };
+  const betaMember = { id: 12, discordUserId: "222", username: "beta", nickname: "Jordan", avatarUrl: null, profilePic: null };
   return {
     id: 1,
     code: "FF-2048",
@@ -16,6 +16,7 @@ function gameFixture() {
     status: "ROUND_PLAY",
     managerMemberId: 99,
     version: 4,
+    developmentMode: false,
     timerEndsAt: null,
     manager: { id: 99, username: "host", nickname: "Host", avatarUrl: null, profilePic: null },
     state: {
@@ -76,4 +77,19 @@ test("manager projection is limited to the assigned manager", () => {
   assert.equal(projection.round.board[1].answer, "Watch television");
   assert.equal(projection.manager.participants[0].memberId, 11);
   assert.deepEqual(projection.manager.captainInvites, { alpha: "ALPHA-PRIVATE", beta: "BETA-PRIVATE" });
+});
+
+test("Social Media can open every Family Feud manager room", () => {
+  const projection = __testables.buildProjection(gameFixture(), "manager", { id: 500, role: "DEFAULT", roles: ["SOCIAL_MEDIA"], accountType: "NETWORK_MEMBER" });
+  assert.equal(projection.manager.captainInvites.alpha, "ALPHA-PRIVATE");
+});
+
+test("a development guest receives only its player projection", () => {
+  const game = gameFixture();
+  game.developmentMode = true;
+  game.participants[0].member.discordUserId = "FEUD_GUEST:1:test";
+  const projection = __testables.buildProjection(game, "player", { id: 11, accountType: "FEUD_GUEST", feudGameCode: game.code });
+  assert.equal(projection.me.isGuest, true);
+  assert.equal(projection.me.side, "ALPHA");
+  assert.equal(projection.manager, undefined);
 });

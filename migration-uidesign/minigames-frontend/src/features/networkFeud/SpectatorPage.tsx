@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { useFeudGame } from "@/lib/familyFeud/useFeudGame";
 import type { FeudProjection } from "@/lib/familyFeud/types";
-import { AnswerBoard, ErrorState, FeudLogo, LoadingState, Strikes, Timer } from "./Shared";
+import { AnswerBoard, ErrorState, FeudLogo, GameEffects, LoadingState, ShowCover, Strikes, Timer } from "./Shared";
 import styles from "./network-feud.module.css";
 
 export function SpectatorPage() {
@@ -22,6 +22,7 @@ export function SpectatorPage() {
   const matchWinner = [...data.teams].sort((a, b) => b.score - a.score)[0];
 
   return <div className={styles.broadcast}>
+    <GameEffects data={data} />
     <div className={styles.broadcastSafe}>
       <header className={styles.broadcastTop}>
         <BroadcastTeam team={alpha} />
@@ -30,8 +31,8 @@ export function SpectatorPage() {
       </header>
 
       <main className={styles.broadcastMain}>
-        {phase === "LOBBY" ? <BroadcastMessage eyebrow="Waiting for both captains" title="Family Feud" copy={`${alpha.captainName ? 1 : 0} of 2 captains connected`} /> : null}
-        {phase === "ROUND_INTRO" ? <BroadcastMessage eyebrow={`Round ${data.round?.number}`} title="Face-off incoming" copy="Representatives are being selected" /> : null}
+        {phase === "LOBBY" ? <ShowCover broadcast eyebrow={data.game.title} title="Family Feud" detail={`${alpha.name} vs ${beta.name}`}><div className={styles.coverStatus}>{alpha.captainName ? 1 : 0} / 2 captains</div></ShowCover> : null}
+        {phase === "ROUND_INTRO" ? <ShowCover broadcast eyebrow={`Round ${data.round?.number || data.game.currentRound}`} title="Face-off" detail={`${alpha.name} vs ${beta.name}`} /> : null}
         {phase === "AWAITING_EXTERNAL_FACE_OFF" ? <FaceOffBroadcast alpha={faceOff?.alpha} beta={faceOff?.beta} alphaColor={alpha.color} betaColor={beta.color} /> : null}
         {(phase === "FACE_OFF_FIRST_ANSWER" || phase === "FACE_OFF_SECOND_ANSWER") && faceOff?.externalWinner ? <div className={styles.stack}>
           <div style={{ textAlign: "center", marginBottom: "2vh" }}><p className={styles.eyebrow}>Face-off advantage</p><h1 className={styles.phaseHero} style={{ margin: 0 }}>{faceOff.externalWinner.name} answers first</h1></div>
@@ -45,7 +46,7 @@ export function SpectatorPage() {
       </main>
 
       <footer className={styles.broadcastFoot}>
-        <div className={styles.broadcastBank}><small>Round bank</small>{data.round?.bank || 0}</div>
+        <div className={styles.broadcastBank}><small>Round bank</small><strong key={data.round?.bank || 0} className={styles.scorePop}>{data.round?.bank || 0}</strong></div>
         <div className={styles.broadcastStatus}><small>{phase.replaceAll("_", " ")}</small><strong>{data.round?.currentPlayer?.name || (phase === "STEAL" ? `${data.teams.find((team) => team.side === data.round?.activeSide)?.name} can steal` : "Family Feud")}</strong></div>
         <div style={{ justifySelf: "end", display: "grid", justifyItems: "end", gap: 12 }}><Timer endsAt={data.game.timerEndsAt} serverNow={data.serverNow} /><Strikes value={data.round?.strikes || 0} /></div>
       </footer>
@@ -92,7 +93,7 @@ function useBroadcastSounds(data: FeudProjection | null) {
 }
 
 function BroadcastTeam({ team }: { team: { name: string; score: number; color: string } }) {
-  return <div className={styles.broadcastTeam} style={{ "--team": team.color } as React.CSSProperties}><div><div className={styles.broadcastTeamName}>{team.name}</div><div className={styles.broadcastScore}>{team.score}</div></div></div>;
+  return <div className={styles.broadcastTeam} style={{ "--team": team.color } as React.CSSProperties}><div><div className={styles.broadcastTeamName}>{team.name}</div><div key={team.score} className={`${styles.broadcastScore} ${styles.scorePop}`}>{team.score}</div></div></div>;
 }
 
 function BroadcastMessage({ eyebrow, title, copy }: { eyebrow: string; title: string; copy: string }) {

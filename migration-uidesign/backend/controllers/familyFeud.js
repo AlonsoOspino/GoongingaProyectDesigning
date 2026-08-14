@@ -1,7 +1,11 @@
 const crypto = require("crypto");
+const jwt = require("jsonwebtoken");
 const prisma = require("../config/prisma");
 const { hasManagerAccess, hasNetworkRole } = require("../utils/permissions");
 const realtime = require("../services/familyFeudRealtime");
+const FEUD_GUEST_PREFIX = "FEUD_GUEST:";
+const FEUD_GUEST_STALE_MS = 120000;
+const guestDepartureTimers = new Map();
 
 const ACTIVE_ANSWER_PHASES = new Set(["FACE_OFF_FIRST_ANSWER", "FACE_OFF_SECOND_ANSWER", "ROUND_PLAY", "STEAL", "FAST_MONEY"]);
 const MANAGER_ACTIONS = new Set([
@@ -70,6 +74,22 @@ function memberImage(member) {
   return member?.profilePic || member?.avatarUrl || null;
 }
 
+function isDevelopmentGuest(member) {
+  return Boolean(member?.discordUserId?.startsWith(FEUD_GUEST_PREFIX));
+}
+
+function participantName(participant) {
+  return displayName(participant?.member);
+}
+
+function participantIsActive(participant) {
+  return !isDevelopmentGuest(participant?.member) || Date.now() - participant.lastSeenAt.getTime() < FEUD_GUEST_STALE_MS;
+}
+
+function guestJwtSecret() {
+  return process.env.NETWORK_JWT_SECRET || process.env.JWT_SECRET || null;
+}
+
 function defaultState(config = {}) {
   return {
     schemaVersion: 2,
@@ -101,7 +121,7 @@ function defaultState(config = {}) {
 }
 
 function isGameManager(game, user) {
-  return Boolean(user?.accountType === "NETWORK_MEMBER" && (Number(game.managerMemberId) === Number(user.id) || user.role === "ADMIN" || hasNetworkRole(user, "ADMIN")));
+  return Boolean(user?.accountType === "NETWORK_MEMBER" && (Number(game.managerMemberId) === Number(user.id) || hasNetworkRole(user, "SOCIAL_MEDIA", "ADMIN")));
 }
 
 function teamBySide(game, side) {
@@ -118,7 +138,7 @@ function activeRound(game) {
 
 function participantsFor(game, side) {
   const team = teamBySide(game, side);
-  return game.participants.filter((participant) => participant.role === "PLAYER" && participant.teamId === team?.id);
+  return game.participants.filter((participant) => participant.role === "PLAYER" && participant.teamId === team?.id && participantIsActive(participant));
 }
 
 function participantForMember(game, memberId) {
@@ -140,7 +160,7 @@ const gameInclude = {
   teams: { orderBy: { side: "asc" } },
   participants: {
     orderBy: { joinedAt: "asc" },
-    include: { member: { select: { id: true, username: true, nickname: true, avatarUrl: true, profilePic: true } } },
+    include: { member: { select: { id: true, discordUserId: true, username: true, nickname: true, avatarUrl: true, profilePic: true } } },
   },
   rounds: {
     orderBy: { roundNumber: "desc" },
@@ -168,10 +188,11 @@ async function findGame(client, code) {
 
 function publicParticipant(participant) {
   return {
-    name: displayName(participant.member),
+    name: participantName(participant),
     avatarUrl: memberImage(participant.member),
     ready: participant.ready,
     connected: Date.now() - participant.lastSeenAt.getTime() < 45000,
+    isGuest: isDevelopmentGuest(participant.member),
   };
 }
 
@@ -179,7 +200,12 @@ function buildProjection(game, view, user) {
   const state = game.state && typeof game.state === "object" ? game.state : defaultState();
   const round = activeRound(game);
   const managerView = view === "manager" && isGameManager(game, user);
-  if (["player", "manager"].includes(view) && user?.accountType !== "NETWORK_MEMBER") {
+  if (view === "manager" && user?.accountType !== "NETWORK_MEMBER") {
+    const error = new Error("Sign in with your Network account to open this view.");
+    error.status = 401;
+    throw error;
+  }
+  if (view === "player" && !["NETWORK_MEMBER", "FEUD_GUEST"].includes(user?.accountType)) {
     const error = new Error("Sign in with your Network account to open this view.");
     error.status = 401;
     throw error;
@@ -220,7 +246,7 @@ function buildProjection(game, view, user) {
 
   const teams = game.teams.map((team) => {
     const captain = game.participants.find((entry) => entry.memberId === team.captainMemberId);
-    const players = game.participants.filter((entry) => entry.teamId === team.id && entry.role === "PLAYER");
+    const players = game.participants.filter((entry) => entry.teamId === team.id && entry.role === "PLAYER" && participantIsActive(entry));
     return {
       side: team.side,
       name: team.name,
@@ -247,6 +273,7 @@ function buildProjection(game, view, user) {
       pausedPhase: game.status === "PAUSED" ? state.previousPhase : null,
       currentRound: state.currentRound || 0,
       version: game.version,
+      developmentMode: Boolean(game.developmentMode),
       timerEndsAt: game.timerEndsAt?.toISOString() || null,
       manager: { name: displayName(game.manager), avatarUrl: memberImage(game.manager) },
       config: state.config || defaultState().config,
@@ -280,6 +307,7 @@ function buildProjection(game, view, user) {
       ready: participant.ready,
       isCaptain: Boolean(participant.teamId && teamBySide(game, sideForParticipant)?.captainMemberId === participant.memberId),
       isCurrentPlayer: Number(state.activeMemberId) === participant.memberId,
+      isGuest: isDevelopmentGuest(participant.member),
     } : null,
   };
 
@@ -301,7 +329,7 @@ function buildProjection(game, view, user) {
         alpha: game.alphaInviteToken,
         beta: game.betaInviteToken,
       },
-      participants: game.participants.map((entry) => ({
+      participants: game.participants.filter(participantIsActive).map((entry) => ({
         memberId: entry.memberId,
         name: displayName(entry.member),
         avatarUrl: memberImage(entry.member),
@@ -309,6 +337,7 @@ function buildProjection(game, view, user) {
         teamSide: entry.teamId ? game.teams.find((team) => team.id === entry.teamId)?.side || null : null,
         ready: entry.ready,
         connected: Date.now() - entry.lastSeenAt.getTime() < 45000,
+        isGuest: isDevelopmentGuest(entry.member),
       })),
       pendingResponse: pending ? {
         id: pending.id,
@@ -381,10 +410,126 @@ async function createGame(req, res) {
   }
 }
 
-async function getGame(req, res) {
+function gameSummary(game) {
+  const activePlayers = game.participants.filter((participant) => participant.role === "PLAYER" && participantIsActive(participant));
+  return {
+    id: game.id,
+    code: game.code || game.roomId,
+    title: game.title,
+    phase: game.status,
+    developmentMode: Boolean(game.developmentMode),
+    manager: { name: displayName(game.manager), avatarUrl: memberImage(game.manager) },
+    teams: game.teams.map((team) => ({ side: team.side, name: team.name, score: team.score })),
+    playerCount: activePlayers.length,
+    guestCount: activePlayers.filter((participant) => isDevelopmentGuest(participant.member)).length,
+    createdAt: game.createdAt.toISOString(),
+    updatedAt: game.updatedAt.toISOString(),
+  };
+}
+
+async function listGames(_req, res) {
+  try {
+    const games = await prisma.familyFeudGame.findMany({ include: gameInclude, orderBy: { createdAt: "desc" } });
+    return res.json(games.map(gameSummary));
+  } catch (error) {
+    return res.status(500).json({ message: error?.message || "Family Feud games could not be loaded." });
+  }
+}
+
+async function setDevelopmentMode(req, res) {
   try {
     const game = await findGame(prisma, req.params.gameCode);
     if (!game) return res.status(404).json({ message: "Family Feud game not found." });
+    const developmentMode = Boolean(req.body?.enabled);
+    let updated = await prisma.familyFeudGame.update({
+      where: { id: game.id },
+      data: { developmentMode, version: { increment: 1 } },
+      include: gameInclude,
+    });
+    realtime.publish(updated.code || updated.roomId, updated.version);
+    if (!developmentMode) {
+      const cutoff = Date.now();
+      const guestIds = game.participants.filter((participant) => isDevelopmentGuest(participant.member)).map((participant) => participant.memberId);
+      for (const memberId of guestIds) await removeDevelopmentGuest(game.code || game.roomId, memberId, cutoff).catch(() => undefined);
+      updated = await findGame(prisma, req.params.gameCode) || updated;
+    }
+    return res.json(gameSummary(updated));
+  } catch (error) {
+    return res.status(400).json({ message: error?.message || "Development mode could not be updated." });
+  }
+}
+
+function developmentGuestToken(member, game) {
+  const secret = guestJwtSecret();
+  if (!secret) throw Object.assign(new Error("Guest sessions are not configured."), { status: 503 });
+  return jwt.sign({
+    id: member.id,
+    accountType: "FEUD_GUEST",
+    guest: true,
+    feudGameCode: game.code || game.roomId,
+    username: member.username,
+    nickname: member.nickname || member.username,
+    avatarUrl: null,
+    profilePic: null,
+    roles: ["MEMBER"],
+    role: "DEFAULT",
+    teamId: null,
+  }, secret, { expiresIn: "12h" });
+}
+
+async function joinDevelopmentGuest(req, res) {
+  try {
+    const name = cleanText(req.body?.name, 32);
+    const side = String(req.body?.side || "ALPHA").toUpperCase() === "BETA" ? "BETA" : "ALPHA";
+    if (name.length < 2) return res.status(400).json({ message: "Enter a test player name with at least two characters." });
+
+    const result = await prisma.$transaction(async (tx) => {
+      const game = await findGame(tx, req.params.gameCode);
+      if (!game) throw Object.assign(new Error("Family Feud game not found."), { status: 404 });
+      if (!game.developmentMode) throw Object.assign(new Error("Development mode is not enabled for this game."), { status: 403 });
+      if (game.status !== "LOBBY" || game.state?.teamsLocked) throw Object.assign(new Error("This test lobby is already locked."), { status: 409 });
+      const team = teamBySide(game, side);
+      if (!team) throw new Error("The selected team is unavailable.");
+      if (participantsFor(game, side).length >= Number(game.state?.config?.maxPlayersPerTeam || 5)) {
+        throw Object.assign(new Error(`${team.name} is full.`), { status: 409 });
+      }
+      const member = await tx.networkMember.create({
+        data: {
+          discordUserId: `${FEUD_GUEST_PREFIX}${game.id}:${crypto.randomUUID()}`,
+          username: name,
+          nickname: name,
+          roles: ["MEMBER"],
+          role: "DEFAULT",
+        },
+      });
+      await tx.feudParticipant.create({ data: { gameId: game.id, teamId: team.id, memberId: member.id, role: "PLAYER", ready: true } });
+      if (!team.captainMemberId) await tx.feudTeam.update({ where: { id: team.id }, data: { captainMemberId: member.id } });
+      const updated = await tx.familyFeudGame.update({ where: { id: game.id }, data: { version: { increment: 1 } }, include: gameInclude });
+      return { member, game: updated };
+    }, { isolationLevel: "Serializable" });
+
+    const guestUser = { id: result.member.id, accountType: "FEUD_GUEST", guest: true, feudGameCode: result.game.code || result.game.roomId };
+    const token = developmentGuestToken(result.member, result.game);
+    realtime.publish(result.game.code || result.game.roomId, result.game.version);
+    return res.status(201).json({ token, game: buildProjection(result.game, "lobby", guestUser) });
+  } catch (error) {
+    return res.status(error.status || (error.code === "P2034" ? 409 : 400)).json({ message: error.code === "P2034" ? "The test lobby changed. Try joining once more." : error?.message || "The test player could not join." });
+  }
+}
+
+async function getGame(req, res) {
+  try {
+    let game = await findGame(prisma, req.params.gameCode);
+    if (!game) return res.status(404).json({ message: "Family Feud game not found." });
+    const staleGuests = game.developmentMode
+      ? game.participants.filter((participant) => isDevelopmentGuest(participant.member) && Date.now() - participant.lastSeenAt.getTime() >= FEUD_GUEST_STALE_MS)
+      : [];
+    if (staleGuests.length) {
+      const cutoff = Date.now();
+      await Promise.all(staleGuests.map((participant) => removeDevelopmentGuest(game.code || game.roomId, participant.memberId, cutoff).catch(() => undefined)));
+      game = await findGame(prisma, req.params.gameCode);
+      if (!game) return res.status(404).json({ message: "Family Feud game not found." });
+    }
     return res.json(buildProjection(game, String(req.query.view || "spectator"), req.user));
   } catch (error) {
     return res.status(error.status || 500).json({ message: error?.message || "Failed to load Family Feud game." });
@@ -440,8 +585,68 @@ async function joinGame(req, res) {
 async function heartbeat(req, res) {
   const game = await findGame(prisma, req.params.gameCode);
   if (!game) return res.status(404).json({ message: "Family Feud game not found." });
+  if (req.user.accountType === "FEUD_GUEST" && (!game.developmentMode || String(req.user.feudGameCode || "").toUpperCase() !== String(game.code || game.roomId).toUpperCase())) {
+    return res.status(403).json({ message: "This development session is not valid for this game." });
+  }
+  const departureKey = `${game.id}:${Number(req.user.id)}`;
+  const pendingDeparture = guestDepartureTimers.get(departureKey);
+  if (pendingDeparture) {
+    clearTimeout(pendingDeparture);
+    guestDepartureTimers.delete(departureKey);
+  }
   await prisma.feudParticipant.updateMany({ where: { gameId: game.id, memberId: Number(req.user.id) }, data: { lastSeenAt: new Date() } });
   return res.status(204).send();
+}
+
+async function removeDevelopmentGuest(gameCode, memberId, departureStartedAt) {
+  const result = await prisma.$transaction(async (tx) => {
+    const game = await findGame(tx, gameCode);
+    if (!game) return null;
+    const participant = participantForMember(game, memberId);
+    if (!participant || !isDevelopmentGuest(participant.member) || participant.lastSeenAt.getTime() > departureStartedAt) return null;
+    const side = participant.teamId ? game.teams.find((team) => team.id === participant.teamId)?.side || null : null;
+    const team = side ? teamBySide(game, side) : null;
+    const state = game.state && typeof game.state === "object" ? { ...game.state } : defaultState();
+    if (Number(state.activeMemberId) === Number(memberId)) state.activeMemberId = side ? nextPlayerMemberId(game, side) : null;
+    if (team?.captainMemberId === Number(memberId)) {
+      const replacement = orderedPlayers(game, side).find((entry) => Number(entry.memberId) !== Number(memberId));
+      await tx.feudTeam.update({ where: { id: team.id }, data: { captainMemberId: replacement?.memberId || null } });
+    }
+    await tx.feudParticipant.delete({ where: { id: participant.id } });
+    const updated = await tx.familyFeudGame.update({ where: { id: game.id }, data: { state, version: { increment: 1 } }, select: { id: true, code: true, roomId: true, version: true } });
+    const retainedByFaceOff = await tx.feudFaceOff.findFirst({
+      where: { OR: [{ teamARepresentativeId: Number(memberId) }, { teamBRepresentativeId: Number(memberId) }] },
+      select: { id: true },
+    });
+    if (!retainedByFaceOff) await tx.networkMember.delete({ where: { id: Number(memberId) } });
+    return updated;
+  });
+  if (result) realtime.publish(result.code || result.roomId, result.version);
+}
+
+async function leaveDevelopmentGuest(req, res) {
+  try {
+    if (req.user.accountType !== "FEUD_GUEST" || String(req.user.feudGameCode || "").toUpperCase() !== String(req.params.gameCode || "").toUpperCase()) {
+      return res.status(403).json({ message: "Only a test player can leave this development session." });
+    }
+    const game = await findGame(prisma, req.params.gameCode);
+    if (!game) return res.status(204).send();
+    const departureStartedAt = Date.now();
+    await prisma.feudParticipant.updateMany({ where: { gameId: game.id, memberId: Number(req.user.id) }, data: { lastSeenAt: new Date(0) } });
+    const departureKey = `${game.id}:${Number(req.user.id)}`;
+    const existingTimer = guestDepartureTimers.get(departureKey);
+    if (existingTimer) clearTimeout(existingTimer);
+    const timer = setTimeout(() => {
+      guestDepartureTimers.delete(departureKey);
+      void removeDevelopmentGuest(game.code || game.roomId, Number(req.user.id), departureStartedAt).catch(() => undefined);
+    }, 5000);
+    timer.unref?.();
+    guestDepartureTimers.set(departureKey, timer);
+    realtime.publish(game.code || game.roomId, game.version);
+    return res.status(202).json({ message: "Test player will be removed unless this tab reconnects." });
+  } catch (error) {
+    return res.status(400).json({ message: error?.message || "The test player could not leave." });
+  }
 }
 
 async function chooseQuestion(tx, game) {
@@ -648,7 +853,13 @@ async function performAction(tx, game, req, action, payload) {
     ensurePhase(game, "LOBBY");
     const target = participantForMember(game, payload.memberId);
     if (!target || target.role === "MANAGER") throw new Error("Select a removable participant.");
+    const targetTeam = game.teams.find((team) => team.id === target.teamId);
+    if (targetTeam?.captainMemberId === target.memberId) {
+      const replacement = orderedPlayers(game, targetTeam.side).find((entry) => entry.memberId !== target.memberId);
+      await tx.feudTeam.update({ where: { id: targetTeam.id }, data: { captainMemberId: replacement?.memberId || null } });
+    }
     await tx.feudParticipant.delete({ where: { id: target.id } });
+    if (isDevelopmentGuest(target.member)) await tx.networkMember.delete({ where: { id: target.memberId } });
   } else if (action === "SET_CAPTAIN") {
     ensurePhase(game, "LOBBY");
     const target = participantForMember(game, payload.memberId);
@@ -850,6 +1061,9 @@ async function gameAction(req, res) {
     const game = await prisma.$transaction(async (tx) => {
       const current = await findGame(tx, req.params.gameCode);
       if (!current) throw Object.assign(new Error("Family Feud game not found."), { status: 404 });
+      if (req.user.accountType === "FEUD_GUEST" && (!current.developmentMode || String(req.user.feudGameCode || "").toUpperCase() !== String(current.code || current.roomId).toUpperCase())) {
+        throw Object.assign(new Error("This development session is not valid for this game."), { status: 403 });
+      }
       await performAction(tx, current, req, action, payload);
       return findGame(tx, req.params.gameCode);
     });
@@ -970,6 +1184,7 @@ async function deleteGame(req, res) {
     if (!game) return res.status(404).json({ message: "Family Feud game not found." });
     ensureManager(game, req);
     await prisma.familyFeudGame.delete({ where: { id: game.id } });
+    await prisma.networkMember.deleteMany({ where: { discordUserId: { startsWith: `${FEUD_GUEST_PREFIX}${game.id}:` } } });
     realtime.publish(game.code || game.roomId, game.version + 1);
     return res.status(204).send();
   } catch (error) {
@@ -979,6 +1194,10 @@ async function deleteGame(req, res) {
 
 module.exports = {
   createGame,
+  listGames,
+  setDevelopmentMode,
+  joinDevelopmentGuest,
+  leaveDevelopmentGuest,
   getGame,
   getGameByCode,
   joinGame,

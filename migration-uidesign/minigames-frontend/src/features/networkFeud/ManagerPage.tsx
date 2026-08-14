@@ -53,7 +53,7 @@ export function ManagerPage() {
     <div className={`${styles.container} ${styles.wide}`}>
       <div className={styles.topline}>
         <div><FeudLogo /><p className={styles.eyebrow} style={{ marginTop: 16 }}>Manager room / {data.game.code}</p></div>
-        <div className={styles.buttonRow}><Link className={`${styles.button} ${styles.buttonSecondary}`} style={{ display: "inline-grid", placeItems: "center" }} href={`/feud/spectator/${code}`} target="_blank">Open broadcast</Link><ConnectionPill connected={connected} /></div>
+        <div className={styles.buttonRow}><Link className={`${styles.button} ${styles.buttonSecondary}`} href="/admin/feud/games">All games</Link><Link className={`${styles.button} ${styles.buttonSecondary}`} style={{ display: "inline-grid", placeItems: "center" }} href={`/feud/spectator/${code}`} target="_blank">Open broadcast</Link><ConnectionPill connected={connected} /></div>
       </div>
       <div className={`${styles.notice} ${message || error ? styles.error : ""}`} style={{ marginBottom: 18 }}>{message || error || managerHelp(phase)}</div>
       <ScoreStrip data={data} />
@@ -114,6 +114,7 @@ function LobbyControls({ data, busy, run }: { data: NonNullable<ReturnType<typeo
   const beta = data.teams.find((team) => team.side === "BETA")!;
   const invites = data.manager?.captainInvites;
   const captainLink = (side: TeamSide) => `${location.origin}/feud/lobby/${data.game.code}?captain=${side}&invite=${encodeURIComponent(side === "ALPHA" ? invites?.alpha || "" : invites?.beta || "")}`;
+  const developmentLink = `${location.origin}/feud/lobby/${data.game.code}?development=1`;
   const canStart = Boolean(alpha.captainName && beta.captainName);
   return <section className={styles.card}>
     <div className={styles.controlGroup}><h2 className={styles.sectionTitle}>Send one invitation to each captain</h2><p className={styles.sectionCopy}>Each link is tied to a team. The captain signs in, is assigned automatically, and appears here.</p></div>
@@ -123,6 +124,7 @@ function LobbyControls({ data, busy, run }: { data: NonNullable<ReturnType<typeo
         <button className={`${styles.button} ${team.captainName ? styles.buttonSecondary : ""}`} disabled={!invites} onClick={() => void copy(captainLink(team.side))}>{team.captainName ? "Copy invitation again" : "Copy captain invitation"}</button>
       </article>)}
     </div></div>
+    {data.game.developmentMode ? <div className={styles.controlGroup}><div className={styles.developmentLobbyCallout}><div><p className={styles.eyebrow}>Development mode</p><strong>Test without Discord accounts</strong><span>Copy this link and open it in one tab per player. The first test player on each team becomes its captain.</span></div><button className={`${styles.button} ${styles.buttonAmber}`} onClick={() => void copy(developmentLink)}>Copy test-player link</button></div></div> : null}
     <div className={styles.controlGroup}><div className={styles.buttonRow}><Link className={`${styles.button} ${styles.buttonSecondary}`} href={`/feud/spectator/${data.game.code}`} target="_blank">Open broadcast</Link><button className={`${styles.button} ${styles.buttonSecondary}`} onClick={() => void copy(`${location.origin}/feud/spectator/${data.game.code}`)}>Copy broadcast link</button></div></div>
     <div className={styles.controlGroup}><div className={styles.startRow}><div><strong>{canStart ? "Both captains are connected" : "Waiting for both captains"}</strong><p>{canStart ? "You can start Family Feud now." : "The start button unlocks after both invitation links have been accepted."}</p></div><button className={styles.button} disabled={busy || !canStart} onClick={() => void run("START_GAME")}>Start Family Feud</button></div></div>
   </section>;

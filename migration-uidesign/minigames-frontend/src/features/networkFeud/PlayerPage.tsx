@@ -3,7 +3,7 @@
 import { useParams } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { useFeudGame } from "@/lib/familyFeud/useFeudGame";
-import { AnswerBoard, ConnectionPill, ErrorState, FeudLogo, LoadingState, PhaseName, ScoreStrip, Strikes, Timer } from "./Shared";
+import { AnswerBoard, ConnectionPill, ErrorState, FeudLogo, GameEffects, LoadingState, PhaseName, ScoreStrip, ShowCover, Strikes, Timer } from "./Shared";
 import styles from "./network-feud.module.css";
 
 export function PlayerPage() {
@@ -34,20 +34,17 @@ export function PlayerPage() {
   const canChoose = phase === "PLAY_PASS" && data.me?.side === faceOff?.familyWinnerSide;
   const canAnswer = Boolean(data.me?.isCurrentPlayer && !data.round?.answerPending && ["FACE_OFF_FIRST_ANSWER", "FACE_OFF_SECOND_ANSWER", "ROUND_PLAY", "STEAL", "FAST_MONEY"].includes(phase));
   const activeTeam = data.teams.find((team) => team.side === data.round?.activeSide);
+  const alpha = data.teams.find((team) => team.side === "ALPHA");
+  const beta = data.teams.find((team) => team.side === "BETA");
 
   return <div className={styles.shell}>
+    <GameEffects data={data} />
     <div className={`${styles.container} ${styles.wide}`}>
       <div className={styles.topline}><FeudLogo /><div className={styles.buttonRow}><span className={styles.pill}><PhaseName phase={phase} /></span><ConnectionPill connected={connected} /></div></div>
       <ScoreStrip data={data} />
       {message || error ? <p className={`${styles.notice} ${styles.error}`} style={{ marginBottom: 14 }}>{message || error}</p> : null}
 
-      {["ROUND_INTRO", "AWAITING_EXTERNAL_FACE_OFF"].includes(phase) ? <section className={`${styles.card} ${styles.centerState}`}>
-        <div style={{ width: "100%" }}>
-          <p className={styles.eyebrow}>Round {data.round?.number}</p>
-          <h1 className={styles.phaseHero}>Get ready for the face-off</h1>
-          <p className={styles.sectionCopy}>The manager will choose which captain answers first.</p>
-        </div>
-      </section> : null}
+      {["ROUND_INTRO", "AWAITING_EXTERNAL_FACE_OFF"].includes(phase) ? <ShowCover eyebrow={`Round ${data.round?.number || data.game.currentRound}`} title="Face-off" detail={`${alpha?.name || "Team 1"} vs ${beta?.name || "Team 2"}`} /> : null}
 
       {phase === "PLAY_PASS" ? <section className={`${styles.card} ${styles.centerState}`}>
         <div><p className={styles.eyebrow}>Face-off winner</p><h1 className={styles.phaseHero}>{data.teams.find((team) => team.side === faceOff?.familyWinnerSide)?.name}</h1>

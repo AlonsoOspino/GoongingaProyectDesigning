@@ -1,11 +1,26 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { FeudBoardAnswer, FeudProjection, FeudTeam } from "@/lib/familyFeud/types";
 import styles from "./network-feud.module.css";
 
 export function FeudLogo() {
-  return <div className={styles.logo}><span className={styles.logoMark}><span>FF</span></span><span className={styles.logoText}>Family <span>Feud</span></span></div>;
+  return <div className={styles.logo}><span className={styles.logoMark}><img src="/feud-winton.webp" alt="" /></span><span className={styles.logoText}>Family <span>Feud</span></span></div>;
+}
+
+export function ShowCover({ eyebrow, title, detail, broadcast = false, children }: { eyebrow: string; title: string; detail?: string; broadcast?: boolean; children?: ReactNode }) {
+  return <section className={`${styles.showCover} ${broadcast ? styles.showCoverBroadcast : ""}`}>
+    <div className={styles.showStage} />
+    <img className={styles.showCoins} src="/feud-coins.webp" alt="" />
+    <img className={styles.showHost} src="/feud-doomfist.webp" alt="" />
+    <div className={styles.showCoverCopy}>
+      <FeudLogo />
+      <p className={styles.showEyebrow}>{eyebrow}</p>
+      <h1>{title}</h1>
+      {detail ? <p className={styles.showDetail}>{detail}</p> : null}
+      {children}
+    </div>
+  </section>;
 }
 
 export function Avatar({ name, src, className = "" }: { name: string; src?: string | null; className?: string }) {
@@ -36,14 +51,14 @@ export function ScoreStrip({ data }: { data: FeudProjection }) {
   if (!alpha || !beta) return null;
   return <div className={styles.scoreStrip}>
     <ScoreTeam team={alpha} />
-    <div className={styles.bank}><small>Round bank</small><strong>{data.round?.bank ?? 0}</strong></div>
+    <div className={styles.bank}><small>Round bank</small><strong key={data.round?.bank ?? 0} className={styles.scorePop}>{data.round?.bank ?? 0}</strong></div>
     <ScoreTeam team={beta} />
   </div>;
 }
 
 function ScoreTeam({ team }: { team: FeudTeam }) {
   return <div className={styles.scoreTeam} style={{ "--team": team.color } as React.CSSProperties}>
-    <span className={styles.scoreTeamName}>{team.name}</span><strong className={styles.scoreNumber}>{team.score}</strong>
+    <span className={styles.scoreTeamName}>{team.name}</span><strong key={team.score} className={`${styles.scoreNumber} ${styles.scorePop}`}>{team.score}</strong>
   </div>;
 }
 
@@ -52,7 +67,7 @@ export function AnswerBoard({ answers, broadcast = false }: { answers: FeudBoard
   return <div className={styles.board} data-broadcast={broadcast || undefined}>
     {slots.map((answer) => <div key={answer.id || answer.rank} className={`${styles.answer} ${answer.revealed ? styles.answerReveal : styles.answerHidden}`}>
       <span className={styles.answerRank}>{answer.rank}</span>
-      <span className={styles.answerText}>{answer.revealed || answer.answer ? answer.answer : "••••••••"}</span>
+      <span className={styles.answerText}>{answer.revealed || answer.answer ? answer.answer : ""}</span>
       <span className={styles.answerPoints}>{answer.revealed || answer.points !== undefined ? answer.points : ""}</span>
     </div>)}
   </div>;
@@ -60,8 +75,32 @@ export function AnswerBoard({ answers, broadcast = false }: { answers: FeudBoard
 
 export function Strikes({ value }: { value: number }) {
   return <div className={styles.strikes} aria-label={`${value} strikes`}>
-    {[0, 1, 2].map((index) => <span key={index} className={`${styles.strike} ${index < value ? styles.strikeOn : ""}`}>×</span>)}
+    {[0, 1, 2].map((index) => <span key={index} className={`${styles.strike} ${index < value ? styles.strikeOn : ""}`}><span aria-hidden="true">×</span></span>)}
   </div>;
+}
+
+export function GameEffects({ data }: { data: FeudProjection }) {
+  const previous = useRef<{ version: number; revealed: number; strikes: number } | null>(null);
+  const [effect, setEffect] = useState<{ type: "answer" | "strike"; id: number } | null>(null);
+
+  useEffect(() => {
+    const current = {
+      version: data.game.version,
+      revealed: data.round?.board.filter((answer) => answer.revealed).length || 0,
+      strikes: data.round?.strikes || 0,
+    };
+    const before = previous.current;
+    previous.current = current;
+    if (!before || before.version === current.version) return;
+    const type = current.strikes > before.strikes ? "strike" : current.revealed > before.revealed ? "answer" : null;
+    if (!type) return;
+    setEffect({ type, id: current.version });
+    const timer = window.setTimeout(() => setEffect(null), type === "strike" ? 1050 : 900);
+    return () => window.clearTimeout(timer);
+  }, [data]);
+
+  if (!effect) return null;
+  return <div key={effect.id} className={`${styles.gameEffect} ${effect.type === "strike" ? styles.effectStrike : styles.effectAnswer}`} aria-hidden="true"><span>{effect.type === "strike" ? "×" : "✓"}</span></div>;
 }
 
 export function TeamCard({ team, manager = false }: { team: FeudTeam; manager?: boolean }) {

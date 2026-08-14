@@ -31,6 +31,7 @@ model FamilyFeudGame {
   managerMemberId  Int?
   winningTeamId    Int?
   version          Int               @default(1)
+  developmentMode  Boolean           @default(false)
   timerEndsAt      DateTime?
   startedAt        DateTime?
   finishedAt       DateTime?
