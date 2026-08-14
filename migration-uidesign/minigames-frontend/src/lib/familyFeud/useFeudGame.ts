@@ -30,6 +30,13 @@ export function useFeudGame(gameCode: string, view: FeudView) {
   useEffect(() => { void refresh(); }, [refresh]);
 
   useEffect(() => {
+    if (!data?.game.timerEndsAt) return;
+    const delay = Math.max(0, new Date(data.game.timerEndsAt).getTime() - new Date(data.serverNow).getTime()) + 150;
+    const timer = window.setTimeout(() => void refresh(), Math.min(delay, 2147483647));
+    return () => window.clearTimeout(timer);
+  }, [data?.game.timerEndsAt, data?.game.version, data?.serverNow, refresh]);
+
+  useEffect(() => {
     if (!gameCode) return;
     const controller = new AbortController();
     let retry: ReturnType<typeof setTimeout> | null = null;

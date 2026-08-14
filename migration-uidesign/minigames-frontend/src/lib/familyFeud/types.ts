@@ -53,6 +53,7 @@ export interface FeudProjection {
     currentRound: number;
     version: number;
     developmentMode: boolean;
+    lastEvent: null | { id: string; type: "CORRECT" | "INCORRECT" | "NO_ANSWER"; label: string; at: string };
     timerEndsAt: string | null;
     manager: { name: string; avatarUrl: string | null };
     config: { maxPlayersPerTeam: number; answerSeconds: number; roundCount: number; fastMoneyTarget: number };

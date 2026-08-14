@@ -93,3 +93,26 @@ test("a development guest receives only its player projection", () => {
   assert.equal(projection.me.side, "ALPHA");
   assert.equal(projection.manager, undefined);
 });
+
+test("an expired Family Feud turn becomes NO ANSWER and adds a strike", async () => {
+  const game = gameFixture();
+  const updates = [];
+  const tx = { feudRound: { update: async (input) => { updates.push(input); } } };
+  const transition = await __testables.resolveNoAnswer(tx, game);
+  assert.equal(transition.status, "ROUND_PLAY");
+  assert.equal(transition.state.lastEvent.type, "NO_ANSWER");
+  assert.equal(transition.state.lastEvent.label, "NO ANSWER");
+  assert.equal(updates[0].data.strikes, 2);
+  assert.ok(transition.timerEndsAt instanceof Date);
+});
+
+test("a face-off timeout advances instead of freezing the game", async () => {
+  const game = gameFixture();
+  game.status = "FACE_OFF_FIRST_ANSWER";
+  game.state = { ...game.state, phase: "FACE_OFF_FIRST_ANSWER", activeMemberId: 11, faceOffResults: [] };
+  game.rounds[0].faceOff = { teamARepresentativeId: 11, teamBRepresentativeId: 12, externalWinnerMemberId: 11 };
+  const transition = await __testables.resolveNoAnswer({}, game);
+  assert.equal(transition.status, "FACE_OFF_SECOND_ANSWER");
+  assert.equal(transition.state.activeMemberId, 12);
+  assert.equal(transition.state.lastEvent.type, "NO_ANSWER");
+});

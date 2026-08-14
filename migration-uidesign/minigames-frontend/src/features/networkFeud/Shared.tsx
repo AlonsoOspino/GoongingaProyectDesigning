@@ -64,12 +64,15 @@ function ScoreTeam({ team }: { team: FeudTeam }) {
 
 export function AnswerBoard({ answers, broadcast = false }: { answers: FeudBoardAnswer[]; broadcast?: boolean }) {
   const slots: FeudBoardAnswer[] = answers.length ? answers : Array.from({ length: 6 }, (_, index) => ({ rank: index + 1, revealed: false }));
-  return <div className={styles.board} data-broadcast={broadcast || undefined}>
-    {slots.map((answer) => <div key={answer.id || answer.rank} className={`${styles.answer} ${answer.revealed ? styles.answerReveal : styles.answerHidden}`}>
-      <span className={styles.answerRank}>{answer.rank}</span>
-      <span className={styles.answerText}>{answer.revealed || answer.answer ? answer.answer : ""}</span>
-      <span className={styles.answerPoints}>{answer.revealed || answer.points !== undefined ? answer.points : ""}</span>
-    </div>)}
+  return <div className={styles.boardStage} data-broadcast={broadcast || undefined}>
+    <div className={styles.boardLights} aria-hidden="true" />
+    <div className={styles.board}>
+      {slots.map((answer) => <div key={answer.id || answer.rank} className={`${styles.answer} ${answer.revealed ? styles.answerReveal : answer.answer ? styles.answerPreview : styles.answerHidden}`}>
+        <span className={styles.answerRank}>{answer.rank}</span>
+        <span className={styles.answerText}>{answer.revealed || answer.answer ? answer.answer : ""}</span>
+        <span className={styles.answerPoints}>{answer.revealed || answer.points !== undefined ? answer.points : ""}</span>
+      </div>)}
+    </div>
   </div>;
 }
 
@@ -80,27 +83,32 @@ export function Strikes({ value }: { value: number }) {
 }
 
 export function GameEffects({ data }: { data: FeudProjection }) {
-  const previous = useRef<{ version: number; revealed: number; strikes: number } | null>(null);
-  const [effect, setEffect] = useState<{ type: "answer" | "strike"; id: number } | null>(null);
+  const previous = useRef<{ version: number; revealed: number; strikes: number; eventId: string | null } | null>(null);
+  const [effect, setEffect] = useState<{ type: "answer" | "strike"; id: string; label: string } | null>(null);
 
   useEffect(() => {
     const current = {
       version: data.game.version,
       revealed: data.round?.board.filter((answer) => answer.revealed).length || 0,
       strikes: data.round?.strikes || 0,
+      eventId: data.game.lastEvent?.id || null,
     };
     const before = previous.current;
     previous.current = current;
     if (!before || before.version === current.version) return;
-    const type = current.strikes > before.strikes ? "strike" : current.revealed > before.revealed ? "answer" : null;
+    const eventChanged = Boolean(current.eventId && current.eventId !== before.eventId);
+    const explicitType = eventChanged ? data.game.lastEvent?.type : null;
+    const type = explicitType === "CORRECT" ? "answer" : explicitType === "INCORRECT" || explicitType === "NO_ANSWER" ? "strike" : current.strikes > before.strikes ? "strike" : current.revealed > before.revealed ? "answer" : null;
     if (!type) return;
-    setEffect({ type, id: current.version });
-    const timer = window.setTimeout(() => setEffect(null), type === "strike" ? 1050 : 900);
+    setEffect({ type, id: current.eventId || String(current.version), label: data.game.lastEvent?.label || (type === "strike" ? "INCORRECT" : "") });
+    const timer = window.setTimeout(() => setEffect(null), type === "strike" ? 1450 : 850);
     return () => window.clearTimeout(timer);
   }, [data]);
 
   if (!effect) return null;
-  return <div key={effect.id} className={`${styles.gameEffect} ${effect.type === "strike" ? styles.effectStrike : styles.effectAnswer}`} aria-hidden="true"><span>{effect.type === "strike" ? "×" : "✓"}</span></div>;
+  return <div key={effect.id} className={`${styles.gameEffect} ${effect.type === "strike" ? styles.effectStrike : styles.effectAnswer}`} aria-hidden="true">
+    {effect.type === "strike" ? <div className={styles.wrongAnswerMark}><span>×</span><strong>{effect.label}</strong></div> : <div className={styles.correctAnswerFlash}><span /></div>}
+  </div>;
 }
 
 export function TeamCard({ team, manager = false }: { team: FeudTeam; manager?: boolean }) {

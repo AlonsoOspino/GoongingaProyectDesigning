@@ -57,10 +57,10 @@ export function SpectatorPage() {
 }
 
 function useBroadcastSounds(data: FeudProjection | null) {
-  const previous = useRef<{ version: number; phase: string; revealed: number; strikes: number } | null>(null);
+  const previous = useRef<{ version: number; phase: string; revealed: number; strikes: number; eventId: string | null } | null>(null);
   useEffect(() => {
     if (!data) return;
-    const current = { version: data.game.version, phase: data.game.phase, revealed: data.round?.board.filter((answer) => answer.revealed).length || 0, strikes: data.round?.strikes || 0 };
+    const current = { version: data.game.version, phase: data.game.phase, revealed: data.round?.board.filter((answer) => answer.revealed).length || 0, strikes: data.round?.strikes || 0, eventId: data.game.lastEvent?.id || null };
     const before = previous.current;
     previous.current = current;
     if (!before || before.version === current.version) return;
@@ -74,10 +74,12 @@ function useBroadcastSounds(data: FeudProjection | null) {
       gain.gain.exponentialRampToValueAtTime(0.14, context.currentTime + 0.02);
       gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.55);
       gain.connect(context.destination);
-      const frequencies = current.strikes > before.strikes ? [120, 88] : current.revealed > before.revealed ? [520, 760, 980] : current.phase !== before.phase ? [260, 390] : [];
+      const incorrectEvent = current.eventId !== before.eventId && ["INCORRECT", "NO_ANSWER"].includes(data.game.lastEvent?.type || "");
+      const incorrect = incorrectEvent || current.strikes > before.strikes;
+      const frequencies = incorrect ? [120, 88] : current.revealed > before.revealed ? [520, 760, 980] : current.phase !== before.phase ? [260, 390] : [];
       frequencies.forEach((frequency, index) => {
         const oscillator = context!.createOscillator();
-        oscillator.type = current.strikes > before.strikes ? "sawtooth" : "sine";
+        oscillator.type = incorrect ? "sawtooth" : "sine";
         oscillator.frequency.value = frequency;
         oscillator.connect(gain);
         oscillator.start(context!.currentTime + index * 0.09);

@@ -109,6 +109,7 @@ function defaultState(config = {}) {
     faceOffResults: [],
     pausedRemainingMs: null,
     fastMoney: null,
+    lastEvent: null,
     config: {
       maxPlayersPerTeam: Math.min(8, Math.max(1, Number(config.maxPlayersPerTeam) || 5)),
       answerSeconds: Math.min(90, Math.max(5, Number(config.answerSeconds) || 20)),
@@ -274,6 +275,7 @@ function buildProjection(game, view, user) {
       currentRound: state.currentRound || 0,
       version: game.version,
       developmentMode: Boolean(game.developmentMode),
+      lastEvent: state.lastEvent || null,
       timerEndsAt: game.timerEndsAt?.toISOString() || null,
       manager: { name: displayName(game.manager), avatarUrl: memberImage(game.manager) },
       config: state.config || defaultState().config,
@@ -519,7 +521,9 @@ async function joinDevelopmentGuest(req, res) {
 
 async function getGame(req, res) {
   try {
-    let game = await findGame(prisma, req.params.gameCode);
+    let game;
+    try { game = await reconcileExpiredTimer(req.params.gameCode); }
+    catch { game = await findGame(prisma, req.params.gameCode); }
     if (!game) return res.status(404).json({ message: "Family Feud game not found." });
     const staleGuests = game.developmentMode
       ? game.participants.filter((participant) => isDevelopmentGuest(participant.member) && Date.now() - participant.lastSeenAt.getTime() >= FEUD_GUEST_STALE_MS)
@@ -703,6 +707,18 @@ function ensurePhase(game, ...phases) {
   }
 }
 
+function withGameEvent(state, type, label) {
+  return {
+    ...state,
+    lastEvent: {
+      id: crypto.randomUUID(),
+      type,
+      label,
+      at: new Date().toISOString(),
+    },
+  };
+}
+
 async function advanceFaceOff(tx, game, state, round, resolvedResponse, matchedAnswer) {
   const faceOff = round.faceOff;
   const firstMemberId = faceOff.externalWinnerMemberId;
@@ -742,9 +758,10 @@ async function resolveRoundResponse(tx, game, state, round, correct, answerId) {
     where: { id: pending.id },
     data: { matchedAnswerId: answer?.id || null, correct, points: correct ? answer.points * (game.status === "FAST_MONEY" ? 1 : round.multiplier) : 0, resolvedAt: new Date() },
   });
+  const eventState = withGameEvent(state, correct ? "CORRECT" : "INCORRECT", correct ? "ANSWER REVEALED" : "INCORRECT");
   if (game.status === "FACE_OFF_FIRST_ANSWER" || game.status === "FACE_OFF_SECOND_ANSWER") {
-    const reveal = correct && answer ? [...new Set([...(state.revealedAnswerIds || []), answer.id])] : state.revealedAnswerIds;
-    const advanced = await advanceFaceOff(tx, game, { ...state, revealedAnswerIds: reveal }, round, resolved, correct ? answer : null);
+    const reveal = correct && answer ? [...new Set([...(eventState.revealedAnswerIds || []), answer.id])] : eventState.revealedAnswerIds;
+    const advanced = await advanceFaceOff(tx, game, { ...eventState, revealedAnswerIds: reveal }, round, resolved, correct ? answer : null);
     if (correct && answer) await tx.feudRound.update({ where: { id: round.id }, data: { roundBank: { increment: answer.points * round.multiplier } } });
     return advanced;
   }
@@ -755,7 +772,7 @@ async function resolveRoundResponse(tx, game, state, round, correct, answerId) {
       await tx.feudRound.update({ where: { id: round.id }, data: { roundBank: { increment: answer.points * round.multiplier } } });
       return {
         state: {
-          ...state,
+          ...eventState,
           pendingResponseId: null,
           revealedAnswerIds: [...state.revealedAnswerIds, answer.id],
           turnIndex: state.turnIndex + 1,
@@ -771,18 +788,19 @@ async function resolveRoundResponse(tx, game, state, round, correct, answerId) {
       const stealSide = otherSide(state.activeSide);
       const stealTeam = teamBySide(game, stealSide);
       return {
-        state: { ...state, phase: "STEAL", pendingResponseId: null, activeSide: stealSide, activeMemberId: stealTeam.captainMemberId || nextPlayerMemberId(game, stealSide), turnIndex: -1 },
+        state: { ...eventState, phase: "STEAL", pendingResponseId: null, activeSide: stealSide, activeMemberId: stealTeam.captainMemberId || nextPlayerMemberId(game, stealSide), turnIndex: -1 },
         status: "STEAL",
         timerEndsAt: new Date(Date.now() + Number(state.config.answerSeconds) * 1000),
       };
     }
     return {
-      state: { ...state, pendingResponseId: null, turnIndex: state.turnIndex + 1, activeMemberId: nextPlayerMemberId(game, state.activeSide, state.turnIndex) },
+      state: { ...eventState, pendingResponseId: null, turnIndex: state.turnIndex + 1, activeMemberId: nextPlayerMemberId(game, state.activeSide, state.turnIndex) },
       status: "ROUND_PLAY",
       timerEndsAt: new Date(Date.now() + Number(state.config.answerSeconds) * 1000),
     };
   }
   if (game.status === "STEAL") {
+    state = eventState;
     const winnerSide = correct ? state.activeSide : otherSide(state.activeSide);
     const winnerTeam = teamBySide(game, winnerSide);
     const refreshedRound = await tx.feudRound.findUnique({ where: { id: round.id } });
@@ -805,21 +823,99 @@ async function resolveRoundResponse(tx, game, state, round, correct, answerId) {
     fast.responses.push({ playerIndex: fast.activePlayerIndex, questionIndex: fast.questionIndex, text: pending.text, answerId: selected?.id || null, answer: selected?.answer || null, points: correct ? selected.points : 0 });
     fast.total += correct ? selected.points : 0;
     if (!correct) {
-      return { state: { ...state, pendingResponseId: null, fastMoney: fast }, status: "FAST_MONEY", timerEndsAt: new Date(Date.now() + 10000) };
+      return { state: { ...eventState, pendingResponseId: null, fastMoney: fast }, status: "FAST_MONEY", timerEndsAt: new Date(Date.now() + 10000) };
     }
     if (fast.questionIndex < fast.questions.length - 1) {
       fast.questionIndex += 1;
-      return { state: { ...state, pendingResponseId: null, fastMoney: fast }, status: "FAST_MONEY", timerEndsAt: new Date(Date.now() + (fast.activePlayerIndex === 0 ? 20000 : 25000)) };
+      return { state: { ...eventState, pendingResponseId: null, fastMoney: fast }, status: "FAST_MONEY", timerEndsAt: new Date(Date.now() + (fast.activePlayerIndex === 0 ? 20000 : 25000)) };
     }
     if (fast.activePlayerIndex === 0) {
       fast.activePlayerIndex = 1;
       fast.questionIndex = 0;
-      return { state: { ...state, pendingResponseId: null, activeMemberId: fast.playerIds[1], fastMoney: fast }, status: "FAST_MONEY", timerEndsAt: new Date(Date.now() + 25000) };
+      return { state: { ...eventState, pendingResponseId: null, activeMemberId: fast.playerIds[1], fastMoney: fast }, status: "FAST_MONEY", timerEndsAt: new Date(Date.now() + 25000) };
     }
     fast.complete = true;
-    return { state: { ...state, pendingResponseId: null, activeMemberId: null, fastMoney: fast }, status: "FAST_MONEY", timerEndsAt: null };
+    return { state: { ...eventState, pendingResponseId: null, activeMemberId: null, fastMoney: fast }, status: "FAST_MONEY", timerEndsAt: null };
   }
   throw new Error("The pending answer cannot be resolved in this phase.");
+}
+
+async function resolveNoAnswer(tx, game) {
+  const state = withGameEvent(game.state && typeof game.state === "object" ? { ...game.state } : defaultState(), "NO_ANSWER", "NO ANSWER");
+  const round = activeRound(game);
+  if (!round || state.pendingResponseId) return null;
+
+  if (["FACE_OFF_FIRST_ANSWER", "FACE_OFF_SECOND_ANSWER"].includes(game.status)) {
+    return advanceFaceOff(tx, game, state, round, { memberId: Number(state.activeMemberId) }, null);
+  }
+
+  if (game.status === "ROUND_PLAY") {
+    const nextStrikes = Math.min(3, round.strikes + 1);
+    await tx.feudRound.update({ where: { id: round.id }, data: { strikes: nextStrikes } });
+    if (nextStrikes >= 3) {
+      const stealSide = otherSide(state.activeSide);
+      const stealTeam = teamBySide(game, stealSide);
+      return {
+        state: { ...state, phase: "STEAL", pendingResponseId: null, activeSide: stealSide, activeMemberId: stealTeam.captainMemberId || nextPlayerMemberId(game, stealSide), turnIndex: -1 },
+        status: "STEAL",
+        timerEndsAt: new Date(Date.now() + Number(state.config.answerSeconds) * 1000),
+      };
+    }
+    return {
+      state: { ...state, pendingResponseId: null, turnIndex: state.turnIndex + 1, activeMemberId: nextPlayerMemberId(game, state.activeSide, state.turnIndex) },
+      status: "ROUND_PLAY",
+      timerEndsAt: new Date(Date.now() + Number(state.config.answerSeconds) * 1000),
+    };
+  }
+
+  if (game.status === "STEAL") {
+    const winnerSide = otherSide(state.activeSide);
+    const winnerTeam = teamBySide(game, winnerSide);
+    await tx.feudTeam.update({ where: { id: winnerTeam.id }, data: { score: { increment: round.roundBank } } });
+    await tx.feudRound.update({ where: { id: round.id }, data: { status: "ROUND_RESULTS", finishedAt: new Date() } });
+    return {
+      state: { ...state, phase: "ROUND_RESULTS", pendingResponseId: null, roundWinnerSide: winnerSide, activeMemberId: null },
+      status: "ROUND_RESULTS",
+      timerEndsAt: null,
+    };
+  }
+
+  if (game.status === "FAST_MONEY" && state.fastMoney) {
+    const fast = { ...state.fastMoney, responses: [...(state.fastMoney.responses || [])] };
+    fast.responses.push({ playerIndex: fast.activePlayerIndex, questionIndex: fast.questionIndex, text: "NO ANSWER", answerId: null, answer: null, points: 0 });
+    if (fast.questionIndex < fast.questions.length - 1) {
+      fast.questionIndex += 1;
+      return { state: { ...state, fastMoney: fast }, status: "FAST_MONEY", timerEndsAt: new Date(Date.now() + (fast.activePlayerIndex === 0 ? 20000 : 25000)) };
+    }
+    if (fast.activePlayerIndex === 0) {
+      fast.activePlayerIndex = 1;
+      fast.questionIndex = 0;
+      return { state: { ...state, activeMemberId: fast.playerIds[1], fastMoney: fast }, status: "FAST_MONEY", timerEndsAt: new Date(Date.now() + 25000) };
+    }
+    fast.complete = true;
+    return { state: { ...state, activeMemberId: null, fastMoney: fast }, status: "FAST_MONEY", timerEndsAt: null };
+  }
+
+  return null;
+}
+
+async function reconcileExpiredTimer(gameCode) {
+  let changed = false;
+  const game = await prisma.$transaction(async (tx) => {
+    const current = await findGame(tx, gameCode);
+    if (!current || !current.timerEndsAt || current.timerEndsAt.getTime() > Date.now()) return current;
+    const transition = await resolveNoAnswer(tx, current);
+    if (!transition) return current;
+    const updated = await tx.familyFeudGame.updateMany({
+      where: { id: current.id, version: current.version, timerEndsAt: { lte: new Date() } },
+      data: { state: transition.state, status: transition.status, phase: transition.status, timerEndsAt: transition.timerEndsAt, version: { increment: 1 } },
+    });
+    if (updated.count !== 1) throw Object.assign(new Error("The timer was already resolved."), { status: 409 });
+    changed = true;
+    return findGame(tx, gameCode);
+  }, { isolationLevel: "Serializable" });
+  if (changed && game) realtime.publish(game.code || game.roomId, game.version);
+  return game;
 }
 
 async function performAction(tx, game, req, action, payload) {
@@ -968,6 +1064,7 @@ async function performAction(tx, game, req, action, payload) {
     ensurePhase(game, "ROUND_PLAY", "STEAL");
     const strikes = Math.max(0, Math.min(3, round.strikes + (action === "ADD_STRIKE" ? 1 : -1)));
     await tx.feudRound.update({ where: { id: round.id }, data: { strikes } });
+    if (action === "ADD_STRIKE") state = withGameEvent(state, "INCORRECT", "INCORRECT");
     if (strikes >= 3 && game.status === "ROUND_PLAY") {
       status = "STEAL";
       const activeSide = otherSide(state.activeSide);
@@ -1056,6 +1153,7 @@ async function performAction(tx, game, req, action, payload) {
 
 async function gameAction(req, res) {
   try {
+    try { await reconcileExpiredTimer(req.params.gameCode); } catch { /* the action transaction reloads the winning state */ }
     const action = String(req.body?.action || "").trim().toUpperCase();
     const payload = req.body?.payload && typeof req.body.payload === "object" ? req.body.payload : {};
     const game = await prisma.$transaction(async (tx) => {
@@ -1077,7 +1175,9 @@ async function gameAction(req, res) {
 
 async function events(req, res) {
   try {
-    const game = await findGame(prisma, req.params.gameCode);
+    let game;
+    try { game = await reconcileExpiredTimer(req.params.gameCode); }
+    catch { game = await findGame(prisma, req.params.gameCode); }
     if (!game) return res.status(404).end();
     const view = String(req.query.view || "spectator");
     buildProjection(game, view, req.user);
@@ -1210,5 +1310,5 @@ module.exports = {
   updateQuestion,
   deleteQuestion,
   deleteGame,
-  __testables: { normalizeAnswer, answerSimilarity, defaultState, buildProjection },
+  __testables: { normalizeAnswer, answerSimilarity, defaultState, buildProjection, resolveNoAnswer },
 };
