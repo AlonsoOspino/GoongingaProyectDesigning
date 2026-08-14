@@ -7,6 +7,11 @@ import { ArrowLeft, CheckCircle2, MessageCircle, ShieldCheck } from "lucide-reac
 import { getDiscordLoginUrl } from "@/lib/api/networkMember";
 import { saveNetworkToken } from "@/features/networkSession/storage";
 
+const LOGIN_NEXT_KEY = "goonginga.network.login.next";
+function rememberedNextPath() { try { return window.sessionStorage.getItem(LOGIN_NEXT_KEY); } catch { return null; } }
+function rememberNextPath(path: string) { try { window.sessionStorage.setItem(LOGIN_NEXT_KEY, path); } catch { /* OAuth still works without redirect memory. */ } }
+function forgetNextPath() { try { window.sessionStorage.removeItem(LOGIN_NEXT_KEY); } catch { /* Nothing to clear. */ } }
+
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -19,14 +24,17 @@ export default function LoginPage() {
     const url = new URL(window.location.href);
     const token = new URLSearchParams(url.hash.slice(1)).get("network_token");
     const discordError = url.searchParams.get("discord_error");
+    const storedPath = rememberedNextPath();
+    const resolvedPath = nextPath === "/" && storedPath?.startsWith("/") && !storedPath.startsWith("//") ? storedPath : nextPath;
 
     if (token) {
       const user = saveNetworkToken(token);
       url.hash = "";
       window.history.replaceState({}, "", `${url.pathname}${url.search}`);
       if (user) {
+        forgetNextPath();
         setMessage(`Connected as ${user.username}.`);
-        window.location.replace(nextPath);
+        window.location.replace(resolvedPath);
         return;
       }
     }
@@ -50,7 +58,7 @@ export default function LoginPage() {
             {message && <div className="login-notice flex items-center gap-2"><CheckCircle2 size={17} className="text-[#72d39d]" />{message}</div>}
             {error && <div className="login-notice !border-danger text-[#ffd5d5]">{error}</div>}
 
-            <button type="button" className="discord-action" onClick={() => window.location.assign(getDiscordLoginUrl())}>
+            <button type="button" className="discord-action" onClick={() => { rememberNextPath(nextPath); window.location.assign(getDiscordLoginUrl()); }}>
               <MessageCircle size={22} /> Continue with Discord
             </button>
             <div className="login-notice flex items-start gap-2"><ShieldCheck size={17} className="mt-0.5 shrink-0 text-[#9ce5f3]" /><span>You must be a member of the GGL Discord server. No separate password is stored by Goonginga.</span></div>

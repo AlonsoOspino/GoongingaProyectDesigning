@@ -2,6 +2,7 @@ export type ImportedSurveyAnswer = {
   rank: number;
   word: string;
   points: number;
+  aliases: string[];
 };
 
 export type ImportedSurveyQuestion = {
@@ -13,10 +14,35 @@ type PendingAnswer = ImportedSurveyAnswer & {
   sourceOrder: number;
 };
 
-const ANSWER_LINE_PATTERN = /^#?\s*(\d+)\s*(?:[-.)]\s*)?(.+?)\s*(?:[-:]\s*)?(?:x\s*\(?\s*(\d+)\s*\)?|\(?\s*(\d+)\s*\)?\s*x)\s*$/i;
+const LEGACY_ANSWER_PATTERN = /^#?\s*(\d+)\s*(?:[-.)]\s*)?(.+?)\s*(?:[-:]\s*)?(?:x\s*\(?\s*(\d+)\s*\)?|\(?\s*(\d+)\s*\)?\s*x)\s*$/i;
+const SIMPLE_ANSWER_PATTERN = /^#?\s*(\d+)\s*(?:[.)-]\s*)?(.+?)\s*(?:-|:|\u2013|\u2014|\()\s*(\d+)\)?\s*$/;
 
 function cleanAnswerWord(value: string) {
   return value.trim().replace(/\s*[-:]\s*$/, "").trim();
+}
+
+function parseAnswerLine(line: string, fallbackRank: number): ImportedSurveyAnswer | null {
+  const pipeParts = line.split("|").map((part) => part.trim()).filter(Boolean);
+  if (pipeParts.length >= 2) {
+    const hasRank = /^\d+$/.test(pipeParts[0]);
+    const wordIndex = hasRank ? 1 : 0;
+    const pointsIndex = wordIndex + 1;
+    const points = Number(pipeParts[pointsIndex]);
+    if (pipeParts[wordIndex] && Number.isFinite(points) && points > 0) {
+      return {
+        rank: hasRank ? Number(pipeParts[0]) : fallbackRank,
+        word: cleanAnswerWord(pipeParts[wordIndex]),
+        points,
+        aliases: pipeParts.slice(pointsIndex + 1).join(",").split(",").map((alias) => alias.trim()).filter(Boolean),
+      };
+    }
+  }
+
+  const legacy = line.match(LEGACY_ANSWER_PATTERN);
+  if (legacy) return { rank: Number(legacy[1]), word: cleanAnswerWord(legacy[2]), points: Number(legacy[3] || legacy[4]), aliases: [] };
+  const simple = line.match(SIMPLE_ANSWER_PATTERN);
+  if (simple) return { rank: Number(simple[1]), word: cleanAnswerWord(simple[2]), points: Number(simple[3]), aliases: [] };
+  return null;
 }
 
 export function parseSurveyQuestionBlocks(source: string, maxAnswers: number) {
@@ -51,12 +77,11 @@ export function parseSurveyQuestionBlocks(source: string, maxAnswers: number) {
       continue;
     }
 
-    const match = line.match(ANSWER_LINE_PATTERN);
-    if (match) {
-      const word = cleanAnswerWord(match[2]);
-      const points = Number(match[3] || match[4]);
+    const parsed = parseAnswerLine(line, answers.length + 1);
+    if (parsed) {
+      const { word, points } = parsed;
       if (prompt.trim() && word && Number.isFinite(points) && points > 0) {
-        answers.push({ rank: Number(match[1]), word, points, sourceOrder });
+        answers.push({ ...parsed, sourceOrder });
         sourceOrder += 1;
       }
       continue;

@@ -25,7 +25,7 @@ export function LobbyPage() {
 
   const join = async (role: "PLAYER" | "SPECTATOR", side?: TeamSide) => {
     const token = getNetworkToken();
-    if (!token) return router.push(`/login?return_to=${encodeURIComponent(`/feud/lobby/${code}`)}`);
+    if (!token) return router.push(`/login?next=${encodeURIComponent(`/feud/lobby/${code}`)}`);
     setBusy(true); setMessage(null);
     try { await joinFeudGame(token, code, role, side); await refresh(); }
     catch (cause) { setMessage(cause instanceof Error ? cause.message : "Unable to join this match."); }
@@ -48,11 +48,12 @@ export function LobbyPage() {
         <div className={styles.buttonRow}><span className={styles.code}>{data.game.code}</span><ConnectionPill connected={connected} /></div>
       </div>
       <div style={{ marginBottom: 26 }}>
-        <p className={styles.eyebrow}>Match lobby · Managed by {data.game.manager.name}</p>
-        <h1 className={styles.title} style={{ fontSize: "clamp(44px, 6vw, 76px)" }}>Pick a side.<br />Bring your answer.</h1>
+        <p className={styles.eyebrow}>Lobby / Hosted by {data.game.manager.name}</p>
+        <h1 className={styles.lobbyTitle}>{data.game.title}</h1>
+        <p className={styles.subhead}>Choose a team below. Once you join, mark yourself ready and wait for the manager to begin.</p>
       </div>
       {message || error ? <p className={`${styles.notice} ${styles.error}`} style={{ marginBottom: 18 }}>{message || error}</p> : null}
-      {!user ? <div className={`${styles.card} ${styles.cardPad}`} style={{ marginBottom: 18 }}><h2 className={styles.sectionTitle}>Sign in to take your seat</h2><p className={styles.sectionCopy}>Network Feud uses your existing Goonginga Network account and profile.</p><Link className={`${styles.button}`} style={{ display: "inline-grid", placeItems: "center", marginTop: 16 }} href={`/login?return_to=${encodeURIComponent(`/feud/lobby/${code}`)}`}>Sign in with Discord</Link></div> : null}
+      {!user ? <div className={`${styles.card} ${styles.cardPad}`} style={{ marginBottom: 18 }}><h2 className={styles.sectionTitle}>Sign in before choosing a team</h2><p className={styles.sectionCopy}>Use the same account you already use on Goonginga.</p><Link className={`${styles.button}`} style={{ marginTop: 16 }} href={`/login?next=${encodeURIComponent(`/feud/lobby/${code}`)}`}>Continue with Goonginga</Link></div> : null}
       <div className={styles.grid2}>
         {data.teams.map((team) => <div className={styles.stack} key={team.side}>
           <TeamCard team={team} />
@@ -63,7 +64,7 @@ export function LobbyPage() {
         {data.me?.role === "PLAYER" ? <div className={styles.topline} style={{ marginBottom: 0 }}>
           <div><h2 className={styles.sectionTitle}>{data.me.ready ? "You are ready" : "Ready when you are"}</h2><p className={styles.sectionCopy}>The manager can start when every active player is ready.</p></div>
           <button className={`${styles.button} ${data.me.ready ? styles.buttonSecondary : styles.buttonAmber}`} disabled={busy} onClick={() => void ready()}>{data.me.ready ? "Mark not ready" : "I'm ready"}</button>
-        </div> : data.me?.role === "SPECTATOR" ? <div><h2 className={styles.sectionTitle}>Spectator seat reserved</h2><p className={styles.sectionCopy}>You will move to the responsive player-safe match view when the show starts.</p></div> : <div className={styles.topline} style={{ marginBottom: 0 }}><div><h2 className={styles.sectionTitle}>Prefer to watch?</h2><p className={styles.sectionCopy}>Join as a logged-in spectator without occupying a team slot.</p></div><button className={`${styles.button} ${styles.buttonSecondary}`} disabled={busy || !user} onClick={() => void join("SPECTATOR")}>Join as spectator</button></div>}
+        </div> : data.me?.role === "SPECTATOR" ? <div><h2 className={styles.sectionTitle}>You are watching this game</h2><p className={styles.sectionCopy}>The game view will open automatically when the manager starts.</p></div> : <div className={styles.topline} style={{ marginBottom: 0 }}><div><h2 className={styles.sectionTitle}>Want to watch instead?</h2><p className={styles.sectionCopy}>Spectators do not take a team slot.</p></div><button className={`${styles.button} ${styles.buttonSecondary}`} disabled={busy || !user} onClick={() => void join("SPECTATOR")}>Watch this game</button></div>}
       </div>
     </div>
   </div>;

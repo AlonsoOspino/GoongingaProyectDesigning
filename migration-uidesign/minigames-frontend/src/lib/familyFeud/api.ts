@@ -47,6 +47,14 @@ export function saveFeudQuestion(token: string, input: FeudQuestionInput, questi
   });
 }
 
+export function importFeudQuestions(token: string, input: { pack: string; category?: string; questions: FeudQuestionInput[] }) {
+  return apiRequest<{ count: number; questions: FeudQuestionRecord[] }>("/family-feud/questions/import", {
+    method: "POST",
+    token,
+    body: input,
+  });
+}
+
 export function deactivateFeudQuestion(token: string, questionId: number) {
   return apiRequest<FeudQuestionRecord>(`/family-feud/questions/${questionId}`, { method: "DELETE", token });
 }

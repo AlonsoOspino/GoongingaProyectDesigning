@@ -7,6 +7,7 @@ const managerOrAdmin = require("../middlewares/managerOrAdmin");
 const router = express.Router();
 
 router.get("/questions", authMiddleware, managerOrAdmin, familyFeudController.listQuestions);
+router.post("/questions/import", authMiddleware, managerOrAdmin, familyFeudController.importQuestions);
 router.post("/questions", authMiddleware, managerOrAdmin, familyFeudController.createQuestion);
 router.put("/questions/:questionId", authMiddleware, managerOrAdmin, familyFeudController.updateQuestion);
 router.delete("/questions/:questionId", authMiddleware, managerOrAdmin, familyFeudController.deleteQuestion);

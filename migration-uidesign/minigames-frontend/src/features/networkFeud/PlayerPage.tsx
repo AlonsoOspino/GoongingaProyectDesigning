@@ -43,19 +43,19 @@ export function PlayerPage() {
 
       {["ROUND_INTRO", "AWAITING_EXTERNAL_FACE_OFF"].includes(phase) ? <section className={`${styles.card} ${styles.centerState}`}>
         <div style={{ width: "100%" }}>
-          <p className={styles.eyebrow}>Round {data.round?.number} · External challenge</p>
-          <h1 className={styles.phaseHero}>Overwatch face-off</h1>
+          <p className={styles.eyebrow}>Round {data.round?.number} / Face-off</p>
+          <h1 className={styles.phaseHero}>First-answer challenge</h1>
           {faceOff?.alpha && faceOff.beta ? <div className={styles.versus}>
             <FaceOffPlayer name={faceOff.alpha.name} avatarUrl={faceOff.alpha.avatarUrl} color={data.teams[0]?.color} />
             <div className={styles.vs}>VS</div>
             <FaceOffPlayer name={faceOff.beta.name} avatarUrl={faceOff.beta.avatarUrl} color={data.teams[1]?.color} />
           </div> : <p className={styles.sectionCopy}>The manager is selecting the representatives.</p>}
-          <p className={styles.sectionCopy} style={{ marginInline: "auto", marginTop: 24 }}>The external challenge happens outside this website. Winner answers the survey first.</p>
+          <p className={styles.sectionCopy} style={{ marginInline: "auto", marginTop: 24 }}>Complete the challenge chosen by your manager. The winner gives the first survey answer.</p>
         </div>
       </section> : null}
 
       {phase === "PLAY_PASS" ? <section className={`${styles.card} ${styles.centerState}`}>
-        <div><p className={styles.eyebrow}>Family Feud face-off winner</p><h1 className={styles.phaseHero}>{data.teams.find((team) => team.side === faceOff?.familyWinnerSide)?.name}</h1>
+        <div><p className={styles.eyebrow}>Face-off winner</p><h1 className={styles.phaseHero}>{data.teams.find((team) => team.side === faceOff?.familyWinnerSide)?.name}</h1>
           {canChoose ? <><p className={styles.sectionCopy}>Your team controls the choice.</p><div className={styles.heroActions}><button className={styles.button} disabled={busy} onClick={() => void run("SELECT_PLAY_PASS", { choice: "PLAY" })}>Play the round</button><button className={`${styles.button} ${styles.buttonSecondary}`} disabled={busy} onClick={() => void run("SELECT_PLAY_PASS", { choice: "PASS" })}>Pass the round</button></div></> : <p className={styles.sectionCopy}>Waiting for the winning team to choose PLAY or PASS.</p>}
         </div>
       </section> : null}

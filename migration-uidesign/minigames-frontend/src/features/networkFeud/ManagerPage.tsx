@@ -8,6 +8,24 @@ import type { TeamSide } from "@/lib/familyFeud/types";
 import { AnswerBoard, ConnectionPill, ErrorState, FeudLogo, LoadingState, PhaseName, ScoreStrip, Strikes, TeamCard, Timer } from "./Shared";
 import styles from "./network-feud.module.css";
 
+function managerHelp(phase: string) {
+  const help: Record<string, string> = {
+    LOBBY: "Share the player link, check that everyone chose a team and is ready, then start the game.",
+    ROUND_INTRO: "Choose one representative from each team for the external face-off.",
+    AWAITING_EXTERNAL_FACE_OFF: "Record who won the external challenge, then confirm the result.",
+    FACE_OFF_FIRST_ANSWER: "Wait for the first representative's answer, then match it to the board or mark it incorrect.",
+    FACE_OFF_SECOND_ANSWER: "Wait for the second representative's answer, then resolve it against the board.",
+    PLAY_PASS: "The face-off winner now chooses whether their team will play or pass.",
+    ROUND_PLAY: "Resolve each submitted answer. The server advances turns and keeps the round score.",
+    STEAL: "The other team has one chance to steal the round.",
+    ROUND_RESULTS: "Review the score, then start the next round or choose two players for Fast Money.",
+    FAST_MONEY: "Resolve each Fast Money answer as it arrives.",
+    PAUSED: "The match is paused. Resume it when everyone is ready.",
+    FINISHED: "The match is complete. Keep the broadcast open if you want to show the final score.",
+  };
+  return help[phase] || "Use the controls below to continue the match.";
+}
+
 export function ManagerPage() {
   const params = useParams<{ gameId: string }>();
   const code = String(params.gameId || "").toUpperCase();
@@ -34,17 +52,16 @@ export function ManagerPage() {
   const alpha = data.teams.find((team) => team.side === "ALPHA")!;
   const beta = data.teams.find((team) => team.side === "BETA")!;
   const pending = data.manager?.pendingResponse;
-  const playerOptions = data.manager?.participants.filter((participant) => participant.role === "PLAYER") || [];
   const leadingTeam = [...data.teams].sort((a, b) => b.score - a.score)[0];
   const fastPlayers = leadingTeam?.managerPlayers || [];
 
   return <div className={styles.shell}>
     <div className={`${styles.container} ${styles.wide}`}>
       <div className={styles.topline}>
-        <div><FeudLogo /><p className={styles.eyebrow} style={{ marginTop: 16 }}>Manager control room · {data.game.code}</p></div>
+        <div><FeudLogo /><p className={styles.eyebrow} style={{ marginTop: 16 }}>Manager room / {data.game.code}</p></div>
         <div className={styles.buttonRow}><Link className={`${styles.button} ${styles.buttonSecondary}`} style={{ display: "inline-grid", placeItems: "center" }} href={`/feud/spectator/${code}`} target="_blank">Open broadcast</Link><ConnectionPill connected={connected} /></div>
       </div>
-      <div className={`${styles.notice} ${message || error ? styles.error : ""}`} style={{ marginBottom: 18 }}>{message || error || "All controls are validated by the game server. The broadcast receives only public-safe state."}</div>
+      <div className={`${styles.notice} ${message || error ? styles.error : ""}`} style={{ marginBottom: 18 }}>{message || error || managerHelp(phase)}</div>
       <ScoreStrip data={data} />
 
       <div className={styles.managerGrid}>
@@ -59,8 +76,8 @@ export function ManagerPage() {
           {phase === "ROUND_INTRO" ? <section className={styles.card}>
             <div className={styles.controlGroup}><h2 className={styles.sectionTitle}>External face-off setup</h2><p className={styles.sectionCopy}>Choose one active representative from each team. The challenge itself happens outside Network Feud.</p></div>
             <div className={styles.controlGroup}><div className={styles.selectGrid}>
-              <label className={styles.field}><span>Team Nova representative</span><select className={styles.select} value={alphaRep} onChange={(event) => setAlphaRep(event.target.value)}><option value="">Select player</option>{alpha.managerPlayers?.map((player) => <option value={player.memberId} key={player.memberId}>{player.name}</option>)}</select></label>
-              <label className={styles.field}><span>Team Pulse representative</span><select className={styles.select} value={betaRep} onChange={(event) => setBetaRep(event.target.value)}><option value="">Select player</option>{beta.managerPlayers?.map((player) => <option value={player.memberId} key={player.memberId}>{player.name}</option>)}</select></label>
+              <label className={styles.field}><span>{alpha.name} representative</span><select className={styles.select} value={alphaRep} onChange={(event) => setAlphaRep(event.target.value)}><option value="">Select player</option>{alpha.managerPlayers?.map((player) => <option value={player.memberId} key={player.memberId}>{player.name}</option>)}</select></label>
+              <label className={styles.field}><span>{beta.name} representative</span><select className={styles.select} value={betaRep} onChange={(event) => setBetaRep(event.target.value)}><option value="">Select player</option>{beta.managerPlayers?.map((player) => <option value={player.memberId} key={player.memberId}>{player.name}</option>)}</select></label>
             </div><div className={styles.buttonRow} style={{ marginTop: 12 }}><button className={styles.button} disabled={busy || !alphaRep || !betaRep} onClick={() => void run("SET_FACE_OFF_REPRESENTATIVES", { alphaMemberId: Number(alphaRep), betaMemberId: Number(betaRep) })}>Confirm representatives</button><button className={`${styles.button} ${styles.buttonAmber}`} disabled={busy || !data.round?.faceOff} onClick={() => void run("START_EXTERNAL_FACE_OFF")}>Start external face-off</button></div></div>
           </section> : null}
 
@@ -70,7 +87,7 @@ export function ManagerPage() {
             <p className={styles.eyebrow}>Submitted by {pending.playerName}</p><div className={styles.pendingAnswer}>{pending.text}</div>
             <p className={styles.controlTitle}>Match to survey answer</p>
             <div className={styles.buttonRow}>{data.round?.board.filter((answer) => !answer.revealed).map((answer) => <button className={`${styles.button} ${pending.suggestedAnswerIds.includes(answer.id!) ? styles.buttonAmber : styles.buttonSecondary}`} key={answer.id} disabled={busy} onClick={() => void run("ACCEPT_RESPONSE", { answerId: answer.id })}>#{answer.rank} {answer.answer} · {answer.points}</button>)}</div>
-            <button className={`${styles.button} ${styles.buttonDanger}`} style={{ marginTop: 12 }} disabled={busy} onClick={() => void run("REJECT_RESPONSE")}>Reject · No match</button>
+            <button className={`${styles.button} ${styles.buttonDanger}`} style={{ marginTop: 12 }} disabled={busy} onClick={() => void run("REJECT_RESPONSE")}>No matching answer</button>
           </section> : null}
 
           <div className={styles.grid2}><TeamCard team={alpha} manager /><TeamCard team={beta} manager /></div>
@@ -108,10 +125,15 @@ export function ManagerPage() {
 function LobbyControls({ data, busy, run }: { data: NonNullable<ReturnType<typeof useFeudGame>["data"]>; busy: boolean; run: (name: string, payload?: Record<string, unknown>) => Promise<boolean> }) {
   const copy = (value: string) => navigator.clipboard.writeText(value);
   const players = data.manager?.participants.filter((participant) => participant.role === "PLAYER") || [];
+  const alphaPlayers = players.filter((player) => player.teamSide === "ALPHA");
+  const betaPlayers = players.filter((player) => player.teamSide === "BETA");
+  const readyCount = players.filter((player) => player.ready).length;
+  const canStart = alphaPlayers.length > 0 && betaPlayers.length > 0 && readyCount === players.length;
   return <section className={styles.card}>
-    <div className={styles.controlGroup}><h2 className={styles.sectionTitle}>Lobby operations</h2><p className={styles.sectionCopy}>Players join with one code, choose a side, and must be ready before launch.</p></div>
-    <div className={styles.controlGroup}><div className={styles.buttonRow}><button className={`${styles.button} ${styles.buttonSecondary}`} onClick={() => void copy(`${location.origin}/feud/lobby/${data.game.code}`)}>Copy lobby link</button><button className={`${styles.button} ${styles.buttonSecondary}`} onClick={() => void copy(`${location.origin}/feud/spectator/${data.game.code}`)}>Copy broadcast link</button><button className={`${styles.button} ${data.game.teamsLocked ? styles.buttonSecondary : styles.buttonAmber}`} disabled={busy} onClick={() => void run("LOCK_TEAMS", { locked: !data.game.teamsLocked })}>{data.game.teamsLocked ? "Unlock teams" : "Lock teams"}</button><button className={styles.button} disabled={busy} onClick={() => void run("START_GAME")}>Start game</button></div></div>
-    {players.length ? <div className={styles.controlGroup}><p className={styles.controlTitle}>Player assignments</p><div className={styles.stack}>{players.map((player) => <div className={styles.playerRow} key={player.memberId}><span className={styles.statusDot} /><span className={styles.playerName}>{player.name}</span><select className={styles.select} style={{ width: 120 }} value={player.teamSide || "ALPHA"} onChange={(event) => void run("MOVE_PLAYER", { memberId: player.memberId, side: event.target.value })}><option value="ALPHA">Alpha</option><option value="BETA">Beta</option></select><button className={`${styles.button} ${styles.buttonSecondary}`} disabled={busy} onClick={() => void run("SET_CAPTAIN", { memberId: player.memberId })}>Captain</button><button className={`${styles.button} ${styles.buttonDanger}`} disabled={busy} onClick={() => void run("REMOVE_PLAYER", { memberId: player.memberId })}>Remove</button></div>)}</div></div> : null}
+    <div className={styles.controlGroup}><div className={styles.lobbyHeading}><div><p className={styles.eyebrow}>Player code</p><div className={styles.lobbyCode}>{data.game.code}</div></div><div className={styles.lobbyReadiness}><strong>{readyCount}/{players.length}</strong><span>players ready</span></div></div><p className={styles.sectionCopy}>Ask players to open the lobby link, choose a team, and press Ready.</p></div>
+    <div className={styles.controlGroup}><div className={styles.buttonRow}><button className={styles.button} onClick={() => void copy(`${location.origin}/feud/lobby/${data.game.code}`)}>Copy player link</button><Link className={`${styles.button} ${styles.buttonSecondary}`} href={`/feud/lobby/${data.game.code}`} target="_blank">Open player lobby</Link><button className={`${styles.button} ${styles.buttonSecondary}`} onClick={() => void copy(`${location.origin}/feud/spectator/${data.game.code}`)}>Copy broadcast link</button></div></div>
+    <div className={styles.controlGroup}><div className={styles.startRow}><div><strong>{canStart ? "Ready to start" : "Waiting for both teams"}</strong><p>{canStart ? "Everyone is ready. Starting will lock the teams." : "Each team needs at least one player, and every player must be ready."}</p></div><button className={styles.button} disabled={busy || !canStart} onClick={() => void run("START_GAME")}>Start game</button></div></div>
+    {players.length ? <div className={styles.controlGroup}><p className={styles.controlTitle}>Player assignments</p><div className={styles.stack}>{players.map((player) => <div className={styles.playerRow} key={player.memberId}><span className={`${styles.statusDot} ${player.ready ? "" : styles.offline}`} /><span className={styles.playerName}>{player.name}{player.ready ? "" : " (not ready)"}</span><select className={styles.select} style={{ width: 140 }} value={player.teamSide || "ALPHA"} onChange={(event) => void run("MOVE_PLAYER", { memberId: player.memberId, side: event.target.value })}><option value="ALPHA">{data.teams.find((team) => team.side === "ALPHA")?.name}</option><option value="BETA">{data.teams.find((team) => team.side === "BETA")?.name}</option></select><button className={`${styles.button} ${styles.buttonSecondary}`} disabled={busy} onClick={() => void run("SET_CAPTAIN", { memberId: player.memberId })}>Make captain</button><button className={`${styles.button} ${styles.buttonDanger}`} disabled={busy} onClick={() => void run("REMOVE_PLAYER", { memberId: player.memberId })}>Remove</button></div>)}</div></div> : null}
   </section>;
 }
 

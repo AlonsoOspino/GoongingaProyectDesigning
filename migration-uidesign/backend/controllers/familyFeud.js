@@ -885,6 +885,24 @@ async function createQuestion(req, res) {
   }
 }
 
+async function importQuestions(req, res) {
+  try {
+    const source = Array.isArray(req.body?.questions) ? req.body.questions : [];
+    if (source.length < 1 || source.length > 50) throw new Error("Import between 1 and 50 questions at a time.");
+    const memberId = Number(req.user.id);
+    const fallbackPack = cleanText(req.body?.pack, 80) || "Imported questions";
+    const fallbackCategory = cleanText(req.body?.category, 48).toUpperCase() || "GENERAL";
+    const rows = source.map((item) => questionData({ ...item, pack: item?.pack || fallbackPack, category: item?.category || fallbackCategory }, memberId));
+    const questions = await prisma.$transaction(rows.map((data) => prisma.feudQuestion.create({
+      data: { ...data, answers: { create: data.answers } },
+      include: { answers: { orderBy: { rank: "asc" } } },
+    })));
+    return res.status(201).json({ count: questions.length, questions });
+  } catch (error) {
+    return res.status(400).json({ message: error.message });
+  }
+}
+
 async function updateQuestion(req, res) {
   try {
     const data = questionData(req.body, Number(req.user.id));
@@ -934,6 +952,7 @@ module.exports = {
   events,
   listQuestions,
   createQuestion,
+  importQuestions,
   updateQuestion,
   deleteQuestion,
   deleteGame,
