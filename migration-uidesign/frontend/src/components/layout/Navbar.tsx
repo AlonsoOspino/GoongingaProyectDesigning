@@ -40,7 +40,7 @@ export function Navbar() {
     setNetworkUser(null);
   };
 
-  const hasSocialDashboard = networkUser?.roles.some((role) => role === "SOCIAL_MEDIA" || role === "ADMIN");
+  const hasProductionDashboard = networkUser?.roles.some((role) => role === "CASTER" || role === "SOCIAL_MEDIA" || role === "ADMIN");
 
   return (
     <header className={clsx("site-navbar sticky top-0 z-40 h-[68px] border-b border-border bg-surface/95 backdrop-blur-xl", pathname === "/" && "site-navbar-home")}>
@@ -75,7 +75,7 @@ export function Navbar() {
         <div className="flex items-center gap-2">
           {networkUser ? (
             <div className="hidden items-center gap-2 sm:flex">
-              {hasSocialDashboard ? (
+              {hasProductionDashboard ? (
                 <Link href="/social-media-dashboard" className="ow-icon-button" title="Production control" aria-label="Open production control">
                   <Gauge size={17} />
                 </Link>
@@ -113,7 +113,7 @@ export function Navbar() {
                 Register / Log in
               </Link>
             )}
-            {networkUser && hasSocialDashboard ? (
+            {networkUser && hasProductionDashboard ? (
               <Link href="/social-media-dashboard" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-sm px-3 py-3 text-sm font-bold hover:bg-surface-elevated">
                 <Gauge size={18} />
                 Production control

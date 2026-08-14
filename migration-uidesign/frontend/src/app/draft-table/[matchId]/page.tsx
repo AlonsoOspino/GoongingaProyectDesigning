@@ -132,10 +132,8 @@ export default function DraftTablePage() {
     };
   }, []);
 
-  const isManager = user?.role === "MANAGER"
-    || user?.role === "ADMIN"
-    || Boolean(networkUser?.roles.some((role) => role === "SOCIAL_MEDIA" || role === "ADMIN"));
-  const isAdmin = user?.role === "ADMIN";
+  const isManager = Boolean(networkUser?.roles.some((role) => role === "SOCIAL_MEDIA" || role === "ADMIN"));
+  const isAdmin = Boolean(networkUser?.roles.includes("ADMIN"));
   // Destructive operational actions (full match reset) are open to both roles.
   const canResetMatch = isManager || isAdmin;
   const isCaptain = user?.role === "CAPTAIN";

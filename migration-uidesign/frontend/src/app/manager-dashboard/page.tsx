@@ -149,9 +149,7 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const prevMatchesRef = useRef<Match[]>([]);
 
-  const canManage = user?.role === "MANAGER"
-    || user?.role === "ADMIN"
-    || Boolean(networkUser?.roles.some((role) => role === "SOCIAL_MEDIA" || role === "ADMIN"));
+  const canManage = Boolean(networkUser?.roles.some((role) => role === "SOCIAL_MEDIA" || role === "ADMIN"));
   const accessReady = isHydrated && networkReady;
 
   useEffect(() => {

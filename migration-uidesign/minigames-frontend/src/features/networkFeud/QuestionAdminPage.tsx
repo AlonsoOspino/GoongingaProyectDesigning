@@ -13,7 +13,7 @@ const blankQuestion = (): FeudQuestionInput => ({ question: "", category: "GENER
 
 export function QuestionAdminPage() {
   const { user, token, isHydrated } = useNetworkSession();
-  const canManage = Boolean(user && (user.role === "MANAGER" || user.role === "ADMIN" || hasNetworkRole(user, "ADMIN")));
+  const canManage = Boolean(user && hasNetworkRole(user, "SOCIAL_MEDIA", "ADMIN"));
   const [questions, setQuestions] = useState<FeudQuestionRecord[]>([]);
   const [draft, setDraft] = useState<FeudQuestionInput>(blankQuestion);
   const [editingId, setEditingId] = useState<number | undefined>();
@@ -43,7 +43,7 @@ export function QuestionAdminPage() {
   };
 
   if (isHydrated && !user) return <div className={styles.shell}><div className={styles.centerState}><div><FeudLogo /><h1 className={styles.phaseHero}>Sign in required</h1><p className={styles.sectionCopy}>Question administration uses your existing Network account.</p><Link className={styles.button} style={{ display: "inline-grid", placeItems: "center", marginTop: 18 }} href="/login">Sign in</Link></div></div></div>;
-  if (isHydrated && user && !canManage) return <div className={styles.shell}><div className={styles.centerState}><div><FeudLogo /><h1 className={styles.phaseHero}>Manager access required</h1><p className={styles.sectionCopy}>Family Feud questions are managed by league managers and administrators.</p><Link className={styles.button} style={{ marginTop: 18 }} href="/feud">Back to Family Feud</Link></div></div></div>;
+  if (isHydrated && user && !canManage) return <div className={styles.shell}><div className={styles.centerState}><div><FeudLogo /><h1 className={styles.phaseHero}>Social Media access required</h1><p className={styles.sectionCopy}>Family Feud questions are managed by members with the Social Media or Admin role.</p><Link className={styles.button} style={{ marginTop: 18 }} href="/feud">Back to Family Feud</Link></div></div></div>;
 
   return <div className={styles.shell}>
     <div className={`${styles.container} ${styles.wide}`}>

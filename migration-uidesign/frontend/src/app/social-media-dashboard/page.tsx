@@ -45,12 +45,14 @@ export default function SocialMediaDashboardPage() {
 
   useEffect(() => {
     const current = readNetworkSessionUser();
-    const allowed = current?.roles.some((role) => role === "SOCIAL_MEDIA" || role === "ADMIN");
+    const allowed = current?.roles.some((role) => role === "CASTER" || role === "SOCIAL_MEDIA" || role === "ADMIN");
     if (!current || !allowed) {
       router.replace("/login");
       setReady(true);
       return;
     }
+    const hasProductionAccess = current.roles.some((role) => role === "SOCIAL_MEDIA" || role === "ADMIN");
+    setActiveWorkspace(hasProductionAccess ? "league" : "minigames");
     setUser(current);
     setReady(true);
   }, [router]);
@@ -59,17 +61,24 @@ export default function SocialMediaDashboardPage() {
     return <main className={styles.loading}>Loading dashboard...</main>;
   }
 
+  const canManageProduction = user.roles.some((role) => role === "SOCIAL_MEDIA" || role === "ADMIN");
+  const visibleWorkspaces = canManageProduction ? workspaces : workspaces.filter((workspace) => workspace.id === "minigames");
+  const dashboardTitle = canManageProduction ? "Production control" : "Jeopardy control";
+  const dashboardCopy = canManageProduction
+    ? "League operations, minigames and stream outputs."
+    : "Open an existing Jeopardy game and control questions, scores and stream order.";
+
   return (
     <main className={styles.dashboard}>
       <header className={styles.dashboardHeader}>
         <div className="ow-container">
-          <span className={styles.kicker}>Social media dashboard</span>
+          <span className={styles.kicker}>Game and production control</span>
           <div className={styles.titleRow}>
-            <div><h1>Production control</h1><p>League operations, minigames and stream outputs.</p></div>
+            <div><h1>{dashboardTitle}</h1><p>{dashboardCopy}</p></div>
             <span className={styles.operator}>{user.username}</span>
           </div>
           <nav className={styles.workspaceTabs} aria-label="Dashboard areas">
-            {workspaces.map(({ id, label, icon: Icon }) => (
+            {visibleWorkspaces.map(({ id, label, icon: Icon }) => (
               <button type="button" key={id} onClick={() => setActiveWorkspace(id)} className={activeWorkspace === id ? styles.workspaceActive : ""}>
                 <Icon size={18} /> {label}
               </button>
@@ -88,7 +97,7 @@ export default function SocialMediaDashboardPage() {
 
         {activeWorkspace === "minigames" ? (
           <section className="ow-container">
-            <JeopardyDashboard />
+            <JeopardyDashboard canAdminister={canManageProduction} />
           </section>
         ) : null}
 

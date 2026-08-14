@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { NewsEditor } from "@/components/news/NewsEditor";
+import { readNetworkSessionUser, type NetworkSessionUser } from "@/features/networkSession/storage";
 import styles from "@/components/news/news.module.css";
 
 type FormState = {
@@ -42,7 +43,9 @@ Visit [the league site](https://example.com) for full coverage.
 
 export default function EditorDashboardPage() {
   const router = useRouter();
-  const { user, token, isAuthenticated, isHydrated } = useSession();
+  const { token, isAuthenticated, isHydrated } = useSession();
+  const [networkUser, setNetworkUser] = useState<NetworkSessionUser | null>(null);
+  const [networkReady, setNetworkReady] = useState(false);
 
   const [form, setForm] = useState<FormState>(initialFormState);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -54,13 +57,28 @@ export default function EditorDashboardPage() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [news, setNews] = useState<NewsItem[]>([]);
 
-  const canManageNews = user?.role === "EDITOR" || user?.role === "ADMIN";
+  const canManageNews = Boolean(networkUser?.roles.some((role) => role === "CONTENT_CREATOR" || role === "ADMIN"));
+  const accessReady = isHydrated && networkReady;
 
   useEffect(() => {
-    if (isHydrated && (!isAuthenticated || !canManageNews)) {
+    const refresh = () => {
+      setNetworkUser(readNetworkSessionUser());
+      setNetworkReady(true);
+    };
+    refresh();
+    window.addEventListener("network-session-changed", refresh);
+    window.addEventListener("storage", refresh);
+    return () => {
+      window.removeEventListener("network-session-changed", refresh);
+      window.removeEventListener("storage", refresh);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (accessReady && (!isAuthenticated || !canManageNews)) {
       router.push("/login");
     }
-  }, [isHydrated, isAuthenticated, canManageNews, router]);
+  }, [accessReady, isAuthenticated, canManageNews, router]);
 
   useEffect(() => {
     if (isAuthenticated && canManageNews) {
@@ -182,9 +200,9 @@ export default function EditorDashboardPage() {
           <div className="hidden sm:flex items-center gap-2 text-xs text-muted">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
             Signed in as{" "}
-            <span className="text-foreground font-medium">{user?.nickname}</span>
+            <span className="text-foreground font-medium">{networkUser?.username}</span>
             <span className="text-muted-foreground">•</span>
-            <span>{user?.role}</span>
+            <span>{networkUser?.roles.includes("ADMIN") ? "ADMIN" : "CONTENT CREATOR"}</span>
           </div>
         </div>
 

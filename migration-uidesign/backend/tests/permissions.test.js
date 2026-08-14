@@ -2,20 +2,50 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { hasManagerAccess } = require("../utils/permissions");
 const familyFeudManager = require("../middlewares/familyFeudManager");
+const { __testables: minigamePermissions } = require("../middlewares/minigameOperator");
+const adminMiddleware = require("../middlewares/admin");
+const editorMiddleware = require("../middlewares/editor");
 
-test("Social Media network members share manager operations", () => {
+function runMiddleware(middleware, user) {
+  let allowed = false;
+  const response = { statusCode: 200, status(code) { this.statusCode = code; return this; }, json() { return this; } };
+  middleware({ user }, response, () => { allowed = true; });
+  return { allowed, statusCode: response.statusCode };
+}
+
+test("Manager operations use Network Social Media and Admin roles", () => {
   assert.equal(hasManagerAccess({ role: "DEFAULT", roles: ["SOCIAL_MEDIA"] }), true);
-  assert.equal(hasManagerAccess({ role: "MANAGER", roles: [] }), true);
+  assert.equal(hasManagerAccess({ role: "MANAGER", roles: [] }), false);
+  assert.equal(hasManagerAccess({ role: "DEFAULT", roles: ["ADMIN"] }), true);
   assert.equal(hasManagerAccess({ role: "DEFAULT", roles: ["MEMBER"] }), false);
 });
 
-test("Family Feud creation is separate from Social Media permissions", () => {
+test("Family Feud management uses Network Social Media and Admin roles", () => {
   let allowed = false;
   const response = { statusCode: 200, payload: null, status(code) { this.statusCode = code; return this; }, json(payload) { this.payload = payload; return this; } };
   familyFeudManager({ user: { role: "DEFAULT", roles: ["SOCIAL_MEDIA"] } }, response, () => { allowed = true; });
+  assert.equal(allowed, true);
+
+  allowed = false;
+  familyFeudManager({ user: { role: "MANAGER", roles: [] } }, response, () => { allowed = true; });
   assert.equal(allowed, false);
   assert.equal(response.statusCode, 403);
 
-  familyFeudManager({ user: { role: "MANAGER", roles: [] } }, response, () => { allowed = true; });
+  allowed = false;
+  familyFeudManager({ user: { role: "DEFAULT", roles: ["ADMIN"] } }, response, () => { allowed = true; });
   assert.equal(allowed, true);
+});
+
+test("Casters control Jeopardy without receiving access to other Minigames", () => {
+  assert.equal(minigamePermissions.canControlGame(["CASTER"], "JEOPARDY"), true);
+  assert.equal(minigamePermissions.canControlGame(["CASTER"], "CUSTOM"), false);
+  assert.equal(minigamePermissions.canControlGame(["SOCIAL_MEDIA"], "CUSTOM"), true);
+  assert.equal(minigamePermissions.canControlGame(["ADMIN"], "JEOPARDY"), true);
+});
+
+test("Admin and editor middleware use Network roles", () => {
+  assert.deepEqual(runMiddleware(adminMiddleware, { role: "ADMIN", roles: ["MEMBER"] }), { allowed: false, statusCode: 403 });
+  assert.deepEqual(runMiddleware(adminMiddleware, { role: "DEFAULT", roles: ["ADMIN"] }), { allowed: true, statusCode: 200 });
+  assert.deepEqual(runMiddleware(editorMiddleware, { role: "EDITOR", roles: ["MEMBER"] }), { allowed: false, statusCode: 403 });
+  assert.deepEqual(runMiddleware(editorMiddleware, { role: "DEFAULT", roles: ["CONTENT_CREATOR"] }), { allowed: true, statusCode: 200 });
 });

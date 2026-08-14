@@ -23,7 +23,7 @@ Name something you might forget when leaving home
 export function LandingPage() {
   const router = useRouter();
   const { user, token, isHydrated } = useNetworkSession();
-  const canHost = Boolean(user && (user.role === "MANAGER" || user.role === "ADMIN" || hasNetworkRole(user, "ADMIN")));
+  const canHost = Boolean(user && hasNetworkRole(user, "SOCIAL_MEDIA", "ADMIN"));
   const [showSetup, setShowSetup] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +49,7 @@ export function LandingPage() {
 
   const openSetup = () => {
     if (!user) return router.push("/login?next=/feud");
-    if (!canHost) return setError("Only managers and administrators can create a Family Feud game. Captains enter through the private link sent by the manager.");
+    if (!canHost) return setError("Only members with the Social Media or Admin role can create a Family Feud game. Captains enter through the private link sent by the manager.");
     setError(null);
     setShowSetup(true);
   };
@@ -113,7 +113,7 @@ export function LandingPage() {
         <section className={`${styles.card} ${styles.cardPad} ${styles.entryCard}`}>
           <span className={styles.stepNumber}>1</span>
           <div><h2 className={styles.sectionTitle}>Manager creates the game</h2><p className={styles.sectionCopy}>Set the team names, rounds and questions. The manager room will generate two captain invitations.</p></div>
-          <button className={styles.button} disabled={!isHydrated || Boolean(user && !canHost)} onClick={openSetup}>{canHost ? "Create Family Feud" : user ? "Manager access required" : "Sign in as manager"}</button>
+          <button className={styles.button} disabled={!isHydrated || Boolean(user && !canHost)} onClick={openSetup}>{canHost ? "Create Family Feud" : user ? "Social Media access required" : "Sign in as manager"}</button>
         </section>
 
         <section className={`${styles.card} ${styles.cardPad} ${styles.entryCard}`}>

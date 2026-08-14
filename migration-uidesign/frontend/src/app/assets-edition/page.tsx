@@ -172,9 +172,7 @@ export default function AssetsEditionPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  const canManage = user?.role === "MANAGER"
-    || user?.role === "ADMIN"
-    || Boolean(networkUser?.roles.some((role) => role === "SOCIAL_MEDIA" || role === "ADMIN"));
+  const canManage = Boolean(networkUser?.roles.some((role) => role === "SOCIAL_MEDIA" || role === "ADMIN"));
   const accessReady = isHydrated && networkReady;
 
   useEffect(() => {

@@ -202,18 +202,6 @@ export async function getMemberById(token: string, id: number) {
   });
 }
 
-export async function adminUpdateMember(
-  token: string,
-  memberId: number,
-  payload: Partial<Member>
-) {
-  return apiRequest<Member>(`/network-members/admin/players/${memberId}`, {
-    method: "PUT",
-    token,
-    body: payload,
-  });
-}
-
 // ==================== MAPS & HEROES ====================
 export interface AdminGameMap {
   id: number;

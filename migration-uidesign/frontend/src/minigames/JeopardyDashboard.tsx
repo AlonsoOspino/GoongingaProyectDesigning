@@ -64,7 +64,7 @@ function QuestionResult({ game, memberId, unanswered, scoreDelta }: { game: Jeop
   return participant ? <span className={styles.recordedResult}><Avatar member={participant.member} /><b>{scoreDelta > 0 ? "+" : ""}{scoreDelta}</b></span> : <X />;
 }
 
-export function JeopardyDashboard() {
+export function JeopardyDashboard({ canAdminister = true }: { canAdminister?: boolean }) {
   const [screen, setScreen] = useState<"list" | "create" | "manage">("list");
   const [games, setGames] = useState<JeopardyGame[]>([]);
   const [game, setGame] = useState<JeopardyGame | null>(null);
@@ -222,11 +222,11 @@ export function JeopardyDashboard() {
 
   if (screen === "list") return (
     <section className={styles.dashboard}>
-      <header className={styles.heading}><div><span>Minigames</span><h2>Available games</h2></div><button onClick={() => setScreen("create")}><Plus size={17} /> Create Jeopardy</button></header>
+      <header className={styles.heading}><div><span>Minigames</span><h2>Available games</h2></div>{canAdminister ? <button onClick={() => setScreen("create")}><Plus size={17} /> Create Jeopardy</button> : null}</header>
       {message ? <p className={styles.message}>{message}</p> : null}
       <div className={styles.gameGrid}>
-        {games.filter((item) => item.gameType === "JEOPARDY").map((item) => <article className={styles.gameItem} key={item.id}><button className={styles.gameCard} onClick={() => void openGame(item.slug)}><Gamepad2 /><span><small>{item.phase.replace(/_/g," ")}</small><strong>{item.title}</strong><b>{item.participants.length} players</b></span></button><button className={`${styles.deleteGame} ${deleteSlug===item.slug?styles.deleteConfirm:""}`} disabled={busy} onClick={()=>void removeGame(item.slug)} title={deleteSlug===item.slug?"Confirm deletion":"Delete Jeopardy"}><Trash2 size={16}/>{deleteSlug===item.slug?"Confirm":"Delete"}</button></article>)}
-        <Link className={styles.gameCard} href="/minigames?view=manager"><Gamepad2 /><span><small>Available</small><strong>Family Feud</strong><b>Open manager</b></span></Link>
+        {games.filter((item) => item.gameType === "JEOPARDY").map((item) => <article className={styles.gameItem} key={item.id}><button className={styles.gameCard} onClick={() => void openGame(item.slug)}><Gamepad2 /><span><small>{item.phase.replace(/_/g," ")}</small><strong>{item.title}</strong><b>{item.participants.length} players</b></span></button>{canAdminister ? <button className={`${styles.deleteGame} ${deleteSlug===item.slug?styles.deleteConfirm:""}`} disabled={busy} onClick={()=>void removeGame(item.slug)} title={deleteSlug===item.slug?"Confirm deletion":"Delete Jeopardy"}><Trash2 size={16}/>{deleteSlug===item.slug?"Confirm":"Delete"}</button> : null}</article>)}
+        {canAdminister ? <Link className={styles.gameCard} href="/minigames?view=manager"><Gamepad2 /><span><small>Available</small><strong>Family Feud</strong><b>Open manager</b></span></Link> : null}
       </div>
     </section>
   );

@@ -1,5 +1,6 @@
 const networkMemberRepo = require("../repositories/networkMember");
 const teamRepo = require("../repositories/team");
+const { hasNetworkRole } = require("../utils/permissions");
 
 function toLeagueMember(member, includePrivate = false) {
   const profile = {
@@ -93,7 +94,7 @@ async function getLeagueMembers(_req, res) {
 async function getLeagueMember(req, res) {
   try {
     const memberId = Number(req.params.id);
-    if (req.user.id !== memberId && req.user.role !== "ADMIN") return res.status(403).json({ message: "Forbidden." });
+    if (req.user.id !== memberId && !hasNetworkRole(req.user, "ADMIN")) return res.status(403).json({ message: "Forbidden." });
     const member = await networkMemberRepo.findCompetitiveProfile(memberId);
     if (!member) return res.status(404).json({ message: "Network Member not found." });
     return res.json(toLeagueMember(member, true));
@@ -105,7 +106,7 @@ async function getLeagueMember(req, res) {
 async function updateLeagueMember(req, res) {
   try {
     const memberId = Number(req.params.id);
-    if (req.user.id !== memberId && req.user.role !== "ADMIN") return res.status(403).json({ message: "Forbidden." });
+    if (req.user.id !== memberId && !hasNetworkRole(req.user, "ADMIN")) return res.status(403).json({ message: "Forbidden." });
     const data = {};
     for (const field of ["nickname", "profilePic", "heroVideoFolderPath", "obsWebsocketUrl", "obsWebsocketPassword"]) {
       if (req.body?.[field] !== undefined) data[field] = req.body[field];
