@@ -26,7 +26,7 @@ model FamilyFeudGame {
   round            Int?
   state            Json
   code             String?           @unique
-  title            String            @default("Network Feud")
+  title            String            @default("Family Feud")
   status           FeudGameStatus    @default(LOBBY)
   managerMemberId  Int?
   winningTeamId    Int?

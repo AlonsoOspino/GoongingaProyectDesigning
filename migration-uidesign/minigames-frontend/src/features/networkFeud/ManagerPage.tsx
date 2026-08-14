@@ -11,14 +11,14 @@ import styles from "./network-feud.module.css";
 function managerHelp(phase: string) {
   const help: Record<string, string> = {
     LOBBY: "Share the player link, check that everyone chose a team and is ready, then start the game.",
-    ROUND_INTRO: "Choose one representative from each team for the external face-off.",
-    AWAITING_EXTERNAL_FACE_OFF: "Record who won the external challenge, then confirm the result.",
+    ROUND_INTRO: "Read the question, then choose which captain answers first.",
+    AWAITING_EXTERNAL_FACE_OFF: "Choose which captain answers first.",
     FACE_OFF_FIRST_ANSWER: "Wait for the first representative's answer, then match it to the board or mark it incorrect.",
     FACE_OFF_SECOND_ANSWER: "Wait for the second representative's answer, then resolve it against the board.",
     PLAY_PASS: "The face-off winner now chooses whether their team will play or pass.",
     ROUND_PLAY: "Resolve each submitted answer. The server advances turns and keeps the round score.",
     STEAL: "The other team has one chance to steal the round.",
-    ROUND_RESULTS: "Review the score, then start the next round or choose two players for Fast Money.",
+    ROUND_RESULTS: "Review the score, then start the next round or finish the game.",
     FAST_MONEY: "Resolve each Fast Money answer as it arrives.",
     PAUSED: "The match is paused. Resume it when everyone is ready.",
     FINISHED: "The match is complete. Keep the broadcast open if you want to show the final score.",
@@ -32,10 +32,6 @@ export function ManagerPage() {
   const { data, error, loading, connected, action } = useFeudGame(code, "manager");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [alphaRep, setAlphaRep] = useState("");
-  const [betaRep, setBetaRep] = useState("");
-  const [fastOne, setFastOne] = useState("");
-  const [fastTwo, setFastTwo] = useState("");
   const [bank, setBank] = useState("");
   const [scores, setScores] = useState<Record<TeamSide, string>>({ ALPHA: "", BETA: "" });
 
@@ -52,8 +48,6 @@ export function ManagerPage() {
   const alpha = data.teams.find((team) => team.side === "ALPHA")!;
   const beta = data.teams.find((team) => team.side === "BETA")!;
   const pending = data.manager?.pendingResponse;
-  const leadingTeam = [...data.teams].sort((a, b) => b.score - a.score)[0];
-  const fastPlayers = leadingTeam?.managerPlayers || [];
 
   return <div className={styles.shell}>
     <div className={`${styles.container} ${styles.wide}`}>
@@ -73,15 +67,10 @@ export function ManagerPage() {
 
           {phase === "LOBBY" ? <LobbyControls data={data} busy={busy} run={run} /> : null}
 
-          {phase === "ROUND_INTRO" ? <section className={styles.card}>
-            <div className={styles.controlGroup}><h2 className={styles.sectionTitle}>External face-off setup</h2><p className={styles.sectionCopy}>Choose one active representative from each team. The challenge itself happens outside Network Feud.</p></div>
-            <div className={styles.controlGroup}><div className={styles.selectGrid}>
-              <label className={styles.field}><span>{alpha.name} representative</span><select className={styles.select} value={alphaRep} onChange={(event) => setAlphaRep(event.target.value)}><option value="">Select player</option>{alpha.managerPlayers?.map((player) => <option value={player.memberId} key={player.memberId}>{player.name}</option>)}</select></label>
-              <label className={styles.field}><span>{beta.name} representative</span><select className={styles.select} value={betaRep} onChange={(event) => setBetaRep(event.target.value)}><option value="">Select player</option>{beta.managerPlayers?.map((player) => <option value={player.memberId} key={player.memberId}>{player.name}</option>)}</select></label>
-            </div><div className={styles.buttonRow} style={{ marginTop: 12 }}><button className={styles.button} disabled={busy || !alphaRep || !betaRep} onClick={() => void run("SET_FACE_OFF_REPRESENTATIVES", { alphaMemberId: Number(alphaRep), betaMemberId: Number(betaRep) })}>Confirm representatives</button><button className={`${styles.button} ${styles.buttonAmber}`} disabled={busy || !data.round?.faceOff} onClick={() => void run("START_EXTERNAL_FACE_OFF")}>Start external face-off</button></div></div>
+          {phase === "ROUND_INTRO" ? <section className={`${styles.card} ${styles.cardPad}`}>
+            <p className={styles.eyebrow}>Start the face-off</p><h2 className={styles.sectionTitle}>Which captain answers first?</h2><p className={styles.sectionCopy}>Use your usual buzzer, voice call, or in-person signal. Then select the captain who won.</p>
+            <div className={styles.faceOffChoices}><button className={styles.button} disabled={busy || !alpha.captainName} onClick={() => void run("START_FACE_OFF", { side: "ALPHA" })}>{alpha.captainName || alpha.name} answers first</button><button className={`${styles.button} ${styles.buttonPink}`} disabled={busy || !beta.captainName} onClick={() => void run("START_FACE_OFF", { side: "BETA" })}>{beta.captainName || beta.name} answers first</button></div>
           </section> : null}
-
-          {phase === "AWAITING_EXTERNAL_FACE_OFF" && data.round?.faceOff ? <ExternalFaceOffControls data={data} busy={busy} run={run} /> : null}
 
           {pending ? <section className={`${styles.card} ${styles.cardPad} ${styles.pending}`}>
             <p className={styles.eyebrow}>Submitted by {pending.playerName}</p><div className={styles.pendingAnswer}>{pending.text}</div>
@@ -112,10 +101,7 @@ export function ManagerPage() {
             <div className={styles.controlGroup}><p className={styles.controlTitle}>Team scores</p>{data.teams.map((team) => <div className={styles.field} key={team.side} style={{ marginBottom: 10 }}><label>{team.name}</label><div className={styles.buttonRow}><input className={styles.input} style={{ width: 100 }} value={scores[team.side]} onChange={(event) => setScores((current) => ({ ...current, [team.side]: event.target.value }))} placeholder={String(team.score)} inputMode="numeric" /><button className={`${styles.button} ${styles.buttonSecondary}`} disabled={busy || scores[team.side] === ""} onClick={() => void run("ADJUST_SCORE", { side: team.side, value: Number(scores[team.side]) })}>Set</button></div></div>)}</div>
           </section>
 
-          {phase === "ROUND_RESULTS" ? <section className={styles.card}>
-            <div className={styles.controlGroup}><p className={styles.controlTitle}>Continue the show</p><div className={styles.buttonRow}><button className={styles.button} disabled={busy || data.game.currentRound >= data.game.config.roundCount} onClick={() => void run("NEXT_ROUND")}>Next round</button></div></div>
-            <div className={styles.controlGroup}><p className={styles.controlTitle}>Fast Money · {leadingTeam?.name}</p><div className={styles.stack}><select className={styles.select} value={fastOne} onChange={(event) => setFastOne(event.target.value)}><option value="">Player one</option>{fastPlayers.map((player) => <option key={player.memberId} value={player.memberId}>{player.name}</option>)}</select><select className={styles.select} value={fastTwo} onChange={(event) => setFastTwo(event.target.value)}><option value="">Player two</option>{fastPlayers.map((player) => <option key={player.memberId} value={player.memberId}>{player.name}</option>)}</select><button className={`${styles.button} ${styles.buttonAmber}`} disabled={busy || !fastOne || !fastTwo || fastOne === fastTwo} onClick={() => void run("START_FAST_MONEY", { memberIds: [Number(fastOne), Number(fastTwo)] })}>Start Fast Money</button></div></div>
-          </section> : null}
+          {phase === "ROUND_RESULTS" ? <section className={`${styles.card} ${styles.cardPad}`}><p className={styles.controlTitle}>Continue</p><div className={styles.buttonRow}>{data.game.currentRound < data.game.config.roundCount ? <button className={styles.button} disabled={busy} onClick={() => void run("NEXT_ROUND")}>Start next round</button> : <button className={styles.button} disabled={busy} onClick={() => void run("END_GAME")}>Finish Family Feud</button>}</div></section> : null}
         </aside>
       </div>
     </div>
@@ -124,25 +110,20 @@ export function ManagerPage() {
 
 function LobbyControls({ data, busy, run }: { data: NonNullable<ReturnType<typeof useFeudGame>["data"]>; busy: boolean; run: (name: string, payload?: Record<string, unknown>) => Promise<boolean> }) {
   const copy = (value: string) => navigator.clipboard.writeText(value);
-  const players = data.manager?.participants.filter((participant) => participant.role === "PLAYER") || [];
-  const alphaPlayers = players.filter((player) => player.teamSide === "ALPHA");
-  const betaPlayers = players.filter((player) => player.teamSide === "BETA");
-  const readyCount = players.filter((player) => player.ready).length;
-  const canStart = alphaPlayers.length > 0 && betaPlayers.length > 0 && readyCount === players.length;
+  const alpha = data.teams.find((team) => team.side === "ALPHA")!;
+  const beta = data.teams.find((team) => team.side === "BETA")!;
+  const invites = data.manager?.captainInvites;
+  const captainLink = (side: TeamSide) => `${location.origin}/feud/lobby/${data.game.code}?captain=${side}&invite=${encodeURIComponent(side === "ALPHA" ? invites?.alpha || "" : invites?.beta || "")}`;
+  const canStart = Boolean(alpha.captainName && beta.captainName);
   return <section className={styles.card}>
-    <div className={styles.controlGroup}><div className={styles.lobbyHeading}><div><p className={styles.eyebrow}>Player code</p><div className={styles.lobbyCode}>{data.game.code}</div></div><div className={styles.lobbyReadiness}><strong>{readyCount}/{players.length}</strong><span>players ready</span></div></div><p className={styles.sectionCopy}>Ask players to open the lobby link, choose a team, and press Ready.</p></div>
-    <div className={styles.controlGroup}><div className={styles.buttonRow}><button className={styles.button} onClick={() => void copy(`${location.origin}/feud/lobby/${data.game.code}`)}>Copy player link</button><Link className={`${styles.button} ${styles.buttonSecondary}`} href={`/feud/lobby/${data.game.code}`} target="_blank">Open player lobby</Link><button className={`${styles.button} ${styles.buttonSecondary}`} onClick={() => void copy(`${location.origin}/feud/spectator/${data.game.code}`)}>Copy broadcast link</button></div></div>
-    <div className={styles.controlGroup}><div className={styles.startRow}><div><strong>{canStart ? "Ready to start" : "Waiting for both teams"}</strong><p>{canStart ? "Everyone is ready. Starting will lock the teams." : "Each team needs at least one player, and every player must be ready."}</p></div><button className={styles.button} disabled={busy || !canStart} onClick={() => void run("START_GAME")}>Start game</button></div></div>
-    {players.length ? <div className={styles.controlGroup}><p className={styles.controlTitle}>Player assignments</p><div className={styles.stack}>{players.map((player) => <div className={styles.playerRow} key={player.memberId}><span className={`${styles.statusDot} ${player.ready ? "" : styles.offline}`} /><span className={styles.playerName}>{player.name}{player.ready ? "" : " (not ready)"}</span><select className={styles.select} style={{ width: 140 }} value={player.teamSide || "ALPHA"} onChange={(event) => void run("MOVE_PLAYER", { memberId: player.memberId, side: event.target.value })}><option value="ALPHA">{data.teams.find((team) => team.side === "ALPHA")?.name}</option><option value="BETA">{data.teams.find((team) => team.side === "BETA")?.name}</option></select><button className={`${styles.button} ${styles.buttonSecondary}`} disabled={busy} onClick={() => void run("SET_CAPTAIN", { memberId: player.memberId })}>Make captain</button><button className={`${styles.button} ${styles.buttonDanger}`} disabled={busy} onClick={() => void run("REMOVE_PLAYER", { memberId: player.memberId })}>Remove</button></div>)}</div></div> : null}
+    <div className={styles.controlGroup}><h2 className={styles.sectionTitle}>Send one invitation to each captain</h2><p className={styles.sectionCopy}>Each link is tied to a team. The captain signs in, is assigned automatically, and appears here.</p></div>
+    <div className={styles.controlGroup}><div className={styles.captainInviteGrid}>
+      {[alpha, beta].map((team) => <article className={styles.captainInvite} style={{ "--team": team.color } as React.CSSProperties} key={team.side}>
+        <p>{team.name}</p><strong>{team.captainName || "Waiting for captain"}</strong>
+        <button className={`${styles.button} ${team.captainName ? styles.buttonSecondary : ""}`} disabled={!invites} onClick={() => void copy(captainLink(team.side))}>{team.captainName ? "Copy invitation again" : "Copy captain invitation"}</button>
+      </article>)}
+    </div></div>
+    <div className={styles.controlGroup}><div className={styles.buttonRow}><Link className={`${styles.button} ${styles.buttonSecondary}`} href={`/feud/spectator/${data.game.code}`} target="_blank">Open broadcast</Link><button className={`${styles.button} ${styles.buttonSecondary}`} onClick={() => void copy(`${location.origin}/feud/spectator/${data.game.code}`)}>Copy broadcast link</button></div></div>
+    <div className={styles.controlGroup}><div className={styles.startRow}><div><strong>{canStart ? "Both captains are connected" : "Waiting for both captains"}</strong><p>{canStart ? "You can start Family Feud now." : "The start button unlocks after both invitation links have been accepted."}</p></div><button className={styles.button} disabled={busy || !canStart} onClick={() => void run("START_GAME")}>Start Family Feud</button></div></div>
   </section>;
-}
-
-function ExternalFaceOffControls({ data, busy, run }: { data: NonNullable<ReturnType<typeof useFeudGame>["data"]>; busy: boolean; run: (name: string, payload?: Record<string, unknown>) => Promise<boolean> }) {
-  const faceOff = data.round!.faceOff!;
-  const participants = data.manager!.participants;
-  const alphaId = participants.find((participant) => participant.name === faceOff.alpha?.name && participant.teamSide === "ALPHA")?.memberId;
-  const betaId = participants.find((participant) => participant.name === faceOff.beta?.name && participant.teamSide === "BETA")?.memberId;
-  return <section className={`${styles.card} ${styles.centerState}`}><div style={{ width: "100%" }}><p className={styles.eyebrow}>External Overwatch face-off</p><h2 className={styles.phaseHero}>{faceOff.alpha?.name} <span style={{ color: "#ffd45f" }}>VS</span> {faceOff.beta?.name}</h2>
-    {faceOff.pendingWinnerName ? <><p className={styles.sectionCopy}>{faceOff.pendingWinnerName} won the external challenge and will answer first.</p><div className={styles.heroActions}><button className={`${styles.button} ${styles.buttonAmber}`} disabled={busy} onClick={() => void run("CONFIRM_EXTERNAL_WINNER")}>Confirm result</button><button className={`${styles.button} ${styles.buttonSecondary}`} disabled={busy} onClick={() => void run("RECORD_EXTERNAL_WINNER", { memberId: faceOff.pendingWinnerName === faceOff.alpha?.name ? betaId : alphaId })}>Change winner</button></div></> : <div className={styles.heroActions}><button className={styles.button} disabled={busy || !alphaId} onClick={() => void run("RECORD_EXTERNAL_WINNER", { memberId: alphaId })}>{faceOff.alpha?.name} won</button><button className={`${styles.button} ${styles.buttonPink}`} disabled={busy || !betaId} onClick={() => void run("RECORD_EXTERNAL_WINNER", { memberId: betaId })}>{faceOff.beta?.name} won</button></div>}
-  </div></section>;
 }

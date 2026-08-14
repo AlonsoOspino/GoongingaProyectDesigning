@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { deactivateFeudQuestion, listFeudQuestions, saveFeudQuestion, type FeudQuestionInput } from "@/lib/familyFeud/api";
 import type { FeudQuestionRecord } from "@/lib/familyFeud/types";
-import { getNetworkToken, useNetworkSession } from "@/lib/networkSession";
+import { getNetworkToken, hasNetworkRole, useNetworkSession } from "@/lib/networkSession";
 import { FeudLogo } from "./Shared";
 import styles from "./network-feud.module.css";
 
@@ -13,6 +13,7 @@ const blankQuestion = (): FeudQuestionInput => ({ question: "", category: "GENER
 
 export function QuestionAdminPage() {
   const { user, token, isHydrated } = useNetworkSession();
+  const canManage = Boolean(user && (user.role === "MANAGER" || user.role === "ADMIN" || hasNetworkRole(user, "ADMIN")));
   const [questions, setQuestions] = useState<FeudQuestionRecord[]>([]);
   const [draft, setDraft] = useState<FeudQuestionInput>(blankQuestion);
   const [editingId, setEditingId] = useState<number | undefined>();
@@ -23,7 +24,7 @@ export function QuestionAdminPage() {
     try { setQuestions(await listFeudQuestions(getNetworkToken())); }
     catch (cause) { setMessage(cause instanceof Error ? cause.message : "Questions could not be loaded."); }
   };
-  useEffect(() => { if (isHydrated) void refresh(); }, [isHydrated]);
+  useEffect(() => { if (isHydrated && canManage) void refresh(); }, [isHydrated, canManage]);
 
   const edit = (question: FeudQuestionRecord) => {
     setEditingId(question.id);
@@ -42,10 +43,11 @@ export function QuestionAdminPage() {
   };
 
   if (isHydrated && !user) return <div className={styles.shell}><div className={styles.centerState}><div><FeudLogo /><h1 className={styles.phaseHero}>Sign in required</h1><p className={styles.sectionCopy}>Question administration uses your existing Network account.</p><Link className={styles.button} style={{ display: "inline-grid", placeItems: "center", marginTop: 18 }} href="/login">Sign in</Link></div></div></div>;
+  if (isHydrated && user && !canManage) return <div className={styles.shell}><div className={styles.centerState}><div><FeudLogo /><h1 className={styles.phaseHero}>Manager access required</h1><p className={styles.sectionCopy}>Family Feud questions are managed by league managers and administrators.</p><Link className={styles.button} style={{ marginTop: 18 }} href="/feud">Back to Family Feud</Link></div></div></div>;
 
   return <div className={styles.shell}>
     <div className={`${styles.container} ${styles.wide}`}>
-      <div className={styles.topline}><div><FeudLogo /><p className={styles.eyebrow} style={{ marginTop: 16 }}>Content administration</p><h1 className={styles.title} style={{ fontSize: "clamp(42px, 6vw, 72px)" }}>Question library</h1></div><Link className={`${styles.button} ${styles.buttonSecondary}`} style={{ display: "inline-grid", placeItems: "center" }} href="/feud">Back to Network Feud</Link></div>
+      <div className={styles.topline}><div><FeudLogo /><p className={styles.eyebrow} style={{ marginTop: 16 }}>Game questions</p><h1 className={styles.title} style={{ fontSize: "clamp(42px, 6vw, 72px)" }}>Question library</h1></div><Link className={`${styles.button} ${styles.buttonSecondary}`} style={{ display: "inline-grid", placeItems: "center" }} href="/feud">Back to Family Feud</Link></div>
       {message ? <p className={styles.notice} style={{ marginBottom: 18 }}>{message}</p> : null}
       <div className={styles.managerGrid}>
         <section className={`${styles.card} ${styles.cardPad}`}>

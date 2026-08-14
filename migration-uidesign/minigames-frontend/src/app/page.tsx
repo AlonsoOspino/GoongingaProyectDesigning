@@ -41,8 +41,8 @@ export default function MinigamesHome() {
 
   return <div className="page-shell">
     <section className="game-directory-intro">
-      <div><p className="eyebrow">Goonginga Game Nights</p><h1>Choose a game</h1><p>Players can join with a room code. Managers can sign in to create a match and open the broadcast view.</p></div>
-      <div className="directory-actions"><Link className="primary-button" href="/feud">Open Network Feud</Link><a className="secondary-button" href={(process.env.NEXT_PUBLIC_GOONGINGA_URL || "http://localhost:3000").replace(/\/$/, "")}>Back to Goonginga</a></div>
+      <div><p className="eyebrow">Goonginga Game Nights</p><h1>Choose a game</h1><p>Managers create the game and send a private invitation to each captain. The broadcast opens from the manager room.</p></div>
+      <div className="directory-actions"><Link className="primary-button" href="/feud">Open Family Feud</Link><a className="secondary-button" href={(process.env.NEXT_PUBLIC_GOONGINGA_URL || "http://localhost:3000").replace(/\/$/, "")}>Back to Goonginga</a></div>
     </section>
 
     <div className="section-row" id="games">
@@ -55,8 +55,8 @@ export default function MinigamesHome() {
         <div className="game-cover family" />
         <div className="game-card-content">
           <span className="game-type">Available now</span>
-          <h3>Network Feud</h3>
-          <p>Join with a code or create a two-team survey game.</p>
+          <h3>Family Feud</h3>
+          <p>Create a two-team survey game or enter with a captain invitation.</p>
           <div className="game-card-footer"><span className="game-state">Open game</span></div>
         </div>
       </Link>
@@ -64,7 +64,7 @@ export default function MinigamesHome() {
     </div>
 
     {games.length === 0 ? <section className="empty-state" aria-live="polite">
-      <div><h3>No additional games yet</h3><p>Network Feud is available above. Other games will appear here when they are published.</p>{error ? <span className="feedback">{error}</span> : null}</div>
+      <div><h3>No additional games yet</h3><p>Family Feud is available above. Other games will appear here when they are published.</p>{error ? <span className="feedback">{error}</span> : null}</div>
     </section> : null}
   </div>;
 }

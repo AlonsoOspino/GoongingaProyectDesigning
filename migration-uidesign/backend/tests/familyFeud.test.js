@@ -8,9 +8,11 @@ function gameFixture() {
   const betaMember = { id: 12, username: "beta", nickname: "Jordan", avatarUrl: null, profilePic: null };
   return {
     id: 1,
-    code: "NF-2048",
-    roomId: "NF-2048",
-    title: "Network Feud",
+    code: "FF-2048",
+    roomId: "FF-2048",
+    alphaInviteToken: "ALPHA-PRIVATE",
+    betaInviteToken: "BETA-PRIVATE",
+    title: "Family Feud",
     status: "ROUND_PLAY",
     managerMemberId: 99,
     version: 4,
@@ -52,7 +54,7 @@ function gameFixture() {
   };
 }
 
-test("Network Feud normalizes answer matching text", () => {
+test("Family Feud normalizes answer matching text", () => {
   assert.equal(__testables.normalizeAnswer("  Watch T.V.! "), "watch tv");
   assert.ok(__testables.answerSimilarity("watch television", "watch televsion") > 0.9);
 });
@@ -64,6 +66,7 @@ test("spectator projection never includes hidden answer data or database ids", (
   assert.equal(JSON.stringify(projection).includes("Watch television"), false);
   assert.equal(JSON.stringify(projection).includes("aliases"), false);
   assert.equal(JSON.stringify(projection).includes("memberId"), false);
+  assert.equal(JSON.stringify(projection).includes("ALPHA-PRIVATE"), false);
 });
 
 test("manager projection is limited to the assigned manager", () => {
@@ -72,4 +75,5 @@ test("manager projection is limited to the assigned manager", () => {
   const projection = __testables.buildProjection(game, "manager", { id: 99, role: "MANAGER", roles: ["MEMBER"], accountType: "NETWORK_MEMBER" });
   assert.equal(projection.round.board[1].answer, "Watch television");
   assert.equal(projection.manager.participants[0].memberId, 11);
+  assert.deepEqual(projection.manager.captainInvites, { alpha: "ALPHA-PRIVATE", beta: "BETA-PRIVATE" });
 });

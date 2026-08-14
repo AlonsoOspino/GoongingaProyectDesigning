@@ -8,12 +8,6 @@ import { parseSurveyQuestionBlocks } from "@/lib/familyFeud/surveyImport";
 import { hasNetworkRole, useNetworkSession } from "@/lib/networkSession";
 import styles from "./network-feud.module.css";
 
-function normalizeCode(value: string) {
-  const plain = value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
-  if (plain.startsWith("NF") && plain.length > 2) return `NF-${plain.slice(2, 6)}`;
-  return plain;
-}
-
 const QUESTION_EXAMPLE = `Name something people do before going to bed
 1. Check their phone - 38
 2. Brush their teeth - 27
@@ -29,8 +23,7 @@ Name something you might forget when leaving home
 export function LandingPage() {
   const router = useRouter();
   const { user, token, isHydrated } = useNetworkSession();
-  const canHost = Boolean(user && (user.role === "MANAGER" || user.role === "ADMIN" || hasNetworkRole(user, "SOCIAL_MEDIA", "ADMIN")));
-  const [joinCode, setJoinCode] = useState("");
+  const canHost = Boolean(user && (user.role === "MANAGER" || user.role === "ADMIN" || hasNetworkRole(user, "ADMIN")));
   const [showSetup, setShowSetup] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +33,7 @@ export function LandingPage() {
   const [roundCount, setRoundCount] = useState(4);
   const [answerSeconds, setAnswerSeconds] = useState(20);
   const [questionMode, setQuestionMode] = useState<"library" | "paste">("library");
-  const [pack, setPack] = useState("Network Feud Starter");
+  const [pack, setPack] = useState("Family Feud Starter");
   const [availablePacks, setAvailablePacks] = useState<Array<{ name: string; count: number }>>([]);
   const [questionText, setQuestionText] = useState("");
   const parsedQuestions = useMemo(() => parseSurveyQuestionBlocks(questionText, 10), [questionText]);
@@ -54,15 +47,9 @@ export function LandingPage() {
     }).catch(() => undefined);
   }, [token, canHost]);
 
-  const join = () => {
-    const code = normalizeCode(joinCode);
-    if (!code) return setError("Enter the game code shown by the host.");
-    router.push(`/feud/lobby/${code}`);
-  };
-
   const openSetup = () => {
     if (!user) return router.push("/login?next=/feud");
-    if (!canHost) return setError("Only network managers and admins can create a match. You can still join with a code.");
+    if (!canHost) return setError("Only managers and administrators can create a Family Feud game. Captains enter through the private link sent by the manager.");
     setError(null);
     setShowSetup(true);
   };
@@ -118,36 +105,30 @@ export function LandingPage() {
     <main className={`${styles.container} ${styles.landing}`}>
       <header className={styles.pageIntro}>
         <p className={styles.eyebrow}>Live team game</p>
-        <h1 className={styles.landingTitle}>Network Feud</h1>
-        <p className={styles.subhead}>Join a match with the code on screen, or set up a new game for your event.</p>
+        <h1 className={styles.landingTitle}>Family Feud</h1>
+        <p className={styles.subhead}>The manager creates the game and sends one private invitation to each team captain.</p>
       </header>
 
       <div className={styles.entryGrid}>
         <section className={`${styles.card} ${styles.cardPad} ${styles.entryCard}`}>
           <span className={styles.stepNumber}>1</span>
-          <div>
-            <h2 className={styles.sectionTitle}>Join a game</h2>
-            <p className={styles.sectionCopy}>Enter the code provided by the manager. You will choose a team in the lobby.</p>
-          </div>
-          <div className={styles.joinBox}>
-            <input className={styles.input} value={joinCode} onChange={(event) => setJoinCode(event.target.value)} onKeyDown={(event) => event.key === "Enter" && join()} placeholder="NF-2048" aria-label="Game code" autoComplete="off" />
-            <button className={styles.button} onClick={join}>Continue</button>
-          </div>
+          <div><h2 className={styles.sectionTitle}>Manager creates the game</h2><p className={styles.sectionCopy}>Set the team names, rounds and questions. The manager room will generate two captain invitations.</p></div>
+          <button className={styles.button} disabled={!isHydrated || Boolean(user && !canHost)} onClick={openSetup}>{canHost ? "Create Family Feud" : user ? "Manager access required" : "Sign in as manager"}</button>
         </section>
 
         <section className={`${styles.card} ${styles.cardPad} ${styles.entryCard}`}>
           <span className={styles.stepNumber}>2</span>
           <div>
-            <h2 className={styles.sectionTitle}>Host a game</h2>
-            <p className={styles.sectionCopy}>Name the teams, choose the number of rounds, and add your survey questions.</p>
+            <h2 className={styles.sectionTitle}>Captains use their invitation</h2>
+            <p className={styles.sectionCopy}>Each captain opens the link for their team and signs in. There is no team selection and no separate dashboard.</p>
           </div>
-          <button className={`${styles.button} ${styles.buttonSecondary}`} disabled={!isHydrated} onClick={openSetup}>{user ? "Set up a match" : "Sign in to host"}</button>
+          <div className={styles.captainNote}>If you are a captain, ask the manager for your team link.</div>
         </section>
       </div>
 
       {showSetup ? <section className={`${styles.card} ${styles.setupPanel}`}>
         <div className={styles.setupHeading}>
-          <div><p className={styles.eyebrow}>Match setup</p><h2>Everything players will see</h2></div>
+          <div><p className={styles.eyebrow}>Game setup</p><h2>Family Feud details</h2></div>
           <button className={styles.textButton} type="button" onClick={() => setShowSetup(false)}>Close</button>
         </div>
         <div className={styles.setupGrid}>
@@ -169,7 +150,7 @@ export function LandingPage() {
               <button className={questionMode === "paste" ? styles.activeTab : ""} onClick={() => setQuestionMode("paste")} type="button">Paste new questions</button>
             </div>
             {questionMode === "library" ? <div className={styles.stack}>
-              <label className={styles.field}><span>Question pack</span><select className={styles.select} value={pack} onChange={(event) => setPack(event.target.value)}>{availablePacks.length ? availablePacks.map((item) => <option key={item.name} value={item.name}>{item.name} ({item.count})</option>) : <option value="Network Feud Starter">Network Feud Starter</option>}</select></label>
+              <label className={styles.field}><span>Question pack</span><select className={styles.select} value={pack} onChange={(event) => setPack(event.target.value)}>{availablePacks.length ? availablePacks.map((item) => <option key={item.name} value={item.name}>{item.name} ({item.count})</option>) : <option value="Family Feud Starter">Family Feud Starter</option>}</select></label>
               <p className={styles.helper}>Questions are selected automatically from this pack when each round starts.</p>
               <Link className={styles.inlineLink} href="/admin/feud/questions">Open the full question library</Link>
             </div> : <div className={styles.stack}>
@@ -181,7 +162,7 @@ export function LandingPage() {
         </div>
         {error ? <p className={`${styles.notice} ${styles.error}`}>{error}</p> : null}
         <div className={styles.setupFooter}>
-          <p>The game opens in a private manager room. You will receive the player code and broadcast link there.</p>
+          <p>The game opens in a private manager room with one invitation link for each captain and a separate broadcast link.</p>
           <button className={styles.button} disabled={creating} onClick={() => void create()}>{creating ? "Creating match..." : "Create match"}</button>
         </div>
       </section> : null}

@@ -11,8 +11,8 @@ export function createFeudGame(token: string, input: { title: string; teamAlphaN
   return apiRequest<FeudProjection>("/family-feud/games", { method: "POST", token, body: input });
 }
 
-export function joinFeudGame(token: string, gameCode: string, role: "PLAYER" | "SPECTATOR", side?: TeamSide) {
-  return apiRequest<FeudProjection>(`/family-feud/games/${encodeURIComponent(gameCode)}/join`, { method: "POST", token, body: { role, side } });
+export function joinFeudGame(token: string, gameCode: string, role: "PLAYER" | "SPECTATOR", side?: TeamSide, inviteToken?: string) {
+  return apiRequest<FeudProjection>(`/family-feud/games/${encodeURIComponent(gameCode)}/join`, { method: "POST", token, body: { role, side, inviteToken } });
 }
 
 export function sendFeudAction(token: string, gameCode: string, action: string, payload: Record<string, unknown> = {}) {

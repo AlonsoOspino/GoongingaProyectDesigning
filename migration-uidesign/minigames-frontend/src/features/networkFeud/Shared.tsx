@@ -5,7 +5,7 @@ import type { FeudBoardAnswer, FeudProjection, FeudTeam } from "@/lib/familyFeud
 import styles from "./network-feud.module.css";
 
 export function FeudLogo() {
-  return <div className={styles.logo}><span className={styles.logoMark}><span>NF</span></span><span className={styles.logoText}>Network <span>Feud</span></span></div>;
+  return <div className={styles.logo}><span className={styles.logoMark}><span>FF</span></span><span className={styles.logoText}>Family <span>Feud</span></span></div>;
 }
 
 export function Avatar({ name, src, className = "" }: { name: string; src?: string | null; className?: string }) {

@@ -5,7 +5,7 @@ const realtime = require("../services/familyFeudRealtime");
 
 const ACTIVE_ANSWER_PHASES = new Set(["FACE_OFF_FIRST_ANSWER", "FACE_OFF_SECOND_ANSWER", "ROUND_PLAY", "STEAL", "FAST_MONEY"]);
 const MANAGER_ACTIONS = new Set([
-  "LOCK_TEAMS", "MOVE_PLAYER", "REMOVE_PLAYER", "SET_CAPTAIN", "START_GAME", "START_EXTERNAL_FACE_OFF",
+  "LOCK_TEAMS", "MOVE_PLAYER", "REMOVE_PLAYER", "SET_CAPTAIN", "START_GAME", "START_FACE_OFF", "START_EXTERNAL_FACE_OFF",
   "SET_FACE_OFF_REPRESENTATIVES", "RECORD_EXTERNAL_WINNER", "CONFIRM_EXTERNAL_WINNER", "ACCEPT_RESPONSE",
   "REJECT_RESPONSE", "REVEAL_ANSWER", "ADD_STRIKE", "REMOVE_STRIKE", "ADJUST_BANK", "ADJUST_SCORE",
   "START_STEAL", "RESOLVE_STEAL", "END_ROUND", "NEXT_ROUND", "START_FAST_MONEY", "END_GAME", "PAUSE", "RESUME",
@@ -26,7 +26,7 @@ async function ensureStarterQuestions(memberId) {
     data: {
       question,
       category,
-      pack: "Network Feud Starter",
+      pack: "Family Feud Starter",
       createdById: memberId,
       answers: { create: answers.map(([answer, points], index) => ({ answer, points, rank: index + 1, aliases: [] })) },
     },
@@ -297,6 +297,10 @@ function buildProjection(game, view, user) {
 
   if (managerView) {
     base.manager = {
+      captainInvites: {
+        alpha: game.alphaInviteToken,
+        beta: game.betaInviteToken,
+      },
       participants: game.participants.map((entry) => ({
         memberId: entry.memberId,
         name: displayName(entry.member),
@@ -338,7 +342,7 @@ function buildProjection(game, view, user) {
 
 async function uniqueGameCode(client) {
   for (let attempt = 0; attempt < 30; attempt += 1) {
-    const code = `NF-${crypto.randomInt(1000, 10000)}`;
+    const code = `FF-${crypto.randomInt(1000, 10000)}`;
     if (!await client.familyFeudGame.findFirst({ where: { OR: [{ code }, { roomId: code }] }, select: { id: true } })) return code;
   }
   throw new Error("A unique game code could not be generated. Please try again.");
@@ -349,7 +353,7 @@ async function createGame(req, res) {
     await ensureStarterQuestions(Number(req.user.id));
     const code = await uniqueGameCode(prisma);
     const state = defaultState(req.body?.config || {});
-    const title = cleanText(req.body?.title, 80) || "Network Feud";
+    const title = cleanText(req.body?.title, 80) || "Family Feud";
     const game = await prisma.familyFeudGame.create({
       data: {
         code,
@@ -373,17 +377,17 @@ async function createGame(req, res) {
     });
     return res.status(201).json(buildProjection(game, "manager", req.user));
   } catch (error) {
-    return res.status(400).json({ message: error?.message || "Failed to create Network Feud game." });
+    return res.status(400).json({ message: error?.message || "Failed to create Family Feud game." });
   }
 }
 
 async function getGame(req, res) {
   try {
     const game = await findGame(prisma, req.params.gameCode);
-    if (!game) return res.status(404).json({ message: "Network Feud game not found." });
+    if (!game) return res.status(404).json({ message: "Family Feud game not found." });
     return res.json(buildProjection(game, String(req.query.view || "spectator"), req.user));
   } catch (error) {
-    return res.status(error.status || 500).json({ message: error?.message || "Failed to load Network Feud game." });
+    return res.status(error.status || 500).json({ message: error?.message || "Failed to load Family Feud game." });
   }
 }
 
@@ -393,34 +397,49 @@ async function getGameByCode(req, res) {
 
 async function joinGame(req, res) {
   try {
-    const role = String(req.body?.role || "PLAYER").toUpperCase() === "SPECTATOR" ? "SPECTATOR" : "PLAYER";
-    const side = String(req.body?.side || "ALPHA").toUpperCase() === "BETA" ? "BETA" : "ALPHA";
+    const inviteToken = cleanText(req.body?.inviteToken, 80).toUpperCase();
+    const role = inviteToken ? "PLAYER" : (String(req.body?.role || "PLAYER").toUpperCase() === "SPECTATOR" ? "SPECTATOR" : "PLAYER");
     const updated = await prisma.$transaction(async (tx) => {
       const game = await findGame(tx, req.params.gameCode);
-      if (!game) throw Object.assign(new Error("Network Feud game not found."), { status: 404 });
+      if (!game) throw Object.assign(new Error("Family Feud game not found."), { status: 404 });
       if (game.status !== "LOBBY" || game.state?.teamsLocked) throw Object.assign(new Error("Teams are locked for this match."), { status: 409 });
+      if (Number(game.managerMemberId) === Number(req.user.id)) throw Object.assign(new Error("The manager controls the game and cannot occupy a captain seat."), { status: 409 });
+      let side = String(req.body?.side || "ALPHA").toUpperCase() === "BETA" ? "BETA" : "ALPHA";
+      if (inviteToken) {
+        if (inviteToken === String(game.alphaInviteToken).toUpperCase()) side = "ALPHA";
+        else if (inviteToken === String(game.betaInviteToken).toUpperCase()) side = "BETA";
+        else throw Object.assign(new Error("This captain invitation is invalid."), { status: 403 });
+      }
       const team = role === "PLAYER" ? teamBySide(game, side) : null;
       const existing = participantForMember(game, req.user.id);
+      const otherTeam = game.teams.find((item) => item.side !== side);
+      if (inviteToken && Number(otherTeam?.captainMemberId) === Number(req.user.id)) {
+        throw Object.assign(new Error("You are already the captain of the other team."), { status: 409 });
+      }
+      if (inviteToken && team.captainMemberId && Number(team.captainMemberId) !== Number(req.user.id)) {
+        throw Object.assign(new Error(`${team.name} already has a captain.`), { status: 409 });
+      }
       if (role === "PLAYER" && existing?.teamId !== team.id && participantsFor(game, side).length >= Number(game.state?.config?.maxPlayersPerTeam || 5)) {
         throw Object.assign(new Error(`${team.name} is full.`), { status: 409 });
       }
       await tx.feudParticipant.upsert({
         where: { gameId_memberId: { gameId: game.id, memberId: Number(req.user.id) } },
-        create: { gameId: game.id, teamId: team?.id || null, memberId: Number(req.user.id), role, ready: false },
-        update: { teamId: team?.id || null, role, ready: false, lastSeenAt: new Date() },
+        create: { gameId: game.id, teamId: team?.id || null, memberId: Number(req.user.id), role, ready: Boolean(inviteToken) },
+        update: { teamId: team?.id || null, role, ready: Boolean(inviteToken), lastSeenAt: new Date() },
       });
+      if (inviteToken) await tx.feudTeam.update({ where: { id: team.id }, data: { captainMemberId: Number(req.user.id) } });
       return tx.familyFeudGame.update({ where: { id: game.id }, data: { version: { increment: 1 } }, include: gameInclude });
     }, { isolationLevel: "Serializable" });
     realtime.publish(updated.code || updated.roomId, updated.version);
     return res.json(buildProjection(updated, "lobby", req.user));
   } catch (error) {
-    return res.status(error.status || (error.code === "P2034" ? 409 : 400)).json({ message: error.code === "P2034" ? "The lobby changed while you were joining. Please try once more." : error?.message || "Failed to join Network Feud." });
+    return res.status(error.status || (error.code === "P2034" ? 409 : 400)).json({ message: error.code === "P2034" ? "The lobby changed while you were joining. Please try once more." : error?.message || "Failed to join Family Feud." });
   }
 }
 
 async function heartbeat(req, res) {
   const game = await findGame(prisma, req.params.gameCode);
-  if (!game) return res.status(404).json({ message: "Network Feud game not found." });
+  if (!game) return res.status(404).json({ message: "Family Feud game not found." });
   await prisma.feudParticipant.updateMany({ where: { gameId: game.id, memberId: Number(req.user.id) }, data: { lastSeenAt: new Date() } });
   return res.status(204).send();
 }
@@ -660,6 +679,22 @@ async function performAction(tx, game, req, action, payload) {
       create: { roundId: round.id, teamARepresentativeId: alpha.memberId, teamBRepresentativeId: beta.memberId },
       update: { teamARepresentativeId: alpha.memberId, teamBRepresentativeId: beta.memberId, externalWinnerMemberId: null, familyWinnerTeamId: null, resolvedAt: null },
     });
+  } else if (action === "START_FACE_OFF") {
+    ensurePhase(game, "ROUND_INTRO");
+    const requestedSide = String(payload.side || "").toUpperCase();
+    if (!["ALPHA", "BETA"].includes(requestedSide)) throw new Error("Choose which captain answers first.");
+    const alphaTeam = teamBySide(game, "ALPHA");
+    const betaTeam = teamBySide(game, "BETA");
+    if (!alphaTeam.captainMemberId || !betaTeam.captainMemberId) throw new Error("Both captains must join before the face-off starts.");
+    const firstMemberId = requestedSide === "ALPHA" ? alphaTeam.captainMemberId : betaTeam.captainMemberId;
+    await tx.feudFaceOff.upsert({
+      where: { roundId: round.id },
+      create: { roundId: round.id, teamARepresentativeId: alphaTeam.captainMemberId, teamBRepresentativeId: betaTeam.captainMemberId, externalWinnerMemberId: firstMemberId },
+      update: { teamARepresentativeId: alphaTeam.captainMemberId, teamBRepresentativeId: betaTeam.captainMemberId, externalWinnerMemberId: firstMemberId, familyWinnerTeamId: null, resolvedAt: null },
+    });
+    state = { ...state, phase: "FACE_OFF_FIRST_ANSWER", activeMemberId: firstMemberId, pendingExternalWinnerMemberId: null, faceOffResults: [] };
+    status = "FACE_OFF_FIRST_ANSWER";
+    timerEndsAt = new Date(Date.now() + Number(state.config.answerSeconds) * 1000);
   } else if (action === "START_EXTERNAL_FACE_OFF") {
     ensurePhase(game, "ROUND_INTRO");
     if (!round.faceOff) throw new Error("Select both face-off representatives first.");
@@ -673,7 +708,7 @@ async function performAction(tx, game, req, action, payload) {
   } else if (action === "CONFIRM_EXTERNAL_WINNER") {
     ensurePhase(game, "AWAITING_EXTERNAL_FACE_OFF");
     const winnerId = Number(state.pendingExternalWinnerMemberId);
-    if (!winnerId) throw new Error("Record the external challenge winner first.");
+    if (!winnerId) throw new Error("Choose which captain answers first.");
     await tx.feudFaceOff.update({ where: { roundId: round.id }, data: { externalWinnerMemberId: winnerId } });
     status = "FACE_OFF_FIRST_ANSWER";
     state = { ...state, phase: status, pendingExternalWinnerMemberId: null, activeMemberId: winnerId, pendingResponseId: null };
@@ -762,7 +797,7 @@ async function performAction(tx, game, req, action, payload) {
     state = { ...state, phase: status, roundWinnerSide: winnerSide, activeMemberId: null, pendingResponseId: null };
   } else if (action === "NEXT_ROUND") {
     ensurePhase(game, "ROUND_RESULTS");
-    if (state.currentRound >= Number(state.config.roundCount)) throw new Error("Main rounds are complete. Start Fast Money or end the match.");
+    if (state.currentRound >= Number(state.config.roundCount)) throw new Error("All rounds are complete. Finish the game.");
     const started = await startRound(tx, game, state);
     state = started.state;
     status = "ROUND_INTRO";
@@ -797,7 +832,7 @@ async function performAction(tx, game, req, action, payload) {
     timerEndsAt = state.pausedRemainingMs == null ? null : new Date(Date.now() + Number(state.pausedRemainingMs));
     state = { ...state, previousPhase: null, pausedRemainingMs: null, phase: status };
   } else {
-    throw new Error("Unknown Network Feud action.");
+    throw new Error("Unknown Family Feud action.");
   }
 
   state.phase = status;
@@ -814,7 +849,7 @@ async function gameAction(req, res) {
     const payload = req.body?.payload && typeof req.body.payload === "object" ? req.body.payload : {};
     const game = await prisma.$transaction(async (tx) => {
       const current = await findGame(tx, req.params.gameCode);
-      if (!current) throw Object.assign(new Error("Network Feud game not found."), { status: 404 });
+      if (!current) throw Object.assign(new Error("Family Feud game not found."), { status: 404 });
       await performAction(tx, current, req, action, payload);
       return findGame(tx, req.params.gameCode);
     });
@@ -822,7 +857,7 @@ async function gameAction(req, res) {
     const view = isGameManager(game, req.user) ? "manager" : "player";
     return res.json(buildProjection(game, view, req.user));
   } catch (error) {
-    return res.status(error.status || 400).json({ message: error?.message || "Network Feud action failed." });
+    return res.status(error.status || 400).json({ message: error?.message || "Family Feud action failed." });
   }
 }
 
@@ -932,7 +967,7 @@ async function deleteQuestion(req, res) {
 async function deleteGame(req, res) {
   try {
     const game = await findGame(prisma, req.params.gameCode);
-    if (!game) return res.status(404).json({ message: "Network Feud game not found." });
+    if (!game) return res.status(404).json({ message: "Family Feud game not found." });
     ensureManager(game, req);
     await prisma.familyFeudGame.delete({ where: { id: game.id } });
     realtime.publish(game.code || game.roomId, game.version + 1);

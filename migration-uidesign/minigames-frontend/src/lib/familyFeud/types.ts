@@ -80,6 +80,7 @@ export interface FeudProjection {
   };
   me: null | { role: "MANAGER" | "PLAYER" | "SPECTATOR"; side: TeamSide | null; ready: boolean; isCaptain: boolean; isCurrentPlayer: boolean };
   manager?: {
+    captainInvites: { alpha: string; beta: string };
     participants: Array<{ memberId: number; name: string; avatarUrl: string | null; role: string; teamSide: TeamSide | null; ready: boolean; connected: boolean }>;
     pendingResponse: null | { id: number; text: string; playerName: string; suggestedAnswerIds: number[] };
     rawState: { pendingExternalWinnerMemberId: number | null; activeMemberId: number | null; playPassWinnerSide: TeamSide | null; revealedAnswerIds: number[] };

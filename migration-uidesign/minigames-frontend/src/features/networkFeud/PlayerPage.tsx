@@ -43,14 +43,9 @@ export function PlayerPage() {
 
       {["ROUND_INTRO", "AWAITING_EXTERNAL_FACE_OFF"].includes(phase) ? <section className={`${styles.card} ${styles.centerState}`}>
         <div style={{ width: "100%" }}>
-          <p className={styles.eyebrow}>Round {data.round?.number} / Face-off</p>
-          <h1 className={styles.phaseHero}>First-answer challenge</h1>
-          {faceOff?.alpha && faceOff.beta ? <div className={styles.versus}>
-            <FaceOffPlayer name={faceOff.alpha.name} avatarUrl={faceOff.alpha.avatarUrl} color={data.teams[0]?.color} />
-            <div className={styles.vs}>VS</div>
-            <FaceOffPlayer name={faceOff.beta.name} avatarUrl={faceOff.beta.avatarUrl} color={data.teams[1]?.color} />
-          </div> : <p className={styles.sectionCopy}>The manager is selecting the representatives.</p>}
-          <p className={styles.sectionCopy} style={{ marginInline: "auto", marginTop: 24 }}>Complete the challenge chosen by your manager. The winner gives the first survey answer.</p>
+          <p className={styles.eyebrow}>Round {data.round?.number}</p>
+          <h1 className={styles.phaseHero}>Get ready for the face-off</h1>
+          <p className={styles.sectionCopy}>The manager will choose which captain answers first.</p>
         </div>
       </section> : null}
 
@@ -75,12 +70,5 @@ export function PlayerPage() {
       </div> : null}
     </div>
     {phase === "PAUSED" ? <div className={styles.pausedOverlay}><div><h1>Match paused</h1><p>The board is locked</p></div></div> : null}
-  </div>;
-}
-
-function FaceOffPlayer({ name, avatarUrl, color }: { name: string; avatarUrl: string | null; color?: string }) {
-  return <div className={styles.versusPlayer} style={{ "--team": color || "#36dcff" } as React.CSSProperties}>
-    {avatarUrl ? <img src={avatarUrl} alt="" /> : <span className={`${styles.versusAvatar} ${styles.avatarFallback}`} style={{ display: "grid", placeItems: "center" }}>{name.slice(0, 2).toUpperCase()}</span>}
-    <div className={styles.versusName}>{name}</div>
   </div>;
 }

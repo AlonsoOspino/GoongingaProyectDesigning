@@ -13,7 +13,6 @@ export function MinigamesHeader() {
   const router = useRouter();
   const { user } = useNetworkSession();
   if (pathname?.endsWith("/stream") || pathname?.startsWith("/feud/spectator/")) return null;
-  const social = hasNetworkRole(user, "SOCIAL_MEDIA", "ADMIN");
   const developer = hasNetworkRole(user, "DEVELOPER", "ADMIN");
   const networkOrigin = (process.env.NEXT_PUBLIC_GOONGINGA_URL || "http://localhost:3000").replace(/\/$/, "");
   const signInHref = `${networkOrigin}/minigames?next=${encodeURIComponent(pathname || "/feud")}`;
@@ -22,8 +21,7 @@ export function MinigamesHeader() {
     <Link className="brand" href="/"><img className="brand-mark" src="/winton.jpg" alt="" /> <span><strong>Goonginga</strong> Game Nights</span></Link>
     <nav className="topnav" aria-label="Minigames navigation">
       <Link href="/">Home</Link>
-      <Link href="/feud">Network Feud</Link>
-      {social ? <Link href="/social-media">Social Media</Link> : null}
+      <Link href="/feud">Family Feud</Link>
       {developer ? <Link href="/developer">Developer</Link> : null}
     </nav>
     <div className="account">

@@ -20,7 +20,7 @@ export function useFeudGame(gameCode: string, view: FeudView) {
       setData(next);
       setError(null);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Network Feud is reconnecting.");
+      setError(cause instanceof Error ? cause.message : "Family Feud is reconnecting.");
     } finally {
       refreshing.current = false;
       setLoading(false);

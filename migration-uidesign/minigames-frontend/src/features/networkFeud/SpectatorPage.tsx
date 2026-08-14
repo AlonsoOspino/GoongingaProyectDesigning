@@ -30,7 +30,7 @@ export function SpectatorPage() {
       </header>
 
       <main className={styles.broadcastMain}>
-        {phase === "LOBBY" ? <BroadcastMessage eyebrow="The show starts soon" title="Network Feud" copy={`${alpha.players.length + beta.players.length} players in the studio`} /> : null}
+        {phase === "LOBBY" ? <BroadcastMessage eyebrow="Waiting for both captains" title="Family Feud" copy={`${alpha.captainName ? 1 : 0} of 2 captains connected`} /> : null}
         {phase === "ROUND_INTRO" ? <BroadcastMessage eyebrow={`Round ${data.round?.number}`} title="Face-off incoming" copy="Representatives are being selected" /> : null}
         {phase === "AWAITING_EXTERNAL_FACE_OFF" ? <FaceOffBroadcast alpha={faceOff?.alpha} beta={faceOff?.beta} alphaColor={alpha.color} betaColor={beta.color} /> : null}
         {(phase === "FACE_OFF_FIRST_ANSWER" || phase === "FACE_OFF_SECOND_ANSWER") && faceOff?.externalWinner ? <div className={styles.stack}>
@@ -40,13 +40,13 @@ export function SpectatorPage() {
         {["PLAY_PASS", "ROUND_PLAY", "STEAL"].includes(phase) ? <BoardContent data={data} /> : null}
         {phase === "ROUND_RESULTS" ? <BroadcastMessage eyebrow="Round winner" title={winner?.name || "Round complete"} copy={`${data.round?.bank || 0} points banked`} /> : null}
         {phase === "FAST_MONEY" ? <BroadcastMessage eyebrow={`Target · ${data.fastMoney?.target || data.game.config.fastMoneyTarget} points`} title={data.fastMoney?.complete ? `${data.fastMoney.total} points` : "Fast Money"} copy={data.fastMoney?.complete ? (data.fastMoney.total >= data.fastMoney.target ? "FAST MONEY WINNERS!" : "SO CLOSE!") : data.round?.currentPlayer ? `${data.round.currentPlayer.name} is on the clock` : "Five questions. One final push."} /> : null}
-        {phase === "FINISHED" ? <BroadcastMessage eyebrow="Network Feud champions" title={matchWinner.name} copy={`Final score · ${matchWinner.score}`} /> : null}
+        {phase === "FINISHED" ? <BroadcastMessage eyebrow="Family Feud winner" title={matchWinner.name} copy={`Final score · ${matchWinner.score}`} /> : null}
         {phase === "PAUSED" ? <BroadcastMessage eyebrow="Production hold" title="Match paused" copy="The game will resume shortly" /> : null}
       </main>
 
       <footer className={styles.broadcastFoot}>
         <div className={styles.broadcastBank}><small>Round bank</small>{data.round?.bank || 0}</div>
-        <div className={styles.broadcastStatus}><small>{phase.replaceAll("_", " ")}</small><strong>{data.round?.currentPlayer?.name || (phase === "STEAL" ? `${data.teams.find((team) => team.side === data.round?.activeSide)?.name} can steal` : "Network Feud")}</strong></div>
+        <div className={styles.broadcastStatus}><small>{phase.replaceAll("_", " ")}</small><strong>{data.round?.currentPlayer?.name || (phase === "STEAL" ? `${data.teams.find((team) => team.side === data.round?.activeSide)?.name} can steal` : "Family Feud")}</strong></div>
         <div style={{ justifySelf: "end", display: "grid", justifyItems: "end", gap: 12 }}><Timer endsAt={data.game.timerEndsAt} serverNow={data.serverNow} /><Strikes value={data.round?.strikes || 0} /></div>
       </footer>
     </div>
@@ -100,8 +100,8 @@ function BroadcastMessage({ eyebrow, title, copy }: { eyebrow: string; title: st
 }
 
 function FaceOffBroadcast({ alpha, beta, alphaColor, betaColor }: { alpha?: { name: string; avatarUrl: string | null } | null; beta?: { name: string; avatarUrl: string | null } | null; alphaColor: string; betaColor: string }) {
-  if (!alpha || !beta) return <BroadcastMessage eyebrow="External Overwatch challenge" title="Face-off" copy="Representatives incoming" />;
-  return <div style={{ textAlign: "center" }}><p className={styles.eyebrow}>External Overwatch challenge · Winner answers first</p><div className={styles.versus} style={{ margin: "3vh auto 0" }}>
+  if (!alpha || !beta) return <BroadcastMessage eyebrow="Round face-off" title="Get ready" copy="The manager is choosing who answers first" />;
+  return <div style={{ textAlign: "center" }}><p className={styles.eyebrow}>Family Feud face-off</p><div className={styles.versus} style={{ margin: "3vh auto 0" }}>
     <SpectatorPlayer player={alpha} color={alphaColor} /><span className={styles.vs}>VS</span><SpectatorPlayer player={beta} color={betaColor} />
   </div></div>;
 }
