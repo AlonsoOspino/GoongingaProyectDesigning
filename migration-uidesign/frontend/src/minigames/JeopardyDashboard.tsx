@@ -96,10 +96,10 @@ export function JeopardyDashboard() {
   }, []);
 
   useEffect(() => { void loadGames(); }, [loadGames]);
-  const publishedOrderKey = game?.gameState.displayOrderMemberIds.join(",") || "";
+  const publishedOrderKey = game?.gameState.displayOrderMemberIds?.join(",") || "";
   useEffect(() => {
     if (!game) return;
-    const published = game.gameState.displayOrderMemberIds;
+    const published = game.gameState.displayOrderMemberIds || [];
     setOrderDraft(
       (published.length ? published : [...game.participants].sort((a, b) => a.id - b.id).map((participant) => participant.memberId)).slice(0, 5),
     );
@@ -266,7 +266,7 @@ export function JeopardyDashboard() {
   const previewParticipants = orderDraft
     .map((memberId) => game.participants.find((participant) => participant.memberId === memberId))
     .filter((participant): participant is JeopardyGame["participants"][number] => Boolean(participant));
-  const orderHasChanges = orderDraft.join(",") !== game.gameState.displayOrderMemberIds.join(",");
+  const orderHasChanges = orderDraft.join(",") !== (game.gameState.displayOrderMemberIds || []).join(",");
 
   return (
     <section className={styles.dashboard}>
@@ -285,7 +285,7 @@ export function JeopardyDashboard() {
         <div className={styles.scoreRoster}>
           {game.participants.map((participant)=><article key={participant.id}>
             <Avatar member={participant.member}/>
-            <span title={participant.member.username}>{participant.member.username}<small>{participant.score.toLocaleString()} points</small></span>
+            <span title={participant.member.username}>{participant.member.username}<small>{participant.score.toLocaleString("en-US")} points</small></span>
             <div>
               <button disabled={busy} className={styles.manualSubtract} onClick={()=>void changeScore(participant.memberId,-1)} aria-label={`Subtract ${scoreAmount || 0} points from ${participant.member.username}`}><Minus size={15}/></button>
               <button disabled={busy} className={styles.manualAdd} onClick={()=>void changeScore(participant.memberId,1)} aria-label={`Add ${scoreAmount || 0} points to ${participant.member.username}`}><Plus size={15}/></button>
@@ -301,7 +301,7 @@ export function JeopardyDashboard() {
         </header>
         <div className={styles.orderPreview} style={{ "--preview-count": previewParticipants.length } as CSSProperties}>
           {previewParticipants.map((participant, index)=><article key={participant.id}>
-            <div className={styles.previewScore}>${participant.score.toLocaleString()}</div>
+            <div className={styles.previewScore}>{participant.score < 0 ? "-" : ""}${Math.abs(participant.score).toLocaleString("en-US")}</div>
             <div className={styles.previewName} title={participant.member.username}>{participant.member.username}</div>
             <footer>
               <button disabled={busy||index===0} onClick={()=>moveDisplayBox(participant.memberId,-1)} aria-label={`Move ${participant.member.username} left`}><ChevronLeft size={16}/></button>

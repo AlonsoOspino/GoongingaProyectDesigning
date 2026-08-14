@@ -1,16 +1,22 @@
 const express = require("express");
 const familyFeudController = require("../controllers/familyFeud");
 const authMiddleware = require("../middlewares/authMiddleware");
+const optionalAuth = require("../middlewares/optionalAuth");
+const managerOrAdmin = require("../middlewares/managerOrAdmin");
 
 const router = express.Router();
 
-router.get("/latest", familyFeudController.getLatestGame);
-router.get("/invite/:inviteToken", authMiddleware, familyFeudController.getGameByInvite);
-router.get("/games/:roomId", familyFeudController.getGame);
-router.post("/games", familyFeudController.createGame);
-router.post("/games/:roomId/join", authMiddleware, familyFeudController.joinGameTeam);
-router.patch("/games/:roomId/team", authMiddleware, familyFeudController.updateGameTeam);
-router.put("/games/:roomId", familyFeudController.updateGame);
-router.delete("/games/:roomId", familyFeudController.deleteGame);
+router.get("/questions", authMiddleware, managerOrAdmin, familyFeudController.listQuestions);
+router.post("/questions", authMiddleware, managerOrAdmin, familyFeudController.createQuestion);
+router.put("/questions/:questionId", authMiddleware, managerOrAdmin, familyFeudController.updateQuestion);
+router.delete("/questions/:questionId", authMiddleware, managerOrAdmin, familyFeudController.deleteQuestion);
+
+router.post("/games", authMiddleware, managerOrAdmin, familyFeudController.createGame);
+router.get("/games/:gameCode", optionalAuth, familyFeudController.getGame);
+router.get("/games/:gameCode/events", optionalAuth, familyFeudController.events);
+router.post("/games/:gameCode/join", authMiddleware, familyFeudController.joinGame);
+router.post("/games/:gameCode/heartbeat", authMiddleware, familyFeudController.heartbeat);
+router.post("/games/:gameCode/actions", authMiddleware, familyFeudController.gameAction);
+router.delete("/games/:gameCode", authMiddleware, familyFeudController.deleteGame);
 
 module.exports = router;

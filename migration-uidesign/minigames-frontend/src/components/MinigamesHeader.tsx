@@ -12,7 +12,7 @@ export function MinigamesHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useNetworkSession();
-  if (pathname?.endsWith("/stream")) return null;
+  if (pathname?.endsWith("/stream") || pathname?.startsWith("/feud/spectator/")) return null;
   const social = hasNetworkRole(user, "SOCIAL_MEDIA", "ADMIN");
   const developer = hasNetworkRole(user, "DEVELOPER", "ADMIN");
 

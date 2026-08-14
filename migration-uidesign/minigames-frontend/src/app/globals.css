@@ -84,7 +84,7 @@ main { min-height: calc(100vh - 73px); }
 .network-switch:hover { border-color: var(--cyan); color: #fff; background: rgba(48,217,255,.1); }
 .avatar { width: 33px; height: 33px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(48, 217, 255, .65); }
 .avatar-fallback { display: grid; place-items: center; background: linear-gradient(135deg, #6625bc, #e83d9d); color: #fff; font-size: 12px; }
-.signin { border: 1px solid rgba(48,217,255,.65); color: #e9fcff !important; }
+.signin { padding: 8px 10px; border: 1px solid rgba(48,217,255,.65); color: #e9fcff !important; }
 .signin:hover { background: rgba(48,217,255,.12) !important; }
 
 .page-shell { width: min(1280px, 90vw); margin: 0 auto; padding: 50px 0 86px; }
@@ -113,7 +113,7 @@ main { min-height: calc(100vh - 73px); }
 .game-card { position: relative; display: flex; min-height: 288px; overflow: hidden; flex-direction: column; justify-content: end; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); transition: transform .18s ease, border-color .18s ease; }
 .game-card:hover { transform: translateY(-5px); border-color: rgba(48,217,255,.7); }
 .game-cover { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 20%, rgba(4,6,12,.96) 93%), radial-gradient(circle at 65% 15%, rgba(163,76,255,.7), transparent 44%), #14182b; background-size: cover; background-position: center; }
-.game-cover.family { background-image: linear-gradient(180deg, transparent 12%, rgba(4,6,12,.98) 94%), url("/family-feud-stage.png"); }
+.game-cover.family { background-image: linear-gradient(180deg, transparent 12%, rgba(4,6,12,.98) 94%), linear-gradient(125deg, rgba(30,220,255,.35), transparent 42%), radial-gradient(circle at 78% 22%, rgba(255,64,142,.72), transparent 28%), repeating-linear-gradient(90deg, rgba(255,255,255,.04) 0 1px, transparent 1px 48px); background-color: #071c2b; }
 .game-card.under-development .game-cover { filter: grayscale(1) contrast(.85); }
 .game-card-content { position: relative; z-index: 1; padding: 22px; }
 .game-type { display: inline-block; margin-bottom: 8px; color: var(--cyan); font-size: 10px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; }
@@ -247,6 +247,13 @@ main { min-height: calc(100vh - 73px); }
   .game-landing { padding: 28px; }
   .under-construction { padding: 22px; }
   .developer-speech { padding-right: 12px; }
+}
+
+@media (max-width: 520px) {
+  .brand span { display: none; }
+  .brand { font-size: 14px; letter-spacing: .08em; }
+  .brand-mark { width: 31px; height: 31px; }
+  .signin { padding: 7px 8px; font-size: 11px; white-space: nowrap; }
 }
 
 @media (prefers-reduced-motion: reduce) {

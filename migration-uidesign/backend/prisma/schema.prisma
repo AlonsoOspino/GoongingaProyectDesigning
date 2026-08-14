@@ -18,15 +18,167 @@ model Tournament {
 }
 
 model FamilyFeudGame {
-  id               Int      @id @default(autoincrement())
-  roomId           String   @unique
-  alphaInviteToken String   @unique
-  betaInviteToken  String   @unique
-  phase            String   @default("notStarted")
+  id               Int               @id @default(autoincrement())
+  roomId           String            @unique
+  alphaInviteToken String            @unique
+  betaInviteToken  String            @unique
+  phase            String            @default("notStarted")
   round            Int?
   state            Json
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  code             String?           @unique
+  title            String            @default("Network Feud")
+  status           FeudGameStatus    @default(LOBBY)
+  managerMemberId  Int?
+  winningTeamId    Int?
+  version          Int               @default(1)
+  timerEndsAt      DateTime?
+  startedAt        DateTime?
+  finishedAt       DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  manager          NetworkMember?    @relation("FeudGameManager", fields: [managerMemberId], references: [id], onDelete: Restrict)
+  winningTeam      FeudTeam?         @relation("FeudWinningTeam", fields: [winningTeamId], references: [id], onDelete: SetNull)
+  teams            FeudTeam[]
+  participants     FeudParticipant[]
+  rounds           FeudRound[]
+
+  @@index([status, createdAt])
+  @@index([managerMemberId])
+}
+
+model FeudTeam {
+  id                Int               @id @default(autoincrement())
+  gameId            Int
+  side              FeudTeamSide
+  name              String
+  color             String
+  score             Int               @default(0)
+  captainMemberId   Int?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  game              FamilyFeudGame    @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  captain           NetworkMember?    @relation("FeudTeamCaptain", fields: [captainMemberId], references: [id], onDelete: SetNull)
+  participants      FeudParticipant[]
+  activeRounds      FeudRound[]       @relation("FeudRoundActiveTeam")
+  wonGames          FamilyFeudGame[]  @relation("FeudWinningTeam")
+  familyFaceOffWins FeudFaceOff[]     @relation("FeudFamilyWinnerTeam")
+
+  @@unique([gameId, side])
+  @@index([captainMemberId])
+}
+
+model FeudParticipant {
+  id         Int                 @id @default(autoincrement())
+  gameId     Int
+  teamId     Int?
+  memberId   Int
+  role       FeudParticipantRole @default(PLAYER)
+  ready      Boolean             @default(false)
+  joinedAt   DateTime            @default(now())
+  lastSeenAt DateTime            @default(now())
+  game       FamilyFeudGame      @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  team       FeudTeam?           @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  member     NetworkMember       @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  responses  FeudResponse[]
+
+  @@unique([gameId, memberId])
+  @@index([teamId])
+  @@index([memberId])
+}
+
+model FeudQuestion {
+  id          Int           @id @default(autoincrement())
+  question    String
+  category    String        @default("GENERAL")
+  pack        String        @default("Core Set")
+  active      Boolean       @default(true)
+  createdById Int
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  createdBy   NetworkMember @relation("FeudQuestionCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  answers     FeudAnswer[]
+  rounds      FeudRound[]
+
+  @@index([active, category])
+  @@index([createdById])
+}
+
+model FeudAnswer {
+  id         Int            @id @default(autoincrement())
+  questionId Int
+  answer     String
+  points     Int
+  rank       Int
+  aliases    String[]       @default([])
+  question   FeudQuestion   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  responses  FeudResponse[]
+
+  @@unique([questionId, rank])
+  @@index([questionId])
+}
+
+model FeudRound {
+  id           Int             @id @default(autoincrement())
+  gameId       Int
+  questionId   Int
+  roundNumber  Int
+  multiplier   Int             @default(1)
+  activeTeamId Int?
+  roundBank    Int             @default(0)
+  strikes      Int             @default(0)
+  status       FeudRoundStatus @default(ROUND_INTRO)
+  startedAt    DateTime        @default(now())
+  finishedAt   DateTime?
+  game         FamilyFeudGame  @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  question     FeudQuestion    @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  activeTeam   FeudTeam?       @relation("FeudRoundActiveTeam", fields: [activeTeamId], references: [id], onDelete: SetNull)
+  responses    FeudResponse[]
+  faceOff      FeudFaceOff?
+
+  @@unique([gameId, roundNumber])
+  @@index([questionId])
+  @@index([activeTeamId])
+}
+
+model FeudResponse {
+  id              Int              @id @default(autoincrement())
+  roundId         Int
+  participantId   Int?
+  memberId        Int?
+  text            String
+  matchedAnswerId Int?
+  correct         Boolean?
+  points          Int              @default(0)
+  responseType    FeudResponseType @default(ROUND)
+  createdAt       DateTime         @default(now())
+  resolvedAt      DateTime?
+  round           FeudRound        @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  participant     FeudParticipant? @relation(fields: [participantId], references: [id], onDelete: SetNull)
+  member          NetworkMember?   @relation("FeudResponseMember", fields: [memberId], references: [id], onDelete: SetNull)
+  matchedAnswer   FeudAnswer?      @relation(fields: [matchedAnswerId], references: [id], onDelete: SetNull)
+
+  @@index([roundId, createdAt])
+  @@index([memberId])
+  @@index([matchedAnswerId])
+}
+
+model FeudFaceOff {
+  id                     Int            @id @default(autoincrement())
+  roundId                Int            @unique
+  teamARepresentativeId  Int
+  teamBRepresentativeId  Int
+  externalWinnerMemberId Int?
+  familyWinnerTeamId     Int?
+  createdAt              DateTime       @default(now())
+  resolvedAt             DateTime?
+  round                  FeudRound      @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  teamARepresentative    NetworkMember  @relation("FeudFaceOffTeamA", fields: [teamARepresentativeId], references: [id], onDelete: Restrict)
+  teamBRepresentative    NetworkMember  @relation("FeudFaceOffTeamB", fields: [teamBRepresentativeId], references: [id], onDelete: Restrict)
+  externalWinner         NetworkMember? @relation("FeudExternalWinner", fields: [externalWinnerMemberId], references: [id], onDelete: SetNull)
+  familyWinnerTeam       FeudTeam?      @relation("FeudFamilyWinnerTeam", fields: [familyWinnerTeamId], references: [id], onDelete: SetNull)
+
+  @@index([externalWinnerMemberId])
+  @@index([familyWinnerTeamId])
 }
 
 /// Identidad de la red Goonginga. La tabla legacy `Member` se mantiene intacta
@@ -34,30 +186,38 @@ model FamilyFeudGame {
 /// La pertenencia al Discord de GGL se verifica antes de crear este registro y
 /// se conserva la fecha de la última validación para poder revalidarla después.
 model NetworkMember {
-  id                    Int                 @id @default(autoincrement())
-  discordUserId         String              @unique
-  username              String
-  avatarUrl             String?
-  roles                 NetworkMemberRole[] @default([MEMBER])
-  status                NetworkMemberStatus @default(ACTIVE)
-  nickname              String?
-  profilePic            String?
-  role                  MemberRole          @default(DEFAULT)
-  rank                  Int                 @default(0)
-  teamId                Int?
-  heroVideoFolderPath   String?
-  obsWebsocketUrl       String?
-  obsWebsocketPassword  String?
-  discordJoinedGglAt    DateTime?
-  discordLastVerifiedAt DateTime?
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
-  seasonPlayers         SeasonPlayer[]
-  team                  Team?               @relation(fields: [teamId], references: [id])
-  playerStats           PlayerStat[]
-    createdMiniGames      MiniGame[]          @relation("MiniGameCreator")
-    underDevelopmentGames MiniGame[]          @relation("MiniGameDeveloper")
-    miniGameParticipations MiniGameParticipant[]
+  id                     Int                   @id @default(autoincrement())
+  discordUserId          String                @unique
+  username               String
+  avatarUrl              String?
+  roles                  NetworkMemberRole[]   @default([MEMBER])
+  status                 NetworkMemberStatus   @default(ACTIVE)
+  nickname               String?
+  profilePic             String?
+  role                   MemberRole            @default(DEFAULT)
+  rank                   Int                   @default(0)
+  teamId                 Int?
+  heroVideoFolderPath    String?
+  obsWebsocketUrl        String?
+  obsWebsocketPassword   String?
+  discordJoinedGglAt     DateTime?
+  discordLastVerifiedAt  DateTime?
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  seasonPlayers          SeasonPlayer[]
+  team                   Team?                 @relation(fields: [teamId], references: [id])
+  playerStats            PlayerStat[]
+  createdMiniGames       MiniGame[]            @relation("MiniGameCreator")
+  underDevelopmentGames  MiniGame[]            @relation("MiniGameDeveloper")
+  miniGameParticipations MiniGameParticipant[]
+  managedFeudGames       FamilyFeudGame[]      @relation("FeudGameManager")
+  captainedFeudTeams     FeudTeam[]            @relation("FeudTeamCaptain")
+  feudParticipations     FeudParticipant[]
+  createdFeudQuestions   FeudQuestion[]        @relation("FeudQuestionCreator")
+  feudResponses          FeudResponse[]        @relation("FeudResponseMember")
+  feudFaceOffsAsTeamA    FeudFaceOff[]         @relation("FeudFaceOffTeamA")
+  feudFaceOffsAsTeamB    FeudFaceOff[]         @relation("FeudFaceOffTeamB")
+  feudExternalWins       FeudFaceOff[]         @relation("FeudExternalWinner")
 
   @@index([status])
   @@index([teamId])
@@ -67,42 +227,42 @@ model NetworkMember {
 /// configuracion propia del tipo de juego y `state` solo el estado vivo de la
 /// partida, para poder actualizarlo sin sobrescribir el contenido editorial.
 model MiniGame {
-  id                   Int            @id @default(autoincrement())
-  slug                 String         @unique
+  id                   Int                   @id @default(autoincrement())
+  slug                 String                @unique
   title                String
-  description          String         @default("")
+  description          String                @default("")
   coverImageUrl        String?
-  gameType             MiniGameType   @default(JEOPARDY)
-    status               MiniGameStatus @default(LIVE)
-    phase                JeopardyPhase  @default(CREATED)
-  config               Json           @default("{}")
-  state                Json           @default("{}")
+  gameType             MiniGameType          @default(JEOPARDY)
+  status               MiniGameStatus        @default(LIVE)
+  phase                JeopardyPhase         @default(CREATED)
+  config               Json                  @default("{}")
+  state                Json                  @default("{}")
   createdById          Int
   underDevelopmentById Int?
-  createdAt            DateTime       @default(now())
-  updatedAt            DateTime       @updatedAt
-  createdBy            NetworkMember  @relation("MiniGameCreator", fields: [createdById], references: [id], onDelete: Restrict)
-    underDevelopmentBy   NetworkMember? @relation("MiniGameDeveloper", fields: [underDevelopmentById], references: [id], onDelete: SetNull)
-    participants         MiniGameParticipant[]
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  createdBy            NetworkMember         @relation("MiniGameCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  underDevelopmentBy   NetworkMember?        @relation("MiniGameDeveloper", fields: [underDevelopmentById], references: [id], onDelete: SetNull)
+  participants         MiniGameParticipant[]
 
   @@index([status, createdAt])
   @@index([createdById])
 }
 
 model MiniGameParticipant {
-    id        Int           @id @default(autoincrement())
-    gameId    Int
-    memberId  Int
-    score     Int           @default(0)
-    joinedAt  DateTime?
-    createdAt DateTime      @default(now())
-    updatedAt DateTime      @updatedAt
-    game      MiniGame      @relation(fields: [gameId], references: [id], onDelete: Cascade)
-    member    NetworkMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  id        Int           @id @default(autoincrement())
+  gameId    Int
+  memberId  Int
+  score     Int           @default(0)
+  joinedAt  DateTime?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  game      MiniGame      @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  member    NetworkMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
-    @@unique([gameId, memberId])
-    @@index([gameId, score])
-    @@index([memberId])
+  @@unique([gameId, memberId])
+  @@index([gameId, score])
+  @@index([memberId])
 }
 
 /// Estado editorial principal del sitio. Se mantiene como un singleton (id 1)
@@ -316,6 +476,51 @@ enum MiniGameType {
   JEOPARDY
   FAMILY_FEUD
   CUSTOM
+}
+
+enum FeudGameStatus {
+  LOBBY
+  ROUND_INTRO
+  AWAITING_EXTERNAL_FACE_OFF
+  FACE_OFF_FIRST_ANSWER
+  FACE_OFF_SECOND_ANSWER
+  PLAY_PASS
+  ROUND_PLAY
+  STEAL
+  ROUND_RESULTS
+  FAST_MONEY
+  FINISHED
+  PAUSED
+}
+
+enum FeudTeamSide {
+  ALPHA
+  BETA
+}
+
+enum FeudParticipantRole {
+  MANAGER
+  PLAYER
+  SPECTATOR
+}
+
+enum FeudRoundStatus {
+  ROUND_INTRO
+  AWAITING_EXTERNAL_FACE_OFF
+  FACE_OFF
+  PLAY_PASS
+  ROUND_PLAY
+  STEAL
+  ROUND_RESULTS
+  FINISHED
+}
+
+enum FeudResponseType {
+  FACE_OFF
+  ROUND
+  STEAL_SUGGESTION
+  STEAL_FINAL
+  FAST_MONEY
 }
 
 enum MiniGameStatus {

@@ -29,6 +29,7 @@ Thumbs.db
 
 # Next.js
 .next/
+*.tsbuildinfo
 
 # Misc
 *.local

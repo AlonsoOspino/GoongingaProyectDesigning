@@ -62,13 +62,13 @@ export default function MinigamesHome() {
     </div>
 
     <div className="game-grid">
-      <Link href="/family-feud" className="game-card under-development">
+      <Link href="/feud" className="game-card">
         <div className="game-cover family" />
         <div className="game-card-content">
-          <span className="game-type">Under development</span>
-          <h3 className="font-display">{familyFeud?.title || "Family Feud"}</h3>
-          <p>{familyFeud?.description || "The Goonginga Family Feud experience is getting its next big upgrade."}</p>
-          <div className="game-card-footer"><span className="game-state">STILL BUILDING IT!</span><BuilderChip developer={familyFeud?.underDevelopmentBy || null} /></div>
+          <span className="game-type">Live game show</span>
+          <h3 className="font-display">Network Feud</h3>
+          <p>A live two-team survey showdown with player, manager, and broadcast views.</p>
+          <div className="game-card-footer"><span className="game-state">LIVE MULTIPLAYER</span><BuilderChip developer={familyFeud?.underDevelopmentBy || null} /></div>
         </div>
       </Link>
       {games.map((game) => <GameCard key={game.id} game={game} />)}

@@ -9,7 +9,7 @@ const MAX_PODIUMS = 5;
 
 function AnimatedPoints({ score, delay }: { score: number; delay: number }) {
   const display = useAnimatedScore(score, delay, 1200);
-  const value = Math.abs(display).toLocaleString();
+  const value = Math.abs(display).toLocaleString("en-US");
   return <>{display < 0 ? `-$${value}` : `$${value}`}</>;
 }
 
@@ -65,7 +65,7 @@ function PodiumSlot({ participant, slotIndex }: { participant: JeopardyParticipa
         <div className={styles.scorePanel}>
           <AnimatedPoints score={participant.score} delay={revealDelay + 700} />
         </div>
-        {scoreChange ? <span key={scoreChange.sequence} className={styles.scoreChange}>{scoreChange.delta > 0 ? "+" : "−"}${Math.abs(scoreChange.delta).toLocaleString()}</span> : null}
+        {scoreChange ? <span key={scoreChange.sequence} className={styles.scoreChange}>{scoreChange.delta > 0 ? "+" : "−"}${Math.abs(scoreChange.delta).toLocaleString("en-US")}</span> : null}
       </div>
       <div className={styles.bodyFrame}>
         <div className={styles.namePanel}>
@@ -80,7 +80,7 @@ function PodiumSlot({ participant, slotIndex }: { participant: JeopardyParticipa
 function Podium({ game }: { game: JeopardyGame }) {
   const orderedParticipants = useMemo(() => {
     const byMemberId = new Map(game.participants.map((participant) => [participant.memberId, participant]));
-    const published = game.gameState.displayOrderMemberIds
+    const published = (game.gameState.displayOrderMemberIds || [])
       .map((memberId) => byMemberId.get(memberId))
       .filter((participant): participant is JeopardyParticipant => Boolean(participant));
     if (published.length) return published.slice(0, MAX_PODIUMS);

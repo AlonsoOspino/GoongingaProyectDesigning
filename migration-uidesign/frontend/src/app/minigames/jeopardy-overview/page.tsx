@@ -10,7 +10,7 @@ function ScoreCard({ participant, index }: { participant?: JeopardyParticipant; 
   return (
     <article className={styles.card}>
       <strong title={participant?.member.username}>{participant?.member.username || "Waiting"}</strong>
-      <div className={styles.score}>{score.toLocaleString()}</div>
+      <div className={styles.score}>{score.toLocaleString("en-US")}</div>
       <div className={styles.controls} aria-hidden="true"><span>+</span><span>-</span></div>
     </article>
   );
@@ -44,7 +44,7 @@ export default function JeopardyScoreOverlay() {
   const leaders = useMemo(() => {
     if (!game) return [];
     const byMemberId = new Map(game.participants.map((participant) => [participant.memberId, participant]));
-    const published = game.gameState.displayOrderMemberIds
+    const published = (game.gameState.displayOrderMemberIds || [])
       .map((memberId) => byMemberId.get(memberId))
       .filter((participant): participant is JeopardyParticipant => Boolean(participant));
     return published.length ? published : [...game.participants].sort((a, b) => a.id - b.id).slice(0, 6);

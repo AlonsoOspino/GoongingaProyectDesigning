@@ -1,0 +1,75 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const { __testables } = require("../controllers/familyFeud");
+
+function gameFixture() {
+  const joinedAt = new Date();
+  const alphaMember = { id: 11, username: "alpha", nickname: "Alex", avatarUrl: null, profilePic: null };
+  const betaMember = { id: 12, username: "beta", nickname: "Jordan", avatarUrl: null, profilePic: null };
+  return {
+    id: 1,
+    code: "NF-2048",
+    roomId: "NF-2048",
+    title: "Network Feud",
+    status: "ROUND_PLAY",
+    managerMemberId: 99,
+    version: 4,
+    timerEndsAt: null,
+    manager: { id: 99, username: "host", nickname: "Host", avatarUrl: null, profilePic: null },
+    state: {
+      ...__testables.defaultState(),
+      phase: "ROUND_PLAY",
+      currentRound: 1,
+      activeSide: "ALPHA",
+      activeMemberId: 11,
+      revealedAnswerIds: [101],
+    },
+    teams: [
+      { id: 21, side: "ALPHA", name: "Nova", color: "#00ffff", score: 20, captainMemberId: 11 },
+      { id: 22, side: "BETA", name: "Pulse", color: "#ff0088", score: 10, captainMemberId: 12 },
+    ],
+    participants: [
+      { id: 31, gameId: 1, teamId: 21, memberId: 11, role: "PLAYER", ready: true, joinedAt, lastSeenAt: joinedAt, member: alphaMember },
+      { id: 32, gameId: 1, teamId: 22, memberId: 12, role: "PLAYER", ready: true, joinedAt, lastSeenAt: joinedAt, member: betaMember },
+    ],
+    rounds: [{
+      id: 41,
+      roundNumber: 1,
+      multiplier: 1,
+      roundBank: 40,
+      strikes: 1,
+      question: {
+        question: "Name something people do when they cannot sleep.",
+        category: "GENERAL",
+        answers: [
+          { id: 101, rank: 1, answer: "Check their phone", points: 40, aliases: ["phone"] },
+          { id: 102, rank: 2, answer: "Watch television", points: 25, aliases: ["tv"] },
+        ],
+      },
+      responses: [],
+      faceOff: null,
+    }],
+  };
+}
+
+test("Network Feud normalizes answer matching text", () => {
+  assert.equal(__testables.normalizeAnswer("  Watch T.V.! "), "watch tv");
+  assert.ok(__testables.answerSimilarity("watch television", "watch televsion") > 0.9);
+});
+
+test("spectator projection never includes hidden answer data or database ids", () => {
+  const projection = __testables.buildProjection(gameFixture(), "spectator", null);
+  assert.deepEqual(projection.round.board[0], { rank: 1, revealed: true, answer: "Check their phone", points: 40 });
+  assert.deepEqual(projection.round.board[1], { rank: 2, revealed: false });
+  assert.equal(JSON.stringify(projection).includes("Watch television"), false);
+  assert.equal(JSON.stringify(projection).includes("aliases"), false);
+  assert.equal(JSON.stringify(projection).includes("memberId"), false);
+});
+
+test("manager projection is limited to the assigned manager", () => {
+  const game = gameFixture();
+  assert.throws(() => __testables.buildProjection(game, "manager", { id: 11, role: "DEFAULT", roles: ["MEMBER"], accountType: "NETWORK_MEMBER" }), /assigned match manager/);
+  const projection = __testables.buildProjection(game, "manager", { id: 99, role: "MANAGER", roles: ["MEMBER"], accountType: "NETWORK_MEMBER" });
+  assert.equal(projection.round.board[1].answer, "Watch television");
+  assert.equal(projection.manager.participants[0].memberId, 11);
+});
