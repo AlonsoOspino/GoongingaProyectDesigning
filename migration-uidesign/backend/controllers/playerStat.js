@@ -1,5 +1,4 @@
 const playerStatService = require("../services/playerStat");
-const googleVisionService = require("../services/googleVision");
 const PRIVILEGED_STAT_ROLES = new Set(["MANAGER", "ADMIN"]);
 
 function resolveEffectiveUserId(req) {
@@ -45,70 +44,11 @@ const create = async (req, res) => {
   }
 };
 
-const createFromImage = async (req, res) => {
+const createBatch = async (req, res) => {
   try {
-    if (!req.file || !req.file.buffer) {
-      return res.status(400).json({ message: "image file is required (multipart/form-data, field: image)." });
-    }
-
-    const userId = resolveEffectiveUserId(req);
-
-    const text = await googleVisionService.extractTextFromBuffer(req.file.buffer);
-
-    const stat = await playerStatService.createFromOcrText({
-      text,
-      userId,
+    const created = await playerStatService.createBatch({
       matchId: req.body.matchId,
-      gameNumber: req.body.gameNumber,
-      role: req.body.role,
-      mapType: req.body.mapType,
-      gameDuration: req.body.gameDuration,
-      damage: req.body.damage,
-      healing: req.body.healing,
-      mitigation: req.body.mitigation,
-      kills: req.body.kills,
-      assists: req.body.assists,
-      deaths: req.body.deaths,
-    });
-
-    res.status(201).json({
-      stat,
-      ocrPreview: text.slice(0, 400),
-    });
-  } catch (err) {
-    res.status(err.statusCode || 400).json({ message: err.message });
-  }
-};
-
-const previewMatchFromImage = async (req, res) => {
-  try {
-    if (!req.file || !req.file.buffer) {
-      return res.status(400).json({ message: "image file is required (multipart/form-data, field: image)." });
-    }
-
-    const ocr = await googleVisionService.extractOcrFromBuffer(req.file.buffer);
-
-    const preview = await playerStatService.previewMatchStatsFromOcrText({
-      text: ocr.text,
-      ocrWords: ocr.words,
-      matchId: req.body.matchId,
-      mapType: req.body.mapType,
-    });
-
-    res.json(preview);
-  } catch (err) {
-    res.status(400).json({ message: err.message });
-  }
-};
-
-const confirmBatchFromPreview = async (req, res) => {
-  try {
-    const created = await playerStatService.createBatchFromPreview({
-      matchId: req.body.matchId,
-      mapType: req.body.mapType,
-      gameNumber: req.body.gameNumber,
-      gameDuration: req.body.gameDuration,
-      rows: req.body.rows,
+      games: req.body.games,
     });
 
     res.status(201).json({ count: created.length, stats: created });
@@ -155,9 +95,7 @@ const getPublicByUser = async (req, res) => {
 
 module.exports = {
   create,
-  createFromImage,
-  previewMatchFromImage,
-  confirmBatchFromPreview,
+  createBatch,
   getAll,
   getMine,
   getPublic,

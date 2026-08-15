@@ -4,6 +4,19 @@
   pointer-events: none;
 }
 
+.standby {
+  display: grid;
+  width: 100%;
+  min-height: 92px;
+  place-items: center;
+  color: #f4d39e;
+  background: #111;
+  font-family: var(--font-overlay-display), var(--font-overlay-body), sans-serif;
+  font-size: 1.25rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
 .headerBar {
   position: relative;
   width: 100%;

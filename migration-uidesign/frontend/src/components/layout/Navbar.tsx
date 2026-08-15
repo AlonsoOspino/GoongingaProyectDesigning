@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Gauge, History, Home, LogIn, Menu, Newspaper, Trophy, X } from "lucide-react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { BarChart3, CalendarDays, Gamepad2, Gauge, LogIn, Menu, Newspaper, Shield, Trophy, Users, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { clsx } from "clsx";
 import { Avatar } from "@/components/ui/Avatar";
@@ -13,14 +13,21 @@ import {
 } from "@/features/networkSession/storage";
 
 const links = [
-  { href: "/", label: "Home", icon: Home },
   { href: "/season-9", label: "Season 9", icon: Trophy },
-  { href: "/history", label: "History", icon: History },
+  { href: "/teams", label: "Teams", icon: Users },
+  { href: "/schedule", label: "Schedule / Results", icon: CalendarDays },
+  { href: "/standings", label: "Standings", icon: Shield },
+  { href: "/stats", label: "Stats", icon: BarChart3 },
   { href: "/news", label: "News", icon: Newspaper },
+];
+
+const secondaryLinks = [
+  { href: "/minigames", label: "Stream Tools", icon: Gamepad2 },
 ];
 
 export function Navbar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
   const [networkUser, setNetworkUser] = useState<NetworkSessionUser | null>(null);
 
@@ -41,6 +48,15 @@ export function Navbar() {
   };
 
   const hasProductionDashboard = networkUser?.roles.some((role) => role === "CASTER" || role === "SOCIAL_MEDIA" || role === "ADMIN");
+  const archiveTab = pathname === "/history/season-8" ? searchParams.get("tab") : null;
+  const isLeagueLinkActive = (href: string) => {
+    if (pathname.startsWith(href)) return true;
+    if (href === "/teams") return archiveTab === "teams";
+    if (href === "/schedule") return archiveTab === "playoffs";
+    if (href === "/standings") return archiveTab === "standings";
+    if (href === "/stats") return archiveTab === "players";
+    return false;
+  };
 
   return (
     <header className={clsx("site-navbar sticky top-0 z-40 h-[68px] border-b border-border bg-surface/95 backdrop-blur-xl", pathname === "/" && "site-navbar-home")}>
@@ -53,15 +69,15 @@ export function Navbar() {
           </div>
         </Link>
 
-        <nav className="hidden items-center gap-1 md:flex" aria-label="Primary navigation">
+        <nav className="hidden items-center gap-1 xl:flex" aria-label="League navigation">
           {links.map(({ href, label, icon: Icon }) => {
-            const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+            const active = isLeagueLinkActive(href);
             return (
               <Link
                 key={href}
                 href={href}
                 className={clsx(
-                  "flex h-10 items-center gap-2 rounded-sm px-3 text-sm font-bold transition-colors",
+                  "nav-league-link flex h-10 items-center gap-2 rounded-sm px-2.5 text-[0.78rem] font-bold transition-colors",
                   active ? "bg-bg-primary text-white shadow-[inset_0_-2px_var(--color-accent)]" : "text-muted hover:bg-surface-elevated hover:text-foreground"
                 )}
               >
@@ -70,6 +86,18 @@ export function Navbar() {
               </Link>
             );
           })}
+          <span className="nav-mode-divider" aria-hidden="true" />
+          {secondaryLinks.map(({ href, label, icon: Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              className="nav-secondary-link flex h-10 items-center gap-2 rounded-sm px-2.5 text-[0.76rem] font-bold transition-colors"
+              aria-label={`${label}, secondary OTP production utility`}
+            >
+              <Icon size={16} aria-hidden="true" />
+              {label}
+            </Link>
+          ))}
         </nav>
 
         <div className="flex items-center gap-2">
@@ -99,14 +127,26 @@ export function Navbar() {
       </div>
 
       {open && (
-        <nav className="border-t border-border bg-surface p-3 shadow-lg md:hidden" aria-label="Mobile navigation">
+        <nav className="border-t border-border bg-surface p-3 shadow-lg xl:hidden" aria-label="Mobile league navigation">
           <div className="ow-container grid gap-1">
+            <Link href="/" onClick={() => setOpen(false)} className="mobile-nav-home">
+              Goonginga League home
+            </Link>
             {links.map(({ href, label, icon: Icon }) => (
-              <Link key={href} href={href} onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-sm px-3 py-3 text-sm font-bold hover:bg-surface-elevated">
+              <Link key={href} href={href} onClick={() => setOpen(false)} className={clsx("flex items-center gap-3 rounded-sm px-3 py-3 text-sm font-bold hover:bg-surface-elevated", isLeagueLinkActive(href) && "mobile-nav-active")}>
                 <Icon size={18} />
                 {label}
               </Link>
             ))}
+            <div className="mobile-nav-secondary">
+              <span>OTP production tools</span>
+              {secondaryLinks.map(({ href, label, icon: Icon }) => (
+                <Link key={href} href={href} onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-sm px-3 py-3 text-sm font-bold hover:bg-surface-elevated">
+                  <Icon size={18} />
+                  {label}
+                </Link>
+              ))}
+            </div>
             {!networkUser && (
               <Link href="/login" onClick={() => setOpen(false)} className="nav-auth-button mt-2">
                 <LogIn size={17} />

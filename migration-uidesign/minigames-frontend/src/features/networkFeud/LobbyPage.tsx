@@ -69,7 +69,7 @@ export function LobbyPage() {
   const myTeam = data.me?.side ? data.teams.find((team) => team.side === data.me?.side) : null;
   const returnPath = `/feud/lobby/${code}?captain=${requestedSide}&invite=${encodeURIComponent(inviteToken)}`;
 
-  return <div className={styles.shell}>
+  return <div className={`${styles.shell} ${styles.joinShell}`}>
     <div className={styles.container}>
       <div className={styles.topline}><FeudLogo /><ConnectionPill connected={connected} /></div>
       <div className={styles.lobbyScene} aria-hidden="true"><div className={styles.showStage} /><img className={styles.showCoins} src="/feud-coins.webp" alt="" /><img className={styles.showHost} src="/feud-doomfist.webp" alt="" /></div>

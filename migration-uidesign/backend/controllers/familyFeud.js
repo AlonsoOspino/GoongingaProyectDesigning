@@ -11,7 +11,7 @@ const ACTIVE_ANSWER_PHASES = new Set(["FACE_OFF_FIRST_ANSWER", "FACE_OFF_SECOND_
 const MANAGER_ACTIONS = new Set([
   "LOCK_TEAMS", "MOVE_PLAYER", "REMOVE_PLAYER", "SET_CAPTAIN", "START_GAME", "START_FACE_OFF", "START_EXTERNAL_FACE_OFF",
   "SET_FACE_OFF_REPRESENTATIVES", "RECORD_EXTERNAL_WINNER", "CONFIRM_EXTERNAL_WINNER", "ACCEPT_RESPONSE",
-  "REJECT_RESPONSE", "REVEAL_ANSWER", "ADD_STRIKE", "REMOVE_STRIKE", "ADJUST_BANK", "ADJUST_SCORE",
+  "REJECT_RESPONSE", "UNDO_RESPONSE", "REVEAL_ANSWER", "ADD_STRIKE", "REMOVE_STRIKE", "UNDO_STRIKE", "ADJUST_BANK", "ADJUST_SCORE",
   "START_STEAL", "RESOLVE_STEAL", "END_ROUND", "NEXT_ROUND", "START_FAST_MONEY", "END_GAME", "PAUSE", "RESUME",
 ]);
 
@@ -353,6 +353,8 @@ function buildProjection(game, view, user) {
           });
         }).map((answer) => answer.id),
       } : null,
+      canUndoResponse: Boolean(state.lastManagerUndo?.kind === "RESPONSE"),
+      canUndoStrike: Boolean(state.lastStrikeUndo?.kind === "STRIKE"),
       rawState: {
         pendingExternalWinnerMemberId: state.pendingExternalWinnerMemberId || null,
         activeMemberId: state.activeMemberId || null,
@@ -930,6 +932,8 @@ async function performAction(tx, game, req, action, payload) {
 
   if (MANAGER_ACTIONS.has(action)) ensureManager(game, req);
   if (game.status === "PAUSED" && action !== "RESUME") throw Object.assign(new Error("Resume the match before performing another action."), { status: 409 });
+  if (action !== "UNDO_RESPONSE" && state.lastManagerUndo) state.lastManagerUndo = null;
+  if (action !== "UNDO_STRIKE" && state.lastStrikeUndo) state.lastStrikeUndo = null;
 
   if (action === "SET_READY") {
     ensurePhase(game, "LOBBY");
@@ -1042,10 +1046,51 @@ async function performAction(tx, game, req, action, payload) {
     await tx.feudResponse.create({ data: { roundId: round.id, participantId: participant.id, memberId: participant.memberId, text, responseType: "STEAL_SUGGESTION" } });
   } else if (action === "ACCEPT_RESPONSE" || action === "REJECT_RESPONSE") {
     if (!round) throw new Error("There is no active round.");
+    const priorState = { ...state };
+    delete priorState.lastManagerUndo;
+    const resolutionUndo = {
+      kind: "RESPONSE",
+      expectedVersion: game.version + 1,
+      state: priorState,
+      status,
+      timerEndsAt: timerEndsAt?.toISOString() || null,
+      responseId: Number(state.pendingResponseId),
+      round: {
+        status: round.status,
+        activeTeamId: round.activeTeamId,
+        roundBank: round.roundBank,
+        strikes: round.strikes,
+        finishedAt: round.finishedAt?.toISOString() || null,
+      },
+      teams: game.teams.map((team) => ({ id: team.id, score: team.score })),
+      faceOff: round.faceOff ? {
+        familyWinnerTeamId: round.faceOff.familyWinnerTeamId,
+        resolvedAt: round.faceOff.resolvedAt?.toISOString() || null,
+      } : null,
+    };
     const result = await resolveRoundResponse(tx, game, state, round, action === "ACCEPT_RESPONSE", payload.answerId);
-    state = result.state;
+    state = { ...result.state, lastManagerUndo: resolutionUndo };
     status = result.status;
     timerEndsAt = result.timerEndsAt;
+  } else if (action === "UNDO_RESPONSE") {
+    const undo = state.lastManagerUndo;
+    if (!round || !undo || undo.kind !== "RESPONSE" || !undo.responseId || Number(undo.expectedVersion) !== Number(game.version)) throw new Error("That answer can no longer be undone because the game has moved on.");
+    await tx.feudResponse.update({ where: { id: Number(undo.responseId) }, data: { matchedAnswerId: null, correct: null, points: 0, resolvedAt: null } });
+    await tx.feudRound.update({ where: { id: round.id }, data: {
+      status: undo.round.status,
+      activeTeamId: undo.round.activeTeamId,
+      roundBank: undo.round.roundBank,
+      strikes: undo.round.strikes,
+      finishedAt: undo.round.finishedAt ? new Date(undo.round.finishedAt) : null,
+    } });
+    for (const team of undo.teams || []) await tx.feudTeam.update({ where: { id: Number(team.id) }, data: { score: Number(team.score) } });
+    if (undo.faceOff && round.faceOff) await tx.feudFaceOff.update({ where: { roundId: round.id }, data: {
+      familyWinnerTeamId: undo.faceOff.familyWinnerTeamId,
+      resolvedAt: undo.faceOff.resolvedAt ? new Date(undo.faceOff.resolvedAt) : null,
+    } });
+    state = withGameEvent({ ...undo.state, lastManagerUndo: null }, "RECOVERED", "ANSWER RESTORED");
+    status = undo.status;
+    timerEndsAt = undo.timerEndsAt ? new Date(undo.timerEndsAt) : null;
   } else if (action === "SELECT_PLAY_PASS") {
     ensurePhase(game, "PLAY_PASS");
     const side = participant?.teamId ? game.teams.find((team) => team.id === participant.teamId)?.side : null;
@@ -1062,6 +1107,14 @@ async function performAction(tx, game, req, action, payload) {
     state.revealedAnswerIds = [...new Set([...(state.revealedAnswerIds || []), Number(payload.answerId)])];
   } else if (action === "ADD_STRIKE" || action === "REMOVE_STRIKE") {
     ensurePhase(game, "ROUND_PLAY", "STEAL");
+    const strikeUndo = action === "ADD_STRIKE" ? {
+      kind: "STRIKE",
+      expectedVersion: game.version + 1,
+      state: { ...state, lastStrikeUndo: null },
+      status,
+      timerEndsAt: timerEndsAt?.toISOString() || null,
+      round: { strikes: round.strikes, status: round.status, activeTeamId: round.activeTeamId },
+    } : null;
     const strikes = Math.max(0, Math.min(3, round.strikes + (action === "ADD_STRIKE" ? 1 : -1)));
     await tx.feudRound.update({ where: { id: round.id }, data: { strikes } });
     if (action === "ADD_STRIKE") state = withGameEvent(state, "INCORRECT", "INCORRECT");
@@ -1072,6 +1125,14 @@ async function performAction(tx, game, req, action, payload) {
       state = { ...state, phase: status, activeSide, activeMemberId: team.captainMemberId || nextPlayerMemberId(game, activeSide), pendingResponseId: null };
       timerEndsAt = new Date(Date.now() + Number(state.config.answerSeconds) * 1000);
     }
+    if (strikeUndo) state.lastStrikeUndo = strikeUndo;
+  } else if (action === "UNDO_STRIKE") {
+    const undo = state.lastStrikeUndo;
+    if (!round || !undo || undo.kind !== "STRIKE" || Number(undo.expectedVersion) !== Number(game.version)) throw new Error("That strike can no longer be undone because the game has moved on.");
+    await tx.feudRound.update({ where: { id: round.id }, data: { strikes: undo.round.strikes, status: undo.round.status, activeTeamId: undo.round.activeTeamId } });
+    state = withGameEvent({ ...undo.state, lastStrikeUndo: null }, "RECOVERED", "STRIKE RESTORED");
+    status = undo.status;
+    timerEndsAt = undo.timerEndsAt ? new Date(undo.timerEndsAt) : null;
   } else if (action === "ADJUST_BANK") {
     if (!round) throw new Error("There is no active round.");
     await tx.feudRound.update({ where: { id: round.id }, data: { roundBank: Math.max(0, Number(payload.value) || 0) } });

@@ -19,15 +19,14 @@ export function MinigamesHeader() {
   const signInHref = `${networkOrigin}/minigames?next=${encodeURIComponent(pathname || "/feud")}`;
 
   return <header className="topbar">
-    <Link className="brand" href="/"><img className="brand-mark" src="/winton.jpg" alt="" /> <span><strong>Goonginga</strong> Game Nights</span></Link>
-    <nav className="topnav" aria-label="Minigames navigation">
-      <Link href="/">Home</Link>
+    <Link className="brand" href="/feud"><img className="brand-mark" src="/winton.jpg" alt="" /> <span><strong>OTP</strong> Stream Tools</span></Link>
+    <nav className="topnav" aria-label="Stream tools navigation">
       <Link href="/feud">Family Feud</Link>
-      {socialMedia ? <Link href="/admin/feud/games">Manage Feud</Link> : null}
+      {socialMedia ? <Link href="/admin/feud/games">Host control</Link> : null}
       {developer ? <Link href="/developer">Developer</Link> : null}
     </nav>
     <div className="account">
-      <a className="network-return" href={networkOrigin}>Back to Goonginga</a>
+      <a className="network-return" href={networkOrigin}>Back to Goonginga League</a>
       {user ? <><ProfileAvatar name={user.username} url={user.avatarUrl} /><span className="account-name">{user.nickname || user.username}</span><button className="network-switch" type="button" onClick={() => { clearNetworkSession(); router.push("/login"); }}>Switch account</button></> : <a className="signin" href={signInHref}>Sign in</a>}
     </div>
   </header>;

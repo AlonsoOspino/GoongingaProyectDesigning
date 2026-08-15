@@ -37,7 +37,7 @@ export function PlayerPage() {
   const alpha = data.teams.find((team) => team.side === "ALPHA");
   const beta = data.teams.find((team) => team.side === "BETA");
 
-  return <div className={styles.shell}>
+  return <div className={`${styles.shell} ${styles.playerShell}`}>
     <GameEffects data={data} />
     <div className={`${styles.container} ${styles.wide}`}>
       <div className={styles.topline}><FeudLogo /><div className={styles.buttonRow}><span className={styles.pill}><PhaseName phase={phase} /></span><ConnectionPill connected={connected} /></div></div>

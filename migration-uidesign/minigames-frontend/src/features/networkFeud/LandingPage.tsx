@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { createFeudGame, importFeudQuestions, listFeudQuestions } from "@/lib/familyFeud/api";
 import { parseSurveyQuestionBlocks } from "@/lib/familyFeud/surveyImport";
 import { hasNetworkRole, useNetworkSession } from "@/lib/networkSession";
@@ -38,6 +38,14 @@ export function LandingPage() {
   const [availablePacks, setAvailablePacks] = useState<Array<{ name: string; count: number }>>([]);
   const [questionText, setQuestionText] = useState("");
   const parsedQuestions = useMemo(() => parseSurveyQuestionBlocks(questionText, 10), [questionText]);
+
+  const onQuestionModeKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const nextMode = event.key === "Home" ? "library" : event.key === "End" ? "paste" : questionMode === "library" ? "paste" : "library";
+    setQuestionMode(nextMode);
+    window.requestAnimationFrame(() => document.getElementById(`question-tab-${nextMode}`)?.focus());
+  };
 
   useEffect(() => {
     if (!token || !canHost) return;
@@ -102,41 +110,45 @@ export function LandingPage() {
     }
   };
 
-  return <div className={styles.shell}>
+  return <div className={`${styles.shell} ${styles.feudHomeShell}`}>
     <main className={`${styles.container} ${styles.landing}`}>
       <header className={`${styles.pageIntro} ${styles.landingHero}`}>
         <div className={styles.landingHeroCopy}>
           <FeudLogo />
-          <p className={styles.eyebrow}>Game setup</p>
           <h1 className={styles.landingTitle}>Family Feud</h1>
-          <p className={styles.subhead}>Create the match, send one link to each captain, then run the board live.</p>
+          <p className={styles.subhead}>One link for players. One control room for the host. One stable program output for OBS.</p>
         </div>
-        <div className={styles.landingArt} aria-hidden="true">
-          <img className={styles.landingCoins} src="/feud-coins.webp" alt="" />
-          <img className={styles.landingDoom} src="/feud-doomfist.webp" alt="" />
+        <div className={styles.landingBoard} aria-hidden="true">
+          <span><b>1</b></span><span><b>2</b></span><span><b>3</b></span><span><b>4</b></span>
         </div>
       </header>
 
       <div className={styles.entryGrid}>
         <section className={`${styles.card} ${styles.cardPad} ${styles.entryCard}`}>
           <span className={styles.stepNumber}>1</span>
-          <div><h2 className={styles.sectionTitle}>Manager creates the game</h2><p className={styles.sectionCopy}>Set the team names, rounds and questions. The manager room will generate two captain invitations.</p></div>
-          <div className={styles.buttonRow}><button className={styles.button} disabled={!isHydrated || Boolean(user && !canHost)} onClick={openSetup}>{canHost ? "Create Family Feud" : user ? "Social Media access required" : "Sign in as manager"}</button>{canHost ? <Link className={`${styles.button} ${styles.buttonSecondary}`} href="/admin/feud/games">Manage existing games</Link> : null}</div>
+          <div><h2 className={styles.sectionTitle}>Player Join</h2><p className={styles.sectionCopy}>Players enter from the private team invitation. There is no minigame dashboard to learn.</p></div>
+          <div className={styles.captainNote}>If you are playing, ask the host for your private team link.</div>
         </section>
 
         <section className={`${styles.card} ${styles.cardPad} ${styles.entryCard}`}>
           <span className={styles.stepNumber}>2</span>
           <div>
-            <h2 className={styles.sectionTitle}>Captains use their invitation</h2>
-            <p className={styles.sectionCopy}>Each captain opens the link for their team and signs in. There is no team selection and no separate dashboard.</p>
+            <h2 className={styles.sectionTitle}>Host Control</h2>
+            <p className={styles.sectionCopy}>The manager sees the live state, connected players, answers, scores, and exactly what the program is showing.</p>
           </div>
-          <div className={styles.captainNote}>If you are a captain, ask the manager for your team link.</div>
+          <div className={styles.buttonRow}><button className={styles.button} disabled={!isHydrated || Boolean(user && !canHost)} onClick={openSetup}>{canHost ? "Create Family Feud" : user ? "Social Media access required" : "Sign in as host"}</button>{canHost ? <Link className={`${styles.button} ${styles.buttonSecondary}`} href="/admin/feud/games">Manage existing shows</Link> : null}</div>
+        </section>
+
+        <section className={`${styles.card} ${styles.cardPad} ${styles.entryCard}`}>
+          <span className={styles.stepNumber}>3</span>
+          <div><h2 className={styles.sectionTitle}>Broadcast / OBS</h2><p className={styles.sectionCopy}>A clean 16:9 program frame holds the last confirmed board while the connection recovers.</p></div>
+          <div className={styles.captainNote}>The host copies the OBS browser-source link from the control room.</div>
         </section>
       </div>
 
       {showSetup ? <section className={`${styles.card} ${styles.setupPanel}`}>
         <div className={styles.setupHeading}>
-          <div><p className={styles.eyebrow}>Game setup</p><h2>Family Feud details</h2></div>
+          <div><h2>Family Feud details</h2></div>
           <button className={styles.textButton} type="button" onClick={() => setShowSetup(false)}>Close</button>
         </div>
         <div className={styles.setupGrid}>
@@ -153,15 +165,15 @@ export function LandingPage() {
           </div>
 
           <div className={styles.questionSetup}>
-            <div className={styles.modeTabs} role="tablist" aria-label="Question source">
-              <button className={questionMode === "library" ? styles.activeTab : ""} onClick={() => setQuestionMode("library")} type="button">Use saved questions</button>
-              <button className={questionMode === "paste" ? styles.activeTab : ""} onClick={() => setQuestionMode("paste")} type="button">Paste new questions</button>
+            <div className={styles.modeTabs} role="tablist" aria-label="Question source" onKeyDown={onQuestionModeKeyDown}>
+              <button id="question-tab-library" role="tab" aria-selected={questionMode === "library"} aria-controls="question-panel-library" tabIndex={questionMode === "library" ? 0 : -1} className={questionMode === "library" ? styles.activeTab : ""} onClick={() => setQuestionMode("library")} type="button">Use saved questions</button>
+              <button id="question-tab-paste" role="tab" aria-selected={questionMode === "paste"} aria-controls="question-panel-paste" tabIndex={questionMode === "paste" ? 0 : -1} className={questionMode === "paste" ? styles.activeTab : ""} onClick={() => setQuestionMode("paste")} type="button">Paste new questions</button>
             </div>
-            {questionMode === "library" ? <div className={styles.stack}>
+            {questionMode === "library" ? <div id="question-panel-library" role="tabpanel" aria-labelledby="question-tab-library" tabIndex={0} className={styles.stack}>
               <label className={styles.field}><span>Question pack</span><select className={styles.select} value={pack} onChange={(event) => setPack(event.target.value)}>{availablePacks.length ? availablePacks.map((item) => <option key={item.name} value={item.name}>{item.name} ({item.count})</option>) : <option value="Family Feud Starter">Family Feud Starter</option>}</select></label>
               <p className={styles.helper}>Questions are selected automatically from this pack when each round starts.</p>
               <Link className={styles.inlineLink} href="/admin/feud/questions">Open the full question library</Link>
-            </div> : <div className={styles.stack}>
+            </div> : <div id="question-panel-paste" role="tabpanel" aria-labelledby="question-tab-paste" tabIndex={0} className={styles.stack}>
               <label className={styles.field}><span>Question blocks</span><textarea className={`${styles.textarea} ${styles.importArea}`} value={questionText} onChange={(event) => setQuestionText(event.target.value)} placeholder={QUESTION_EXAMPLE} /></label>
               <p className={styles.helper}>Write the question first, then one answer per line as <code>1. Answer - 40</code>. Leave a blank line before the next question.</p>
               <div className={styles.parseStatus}>{parsedQuestions.length ? `${parsedQuestions.length} questions ready to import` : "No valid questions found yet"}</div>

@@ -47,9 +47,8 @@ bash scripts/create-vps-env.sh goongingaleague.duckdns.org goonginga-gamenights.
 ```
 
 El script se niega a sobrescribir archivos de entorno existentes y crea los
-archivos con permiso `600`. Google Vision y Discord son integraciones
-independientes: cree claves nuevas en cada proveedor y agréguelas al archivo
-correspondiente solo cuando quiera activar esa función. Los archivos subidos por
+archivos con permiso `600`. Discord es una integración independiente: cree claves
+nuevas en el proveedor y agréguelas al archivo correspondiente. Los archivos subidos por
 la aplicación se guardan en el volumen local `media/`; consulte
 `BLOB_MIGRATION.md` para migrar los existentes.
 

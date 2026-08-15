@@ -24,16 +24,15 @@ import {
   updateManagerMatch,
   finishPendingRegisters,
   getAllPlayerStats,
-  uploadMatchStatsScreenshotPreview,
-  confirmMatchStatsUpload,
+  createBatchPlayerStats,
   managerTogglePause,
   managerClearPauseRequest,
   type Match,
   type Team,
   type DraftState,
   type Member,
-  type MatchStatPreviewResponse,
-  type MatchStatPreviewRow,
+  type MatchStatGameEntry,
+  type MatchStatEntryRow,
 } from "@/lib/api";
 import { formatDateEST, formatDateTimeEST } from "@/lib/dateUtils";
 import type { PlayerStat } from "@/lib/api/types";
@@ -42,84 +41,17 @@ type TabValue = "scheduled" | "active" | "pending" | "stats";
 type MapType = "CONTROL" | "HYBRID" | "PAYLOAD" | "PUSH" | "FLASHPOINT";
 type HeroRole = "TANK" | "DPS" | "SUPPORT";
 
-type PendingUploadFormState = {
-  images: File[];
+type PendingStatFormState = {
   mapType: MapType;
   matchTitle: string;
 };
 
-type PlayerCandidate = {
-  id: number;
-  nickname: string;
-};
-
 const POLL_INTERVAL = 12000;
 
-const DEFAULT_PENDING_UPLOAD_FORM: PendingUploadFormState = {
-  images: [],
+const DEFAULT_PENDING_STAT_FORM: PendingStatFormState = {
   mapType: "FLASHPOINT",
   matchTitle: "",
 };
-
-const normalizeNicknameForMatch = (value: string) =>
-  value
-    .normalize("NFKD")
-    .replace(/[^a-zA-Z0-9]/g, "")
-    .toUpperCase()
-    .replace(/0/g, "O")
-    .replace(/1/g, "I")
-    .replace(/5/g, "S")
-    .replace(/8/g, "B")
-    .replace(/2/g, "Z");
-
-function levenshteinDistance(a: string, b: string) {
-  if (!a.length) return b.length;
-  if (!b.length) return a.length;
-  const dp = Array.from({ length: a.length + 1 }, () => new Array<number>(b.length + 1).fill(0));
-  for (let i = 0; i <= a.length; i += 1) dp[i][0] = i;
-  for (let j = 0; j <= b.length; j += 1) dp[0][j] = j;
-  for (let i = 1; i <= a.length; i += 1) {
-    for (let j = 1; j <= b.length; j += 1) {
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
-    }
-  }
-  return dp[a.length][b.length];
-}
-
-function nicknameMatchScore(inputNickname: string, candidateNickname: string) {
-  const left = normalizeNicknameForMatch(inputNickname);
-  const right = normalizeNicknameForMatch(candidateNickname);
-  if (!left || !right) return 0;
-  if (left === right) return 1;
-  if ((left.includes(right) || right.includes(left)) && Math.min(left.length, right.length) >= 4) return 0.9;
-  const maxLen = Math.max(left.length, right.length);
-  if (maxLen >= 4) {
-    const similarity = 1 - levenshteinDistance(left, right) / maxLen;
-    if (similarity >= 0.85) return 0.84;
-    if (similarity >= 0.72) return 0.72;
-  }
-  return 0;
-}
-
-function findBestPlayerMatch(
-  nickname: string,
-  candidates: PlayerCandidate[],
-  usedIds: Set<number>,
-  keepCurrentId?: number | null
-) {
-  let best: PlayerCandidate | null = null;
-  let bestScore = 0;
-  for (const candidate of candidates) {
-    if (candidate.id !== keepCurrentId && usedIds.has(candidate.id)) continue;
-    const score = nicknameMatchScore(nickname, candidate.nickname);
-    if (score > bestScore) {
-      best = candidate;
-      bestScore = score;
-    }
-  }
-  return bestScore >= 0.7 ? best : null;
-}
 
 function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean }) {
   const router = useRouter();
@@ -132,20 +64,22 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
   const [members, setMembers] = useState<Member[]>([]);
   const [drafts, setDrafts] = useState<Record<number, DraftState | null>>({});
   const [loading, setLoading] = useState(true);
+  const [dataError, setDataError] = useState<string | null>(null);
   const [creatingDraft, setCreatingDraft] = useState<number | null>(null);
   const [activeStatMatchId, setActiveStatMatchId] = useState<number | null>(null);
-  const [uploadForms, setUploadForms] = useState<Record<number, PendingUploadFormState>>({});
-  const [matchPreviews, setMatchPreviews] = useState<Record<number, MatchStatPreviewResponse[]>>({});
-  const [parsingMatchId, setParsingMatchId] = useState<number | null>(null);
+  const [statForms, setStatForms] = useState<Record<number, PendingStatFormState>>({});
+  const [gameEntries, setGameEntries] = useState<Record<number, MatchStatGameEntry[]>>({});
   const [confirmingMatchId, setConfirmingMatchId] = useState<number | null>(null);
-  const [uploadMessages, setUploadMessages] = useState<Record<number, string>>({});
+  const [statMessages, setStatMessages] = useState<Record<number, string>>({});
   const [finishingMatchId, setFinishingMatchId] = useState<number | null>(null);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
+  const [notificationsSupported, setNotificationsSupported] = useState(false);
   // Stats tab state
   const [allStats, setAllStats] = useState<PlayerStat[]>([]);
   const [statsSearch, setStatsSearch] = useState("");
   const [statsTopFilter, setStatsTopFilter] = useState<string | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
+  const [statsError, setStatsError] = useState<string | null>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const prevMatchesRef = useRef<Match[]>([]);
 
@@ -174,10 +108,8 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
 
   useEffect(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
+      setNotificationsSupported(true);
       setNotificationPermission(Notification.permission);
-      if (Notification.permission === "default") {
-        Notification.requestPermission().then(setNotificationPermission);
-      }
     }
   }, []);
 
@@ -228,6 +160,7 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
       setMatches(matchesData);
       setTeams(teamsData);
       setMembers(membersData);
+      setDataError(null);
 
         const activeMatches = matchesData.filter((m) => m.status === "ACTIVE");
       const draftPromises = activeMatches.map(async (match) => {
@@ -247,6 +180,7 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
       setDrafts(newDrafts);
     } catch (err) {
       console.error("Failed to load data:", err);
+      setDataError(err instanceof Error ? err.message : "League operations could not be refreshed.");
     } finally {
       if (!silent) setLoading(false);
     }
@@ -258,8 +192,10 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
     try {
       const data = await getAllPlayerStats(token);
       setAllStats(data);
+      setStatsError(null);
     } catch (err) {
       console.error("Failed to load stats:", err);
+      setStatsError(err instanceof Error ? err.message : "Player stats could not be loaded.");
     } finally {
       setStatsLoading(false);
     }
@@ -295,149 +231,114 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
     return members.filter((member) => member.teamId === match.teamAId || member.teamId === match.teamBId);
   }
 
-  function getOrCreateUploadForm(matchId: number) {
-    return uploadForms[matchId] ?? DEFAULT_PENDING_UPLOAD_FORM;
+  function getOrCreateStatForm(matchId: number) {
+    return statForms[matchId] ?? DEFAULT_PENDING_STAT_FORM;
   }
 
   function openStatForm(match: Match) {
     const matchId = match.id;
     setActiveStatMatchId((prev) => (prev === matchId ? null : matchId));
-    setUploadForms((prev) => {
+    setStatForms((prev) => {
       if (prev[matchId]) return prev;
       return {
         ...prev,
         [matchId]: {
-          ...DEFAULT_PENDING_UPLOAD_FORM,
+          ...DEFAULT_PENDING_STAT_FORM,
           matchTitle: String(match.title || ""),
         },
       };
     });
   }
 
-  function updateUploadForm(matchId: number, patch: Partial<PendingUploadFormState>) {
-    setUploadForms((prev) => ({
+  function updateStatForm(matchId: number, patch: Partial<PendingStatFormState>) {
+    setStatForms((prev) => ({
       ...prev,
-      [matchId]: { ...(prev[matchId] ?? DEFAULT_PENDING_UPLOAD_FORM), ...patch },
+      [matchId]: { ...(prev[matchId] ?? DEFAULT_PENDING_STAT_FORM), ...patch },
     }));
   }
 
-  function updatePreviewRow(matchId: number, previewIndex: number, rowIndex: number, patch: Partial<MatchStatPreviewRow>) {
-    setMatchPreviews((prev) => {
-      const previews = prev[matchId] || [];
-      const target = previews[previewIndex];
+  function updateGameRow(matchId: number, gameIndex: number, rowIndex: number, patch: Partial<MatchStatEntryRow>) {
+    setGameEntries((prev) => {
+      const entries = prev[matchId] || [];
+      const target = entries[gameIndex];
       if (!target) return prev;
       const rows = [...target.rows];
       rows[rowIndex] = { ...rows[rowIndex], ...patch };
-      const nextPreviews = [...previews];
-      nextPreviews[previewIndex] = { ...target, rows };
-      return { ...prev, [matchId]: nextPreviews };
+      const nextEntries = [...entries];
+      nextEntries[gameIndex] = { ...target, rows };
+      return { ...prev, [matchId]: nextEntries };
     });
   }
 
-  async function handleParseScreenshot(match: Match) {
-    if (!token) return;
+  function addGameEntry(match: Match) {
     const matchPlayers = getPlayersForMatch(match);
-    const form = getOrCreateUploadForm(match.id);
+    const form = getOrCreateStatForm(match.id);
     const expectedGames = Math.max(1, (match.mapWinsTeamA || 0) + (match.mapWinsTeamB || 0));
-    const existingPreviews = matchPreviews[match.id] || [];
-    if (existingPreviews.length >= expectedGames) {
-      setUploadMessages((prev) => ({
+    const existingEntries = gameEntries[match.id] || [];
+    if (existingEntries.length >= expectedGames) {
+      setStatMessages((prev) => ({
         ...prev,
-        [match.id]: `All ${expectedGames} game screenshot(s) are already uploaded.`,
+        [match.id]: `All ${expectedGames} game entries are already open.`,
       }));
       return;
     }
-    const selectedImages = form.images || [];
-    if (!selectedImages.length) {
-      setUploadMessages((prev) => ({ ...prev, [match.id]: "Please select screenshot image(s) first." }));
-      return;
-    }
-    const remainingSlots = Math.max(0, expectedGames - existingPreviews.length);
-    const imagesToParse = selectedImages.slice(0, remainingSlots);
-
-    setParsingMatchId(match.id);
-    setUploadMessages((prev) => ({
-      ...prev,
-      [match.id]: `Reading ${imagesToParse.length} screenshot(s) and auto-filling players...`,
+    const rows: MatchStatEntryRow[] = matchPlayers.slice(0, 10).map((player) => ({
+      userId: player.id,
+      role: "DPS",
+      kills: 0,
+      assists: 0,
+      deaths: 0,
+      damage: 0,
+      healing: 0,
+      mitigation: 0,
     }));
-
-    try {
-      const parsedPreviews: MatchStatPreviewResponse[] = [];
-      for (const image of imagesToParse) {
-        const response = await uploadMatchStatsScreenshotPreview(token, {
-          image,
-          matchId: match.id,
-          mapType: form.mapType,
-        });
-
-        const paddedRows = [...response.rows];
-        while (paddedRows.length < 10) {
-          paddedRows.push({ nickname: "", userId: null, role: "DPS", kills: 0, assists: 0, deaths: 0, damage: 0, healing: 0, mitigation: 0, userFound: false });
-        }
-        parsedPreviews.push({ ...response, rows: paddedRows.slice(0, 10) });
-      }
-
-      setMatchPreviews((prev) => {
-        const existing = prev[match.id] || [];
-        return { ...prev, [match.id]: [...existing, ...parsedPreviews].slice(0, expectedGames) };
-      });
-      updateUploadForm(match.id, { images: [] });
-      setUploadMessages((prev) => {
-        const skipped = selectedImages.length - imagesToParse.length;
-        const suffix = skipped > 0 ? ` ${skipped} extra file(s) ignored because this match only needs ${expectedGames} game(s).` : "";
-        return { ...prev, [match.id]: `Parsed ${parsedPreviews.length} screenshot(s). Verify players, then confirm.${suffix}` };
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to parse screenshot.";
-      setUploadMessages((prev) => ({ ...prev, [match.id]: message }));
-    } finally {
-      setParsingMatchId(null);
-    }
+    setGameEntries((prev) => ({
+      ...prev,
+      [match.id]: [...(prev[match.id] || []), { mapType: form.mapType, gameDuration: 0, rows, players: matchPlayers }],
+    }));
+    setStatMessages((prev) => ({ ...prev, [match.id]: `Game ${existingEntries.length + 1} is ready for manual entry.` }));
   }
 
   async function handleConfirmBatch(matchId: number) {
     if (!token) return;
-    const form = getOrCreateUploadForm(matchId);
+    const form = getOrCreateStatForm(matchId);
     const title = form.matchTitle.trim();
     if (!title) {
-      setUploadMessages((prev) => ({
+      setStatMessages((prev) => ({
         ...prev,
         [matchId]: "Please set a match title first (example: MATCH OF NEPAL).",
       }));
       return;
     }
 
-    const previews = matchPreviews[matchId] || [];
+    const entries = gameEntries[matchId] || [];
     const expectedGames = Math.max(1, (matches.find((m) => m.id === matchId)?.mapWinsTeamA || 0) + (matches.find((m) => m.id === matchId)?.mapWinsTeamB || 0));
-    if (previews.length < expectedGames) {
-      setUploadMessages((prev) => ({
+    if (entries.length < expectedGames) {
+      setStatMessages((prev) => ({
         ...prev,
-        [matchId]: `Upload ${expectedGames} screenshot(s) before confirming (${previews.length}/${expectedGames} ready).`,
+        [matchId]: `Complete ${expectedGames} game entries before saving (${entries.length}/${expectedGames} ready).`,
       }));
       return;
     }
-    const previewsToSave = previews.slice(0, expectedGames);
-    if (!previews.length) {
-      setUploadMessages((prev) => ({ ...prev, [matchId]: "Parse a screenshot first." }));
+    const entriesToSave = entries.slice(0, expectedGames);
+    if (entriesToSave.some((entry) => entry.gameDuration <= 0)) {
+      setStatMessages((prev) => ({ ...prev, [matchId]: "Enter a duration for every game before saving." }));
       return;
     }
 
     setConfirmingMatchId(matchId);
-    setUploadMessages((prev) => ({ ...prev, [matchId]: "Saving player stats..." }));
+    setStatMessages((prev) => ({ ...prev, [matchId]: "Saving player stats..." }));
 
     try {
       await updateManagerMatch(token, matchId, { title });
 
-      let totalSaved = 0;
-      for (let batchIndex = 0; batchIndex < previewsToSave.length; batchIndex += 1) {
-        const preview = previewsToSave[batchIndex];
-        const rows = preview.rows.slice(0, 10);
-        const result = await confirmMatchStatsUpload(token, {
-          matchId,
-          mapType: preview.mapType,
+      const result = await createBatchPlayerStats(token, {
+        matchId,
+        games: entriesToSave.map((entry, batchIndex) => ({
+          mapType: entry.mapType,
           gameNumber: batchIndex + 1,
-          gameDuration: preview.gameDuration,
-          rows: rows.map((row) => ({
+          gameDuration: entry.gameDuration,
+          rows: entry.rows.slice(0, 10).map((row) => ({
             userId: row.userId,
             role: row.role,
             kills: Number(row.kills),
@@ -447,17 +348,16 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
             healing: Number(row.healing),
             mitigation: Number(row.mitigation),
           })),
-        });
-        totalSaved += result.count;
-      }
-      setUploadMessages((prev) => ({
+        })),
+      });
+      setStatMessages((prev) => ({
         ...prev,
-        [matchId]: `Saved ${totalSaved} player stats across ${previewsToSave.length} game(s) for ${title}. Mark as finished when done.`,
+        [matchId]: `Saved ${result.count} player stats across ${entriesToSave.length} game(s) for ${title}. Mark as finished when done.`,
       }));
-      setMatchPreviews((prev) => ({ ...prev, [matchId]: [] }));
+      setGameEntries((prev) => ({ ...prev, [matchId]: [] }));
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to save match stats.";
-      setUploadMessages((prev) => ({ ...prev, [matchId]: message }));
+      setStatMessages((prev) => ({ ...prev, [matchId]: message }));
     } finally {
       setConfirmingMatchId(null);
     }
@@ -468,11 +368,11 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
     setFinishingMatchId(matchId);
     try {
       await finishPendingRegisters(token, matchId);
-      setUploadMessages((prev) => ({ ...prev, [matchId]: "Match moved to FINISHED." }));
+      setStatMessages((prev) => ({ ...prev, [matchId]: "Match moved to FINISHED." }));
       await loadData(true);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to mark match as finished.";
-      setUploadMessages((prev) => ({ ...prev, [matchId]: message }));
+      setStatMessages((prev) => ({ ...prev, [matchId]: message }));
     } finally {
       setFinishingMatchId(null);
     }
@@ -555,7 +455,9 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
     return <div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-muted">Loading...</div></div>;
   }
 
-  if (!isAuthenticated || !canManage) return null;
+  if (!isAuthenticated || !canManage) {
+    return <div className="min-h-screen bg-background flex items-center justify-center" role="status"><div className="border border-border bg-surface px-6 py-5 text-muted">Redirecting to authorized access…</div></div>;
+  }
 
   return (
     <main className={embedded ? "manager-workspace py-4" : "min-h-screen bg-background py-8"}>
@@ -563,7 +465,7 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-foreground">{embedded ? "League operations" : "Manager Dashboard"}</h1>
-            <p className="text-muted mt-1">Manage matches, create draft tables, and upload results</p>
+            <p className="text-muted mt-1">Manage matches, create draft tables, and register results</p>
           </div>
           <div className="flex items-center gap-3">
             <Link
@@ -572,10 +474,13 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
             >
               Edit assets
             </Link>
-            <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-            <span className="text-xs text-muted">Live updates</span>
+            {notificationsSupported && notificationPermission === "default" ? <Button size="sm" variant="secondary" onClick={() => void Notification.requestPermission().then(setNotificationPermission)}>Enable alerts</Button> : null}
+            <div className={`w-2 h-2 rounded-full ${dataError ? "bg-danger" : "bg-success animate-pulse"}`} aria-hidden="true" />
+            <span className="text-xs text-muted">{dataError ? "Updates interrupted" : "Live updates"}</span>
           </div>
         </div>
+
+        {dataError ? <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border border-danger/50 bg-danger/10 p-4" role="alert"><span>Could not refresh league operations: {dataError}</span><Button size="sm" variant="secondary" onClick={() => void loadData()}>Try again</Button></div> : null}
 
         {/* Overview cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -801,8 +706,8 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
                       const teamAName = getTeamName(match.teamAId);
                       const teamBName = getTeamName(match.teamBId);
                       const matchPlayers = getPlayersForMatch(match);
-                      const form = getOrCreateUploadForm(match.id);
-                      const previews = matchPreviews[match.id] || [];
+                      const form = getOrCreateStatForm(match.id);
+                      const entries = gameEntries[match.id] || [];
                       const expectedGames = Math.max(1, (match.mapWinsTeamA || 0) + (match.mapWinsTeamB || 0));
                       const isOpen = activeStatMatchId === match.id;
 
@@ -833,8 +738,7 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
                           {isOpen && (
                             <div className="mt-4 border-t border-border pt-4 space-y-4">
                               <p className="text-sm text-muted">
-                                Upload scoreboard screenshots for this match. The system auto-fills players, roles, duration, and map type using OCR.
-                                Verify the rows, then confirm.
+                                Enter the official scoreboard values for each played map. Match rosters are loaded automatically; verify roles, duration, and values before saving.
                               </p>
 
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -845,16 +749,16 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
                                     className="w-full rounded-md border border-border bg-background px-3 py-2"
                                     placeholder="MATCH OF NEPAL"
                                     value={form.matchTitle}
-                                    onChange={(e) => updateUploadForm(match.id, { matchTitle: e.target.value })}
+                                    onChange={(e) => updateStatForm(match.id, { matchTitle: e.target.value })}
                                   />
                                 </label>
 
                                 <label className="text-sm">
-                                  <span className="text-muted block mb-1">Map Type Fallback</span>
+                                  <span className="text-muted block mb-1">Default map type</span>
                                   <select
                                     className="w-full rounded-md border border-border bg-background px-3 py-2"
                                     value={form.mapType}
-                                    onChange={(e) => updateUploadForm(match.id, { mapType: e.target.value as MapType })}
+                                    onChange={(e) => updateStatForm(match.id, { mapType: e.target.value as MapType })}
                                   >
                                     {["CONTROL", "HYBRID", "PAYLOAD", "PUSH", "FLASHPOINT"].map((t) => (
                                       <option key={t} value={t}>{t}</option>
@@ -862,53 +766,47 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
                                   </select>
                                 </label>
 
-                                <label className="text-sm">
-                                  <span className="text-muted block mb-1">Screenshots</span>
-                                  <input
-                                    type="file" accept="image/*" multiple
-                                    className="w-full rounded-md border border-border bg-background px-3 py-2"
-                                    onChange={(e) => updateUploadForm(match.id, { images: Array.from(e.target.files || []) })}
-                                  />
-                                </label>
                               </div>
 
                               <div className="flex flex-wrap items-center gap-3">
-                                <Button onClick={() => void handleParseScreenshot(match)} disabled={parsingMatchId === match.id}>
-                                  {parsingMatchId === match.id ? "Parsing..." : "Parse Screenshot(s) (OCR)"}
+                                <Button onClick={() => addGameEntry(match)} disabled={entries.length >= expectedGames}>
+                                  {entries.length >= expectedGames ? "All games added" : `Add game ${entries.length + 1}`}
                                 </Button>
                                 <Button
                                   onClick={() => void handleConfirmBatch(match.id)}
-                                  disabled={!previews.length || confirmingMatchId === match.id}
+                                  disabled={entries.length < expectedGames || confirmingMatchId === match.id}
                                 >
-                                  {confirmingMatchId === match.id ? "Saving..." : `Confirm ${previews.length} Game(s)`}
+                                  {confirmingMatchId === match.id ? "Saving..." : `Save ${entries.length} game${entries.length === 1 ? "" : "s"}`}
                                 </Button>
                                 <Button
                                   variant="secondary"
-                                  onClick={() => void handleFinishMatch(match.id)}
+                                  onClick={() => {
+                                    if (window.confirm("Mark this match finished? This publishes the final score and stats.")) void handleFinishMatch(match.id);
+                                  }}
                                   disabled={finishingMatchId === match.id}
                                 >
                                   {finishingMatchId === match.id ? "Finishing..." : "Mark Match Finished"}
                                 </Button>
-                                {uploadMessages[match.id] && (
-                                  <span className="text-sm text-muted">{uploadMessages[match.id]}</span>
+                                {statMessages[match.id] && (
+                                  <span className="text-sm text-muted" role="status" aria-live="polite">{statMessages[match.id]}</span>
                                 )}
                               </div>
 
                               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                 {Array.from({ length: expectedGames }).map((_, slotIndex) => {
-                                  const preview = previews[slotIndex];
+                                  const entry = entries[slotIndex];
                                   return (
                                     <div
                                       key={slotIndex}
-                                      className={`rounded-md border p-3 ${preview ? "border-success/40 bg-success/5" : "border-border bg-surface/40"}`}
+                                      className={`rounded-md border p-3 ${entry ? "border-success/40 bg-success/5" : "border-border bg-surface/40"}`}
                                     >
                                       <p className="text-sm font-semibold text-foreground">Game {slotIndex + 1}</p>
                                       <p className="text-xs text-muted">
-                                        {preview ? "Screenshot loaded" : "Pending screenshot"}
+                                        {entry ? "Manual entry open" : "Not added"}
                                       </p>
-                                      {preview && (
+                                      {entry && (
                                         <p className="text-xs text-muted mt-1">
-                                          {preview.mapType} &middot; {preview.gameDuration ? `${preview.gameDuration}s` : "Duration TBD"}
+                                          {entry.mapType} &middot; {entry.gameDuration ? `${entry.gameDuration}s` : "Duration required"}
                                         </p>
                                       )}
                                     </div>
@@ -916,68 +814,58 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
                                 })}
                               </div>
 
-                              {previews.map((preview, previewIndex) => (
-                                <div key={previewIndex} className="space-y-3 rounded-md border border-border p-3 bg-surface/40">
+                              {entries.map((entry, gameIndex) => (
+                                <div key={gameIndex} className="space-y-3 rounded-md border border-border p-3 bg-surface/40">
                                   <div className="flex items-center justify-between">
-                                    <p className="text-sm font-semibold text-foreground">Game Screenshot #{previewIndex + 1}</p>
-                                    <p className="text-xs text-muted">{preview.mapType}</p>
+                                    <p className="text-sm font-semibold text-foreground">Game {gameIndex + 1} stats</p>
+                                    <button type="button" className="text-xs font-semibold text-danger underline underline-offset-4" onClick={() => setGameEntries((current) => ({ ...current, [match.id]: (current[match.id] || []).filter((_, index) => index !== gameIndex) }))}>Remove game</button>
                                   </div>
 
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                   <label className="text-sm block">
-                                    <span className="text-muted">Match Duration (seconds)</span>
+                                    <span className="text-muted">Map type</span>
+                                    <select className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2" value={entry.mapType} onChange={(event) => setGameEntries((prev) => { const list = [...(prev[match.id] || [])]; list[gameIndex] = { ...entry, mapType: event.target.value as MapType }; return { ...prev, [match.id]: list }; })}>
+                                      {["CONTROL", "HYBRID", "PAYLOAD", "PUSH", "FLASHPOINT"].map((type) => <option key={type} value={type}>{type}</option>)}
+                                    </select>
+                                  </label>
+                                  <label className="text-sm block">
+                                    <span className="text-muted">Duration in seconds</span>
                                     <input
-                                      type="number" min={0}
+                                      type="number" min={1}
                                       className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
-                                      value={preview.gameDuration}
+                                      value={entry.gameDuration || ""}
                                       onChange={(e) =>
-                                        setMatchPreviews((prev) => {
+                                        setGameEntries((prev) => {
                                           const list = [...(prev[match.id] || [])];
-                                          list[previewIndex] = { ...preview, gameDuration: Number(e.target.value || 0) };
+                                          list[gameIndex] = { ...entry, gameDuration: Number(e.target.value || 0) };
                                           return { ...prev, [match.id]: list };
                                         })
                                       }
                                     />
                                   </label>
+                                  </div>
 
                                   <div className="overflow-x-auto rounded-md border border-border">
                                     <table className="w-full text-sm">
                                       <thead className="bg-surface">
                                         <tr>
-                                          {["#", "OCR Nick", "User", "Role", "K", "A", "D", "DMG", "HEAL", "MIT"].map((h) => (
+                                          {["#", "Player", "Role", "K", "A", "D", "DMG", "HEAL", "MIT"].map((h) => (
                                             <th key={h} className="px-2 py-2 text-left text-xs">{h}</th>
                                           ))}
                                         </tr>
                                       </thead>
                                       <tbody>
-                                        {preview.rows.slice(0, 10).map((row, rowIndex) => (
-                                          <tr key={rowIndex} className={`border-t border-border ${row.userFound ? "" : "bg-warning/5"}`}>
+                                        {entry.rows.slice(0, 10).map((row, rowIndex) => (
+                                          <tr key={rowIndex} className="border-t border-border">
                                             <td className="px-2 py-1 text-xs text-muted">{rowIndex + 1}</td>
-                                            <td className="px-2 py-1">
-                                              <input
-                                                className="w-28 rounded border border-border bg-background px-2 py-1 text-xs"
-                                                value={row.nickname}
-                                                onChange={(e) => {
-                                                  const nickname = e.target.value;
-                                                  const selectedPlayers = new Set(
-                                                    preview.rows.filter((_, i) => i !== rowIndex).map((r) => r.userId).filter((id): id is number => Boolean(id))
-                                                  );
-                                                  const candidatePlayers = (preview.players?.length ? preview.players : matchPlayers) as PlayerCandidate[];
-                                                  const auto = findBestPlayerMatch(nickname, candidatePlayers, selectedPlayers, row.userId);
-                                                  updatePreviewRow(match.id, previewIndex, rowIndex, {
-                                                    nickname,
-                                                    ...(auto && (!row.userId || !row.userFound) ? { userId: auto.id, userFound: true } : {}),
-                                                  });
-                                                }}
-                                              />
-                                            </td>
                                             <td className="px-2 py-1">
                                               <select
                                                 className="w-36 rounded border border-border bg-background px-2 py-1 text-xs"
                                                 value={row.userId ?? ""}
-                                                onChange={(e) => updatePreviewRow(match.id, previewIndex, rowIndex, { userId: e.target.value ? Number(e.target.value) : null })}
+                                                onChange={(e) => updateGameRow(match.id, gameIndex, rowIndex, { userId: e.target.value ? Number(e.target.value) : null })}
                                               >
                                                 <option value="">— select —</option>
-                                                {(preview.players?.length ? preview.players : matchPlayers).map((player) => (
+                                                {entry.players.map((player) => (
                                                   <option key={player.id} value={player.id}>{player.nickname}</option>
                                                 ))}
                                               </select>
@@ -986,7 +874,7 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
                                               <select
                                                 className="w-20 rounded border border-border bg-background px-2 py-1 text-xs"
                                                 value={row.role}
-                                                onChange={(e) => updatePreviewRow(match.id, previewIndex, rowIndex, { role: e.target.value as HeroRole })}
+                                                onChange={(e) => updateGameRow(match.id, gameIndex, rowIndex, { role: e.target.value as HeroRole })}
                                               >
                                                 <option value="TANK">TANK</option>
                                                 <option value="DPS">DPS</option>
@@ -999,7 +887,7 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
                                                   type="number" min={0}
                                                   className="w-16 rounded border border-border bg-background px-2 py-1 text-xs"
                                                   value={row[field]}
-                                                  onChange={(e) => updatePreviewRow(match.id, previewIndex, rowIndex, { [field]: Number(e.target.value || 0) })}
+                                                  onChange={(e) => updateGameRow(match.id, gameIndex, rowIndex, { [field]: Number(e.target.value || 0) })}
                                                 />
                                               </td>
                                             ))}
@@ -1009,12 +897,6 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
                                     </table>
                                   </div>
 
-                                  {preview.ocrPreview && (
-                                    <details className="text-xs">
-                                      <summary className="cursor-pointer text-muted">OCR raw text (debug)</summary>
-                                      <pre className="mt-2 p-2 bg-surface rounded text-foreground whitespace-pre-wrap">{preview.ocrPreview}</pre>
-                                    </details>
-                                  )}
                                 </div>
                               ))}
                             </div>
@@ -1031,6 +913,7 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
           {/* STATS TAB */}
           <TabsContent value="stats">
             <div className="space-y-6">
+              {statsError ? <div className="flex flex-wrap items-center justify-between gap-3 border border-danger/50 bg-danger/10 p-4" role="alert"><span>Could not load player stats: {statsError}</span><Button size="sm" variant="secondary" onClick={() => void loadStats()}>Try again</Button></div> : null}
               {/* Search bar */}
               <Card variant="featured">
                 <CardContent className="p-4">

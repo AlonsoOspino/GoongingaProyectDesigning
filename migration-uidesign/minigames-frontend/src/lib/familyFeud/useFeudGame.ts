@@ -10,6 +10,7 @@ export function useFeudGame(gameCode: string, view: FeudView) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(false);
+  const [lastConfirmedAt, setLastConfirmedAt] = useState<number | null>(null);
   const refreshing = useRef(false);
 
   const refresh = useCallback(async () => {
@@ -18,6 +19,10 @@ export function useFeudGame(gameCode: string, view: FeudView) {
     try {
       const next = await getFeudGame(gameCode, view, getFeudAccessToken(gameCode));
       setData(next);
+      setLastConfirmedAt(Date.now());
+      if (view === "spectator") {
+        try { localStorage.setItem(`feud-program:${gameCode}`, JSON.stringify(next)); } catch { /* Program output continues without persistence. */ }
+      }
       setError(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Family Feud is reconnecting.");
@@ -25,6 +30,18 @@ export function useFeudGame(gameCode: string, view: FeudView) {
       refreshing.current = false;
       setLoading(false);
     }
+  }, [gameCode, view]);
+
+  useEffect(() => {
+    if (view !== "spectator" || !gameCode) return;
+    try {
+      const cached = localStorage.getItem(`feud-program:${gameCode}`);
+      if (!cached) return;
+      const projection = JSON.parse(cached) as FeudProjection;
+      if (projection?.game?.code !== gameCode) return;
+      setData((current) => current || projection);
+      setLoading(false);
+    } catch { /* A malformed cache must never interrupt the program frame. */ }
   }, [gameCode, view]);
 
   useEffect(() => { void refresh(); }, [refresh]);
@@ -107,5 +124,5 @@ export function useFeudGame(gameCode: string, view: FeudView) {
     return next;
   }, [gameCode]);
 
-  return { data, error, loading, connected, refresh, action };
+  return { data, error, loading, connected, stale: Boolean(data && (!connected || error)), lastConfirmedAt, refresh, action };
 }

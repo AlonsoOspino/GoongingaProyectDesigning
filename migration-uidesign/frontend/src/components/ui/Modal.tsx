@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type HTMLAttributes, type ReactNode } from "react";
+import { useEffect, useId, useRef, type HTMLAttributes, type ReactNode } from "react";
 import { clsx } from "clsx";
 
 interface ModalProps {
@@ -12,19 +12,50 @@ interface ModalProps {
 }
 
 export function Modal({ isOpen, onClose, title, children, className }: ModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+    if (!isOpen) return;
+
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const dialog = dialogRef.current;
+    const focusableSelector = "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])";
+    const focusable = () => Array.from(dialog?.querySelectorAll<HTMLElement>(focusableSelector) ?? []);
+    const frame = window.requestAnimationFrame(() => (focusable()[0] ?? dialog)?.focus());
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const items = focusable();
+      if (!items.length) {
+        event.preventDefault();
+        dialog?.focus();
+        return;
+      }
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
 
-    if (isOpen) {
-      document.addEventListener("keydown", handleEscape);
-      document.body.style.overflow = "hidden";
-    }
+    document.addEventListener("keydown", handleKeyDown);
+    document.body.style.overflow = "hidden";
 
     return () => {
-      document.removeEventListener("keydown", handleEscape);
+      window.cancelAnimationFrame(frame);
+      document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "";
+      previouslyFocused?.focus();
     };
   }, [isOpen, onClose]);
 
@@ -41,9 +72,11 @@ export function Modal({ isOpen, onClose, title, children, className }: ModalProp
 
       {/* Modal */}
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-labelledby={title ? "modal-title" : undefined}
+        aria-labelledby={title ? titleId : undefined}
+        tabIndex={-1}
         className={clsx(
           "relative z-10 w-full max-w-lg bg-card border border-border rounded-xl shadow-2xl animate-fade-in max-h-[calc(100vh-3rem)] overflow-y-auto",
           className
@@ -51,7 +84,7 @@ export function Modal({ isOpen, onClose, title, children, className }: ModalProp
       >
         {title && (
           <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-            <h2 id="modal-title" className="text-lg font-semibold text-foreground">
+            <h2 id={titleId} className="text-lg font-semibold text-foreground">
               {title}
             </h2>
             <button

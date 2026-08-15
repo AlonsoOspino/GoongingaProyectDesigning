@@ -29,8 +29,6 @@ export default function LeaderboardOverlayPage() {
   const [weekMatches, setWeekMatches] = useState<Match[]>([]);
   const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(null);
   const [settings, setSettings] = useState(normalizeLeaderboardOverlaySettings(null));
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -57,8 +55,6 @@ export default function LeaderboardOverlayPage() {
 
   useEffect(() => {
     if (!Number.isInteger(matchId) || matchId <= 0) {
-      setLoading(false);
-      setError("Invalid match id.");
       return;
     }
 
@@ -94,17 +90,12 @@ export default function LeaderboardOverlayPage() {
         setWeekMatches(weekMatchesData.sort((a, b) => a.id - b.id));
         setBackgroundImageUrl(overlayAsset.backgroundImageUrl);
         setSettings(finalSettings);
-        setError(null);
-      } catch (fetchError) {
+      } catch {
         if (cancelled) return;
-        const message = fetchError instanceof Error ? fetchError.message : "Failed to load overlay.";
-        setError(message);
-      } finally {
-        if (!cancelled) setLoading(false);
+        // Keep the last confirmed program frame during recoverable failures.
       }
     };
 
-    setLoading(true);
     void load();
     const pollId = window.setInterval(() => {
       void load();
@@ -116,12 +107,8 @@ export default function LeaderboardOverlayPage() {
     };
   }, [matchId]);
 
-  if (loading) {
-    return <LeaderboardOverlayStatus message="Loading leaderboard overlay" />;
-  }
-
-  if (error || !match) {
-    return <LeaderboardOverlayStatus message={error || "Overlay unavailable"} />;
+  if (!match) {
+    return <LeaderboardOverlayStatus message="Program stand by" />;
   }
 
   return (

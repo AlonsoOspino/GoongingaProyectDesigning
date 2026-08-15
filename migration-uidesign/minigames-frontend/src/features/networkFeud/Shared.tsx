@@ -30,7 +30,7 @@ export function Avatar({ name, src, className = "" }: { name: string; src?: stri
 }
 
 export function ConnectionPill({ connected }: { connected: boolean }) {
-  return <span className={styles.pill}><span className={`${styles.statusDot} ${connected ? "" : styles.offline}`} />{connected ? "Live" : "Reconnecting"}</span>;
+  return <span className={styles.pill} role="status"><span className={`${styles.statusDot} ${connected ? "" : styles.offline}`} aria-hidden="true" />{connected ? "Connected" : "Reconnecting"}</span>;
 }
 
 export function Timer({ endsAt, serverNow }: { endsAt: string | null; serverNow: string }) {
@@ -62,15 +62,15 @@ function ScoreTeam({ team }: { team: FeudTeam }) {
   </div>;
 }
 
-export function AnswerBoard({ answers, broadcast = false }: { answers: FeudBoardAnswer[]; broadcast?: boolean }) {
+export function AnswerBoard({ answers, broadcast = false, previewAnswers = false }: { answers: FeudBoardAnswer[]; broadcast?: boolean; previewAnswers?: boolean }) {
   const slots: FeudBoardAnswer[] = answers.length ? answers : Array.from({ length: 6 }, (_, index) => ({ rank: index + 1, revealed: false }));
-  return <div className={styles.boardStage} data-broadcast={broadcast || undefined}>
+  return <div className={styles.boardStage} data-broadcast={broadcast || undefined} aria-label="Survey answer board">
     <div className={styles.boardLights} aria-hidden="true" />
     <div className={styles.board}>
-      {slots.map((answer) => <div key={answer.id || answer.rank} className={`${styles.answer} ${answer.revealed ? styles.answerReveal : answer.answer ? styles.answerPreview : styles.answerHidden}`}>
+      {slots.map((answer) => <div key={answer.id || answer.rank} className={`${styles.answer} ${answer.revealed ? styles.answerReveal : previewAnswers && answer.answer ? styles.answerPreview : styles.answerHidden}`} aria-label={answer.revealed ? `Answer ${answer.rank}: ${answer.answer}, ${answer.points} points` : `Answer ${answer.rank} hidden`}>
         <span className={styles.answerRank}>{answer.rank}</span>
-        <span className={styles.answerText}>{answer.revealed || answer.answer ? answer.answer : ""}</span>
-        <span className={styles.answerPoints}>{answer.revealed || answer.points !== undefined ? answer.points : ""}</span>
+        <span className={styles.answerText}>{answer.revealed || previewAnswers ? answer.answer : ""}</span>
+        <span className={styles.answerPoints}>{answer.revealed || previewAnswers ? answer.points : ""}</span>
       </div>)}
     </div>
   </div>;
@@ -132,5 +132,5 @@ export function LoadingState({ broadcast = false }: { broadcast?: boolean }) {
 }
 
 export function ErrorState({ message, broadcast = false }: { message: string; broadcast?: boolean }) {
-  return <div className={broadcast ? styles.broadcast : styles.shell}><div className={styles.centerState}><div><FeudLogo /><h1 className={styles.phaseHero}>{broadcast ? "Reconnecting" : "Match unavailable"}</h1><p className={styles.sectionCopy}>{broadcast ? "The board will return automatically." : message}</p></div></div></div>;
+  return <div className={broadcast ? styles.broadcast : styles.shell}><div className={styles.centerState}><div><FeudLogo /><h1 className={styles.phaseHero}>{broadcast ? "Stand by" : "Match unavailable"}</h1><p className={styles.sectionCopy}>{broadcast ? "The program will resume automatically." : message}</p>{!broadcast ? <button type="button" className={styles.button} style={{ marginTop: 18 }} onClick={() => location.reload()}>Try again</button> : null}</div></div></div>;
 }

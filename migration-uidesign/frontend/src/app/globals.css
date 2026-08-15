@@ -193,8 +193,60 @@ body.jeopardy-overlay-root {
 
 .nav-mobile-toggle { display: inline-grid; }
 
-@media (min-width: 768px) {
+@media (min-width: 1280px) {
   .nav-mobile-toggle { display: none; }
+}
+
+.nav-mode-divider {
+  width: 1px;
+  height: 24px;
+  margin-inline: 4px;
+  background: var(--color-border);
+}
+
+.nav-secondary-link {
+  border: 1px solid var(--color-border);
+  color: var(--color-muted);
+}
+
+.nav-secondary-link:hover {
+  border-color: var(--color-accent);
+  background: rgba(0, 167, 199, .07);
+  color: var(--color-foreground);
+}
+
+.mobile-nav-home {
+  margin-bottom: 4px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-muted);
+  font-size: .7rem;
+  font-weight: 850;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.mobile-nav-active {
+  background: var(--color-bg-primary);
+  color: #fff;
+  box-shadow: inset 3px 0 var(--color-accent);
+}
+
+.mobile-nav-secondary {
+  display: grid;
+  gap: 2px;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+}
+
+.mobile-nav-secondary > span {
+  padding: 0 12px 4px;
+  color: var(--color-muted);
+  font-size: .66rem;
+  font-weight: 850;
+  letter-spacing: .09em;
+  text-transform: uppercase;
 }
 
 .home-hero {

@@ -20,3 +20,9 @@ node_modules/
 *.sqlite3
 *.sqlitedb
 backups/
+
+# Local AI agent, skill, and design-review tooling
+.agents/
+.codex/
+.impeccable/
+skills-lock.json

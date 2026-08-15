@@ -676,7 +676,7 @@
             <p>
               GOON es una plataforma full-stack para operaciones de liga tipo Overwatch:
               web publica, dashboards autenticados, draft en vivo, overlays para OBS,
-              noticias, OCR de estadisticas y utilidades de base de datos.
+              noticias, registro manual de estadisticas y utilidades de base de datos.
             </p>
           </div>
           <div class="tag-row">
@@ -1008,10 +1008,10 @@
               <td>DraftTable, DraftAction, Match, Team, Map, Hero</td>
             </tr>
             <tr>
-              <td><b>Stats / OCR</b></td>
+              <td><b>Stats manuales</b></td>
               <td><code>/playerStat</code></td>
-              <td><code>create</code>, <code>createFromImage</code>, <code>previewMatchFromImage</code>, <code>confirmBatchFromPreview</code>, <code>getPublic</code>, <code>getMine</code></td>
-              <td><code>services/playerStat</code>, <code>services/googleVision</code>, <code>repositories/playerStat</code>, <code>repositories/member</code></td>
+              <td><code>create</code>, <code>createBatch</code>, <code>getPublic</code>, <code>getMine</code></td>
+              <td><code>services/playerStat</code>, <code>repositories/playerStat</code>, <code>repositories/member</code></td>
               <td>PlayerStat, Member, Match</td>
             </tr>
             <tr>
@@ -1118,7 +1118,7 @@
                 <tr><td><b>/member</b></td><td><code>POST /register</code>, <code>POST /login</code>, <code>GET /all</code>, <code>GET /:id</code>, <code>PUT /:id</code>, <code>PUT /admin/:id</code>, <code>POST /bulk-import</code></td><td>Login publico; admin para registro/bulk/admin update; JWT para perfil</td><td>Member, Team</td></tr>
                 <tr><td><b>/team</b></td><td><code>GET /</code>, <code>GET /leaderboard</code>, <code>GET /:id</code>, <code>POST /create</code>, <code>POST /create-many</code>, <code>PUT /update/:id</code>, <code>PUT /admin/update/:id</code>, <code>DELETE /delete/:id</code></td><td>Lectura publica; admin/captain para escritura</td><td>Team, Member, Tournament</td></tr>
                 <tr><td><b>/tournament</b></td><td><code>GET /</code>, <code>GET /current</code>, <code>POST /create</code>, <code>PUT /update/:id</code>, <code>DELETE /delete/:id</code></td><td>Lectura publica; admin modifica</td><td>Tournament</td></tr>
-                <tr><td><b>/playerStat</b></td><td><code>GET /public</code>, <code>GET /public/user/:userId</code>, <code>GET /</code>, <code>GET /mine</code>, <code>POST /</code>, <code>POST /upload</code>, <code>POST /upload-match-preview</code>, <code>POST /upload-match-confirm</code></td><td>Publico para stats publicas; manager para OCR batch; JWT para propias/crear</td><td>PlayerStat, Member, Match</td></tr>
+                <tr><td><b>/playerStat</b></td><td><code>GET /public</code>, <code>GET /public/user/:userId</code>, <code>GET /</code>, <code>GET /mine</code>, <code>POST /</code>, <code>POST /batch</code></td><td>Publico para stats publicas; manager para batch manual; JWT para propias/crear</td><td>PlayerStat, Member, Match</td></tr>
                 <tr><td><b>/news</b></td><td><code>GET /</code>, <code>GET /:id</code>, <code>POST /create</code>, <code>PUT /update/:id</code>, <code>DELETE /delete/:id</code></td><td>Lectura publica; editor/admin modifica</td><td>News</td></tr>
                 <tr><td><b>/map</b></td><td><code>GET /</code>, <code>POST /create</code>, <code>DELETE /delete/:id</code></td><td>Lectura publica; admin modifica</td><td>Map</td></tr>
                 <tr><td><b>/hero</b></td><td><code>GET /</code>, <code>POST /create</code>, <code>DELETE /delete/:id</code></td><td>Lectura publica; admin modifica</td><td>Hero</td></tr>
@@ -1151,7 +1151,7 @@
                 <tr><td><code>admin.ts</code></td><td>Tournaments, matches, teams, members, maps, heroes, DB backup/restore/wipe</td><td><code>/tournament</code>, <code>/match/admin</code>, <code>/team</code>, <code>/system-db</code></td></tr>
                 <tr><td><code>match.ts</code></td><td><code>getMatches</code>, <code>getSoonestMatch</code>, <code>updateCaptainMatch</code>, <code>submitMatchResult</code>, <code>undoMatchResult</code>, pause helpers</td><td><code>/match</code></td></tr>
                 <tr><td><code>draft.ts</code></td><td><code>createDraft</code>, <code>startMapPicking</code>, <code>pickMap</code>, <code>startBan</code>, <code>banHero</code>, <code>endMap</code>, <code>endGame</code>, read-only state</td><td><code>/draft</code></td></tr>
-                <tr><td><code>playerStat.ts</code></td><td>Public stats, own stats, create, OCR upload, preview, confirm</td><td><code>/playerStat</code></td></tr>
+                <tr><td><code>playerStat.ts</code></td><td>Public stats, own stats, create, manual batch</td><td><code>/playerStat</code></td></tr>
                 <tr><td><code>team.ts</code></td><td><code>getTeams</code>, <code>getLeaderboard</code>, <code>updateCaptainTeam</code></td><td><code>/team</code></td></tr>
                 <tr><td><code>news.ts</code></td><td><code>getNews</code>, <code>createNews</code>, <code>deleteNews</code></td><td><code>/news</code></td></tr>
                 <tr><td><code>overlayAssets.ts</code></td><td><code>getLeaderboardOverlayAsset</code>, <code>updateLeaderboardOverlayAsset</code></td><td><code>/overlay-assets</code></td></tr>
@@ -1229,13 +1229,12 @@
           </details>
 
           <details data-search-block>
-            <summary>OCR de estadisticas</summary>
+            <summary>Registro manual de estadisticas</summary>
             <div class="details-body workflow">
-              <div class="step"><div><b>Subida de imagen</b><p>Manager usa <code>/playerStat/upload-match-preview</code> con <code>multer.memoryStorage()</code>.</p></div></div>
-              <div class="step"><div><b>OCR</b><p><code>services/googleVision</code> extrae texto y palabras; <code>services/playerStat</code> parsea filas.</p></div></div>
-              <div class="step"><div><b>Normalizacion</b><p>Detecta duracion, mapas, nicknames, roles y metricas per-10.</p></div></div>
-              <div class="step"><div><b>Preview y correccion</b><p>La UI puede revisar filas antes de confirmar.</p></div></div>
-              <div class="step"><div><b>Persistencia</b><p><code>confirmBatchFromPreview</code> crea multiples <code>PlayerStat</code> para <code>matchId</code> y <code>gameNumber</code>.</p></div></div>
+              <div class="step"><div><b>Entrada por mapa</b><p>Manager abre una fila por jugador usando los rosters reales del match.</p></div></div>
+              <div class="step"><div><b>Validacion</b><p><code>services/playerStat</code> valida duracion, mapa, rol y metricas no negativas.</p></div></div>
+              <div class="step"><div><b>Revision</b><p>La UI mantiene visibles todos los valores antes de confirmar.</p></div></div>
+              <div class="step"><div><b>Persistencia</b><p><code>createBatch</code> valida todos los juegos y reemplaza sus <code>PlayerStat</code> en una sola transaccion serializable por <code>matchId</code>; reintentar no duplica ni deja filas parciales.</p></div></div>
             </div>
           </details>
 
@@ -1273,7 +1272,7 @@
           <thead><tr><th>Rol</th><th>Middleware</th><th>Puede hacer</th><th>Areas tipicas</th></tr></thead>
           <tbody>
             <tr><td><b>ADMIN</b></td><td><code>admin.js</code></td><td>Control global, torneos, equipos, usuarios, maps/heroes, DB y configuraciones.</td><td>Admin dashboard, system-db, content admin.</td></tr>
-            <tr><td><b>MANAGER</b></td><td><code>manager.js</code></td><td>Operar matches, draft, resultados, pausas, OCR batch y overlays.</td><td>Manager dashboard, draft table, assets edition.</td></tr>
+            <tr><td><b>MANAGER</b></td><td><code>manager.js</code></td><td>Operar matches, draft, resultados, pausas, stats manuales y overlays.</td><td>Manager dashboard, draft table, assets edition.</td></tr>
             <tr><td><b>CAPTAIN</b></td><td><code>captain.js</code>, <code>captainMatch.js</code>, <code>captainDraftAction.js</code></td><td>Acciones de su equipo: ready, updates permitidos, picks/bans si corresponde.</td><td>Captain dashboard, my team, draft table.</td></tr>
             <tr><td><b>EDITOR</b></td><td><code>editor.js</code></td><td>Crear, editar y eliminar noticias/contenido editorial.</td><td>Editor dashboard, news editor.</td></tr>
             <tr><td><b>DEFAULT</b></td><td><code>authMiddleware</code></td><td>Perfil y datos propios permitidos.</td><td>Profile, stats mine.</td></tr>

@@ -43,6 +43,20 @@ interface TabsListProps {
 }
 
 export function TabsList({ children, className }: TabsListProps) {
+  const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    const tabs = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+    if (!tabs.length) return;
+    const currentIndex = tabs.indexOf(document.activeElement as HTMLButtonElement);
+    let nextIndex = currentIndex;
+    if (event.key === "Home") nextIndex = 0;
+    if (event.key === "End") nextIndex = tabs.length - 1;
+    if (event.key === "ArrowRight") nextIndex = (Math.max(0, currentIndex) + 1) % tabs.length;
+    if (event.key === "ArrowLeft") nextIndex = (currentIndex <= 0 ? tabs.length : currentIndex) - 1;
+    event.preventDefault();
+    tabs[nextIndex].focus();
+    tabs[nextIndex].click();
+  };
   return (
     <div
       className={clsx(
@@ -50,6 +64,7 @@ export function TabsList({ children, className }: TabsListProps) {
         className
       )}
       role="tablist"
+      onKeyDown={onKeyDown}
     >
       {children}
     </div>
@@ -74,6 +89,9 @@ export function TabsTrigger({ value, children, className }: TabsTriggerProps) {
       type="button"
       role="tab"
       aria-selected={isActive}
+      aria-controls={`panel-${value}`}
+      id={`tab-${value}`}
+      tabIndex={isActive ? 0 : -1}
       className={clsx(
         "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
         isActive
@@ -103,7 +121,7 @@ export function TabsContent({ value, children, className }: TabsContentProps) {
   if (activeTab !== value) return null;
 
   return (
-    <div role="tabpanel" className={clsx("mt-4", className)}>
+    <div role="tabpanel" id={`panel-${value}`} aria-labelledby={`tab-${value}`} tabIndex={0} className={clsx("mt-4", className)}>
       {children}
     </div>
   );

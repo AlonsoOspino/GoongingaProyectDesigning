@@ -86,6 +86,8 @@ export interface FeudProjection {
     captainInvites: { alpha: string; beta: string };
     participants: Array<{ memberId: number; name: string; avatarUrl: string | null; role: string; teamSide: TeamSide | null; ready: boolean; connected: boolean; isGuest: boolean }>;
     pendingResponse: null | { id: number; text: string; playerName: string; suggestedAnswerIds: number[] };
+    canUndoResponse: boolean;
+    canUndoStrike: boolean;
     rawState: { pendingExternalWinnerMemberId: number | null; activeMemberId: number | null; playPassWinnerSide: TeamSide | null; revealedAnswerIds: number[] };
   };
   teamPrivate?: { suggestions: Array<{ text: string; playerName: string }> };

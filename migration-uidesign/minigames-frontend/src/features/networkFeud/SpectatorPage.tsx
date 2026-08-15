@@ -10,7 +10,7 @@ import styles from "./network-feud.module.css";
 export function SpectatorPage() {
   const params = useParams<{ gameId: string }>();
   const code = String(params.gameId || "").toUpperCase();
-  const { data, loading, connected } = useFeudGame(code, "spectator");
+  const { data, loading, connected, stale } = useFeudGame(code, "spectator");
   useBroadcastSounds(data);
   if (loading && !data) return <LoadingState broadcast />;
   if (!data) return <ErrorState broadcast message="" />;
@@ -21,13 +21,13 @@ export function SpectatorPage() {
   const winner = data.teams.find((team) => team.side === (data.round?.roundWinnerSide || faceOff?.familyWinnerSide));
   const matchWinner = [...data.teams].sort((a, b) => b.score - a.score)[0];
 
-  return <div className={styles.broadcast}>
+  return <div className={styles.broadcast} aria-label="Family Feud program output" data-signal={stale ? "hold" : "live"}>
     <GameEffects data={data} />
     <div className={styles.broadcastSafe}>
       <header className={styles.broadcastTop}>
-        <BroadcastTeam team={alpha} />
-        <div className={styles.broadcastRound}><small>{data.game.title}</small><strong>{phase === "LOBBY" ? data.game.code : `Round ${data.round?.number || data.game.currentRound} · ×${data.round?.multiplier || 1}`}</strong></div>
-        <BroadcastTeam team={beta} />
+        <BroadcastTeam team={alpha} side="alpha" />
+        <div className={styles.broadcastRound}><small>OTP Survey Show</small><strong>{phase === "LOBBY" ? data.game.code : `Round ${data.round?.number || data.game.currentRound} · ×${data.round?.multiplier || 1}`}</strong><span>{data.game.title}</span></div>
+        <BroadcastTeam team={beta} side="beta" />
       </header>
 
       <main className={styles.broadcastMain}>
@@ -51,7 +51,7 @@ export function SpectatorPage() {
         <div style={{ justifySelf: "end", display: "grid", justifyItems: "end", gap: 12 }}><Timer endsAt={data.game.timerEndsAt} serverNow={data.serverNow} /><Strikes value={data.round?.strikes || 0} /></div>
       </footer>
     </div>
-    {!connected ? <div className={styles.reconnecting}>Reconnecting…</div> : null}
+    {!connected ? <div className={styles.reconnecting} role="status">Program hold · last confirmed board</div> : null}
     {phase === "PAUSED" ? <div className={styles.pausedOverlay}><div><h1>Match paused</h1><p>The show will continue shortly</p></div></div> : null}
   </div>;
 }
@@ -94,8 +94,8 @@ function useBroadcastSounds(data: FeudProjection | null) {
   }, [data]);
 }
 
-function BroadcastTeam({ team }: { team: { name: string; score: number; color: string } }) {
-  return <div className={styles.broadcastTeam} style={{ "--team": team.color } as React.CSSProperties}><div><div className={styles.broadcastTeamName}>{team.name}</div><div key={team.score} className={`${styles.broadcastScore} ${styles.scorePop}`}>{team.score}</div></div></div>;
+function BroadcastTeam({ team, side }: { team: { name: string; score: number; color: string }; side: "alpha" | "beta" }) {
+  return <div className={`${styles.broadcastTeam} ${side === "alpha" ? styles.broadcastTeamAlpha : styles.broadcastTeamBeta}`}><div><div className={styles.broadcastTeamName}>{team.name}</div><div key={team.score} className={`${styles.broadcastScore} ${styles.scorePop}`}>{team.score}</div></div></div>;
 }
 
 function BroadcastMessage({ eyebrow, title, copy }: { eyebrow: string; title: string; copy: string }) {

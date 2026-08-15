@@ -24,13 +24,9 @@ export function MatchHeaderOverlay({ matchId, reverseSides = false }: MatchHeade
   const [match, setMatch] = useState<Match | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
   const [draft, setDraft] = useState<DraftState | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!Number.isInteger(matchId) || matchId <= 0) {
-      setLoading(false);
-      setError("Invalid match id.");
       return;
     }
 
@@ -38,28 +34,22 @@ export function MatchHeaderOverlay({ matchId, reverseSides = false }: MatchHeade
 
     const load = async () => {
       try {
-        const [loadedMatch, loadedTeams, loadedDraft] = await Promise.all([
+        const [loadedMatch, loadedTeams] = await Promise.all([
           getMatchById(matchId),
           getTeams(),
-          getDraftByMatchId(matchId).catch(() => null),
         ]);
+        const loadedDraft = await getDraftByMatchId(matchId).catch(() => undefined);
 
         if (cancelled) return;
         setMatch(loadedMatch);
         setTeams(loadedTeams);
-        setDraft(loadedDraft);
-        setError(null);
-      } catch (fetchError) {
+        if (loadedDraft !== undefined) setDraft(loadedDraft);
+      } catch {
         if (cancelled) return;
-        const message =
-          fetchError instanceof Error ? fetchError.message : "Failed to load match header overlay data.";
-        setError(message);
-      } finally {
-        if (!cancelled) setLoading(false);
+        // Keep the last confirmed program frame during recoverable failures.
       }
     };
 
-    setLoading(true);
     void load();
     const pollId = window.setInterval(() => {
       void load();
@@ -140,12 +130,8 @@ export function MatchHeaderOverlay({ matchId, reverseSides = false }: MatchHeade
   const leftScore = reverseSides ? match?.mapWinsTeamB ?? 0 : match?.mapWinsTeamA ?? 0;
   const rightScore = reverseSides ? match?.mapWinsTeamA ?? 0 : match?.mapWinsTeamB ?? 0;
 
-  if (loading) {
-    return null;
-  }
-
-  if (error || !match) {
-    return null;
+  if (!match) {
+    return <div className={styles.root}><div className={styles.standby} role="status">Match header · stand by</div></div>;
   }
 
   return (

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useFeudGame } from "@/lib/familyFeud/useFeudGame";
 import type { TeamSide } from "@/lib/familyFeud/types";
 import { AnswerBoard, ConnectionPill, ErrorState, FeudLogo, GameEffects, LoadingState, PhaseName, ScoreStrip, Strikes, TeamCard, Timer } from "./Shared";
@@ -34,12 +34,34 @@ export function ManagerPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [bank, setBank] = useState("");
   const [scores, setScores] = useState<Record<TeamSide, string>>({ ALPHA: "", BETA: "" });
+  const [actionHistory, setActionHistory] = useState<Array<{ label: string; action: string; payload: Record<string, unknown> }>>([]);
+
+  useEffect(() => {
+    setActionHistory((current) => current.filter((item) => {
+      if (item.action === "UNDO_RESPONSE") return Boolean(data?.manager?.canUndoResponse);
+      if (item.action === "UNDO_STRIKE") return Boolean(data?.manager?.canUndoStrike);
+      return true;
+    }));
+  }, [data?.manager?.canUndoResponse, data?.manager?.canUndoStrike]);
 
   const run = async (name: string, payload: Record<string, unknown> = {}) => {
     setBusy(true); setMessage(null);
     try { await action(name, payload); return true; }
     catch (cause) { setMessage(cause instanceof Error ? cause.message : "The control action failed."); return false; }
     finally { setBusy(false); }
+  };
+
+  const runWithUndo = async (name: string, payload: Record<string, unknown>, undo: { label: string; action: string; payload: Record<string, unknown> }) => {
+    if (await run(name, payload)) setActionHistory((current) => [...current.filter((item) => !["UNDO_RESPONSE", "UNDO_STRIKE"].includes(undo.action) || item.action !== undo.action).slice(-4), undo]);
+  };
+
+  const undoLast = async () => {
+    const previous = actionHistory.at(-1);
+    if (!previous) return;
+    if (await run(previous.action, previous.payload)) {
+      setActionHistory((current) => current.slice(0, -1));
+      setMessage(`Recovered: ${previous.label}`);
+    }
   };
 
   if (loading && !data) return <LoadingState />;
@@ -49,21 +71,21 @@ export function ManagerPage() {
   const beta = data.teams.find((team) => team.side === "BETA")!;
   const pending = data.manager?.pendingResponse;
 
-  return <div className={styles.shell}>
+  return <div className={`${styles.shell} ${styles.managerShell}`}>
     <GameEffects data={data} />
     <div className={`${styles.container} ${styles.wide}`}>
       <div className={styles.topline}>
         <div><FeudLogo /><p className={styles.eyebrow} style={{ marginTop: 16 }}>Manager room / {data.game.code}</p></div>
         <div className={styles.buttonRow}><Link className={`${styles.button} ${styles.buttonSecondary}`} href="/admin/feud/games">All games</Link><Link className={`${styles.button} ${styles.buttonSecondary}`} style={{ display: "inline-grid", placeItems: "center" }} href={`/feud/spectator/${code}`} target="_blank">Open broadcast</Link><ConnectionPill connected={connected} /></div>
       </div>
-      <div className={`${styles.notice} ${message || error ? styles.error : ""}`} style={{ marginBottom: 18 }}>{message || error || managerHelp(phase)}</div>
+      <div className={`${styles.notice} ${message || error ? styles.error : ""}`} style={{ marginBottom: 18 }} role="status" aria-live="polite">{message || error || managerHelp(phase)}</div>
       <ScoreStrip data={data} />
 
       <div className={styles.managerGrid}>
         <main className={styles.stack}>
           {data.round ? <section className={`${styles.card} ${styles.cardPad}`}>
             <div className={styles.question}><small>{data.round.category} · Round {data.round.number} ×{data.round.multiplier}</small><h2>{data.round.question || "Question hidden from players"}</h2></div>
-            <AnswerBoard answers={data.round.board} />
+            <AnswerBoard answers={data.round.board} previewAnswers />
           </section> : null}
 
           {phase === "LOBBY" ? <LobbyControls data={data} busy={busy} run={run} /> : null}
@@ -76,8 +98,8 @@ export function ManagerPage() {
           {pending ? <section className={`${styles.card} ${styles.cardPad} ${styles.pending}`}>
             <p className={styles.eyebrow}>Submitted by {pending.playerName}</p><div className={styles.pendingAnswer}>{pending.text}</div>
             <p className={styles.controlTitle}>Match to survey answer</p>
-            <div className={styles.buttonRow}>{data.round?.board.filter((answer) => !answer.revealed).map((answer) => <button className={`${styles.button} ${pending.suggestedAnswerIds.includes(answer.id!) ? styles.buttonAmber : styles.buttonSecondary}`} key={answer.id} disabled={busy} onClick={() => void run("ACCEPT_RESPONSE", { answerId: answer.id })}>#{answer.rank} {answer.answer} · {answer.points}</button>)}</div>
-            <button className={`${styles.button} ${styles.buttonDanger}`} style={{ marginTop: 12 }} disabled={busy} onClick={() => void run("REJECT_RESPONSE")}>No matching answer</button>
+            <div className={styles.buttonRow}>{data.round?.board.filter((answer) => !answer.revealed).map((answer) => <button className={`${styles.button} ${pending.suggestedAnswerIds.includes(answer.id!) ? styles.buttonAmber : styles.buttonSecondary}`} key={answer.id} disabled={busy} onClick={() => { if (window.confirm(`Reveal #${answer.rank} ${answer.answer} for ${answer.points} points?`)) void runWithUndo("ACCEPT_RESPONSE", { answerId: answer.id }, { label: "restore the pending answer", action: "UNDO_RESPONSE", payload: {} }); }}>#{answer.rank} {answer.answer} · {answer.points}</button>)}</div>
+            <button className={`${styles.button} ${styles.buttonDanger}`} style={{ marginTop: 12 }} disabled={busy} onClick={() => { if (window.confirm(`Mark “${pending.text}” incorrect and add a strike?`)) void runWithUndo("REJECT_RESPONSE", {}, { label: "restore the pending answer", action: "UNDO_RESPONSE", payload: {} }); }}>No matching answer</button>
           </section> : null}
 
           <div className={styles.grid2}><TeamCard team={alpha} manager /><TeamCard team={beta} manager /></div>
@@ -85,24 +107,27 @@ export function ManagerPage() {
 
         <aside className={styles.sidePanel}>
           <section className={styles.card}>
-            <div className={styles.controlGroup}><p className={styles.controlTitle}>Live state</p><h2 className={styles.sectionTitle}><PhaseName phase={phase} /></h2><p className={styles.sectionCopy}>{data.round?.currentPlayer ? `Current player: ${data.round.currentPlayer.name}` : "No active player"}</p></div>
+            <div className={`${styles.controlGroup} ${styles.programMonitor}`}><div className={styles.programMonitorHead}><p className={styles.controlTitle}>OBS program state</p><ConnectionPill connected={connected} /></div><h2 className={styles.sectionTitle}><PhaseName phase={phase} /></h2><p className={styles.sectionCopy}>{data.round?.question || (phase === "LOBBY" ? `${alpha.name} vs ${beta.name}` : "Program slate")}</p><span className={styles.programDetail}>{data.round?.board.filter((answer) => answer.revealed).length || 0} answers revealed · bank {data.round?.bank || 0}</span></div>
             <div className={styles.controlGroup} style={{ display: "grid", justifyItems: "center", gap: 14 }}><Timer endsAt={data.game.timerEndsAt} serverNow={data.serverNow} /><Strikes value={data.round?.strikes || 0} /></div>
-            <div className={styles.controlGroup}><div className={styles.buttonRow}>{phase === "PAUSED" ? <button className={styles.button} disabled={busy} onClick={() => void run("RESUME")}>Resume match</button> : <button className={`${styles.button} ${styles.buttonSecondary}`} disabled={busy || ["LOBBY", "FINISHED"].includes(phase)} onClick={() => void run("PAUSE")}>Pause match</button>}<button className={`${styles.button} ${styles.buttonDanger}`} disabled={busy || phase === "FINISHED"} onClick={() => void run("END_GAME")}>End game</button></div></div>
+            <div className={styles.controlGroup}><div className={styles.buttonRow}>{phase === "PAUSED" ? <button className={styles.button} disabled={busy} onClick={() => void run("RESUME")}>Resume match</button> : <button className={`${styles.button} ${styles.buttonSecondary}`} disabled={busy || ["LOBBY", "FINISHED"].includes(phase)} onClick={() => void run("PAUSE")}>Pause match</button>}<button className={`${styles.button} ${styles.buttonDanger}`} disabled={busy || phase === "FINISHED"} onClick={() => { if (window.confirm("End the game and put the final result on air?")) void run("END_GAME"); }}>End game</button></div></div>
+            {actionHistory.length ? <div className={styles.controlGroup}><button className={`${styles.button} ${styles.buttonSecondary}`} disabled={busy} onClick={() => void undoLast()}>Undo: {actionHistory.at(-1)?.label}</button></div> : null}
+            {!actionHistory.length && data.manager?.canUndoResponse ? <div className={styles.controlGroup}><button className={`${styles.button} ${styles.buttonSecondary}`} disabled={busy} onClick={() => void run("UNDO_RESPONSE")}>Undo last answer resolution</button></div> : null}
+            {!actionHistory.length && data.manager?.canUndoStrike ? <div className={styles.controlGroup}><button className={`${styles.button} ${styles.buttonSecondary}`} disabled={busy} onClick={() => void run("UNDO_STRIKE")}>Undo last strike</button></div> : null}
           </section>
 
           {phase === "PLAY_PASS" ? <section className={`${styles.card} ${styles.cardPad}`}><p className={styles.controlTitle}>Play / Pass override</p><div className={styles.buttonRow}><button className={styles.button} disabled={busy} onClick={() => void run("SELECT_PLAY_PASS", { choice: "PLAY" })}>Play</button><button className={`${styles.button} ${styles.buttonSecondary}`} disabled={busy} onClick={() => void run("SELECT_PLAY_PASS", { choice: "PASS" })}>Pass</button></div></section> : null}
 
           {data.round && ["ROUND_PLAY", "STEAL"].includes(phase) ? <section className={styles.card}>
-            <div className={styles.controlGroup}><p className={styles.controlTitle}>Strikes</p><div className={styles.buttonRow}><button className={`${styles.button} ${styles.buttonDanger}`} disabled={busy || data.round.strikes >= 3} onClick={() => void run("ADD_STRIKE")}>Add strike</button><button className={`${styles.button} ${styles.buttonSecondary}`} disabled={busy || data.round.strikes <= 0} onClick={() => void run("REMOVE_STRIKE")}>Remove</button></div></div>
-            <div className={styles.controlGroup}><p className={styles.controlTitle}>Round bank</p><div className={styles.buttonRow}><input className={styles.input} style={{ width: 110 }} value={bank} onChange={(event) => setBank(event.target.value)} placeholder={String(data.round.bank)} inputMode="numeric" /><button className={`${styles.button} ${styles.buttonSecondary}`} disabled={busy || bank === ""} onClick={() => void run("ADJUST_BANK", { value: Number(bank) })}>Set bank</button></div></div>
-            <div className={styles.controlGroup}><div className={styles.buttonRow}>{phase === "ROUND_PLAY" ? <button className={`${styles.button} ${styles.buttonAmber}`} disabled={busy} onClick={() => void run("START_STEAL")}>Start steal</button> : null}<button className={`${styles.button} ${styles.buttonSecondary}`} disabled={busy} onClick={() => void run("END_ROUND", { winnerSide: data.round?.activeSide })}>End round</button></div></div>
+            <div className={styles.controlGroup}><p className={styles.controlTitle}>Strikes</p><div className={styles.buttonRow}><button className={`${styles.button} ${styles.buttonDanger}`} disabled={busy || data.round.strikes >= 3} onClick={() => void runWithUndo("ADD_STRIKE", {}, { label: "remove added strike", action: "UNDO_STRIKE", payload: {} })}>Add strike</button><button className={`${styles.button} ${styles.buttonSecondary}`} disabled={busy || data.round.strikes <= 0} onClick={() => void runWithUndo("REMOVE_STRIKE", {}, { label: "restore removed strike", action: "ADD_STRIKE", payload: {} })}>Remove</button></div></div>
+            <div className={styles.controlGroup}><p className={styles.controlTitle}>Round bank</p><div className={styles.buttonRow}><input className={styles.input} style={{ width: 110 }} value={bank} onChange={(event) => setBank(event.target.value)} placeholder={String(data.round.bank)} inputMode="numeric" /><button className={`${styles.button} ${styles.buttonSecondary}`} disabled={busy || bank === ""} onClick={() => void runWithUndo("ADJUST_BANK", { value: Number(bank) }, { label: `restore bank to ${data.round?.bank || 0}`, action: "ADJUST_BANK", payload: { value: data.round?.bank || 0 } })}>Set bank</button></div></div>
+            <div className={styles.controlGroup}><div className={styles.buttonRow}>{phase === "ROUND_PLAY" ? <button className={`${styles.button} ${styles.buttonAmber}`} disabled={busy} onClick={() => void run("START_STEAL")}>Start steal</button> : null}<button className={`${styles.button} ${styles.buttonSecondary}`} disabled={busy} onClick={() => { if (window.confirm("End this round using the currently active team as winner?")) void run("END_ROUND", { winnerSide: data.round?.activeSide }); }}>End round</button></div></div>
           </section> : null}
 
           <section className={styles.card}>
-            <div className={styles.controlGroup}><p className={styles.controlTitle}>Team scores</p>{data.teams.map((team) => <div className={styles.field} key={team.side} style={{ marginBottom: 10 }}><label>{team.name}</label><div className={styles.buttonRow}><input className={styles.input} style={{ width: 100 }} value={scores[team.side]} onChange={(event) => setScores((current) => ({ ...current, [team.side]: event.target.value }))} placeholder={String(team.score)} inputMode="numeric" /><button className={`${styles.button} ${styles.buttonSecondary}`} disabled={busy || scores[team.side] === ""} onClick={() => void run("ADJUST_SCORE", { side: team.side, value: Number(scores[team.side]) })}>Set</button></div></div>)}</div>
+            <div className={styles.controlGroup}><p className={styles.controlTitle}>Team scores</p>{data.teams.map((team) => <div className={styles.field} key={team.side} style={{ marginBottom: 10 }}><label>{team.name}</label><div className={styles.buttonRow}><input className={styles.input} style={{ width: 100 }} value={scores[team.side]} onChange={(event) => setScores((current) => ({ ...current, [team.side]: event.target.value }))} placeholder={String(team.score)} inputMode="numeric" /><button className={`${styles.button} ${styles.buttonSecondary}`} disabled={busy || scores[team.side] === ""} onClick={() => void runWithUndo("ADJUST_SCORE", { side: team.side, value: Number(scores[team.side]) }, { label: `restore ${team.name} to ${team.score}`, action: "ADJUST_SCORE", payload: { side: team.side, value: team.score } })}>Set</button></div></div>)}</div>
           </section>
 
-          {phase === "ROUND_RESULTS" ? <section className={`${styles.card} ${styles.cardPad}`}><p className={styles.controlTitle}>Continue</p><div className={styles.buttonRow}>{data.game.currentRound < data.game.config.roundCount ? <button className={styles.button} disabled={busy} onClick={() => void run("NEXT_ROUND")}>Start next round</button> : <button className={styles.button} disabled={busy} onClick={() => void run("END_GAME")}>Finish Family Feud</button>}</div></section> : null}
+          {phase === "ROUND_RESULTS" ? <section className={`${styles.card} ${styles.cardPad}`}><p className={styles.controlTitle}>Continue</p><div className={styles.buttonRow}>{data.game.currentRound < data.game.config.roundCount ? <button className={styles.button} disabled={busy} onClick={() => void run("NEXT_ROUND")}>Start next round</button> : <button className={styles.button} disabled={busy} onClick={() => { if (window.confirm("Finish Family Feud and put the final winner on air?")) void run("END_GAME"); }}>Finish Family Feud</button>}</div></section> : null}
         </aside>
       </div>
     </div>

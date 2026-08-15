@@ -2,7 +2,7 @@
 
 Goonginga League Live Platform is a full-stack operations system for an
 Overwatch-style league. It combines a public league website, authenticated admin
-and captain tools, a live draft table, OBS-ready broadcast overlays, OCR-based
+and captain tools, a live draft table, OBS-ready broadcast overlays, manual
 stat registration, and a Windows Electron launcher for local overlay control.
 
 This README is intentionally architecture-oriented so tools such as GitDiagram
@@ -24,12 +24,11 @@ flowchart LR
 
   Backend --> Auth["JWT auth and role middleware"]
   Backend --> DraftEngine["Draft state machine and timeout worker"]
-  Backend --> OCR["OCR stat parser"]
+  Backend --> Stats["Manual stat validation"]
   Backend --> Assets["Static hero/map assets and uploaded media"]
   Backend --> Prisma["Prisma client"]
   Prisma --> Postgres["PostgreSQL database"]
 
-  OCR --> Vision["Google Vision / Tesseract"]
   Backend --> Discord["Discord webhook notifications"]
 ```
 
@@ -82,7 +81,7 @@ Important route groups:
 - `/login`, `/profile`: authentication and user profile surfaces.
 - `/admin-dashboard`: tournament, match, team, member, map pool, and admin tools.
 - `/admin-dashboard/overwatch-content`: map and hero content management.
-- `/manager-dashboard`: live match operations, result registration, OCR stat upload.
+- `/manager-dashboard`: live match operations, result registration, and manual stat entry.
 - `/captain-dashboard`: captain match controls and team-specific operations.
 - `/draft-table/[matchId]`: live map-pick and hero-ban draft interface.
 - `/standings`, `/teams`, `/schedule`, `/stats`, `/news`: public league views.
@@ -130,7 +129,7 @@ Mounted API areas:
 - `/match`: schedule, active matches, result submission, pause controls.
 - `/draft`: authoritative live draft state machine.
 - `/draftTable`, `/draftAction`: legacy/admin draft table and action routes.
-- `/playerStat`: manual stats, OCR preview, OCR upload, batch stat creation.
+- `/playerStat`: manual individual and batch stat creation.
 - `/news`: news feed and editor/admin publishing.
 - `/map`, `/hero`: Overwatch map and hero content.
 - `/overlay-assets`: persisted overlay backgrounds and settings.
@@ -242,7 +241,7 @@ sequenceDiagram
 Roles in the system:
 
 - `ADMIN`: global content, users, tournament, and system controls.
-- `MANAGER`: match operations, draft creation/control, results, OCR/stat review.
+- `MANAGER`: match operations, draft creation/control, results, and stat review.
 - `CAPTAIN`: team-ready actions, match participation, draft pick/ban actions.
 - `EDITOR`: news/content publishing.
 - `DEFAULT`: regular authenticated user.
@@ -292,29 +291,24 @@ Leaderboard ranking uses:
 2. Map differential (`mapWins - mapLoses`) descending.
 3. Team id ascending as a stable tiebreaker.
 
-### OCR Stat Registration
+### Manual Stat Registration
 
 ```mermaid
 flowchart TD
-  Screenshot["Scoreboard screenshot"] --> Upload["Frontend OCR upload"]
-  Upload --> PlayerStatAPI["/playerStat/upload or preview"]
-  PlayerStatAPI --> VisionService["services/googleVision.js"]
-  VisionService --> OCRParser["services/playerStat.js parsing pipeline"]
-  OCRParser --> PlayerMatching["Match OCR rows to match players"]
-  PlayerMatching --> RoleInference["Infer 1 tank, 2 DPS, 2 supports per team"]
-  RoleInference --> Preview["Manager preview rows"]
-  Preview --> BatchCreate["Batch create PlayerStat rows"]
+  Scoreboard["Official scoreboard values"] --> Entry["Manager manual game entry"]
+  Entry --> PlayerMatching["Select players from both match rosters"]
+  PlayerMatching --> Validation["Validate role, duration, map type, and non-negative stats"]
+  Validation --> BatchCreate["POST /playerStat/batch"]
   BatchCreate --> StatsPages["Stats leaderboard and user stats pages"]
 ```
 
-OCR/parsing responsibilities:
+Manual stat responsibilities:
 
-- Extract text and word geometry from screenshots.
-- Reconstruct scoreboard rows from spatial/numeric layout.
-- Fuzzy-match OCR nicknames to known match players.
-- Keep unmatched nicknames visible for manual correction.
-- Infer roles per team so each five-player block has one tank, two DPS, and two
-  supports.
+- Restrict entries to players on the two teams in the match.
+- Prevent duplicate player rows within one game.
+- Validate map type, role, duration, and non-negative values on the server.
+- Allow managers to enter up to ten player rows for every played map.
+- Validate the full match-wide submission before any write, then atomically replace all statistics for that match in one Serializable transaction; identical retries are idempotent and cannot leave partial or duplicate rows.
 - Normalize per-10-minute player stat metrics.
 
 ### Broadcast Overlay Flow
@@ -357,7 +351,6 @@ Backend expects:
 - `DIRECT_URL`: direct PostgreSQL connection string for Prisma.
 - `JWT_SECRET`: JWT signing secret.
 - `DRAFT_TABLE_MANAGER_KEY`: read-only draft/overlay access key.
-- Optional Google Vision credentials/API key depending on OCR deployment.
 
 Discord network sign-in additionally expects:
 
@@ -421,7 +414,7 @@ The most important graph nodes are:
 - `migration-uidesign/backend/app.js`: backend entry point.
 - `migration-uidesign/backend/routes`: HTTP API surface.
 - `migration-uidesign/backend/controllers`: domain workflows.
-- `migration-uidesign/backend/services`: draft, match, OCR, stat, content logic.
+- `migration-uidesign/backend/services`: draft, match, stat, and content logic.
 - `migration-uidesign/backend/repositories`: Prisma data access.
 - `migration-uidesign/backend/prisma/schema.prisma`: canonical data model.
 - `migration-uidesign/launcher`: Electron/OBS integration.

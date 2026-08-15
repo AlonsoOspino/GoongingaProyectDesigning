@@ -62,7 +62,7 @@ const dataModels = [
   ["DraftTable", "Map pick, bans, turn timer, phase"],
   ["Team", "Roster, logos, records, map stats"],
   ["Member", "Roles, captain/admin/editor access"],
-  ["PlayerStat", "OCR stats, per-10 numbers, rankings"],
+  ["PlayerStat", "Manual stats, per-10 numbers, rankings"],
   ["News", "Announcements and articles"],
   ["OverlayAsset", "Broadcast graphics and scene assets"],
 ];
