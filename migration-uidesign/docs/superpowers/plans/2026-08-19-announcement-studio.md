@@ -12,6 +12,35 @@
 
 ## Global Constraints
 
+**DATABASE — read this before running any backend command.** `backend/.env` points at a **shared
+Neon cloud database**. This plan's migration is destructive (it drops columns and a type). All work
+targets the **local** development database only: `127.0.0.1:55432/goonginga_dev`, configured in
+`backend/.env.local`.
+
+- Prisma commands are safe by default: `backend/prisma.config.ts` loads `.env.local` when it exists,
+  in preference to `.env`. Verify every Prisma command prints
+  `Datasource "db": PostgreSQL database "goonginga_dev" … at "127.0.0.1:55432"` before trusting it.
+  If it ever names a `neon.tech` host, **stop immediately** and report it.
+- `node app.js` is **not** safe by default — `-r dotenv/config` loads `.env` (Neon). Start the
+  backend like this, which takes secrets from `.env` but forces the local database and port:
+
+```bash
+cd backend && export DATABASE_URL="$(grep '^DATABASE_URL=' .env.local | cut -d= -f2- | tr -d '\r')" && export PORT=3100 && node -r dotenv/config app.js
+```
+
+  dotenv does not override variables already present in the environment, so the exported values win.
+- Start PostgreSQL first if nothing is listening on 55432:
+  `& "C:\Program Files\PostgreSQL\18\bin\pg_ctl.exe" -D <repo>/migration-uidesign/.local-postgres/data -l <repo>/migration-uidesign/.local-postgres/postgres.log -o "-p 55432 -h 127.0.0.1" start`
+- Never run `prisma migrate reset`, `prisma db push`, or any command against `.env`'s datasource.
+
+**PORTS (local development).** Backend `http://localhost:3100`; frontend `http://localhost:3001`
+(`npm run dev -- -p 3001`). `frontend/.env.development.local` already points the browser client at
+`http://localhost:3100`. Any `localhost:3000` in a step below is a typo — use these.
+
+**LOCAL DATA (as of setup).** 15 network members, **zero ADMIN**, 2 `SOCIAL_MEDIA`. One minigame:
+slug `jeopardy`, `JEOPARDY`, `LIVE`. `AnnouncementMode` row 1 is `activeMode=JEOPARDY, enabled=true,
+config={}`, `updatedById` NULL. Sign in as a `SOCIAL_MEDIA` member for any manager-authenticated step.
+
 - Backend API is mounted at `/announcements` (plural), in `backend/app.js:84`. Minigames are at `/minigames`, matches at `/match`.
 - Manager access is `networkAuthMiddleware` + `requireNetworkRole("SOCIAL_MEDIA", "ADMIN")`. `networkAuthMiddleware` populates `req.networkMember`.
 - Backend tests: `node --test tests/*.test.js` via `npm test` in `backend/`. Convention is pure functions exported through a `__testables` object; no database in tests.
@@ -126,9 +155,23 @@ ALTER TABLE "Announcement" ADD CONSTRAINT "Announcement_createdById_fkey"
 ALTER TABLE "AnnouncementMode" ADD COLUMN "publishedId" INTEGER;
 
 -- Seed one announcement per legacy mode so the public site does not change.
--- createdById is required, so fall back to the lowest-id ADMIN. On a fresh
--- database with no members the WHERE clause seeds nothing, which is correct:
--- there is no existing announcement to preserve.
+-- createdById is required and is provenance only -- no permission check reads
+-- it. The author falls back from the singleton's last editor, to the lowest-id
+-- member who can manage announcements (ADMIN preferred, then SOCIAL_MEDIA --
+-- exactly the roles hasManagerAccess allows), to any member at all. Only a
+-- database with no members at all seeds nothing, which is correct: there is no
+-- existing announcement to preserve there.
+CREATE OR REPLACE FUNCTION pg_temp.announcement_seed_author() RETURNS INTEGER AS $$
+    SELECT COALESCE(
+        (SELECT m."updatedById" FROM "AnnouncementMode" m WHERE m."id" = 1),
+        (SELECT n."id" FROM "NetworkMember" n
+         WHERE 'ADMIN' = ANY(n."roles") OR 'SOCIAL_MEDIA' = ANY(n."roles")
+         ORDER BY (CASE WHEN 'ADMIN' = ANY(n."roles") THEN 0 ELSE 1 END), n."id" ASC
+         LIMIT 1),
+        (SELECT n."id" FROM "NetworkMember" n ORDER BY n."id" ASC LIMIT 1)
+    );
+$$ LANGUAGE SQL;
+
 INSERT INTO "Announcement" ("name", "type", "content", "countdownAt", "createdById")
 SELECT
     'Tournament',
@@ -138,16 +181,9 @@ SELECT
         WHEN m."config" ->> 'countdownAt' IS NULL THEN NULL
         ELSE ((m."config" ->> 'countdownAt')::timestamptz AT TIME ZONE 'UTC')
     END,
-    COALESCE(
-        m."updatedById",
-        (SELECT n."id" FROM "NetworkMember" n WHERE 'ADMIN' = ANY(n."roles") ORDER BY n."id" ASC LIMIT 1)
-    )
+    pg_temp.announcement_seed_author()
 FROM "AnnouncementMode" m
-WHERE m."id" = 1
-  AND COALESCE(
-        m."updatedById",
-        (SELECT n."id" FROM "NetworkMember" n WHERE 'ADMIN' = ANY(n."roles") ORDER BY n."id" ASC LIMIT 1)
-      ) IS NOT NULL;
+WHERE m."id" = 1 AND pg_temp.announcement_seed_author() IS NOT NULL;
 
 INSERT INTO "Announcement" ("name", "type", "content", "countdownAt", "createdById")
 SELECT
@@ -166,16 +202,9 @@ SELECT
         WHEN m."config" ->> 'countdownAt' IS NULL THEN NULL
         ELSE ((m."config" ->> 'countdownAt')::timestamptz AT TIME ZONE 'UTC')
     END,
-    COALESCE(
-        m."updatedById",
-        (SELECT n."id" FROM "NetworkMember" n WHERE 'ADMIN' = ANY(n."roles") ORDER BY n."id" ASC LIMIT 1)
-    )
+    pg_temp.announcement_seed_author()
 FROM "AnnouncementMode" m
-WHERE m."id" = 1
-  AND COALESCE(
-        m."updatedById",
-        (SELECT n."id" FROM "NetworkMember" n WHERE 'ADMIN' = ANY(n."roles") ORDER BY n."id" ASC LIMIT 1)
-      ) IS NOT NULL;
+WHERE m."id" = 1 AND pg_temp.announcement_seed_author() IS NOT NULL;
 
 -- Point the singleton at whichever seeded row matches the old activeMode.
 UPDATE "AnnouncementMode" m
@@ -199,20 +228,38 @@ The `countdownAt` cast is safe without a validity guard because the old controll
 
 - [ ] **Step 6: Apply the migration and regenerate the client**
 
-Run: `cd backend && npx prisma migrate deploy && npx prisma generate`
-Expected: the migration applies with no error, and generation reports the client was written.
+```bash
+cd backend && npx prisma migrate deploy && npx prisma generate
+```
 
-If your local database is empty of `AnnouncementMode`, `migrate deploy` still succeeds — the seeding statements simply affect zero rows.
+Expected: the migration applies with no error and generation reports the client was written.
+
+**Before trusting the result, read the datasource line in the output.** It must say
+`PostgreSQL database "goonginga_dev", schema "public" at "127.0.0.1:55432"`. If it names a
+`neon.tech` host, the migration hit the shared cloud database — stop and report it immediately.
 
 - [ ] **Step 7: Confirm the data survived**
 
-Run:
+The local database starts with `AnnouncementMode` row 1 at `activeMode=JEOPARDY, enabled=true`, one
+`LIVE` `JEOPARDY` minigame with slug `jeopardy`, and 15 members of whom 2 are `SOCIAL_MEDIA`, so the
+seed has a valid author and the expected result is exact:
 
 ```bash
-cd backend && npx prisma studio
+cd backend && export DATABASE_URL="$(grep '^DATABASE_URL=' .env.local | cut -d= -f2- | tr -d '\r')" && export PSQL_URL="${DATABASE_URL%%\?*}" && "C:/Program Files/PostgreSQL/18/bin/psql.exe" "$PSQL_URL" -c 'SELECT id, name, type, content, "createdById" FROM "Announcement" ORDER BY id;' -c 'SELECT id, enabled, "publishedId" FROM "AnnouncementMode";'
 ```
 
-Open the `Announcement` table. Expected on a database that had a configured announcement: two rows, `Tournament` and `Minigame`, and `AnnouncementMode.publishedId` pointing at one of them. Close Studio when done.
+Expected, exactly:
+
+- two `Announcement` rows — `Tournament` (`TOURNAMENT`, `{"matchId": null, "headline": ""}`) and
+  `Minigame` (`MINIGAME`, `{"minigameSlug": "jeopardy", "ctaLabel": ""}`)
+- both with a non-null `createdById`
+- `AnnouncementMode`: `enabled = t`, and `publishedId` equal to the **`Minigame`** row's id, because
+  the old `activeMode` was `JEOPARDY`
+
+If `Announcement` is empty, the seed's author fallback returned NULL — do not proceed, report it.
+
+Confirm the dropped columns are gone: `\d "AnnouncementMode"` must show no `activeMode` and no
+`config`.
 
 - [ ] **Step 8: Commit**
 
@@ -850,12 +897,12 @@ Expected: the server starts with no module-resolution error. Leave it running fo
 
 - [ ] **Step 5: Verify the public endpoint**
 
-Run: `curl -s http://localhost:3000/announcements/active`
+Run: `curl -s http://localhost:3100/announcements/active`
 Expected: JSON with `enabled`, `announcement`, `payload`, `updatedAt`. On a database migrated from a configured singleton, `announcement.type` is `TOURNAMENT` or `MINIGAME` and `payload` is populated.
 
 - [ ] **Step 6: Verify manager routes reject anonymous callers**
 
-Run: `curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3000/announcements`
+Run: `curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3100/announcements`
 Expected: `401`
 
 - [ ] **Step 7: Verify the resolvers against real data**
@@ -863,7 +910,7 @@ Expected: `401`
 With a `SOCIAL_MEDIA` or `ADMIN` token in `$TOKEN`:
 
 ```bash
-curl -s -X POST http://localhost:3000/announcements/preview -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"type":"TOURNAMENT","content":{"matchId":null}}'
+curl -s -X POST http://localhost:3100/announcements/preview -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"type":"TOURNAMENT","content":{"matchId":null}}'
 ```
 
 Expected: `{"content":{"matchId":null,"headline":""},"payload":{"state":"…","match":…}}` — `state` is `LIVE` if a match is active, `UPCOMING` if one is scheduled, `IDLE` otherwise, and `match` carries both team objects.
@@ -871,7 +918,7 @@ Expected: `{"content":{"matchId":null,"headline":""},"payload":{"state":"…","m
 Then check that a bad link is refused:
 
 ```bash
-curl -s -X POST http://localhost:3000/announcements/preview -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"type":"CUSTOM","content":{"headline":"x","ctaHref":"javascript:alert(1)"}}'
+curl -s -X POST http://localhost:3100/announcements/preview -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"type":"CUSTOM","content":{"headline":"x","ctaHref":"javascript:alert(1)"}}'
 ```
 
 Expected: HTTP 400 with a message about an internal path or http(s) URL.
@@ -1486,9 +1533,9 @@ Expected: the only remaining error is in `AnnouncementModeControl.tsx`, deleted 
 
 - [ ] **Step 4: Verify the landing page renders the announcement again**
 
-Start the backend (`cd backend && node app.js`) and the frontend (`cd frontend && npm run dev`), then open `http://localhost:3000/`.
+Start the backend (the backend command from Global Constraints) and the frontend (`cd frontend && npm run dev -- -p 3001`), then open `http://localhost:3001/`.
 
-Expected: the "Community events and broadcasts" section shows the published announcement exactly as before the migration. Also open `http://localhost:3000/announcements` and confirm the standalone version renders.
+Expected: the "Community events and broadcasts" section shows the published announcement exactly as before the migration. Also open `http://localhost:3001/announcements` and confirm the standalone version renders.
 
 If the published announcement is the MINIGAME one, its button must now point at `/minigames?next=/<slug>` — hover it and read the status bar. That is the whole point of this task; if it still says `/minigames/jeopardy`, the wrong component is rendering.
 
@@ -2197,7 +2244,7 @@ Expected: both clean, no errors.
 
 - [ ] **Step 5: Exercise the studio end to end**
 
-Start the backend and frontend, sign in as a `SOCIAL_MEDIA` or `ADMIN` member, open `http://localhost:3000/social-media-dashboard` on the "Goonginga League" tab, and verify each of these:
+Start the backend and frontend, sign in as a `SOCIAL_MEDIA` or `ADMIN` member, open `http://localhost:3001/social-media-dashboard` on the "Goonginga League" tab, and verify each of these:
 
 1. The saved announcements list renders, with a clear marker on the published one.
 2. "Custom" creates a draft; typing a headline updates the preview within about half a second.
@@ -2315,11 +2362,11 @@ Expected: no results. Any hit outside `next.config.ts` is a link that was missed
 Run: `cd frontend && npx tsc --noEmit && npm run build`
 Expected: clean.
 
-Then with the dev server running, open `http://localhost:3000/overlay/jeopardy-podium` and `http://localhost:3000/overlay/jeopardy-scores`.
+Then with the dev server running, open `http://localhost:3001/overlay/jeopardy-podium` and `http://localhost:3001/overlay/jeopardy-scores`.
 
-Expected: both render with a transparent background and **no navbar or footer**. Then open `http://localhost:3000/minigames/jeopardy` and confirm it redirects to the podium route.
+Expected: both render with a transparent background and **no navbar or footer**. Then open `http://localhost:3001/minigames/jeopardy` and confirm it redirects to the podium route.
 
-Finally open `http://localhost:3000/minigames` and confirm it still performs the handoff — it must now render **with** the navbar, since the exemption is gone. That is the intended change.
+Finally open `http://localhost:3001/minigames` and confirm it still performs the handoff — it must now render **with** the navbar, since the exemption is gone. That is the intended change.
 
 - [ ] **Step 8: Commit**
 

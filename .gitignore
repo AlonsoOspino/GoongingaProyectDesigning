@@ -39,3 +39,6 @@ deploy.local.bat
 # Logs and scratch output
 *.log
 tmp/
+
+# Subagent-driven development scratch (ledger, briefs, review packages)
+.superpowers/
