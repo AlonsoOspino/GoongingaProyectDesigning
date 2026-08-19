@@ -173,7 +173,8 @@ file, two registry entries — and no change to the studio, the renderer, or the
 
 ## API
 
-All routes under `/announcement`.
+All routes under `/announcements` — the router is mounted at that path in `backend/app.js:84`,
+plural, and the existing frontend client already calls it that way.
 
 | Method | Route | Access |
 |---|---|---|
@@ -258,8 +259,8 @@ the answer.
 sees, so an operator can leave a half-written announcement safely. The visibility toggle sits
 alongside.
 
-Pickers reuse existing endpoints: `GET /matches` for the tournament match picker, `GET /minigame/games`
-for the minigame picker. No new endpoints.
+Pickers reuse existing endpoints: `GET /match` for the tournament match picker (`getMatches()`),
+`GET /minigames/games` for the minigame picker (`listMiniGames()`). No new endpoints.
 
 ## Rendering and the bridge
 
