@@ -1,0 +1,9 @@
+@echo off
+rem Copy this file to deploy.local.bat and fill in your production server.
+rem deploy.local.bat is git-ignored: the address never reaches GitHub.
+
+set "VPS_HOST=user@your.server.address"
+
+rem Optional. Only set this if the project lives somewhere other than the
+rem default /opt/goonginga/migration-uidesign on the server.
+rem set "VPS_PROJECT=/opt/goonginga/migration-uidesign"

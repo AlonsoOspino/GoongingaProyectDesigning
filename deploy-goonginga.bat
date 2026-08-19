@@ -6,9 +6,12 @@ rem Run from Explorer or: deploy-goonginga.bat "Your commit message"
 
 cd /d "%~dp0"
 set "DEPLOY_BRANCH=main"
-set "VPS_HOST=ubuntu@51.79.86.24"
 set "VPS_PROJECT=/opt/goonginga/migration-uidesign"
 set "SSH_KEY=%USERPROFILE%\.ssh\id_rsa"
+
+rem The production server address is not committed. Put it in deploy.local.bat
+rem (git-ignored) next to this file; copy deploy.local.bat.example to start.
+if exist "%~dp0deploy.local.bat" call "%~dp0deploy.local.bat"
 
 echo.
 echo ============================================================
@@ -21,6 +24,8 @@ if errorlevel 1 goto not_a_repo
 
 for /f "delims=" %%B in ('git branch --show-current') do set "CURRENT_BRANCH=%%B"
 if not "%CURRENT_BRANCH%"=="%DEPLOY_BRANCH%" goto wrong_branch
+
+if not defined VPS_HOST goto missing_host
 
 if not exist "%SSH_KEY%" goto missing_key
 
@@ -117,6 +122,12 @@ goto failed
 
 :wrong_branch
 echo ERROR: Production deploys must run from %DEPLOY_BRANCH%. Current branch: %CURRENT_BRANCH%
+goto failed
+
+:missing_host
+echo ERROR: VPS_HOST is not set.
+echo Copy deploy.local.bat.example to deploy.local.bat and put your server
+echo address in it. That file is git-ignored so the address stays off GitHub.
 goto failed
 
 :missing_key

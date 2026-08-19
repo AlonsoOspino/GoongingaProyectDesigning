@@ -26,3 +26,16 @@ backups/
 .codex/
 .impeccable/
 skills-lock.json
+
+# Deploy configuration with the production server address (template is tracked)
+deploy.local.bat
+!deploy.local.bat.example
+
+# Next.js build output and salvaged/corrupt cache directories.
+# A 297MB .next-corrupt-* cache was committed once; ".next/" alone did not catch it.
+.next*/
+*.tsbuildinfo
+
+# Logs and scratch output
+*.log
+tmp/
