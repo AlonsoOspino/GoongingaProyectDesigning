@@ -79,3 +79,15 @@ test("countdown normalization accepts ISO input and rejects the rest", () => {
   assert.equal(normalizeCountdown("not-a-date"), null);
   assert.equal(normalizeCountdown("2026-08-20T18:30:00-05:00").toISOString(), "2026-08-20T23:30:00.000Z");
 });
+
+test("every registered template implements the full contract", () => {
+  for (const type of ["TOURNAMENT", "MINIGAME", "CUSTOM"]) {
+    const template = getTemplate(type);
+    assert.equal(typeof template.validateContent, "function", `${type} needs validateContent`);
+    assert.equal(typeof template.resolvePayload, "function", `${type} needs resolvePayload`);
+  }
+});
+
+test("the custom template resolves no live data", async () => {
+  assert.equal(await getTemplate("CUSTOM").resolvePayload({}), null);
+});

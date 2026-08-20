@@ -1,4 +1,5 @@
 const { assertPlainObject, optionalText } = require("./shared");
+const prisma = require("../../config/prisma");
 
 function validateContent(content) {
   const source = assertPlainObject(content);
@@ -10,4 +11,27 @@ function validateContent(content) {
   return { minigameSlug, ctaLabel: optionalText(source.ctaLabel, 40) };
 }
 
-module.exports = { type: "MINIGAME", validateContent };
+async function resolvePayload(content) {
+  // The migration can seed a row with an empty slug, and a game can be deleted
+  // after an announcement referencing it was saved. Both degrade to idle.
+  if (!content.minigameSlug) return { state: "IDLE", game: null };
+
+  const game = await prisma.miniGame.findUnique({
+    where: { slug: content.minigameSlug },
+    select: {
+      slug: true,
+      title: true,
+      description: true,
+      coverImageUrl: true,
+      gameType: true,
+      status: true,
+      phase: true,
+      updatedAt: true,
+    },
+  });
+
+  if (!game) return { state: "IDLE", game: null };
+  return { state: game.status === "LIVE" ? "LIVE" : "IDLE", game };
+}
+
+module.exports = { type: "MINIGAME", validateContent, resolvePayload };

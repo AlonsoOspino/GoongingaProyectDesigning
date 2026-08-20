@@ -12,4 +12,8 @@ function validateContent(content) {
   };
 }
 
-module.exports = { type: "CUSTOM", validateContent };
+async function resolvePayload() {
+  return null;
+}
+
+module.exports = { type: "CUSTOM", validateContent, resolvePayload };
