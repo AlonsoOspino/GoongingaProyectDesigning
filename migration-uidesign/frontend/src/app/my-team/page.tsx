@@ -234,7 +234,7 @@ export default function MyTeamPage() {
                 className="w-24 h-24 text-2xl mb-4"
               />
               <h2 className="text-xl font-bold text-foreground mb-1">{team.name}</h2>
-              <p className="text-sm text-muted mb-4">Goonginga League</p>
+              <p className="text-sm text-muted mb-4">GGL</p>
 
               <div className="flex items-center gap-3 mb-6">
                 <Badge variant={mapDiff >= 0 ? "success" : "danger"}>

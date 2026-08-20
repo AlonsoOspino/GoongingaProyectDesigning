@@ -211,7 +211,7 @@ function drawFooter(ctx, width, height) {
   ctx.font = "bold 14px Arial";
   ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
   ctx.textAlign = "right";
-  ctx.fillText("Goonginga League", width - 28, height - 18);
+  ctx.fillText("GGL", width - 28, height - 18);
   ctx.restore();
 }
 

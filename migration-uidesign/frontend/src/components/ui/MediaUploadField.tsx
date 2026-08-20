@@ -42,9 +42,9 @@ export function MediaUploadField({ label, value, onChange, type, token, placehol
 
   return (
     <div className="space-y-2">
-      <label className="block text-sm font-medium text-foreground">{label}</label>
+      <label className="block text-body-s font-medium text-text-primary">{label}</label>
       {value ? (
-        type === "video" ? <video src={value} className="h-24 w-full rounded-md border border-border bg-black object-cover" controls preload="metadata" /> : (
+        type === "video" ? <video src={value} className="h-24 w-full rounded-lg border border-border bg-surface-inset object-cover" controls preload="metadata" /> : (
           <audio
             src={value}
             className="w-full"
@@ -57,13 +57,13 @@ export function MediaUploadField({ label, value, onChange, type, token, placehol
           />
         )
       ) : (
-        <div className="flex h-14 items-center rounded-md border border-dashed border-border bg-surface-elevated px-3 text-sm text-muted">{config.empty}</div>
+        <div className="flex h-14 items-center rounded-md border border-dashed border-border bg-surface-2 px-3 text-body-s text-text-muted">{config.empty}</div>
       )}
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder || `Paste ${type} URL or upload a file`}
-        className="w-full rounded-md border border-input-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+        className="w-full rounded-sm border border-border bg-surface-inset px-3 py-2 text-body-s text-text-primary placeholder:text-text-secondary focus:border-brand focus:outline-none"
       />
       <div className="flex flex-wrap items-center gap-2">
         <input ref={inputRef} type="file" accept={config.accept} className="hidden" onChange={(event) => void handleFileChange(event.target.files?.[0])} />
@@ -72,8 +72,8 @@ export function MediaUploadField({ label, value, onChange, type, token, placehol
         </Button>
         {value && <Button type="button" variant="ghost" size="sm" onClick={() => { onChange(""); onDurationChange?.(null); }}>Clear</Button>}
       </div>
-      {hint && <p className="text-xs text-muted">{hint}</p>}
-      {error && <p className="text-sm text-danger">{error}</p>}
+      {hint && <p className="text-label text-text-muted">{hint}</p>}
+      {error && <p className="text-body-s text-danger">{error}</p>}
     </div>
   );
 }

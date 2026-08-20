@@ -668,7 +668,7 @@ export default function PlayerStatsDetailPage() {
             <p className="text-muted mb-6">No stats were found for this player.</p>
             <Link
               href="/stats"
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover transition-colors"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover hover:text-text-primary transition-colors"
             >
               View All Players
             </Link>

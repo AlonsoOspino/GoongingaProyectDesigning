@@ -25,7 +25,7 @@ const QUESTION_TEMPLATE = `CATEGORY: Overwatch
 100 | Question text | Answer
 200 | Question text | Answer
 
-CATEGORY: Goonginga
+CATEGORY: Overtime Productions
 100 | Question text | Answer
 200 | Question text | Answer`;
 

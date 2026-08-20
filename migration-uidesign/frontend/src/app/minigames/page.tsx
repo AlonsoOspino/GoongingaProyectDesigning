@@ -27,7 +27,7 @@ export default function GameNightsHandoffPage() {
   return (
     <main style={{ minHeight: "60vh", display: "grid", placeItems: "center", textAlign: "center", padding: 24 }}>
       <div>
-        <p style={{ margin: 0, opacity: 0.7 }}>Goonginga</p>
+        <p style={{ margin: 0, opacity: 0.7 }}>Overtime Productions</p>
         <h1 style={{ margin: "8px 0" }}>Opening Game Nights...</h1>
         <p style={{ margin: 0, opacity: 0.7 }}>Your current account will come with you.</p>
       </div>

@@ -4,16 +4,13 @@ import {
   Activity,
   ArrowDown,
   ArrowRight,
-  Ban,
   ExternalLink,
   Flame,
   Gamepad2,
   GitBranch,
-  Map,
   MessageCircle,
   Play,
   Radio,
-  RadioTower,
   ShieldCheck,
   Sparkles,
   Swords,
@@ -128,7 +125,7 @@ export default async function HomePage() {
               <span className="hero-accent-line">Competitive.</span>
             </h1>
             <p>
-              Goonginga is a community Overwatch league with drafted rosters, scheduled matches,
+              GGL is a community Overwatch league with drafted rosters, scheduled matches,
               live broadcasts, standings, and playoffs.
             </p>
             <div className="goon-hero-actions">
@@ -161,7 +158,7 @@ export default async function HomePage() {
         </a>
       </section>
 
-      <div className="energy-ticker" aria-label="Goonginga league features">
+      <div className="energy-ticker" aria-label="GGL league features">
         <div className="energy-ticker-track">
           {["LIVE DRAFT", "HERO BANS", "CASTERS", "PLAYOFFS", "COMMUNITY", "WEEKLY MATCHES", "LIVE DRAFT", "HERO BANS", "CASTERS", "PLAYOFFS", "COMMUNITY", "WEEKLY MATCHES"].map((item, index) => (
             <span key={`${item}-${index}`}><Zap size={14} fill="currentColor" /> {item}</span>
@@ -171,7 +168,6 @@ export default async function HomePage() {
 
       <section id="format" className="season-overview ow-section">
         <div className="ow-container overview-heading" data-reveal>
-          <span className="ow-eyebrow">How the league works</span>
           <h2>From registration<br />to match week</h2>
           <p>
             Players register individually through Discord. Captains are appointed, rosters are drafted live,
@@ -197,7 +193,6 @@ export default async function HomePage() {
 
       <section className="experience-section">
         <div className="ow-container experience-intro" data-reveal>
-          <span className="ow-eyebrow">Built for organized competition</span>
           <h2>A complete league format.<br /><em>On and off stream.</em></h2>
         </div>
         <div className="ow-container experience-grid">
@@ -216,7 +211,6 @@ export default async function HomePage() {
         <article className="system-feature system-feature-dark">
           <div className="ow-container system-feature-grid">
             <div className="system-feature-copy" data-reveal>
-              <span className="ow-eyebrow"><Ban size={16} /> Pre-match strategy</span>
               <p className="system-index">01</p>
               <h2>Hero bans</h2>
               <p>Each map begins with a ban phase, giving both teams a direct way to challenge the opposing composition.</p>
@@ -224,7 +218,7 @@ export default async function HomePage() {
               <span className="system-callout"><Flame size={17} /> The team that lost the previous map opens the next ban phase.</span>
             </div>
             <figure className="system-feature-media" data-reveal>
-              <img src="/landing/hero-bans.webp" alt="Goonginga hero ban interface" />
+              <img src="/landing/hero-bans.webp" alt="GGL hero ban interface" />
               <figcaption>Live hero ban system</figcaption>
             </figure>
           </div>
@@ -233,7 +227,6 @@ export default async function HomePage() {
         <article className="system-feature system-feature-light">
           <div className="ow-container system-feature-grid reverse">
             <div className="system-feature-copy" data-reveal>
-              <span className="ow-eyebrow"><Map size={16} /> Weekly competitive rotation</span>
               <p className="system-index">02</p>
               <h2>Map pool</h2>
               <p>League staff publish a map pool before each match week. Every team competes from the same rotation.</p>
@@ -263,7 +256,6 @@ export default async function HomePage() {
         </div>
         <div className="ow-container realtime-content">
           <div className="realtime-copy" data-reveal>
-            <span className="ow-eyebrow"><RadioTower size={16} /> Integrated match operations</span>
             <h2>One match state.<br />Updated live.</h2>
             <p>Captains submit picks and bans through the draft application. Each update is sent directly to the broadcast overlay.</p>
             <p>Players, staff, and viewers follow the same match state throughout the pre-match and live production workflow.</p>
@@ -278,26 +270,26 @@ export default async function HomePage() {
 
       <section className="league-history-expanded ow-section">
         <div className="ow-container league-history-header" data-reveal>
-          <div><span className="ow-eyebrow">League history</span><h2>From a private tournament<br />to a recurring league</h2></div>
+          <div><h2>From a private tournament<br />to a recurring league</h2></div>
           <div className="league-history-intro">
-            <p>Overtime Productions started Goonginga in 2023 as an organized Overwatch competition among friends. It has since developed into a recurring league with drafted teams, weekly fixtures, standings, playoffs, and live broadcasts.</p>
+            <p>Overtime Productions started GGL in 2022 as an organized Overwatch competition among friends. It has since developed into a recurring league with drafted teams, weekly fixtures, standings, playoffs, and live broadcasts.</p>
             <p>The administrative team coordinates registrations, captain selection, team formation, scheduling, match rules, and competitive operations. The socials team works alongside production staff to prepare match graphics, stream coverage, results, and community updates.</p>
             <p>Community feedback is reviewed throughout each season. Staff use that feedback, together with match results and scheduling data, to improve team balance, refine league rules, strengthen the broadcast experience, and make each season more reliable for players and viewers.</p>
           </div>
         </div>
         <div className="ow-container history-image-grid">
           <figure className="history-image-item" data-reveal>
-            <img src="/emotionalsupport.png" alt="Goonginga match broadcast" />
+            <img src="/emotionalsupport.png" alt="GGL match broadcast" />
             <figcaption><span>01</span><strong>League operations and broadcast production</strong><p>Each match week requires coordination between administrators, captains, casters, and the socials team. Fixtures are scheduled, match data is prepared, live overlays are connected, and results are documented for players and viewers.</p></figcaption>
           </figure>
           <figure className="history-image-item" data-reveal>
-            <img src="/community.png" alt="Goonginga player community" />
+            <img src="/community.png" alt="GGL player community" />
             <figcaption><span>02</span><strong>Eight seasons of scheduled competition</strong><p>Across eight completed seasons, dozens of players have formed drafted teams, coordinated weekly match times, and competed through regular-season and playoff schedules. Every season has provided new feedback for the league format.</p></figcaption>
           </figure>
         </div>
         <div className="ow-container history-commitment" data-reveal>
           <span>Continuous development</span>
-          <p>Goonginga is reviewed as an ongoing league project. The staff continues to evaluate player experience, match balance, scheduling, production quality, and community communication before introducing changes to future seasons.</p>
+          <p>GGL is reviewed as an ongoing league project. The staff continues to evaluate player experience, match balance, scheduling, production quality, and community communication before introducing changes to future seasons.</p>
         </div>
         <div className="ow-container league-history-footer" data-reveal>
           <div><strong>2023</strong><span>league established</span></div>
@@ -309,7 +301,7 @@ export default async function HomePage() {
 
       <section className="social-hub ow-section">
         <div className="ow-container social-hub-heading" data-reveal>
-          <div><span className="ow-eyebrow">Follow Goonginga</span><h2>League updates<br />across every platform</h2></div>
+          <div><h2>League updates<br />across every platform</h2></div>
           <p>Follow official channels for schedule announcements, match broadcasts, results, clips, and production updates.</p>
         </div>
         <div className="ow-container social-hub-grid">
@@ -326,7 +318,7 @@ export default async function HomePage() {
       <section className="members-section ow-section">
         <div className="ow-container">
           <div className="section-lead compact" data-reveal>
-            <div><span className="ow-eyebrow">Goonginga Network</span><h2>New members</h2><p>Recently registered members of the league community.</p></div>
+            <div><h2>New members</h2><p>Recently registered Overtime Productions members.</p></div>
             <Link href="/login" className="section-link">Create a profile <ArrowRight size={18} /></Link>
           </div>
           {members.length ? (

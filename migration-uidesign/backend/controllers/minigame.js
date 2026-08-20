@@ -284,7 +284,7 @@ async function getFamilyFeudStatus(_req, res) {
     return res.json({
       slug: "family-feud",
       title: "Family Feud",
-      description: "The Goonginga Family Feud experience is getting its next big upgrade.",
+      description: "The Overtime Productions Family Feud experience is getting its next big upgrade.",
       coverImageUrl: "/family-feud-stage.png",
       status: "UNDER_DEVELOPMENT",
       underDevelopmentBy: developer,

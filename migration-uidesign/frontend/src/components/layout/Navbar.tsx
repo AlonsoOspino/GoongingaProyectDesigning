@@ -59,13 +59,13 @@ export function Navbar() {
   };
 
   return (
-    <header className={clsx("site-navbar sticky top-0 z-40 h-[68px] border-b border-border bg-surface/95 backdrop-blur-xl", pathname === "/" && "site-navbar-home")}>
+    <header className={clsx("site-navbar sticky top-0 z-40 h-[68px] border-b border-border bg-surface-1/95 backdrop-blur-xl", pathname === "/" && "site-navbar-home")}>
       <div className="ow-container flex h-full items-center justify-between gap-5">
-        <Link href="/" className="flex min-w-0 items-center gap-3" aria-label="Goonginga home">
-          <img src="/winton.jpg" alt="" className="h-10 w-10 rounded-sm bg-white object-contain" />
+        <Link href="/" className="flex min-w-0 items-center gap-3" aria-label="GGL home">
+          <img src="/winton.jpg" alt="" className="h-10 w-10 rounded-sm bg-surface-1 object-contain" />
           <div className="hidden leading-none sm:block">
-            <span className="block font-display text-[1.5rem] uppercase text-foreground">Overtime Productions</span>
-            <span className="mt-0.5 block text-[0.62rem] font-extrabold uppercase text-accent">Goonginga League</span>
+            <span className="block font-display text-display-m uppercase text-text-primary">Overtime Productions</span>
+            <span className="mt-0.5 block text-label font-extrabold uppercase text-ggl">GGL</span>
           </div>
         </Link>
 
@@ -77,8 +77,8 @@ export function Navbar() {
                 key={href}
                 href={href}
                 className={clsx(
-                  "nav-league-link flex h-10 items-center gap-2 rounded-sm px-2.5 text-[0.78rem] font-bold transition-colors",
-                  active ? "bg-bg-primary text-white shadow-[inset_0_-2px_var(--color-accent)]" : "text-muted hover:bg-surface-elevated hover:text-foreground"
+                  "nav-league-link flex h-10 items-center gap-2 rounded-sm px-2.5 text-label font-bold transition-colors duration-fast ease-out",
+                  active ? "bg-surface-1 text-text-primary shadow-[inset_0_-2px_var(--color-brand-bright)]" : "text-text-muted hover:bg-surface-3 hover:text-text-primary"
                 )}
               >
                 <Icon size={16} aria-hidden="true" />
@@ -91,7 +91,7 @@ export function Navbar() {
             <Link
               key={href}
               href={href}
-              className="nav-secondary-link flex h-10 items-center gap-2 rounded-sm px-2.5 text-[0.76rem] font-bold transition-colors"
+              className="nav-secondary-link flex h-10 items-center gap-2 rounded-sm px-2.5 text-label font-bold transition-colors duration-fast ease-out"
               aria-label={`${label}, secondary OTP production utility`}
             >
               <Icon size={16} aria-hidden="true" />
@@ -109,7 +109,7 @@ export function Navbar() {
                 </Link>
               ) : null}
               <Avatar size="sm" src={networkUser.avatarUrl || undefined} fallback={networkUser.username} />
-              <span className="max-w-28 truncate text-sm font-bold">{networkUser.username}</span>
+              <span className="max-w-28 truncate text-body-s font-bold">{networkUser.username}</span>
               <button type="button" onClick={logout} className="ow-icon-button" title="Log out" aria-label="Log out">
                 <X size={17} />
               </button>
@@ -127,13 +127,13 @@ export function Navbar() {
       </div>
 
       {open && (
-        <nav className="border-t border-border bg-surface p-3 shadow-lg xl:hidden" aria-label="Mobile league navigation">
+        <nav className="border-t border-border bg-surface-1 p-3 shadow-lg xl:hidden" aria-label="Mobile league navigation">
           <div className="ow-container grid gap-1">
             <Link href="/" onClick={() => setOpen(false)} className="mobile-nav-home">
-              Goonginga League home
+              GGL home
             </Link>
             {links.map(({ href, label, icon: Icon }) => (
-              <Link key={href} href={href} onClick={() => setOpen(false)} className={clsx("flex items-center gap-3 rounded-sm px-3 py-3 text-sm font-bold hover:bg-surface-elevated", isLeagueLinkActive(href) && "mobile-nav-active")}>
+              <Link key={href} href={href} onClick={() => setOpen(false)} className={clsx("flex items-center gap-3 rounded-sm px-3 py-3 text-body-s font-bold hover:bg-surface-3", isLeagueLinkActive(href) && "mobile-nav-active")}>
                 <Icon size={18} />
                 {label}
               </Link>
@@ -141,7 +141,7 @@ export function Navbar() {
             <div className="mobile-nav-secondary">
               <span>OTP production tools</span>
               {secondaryLinks.map(({ href, label, icon: Icon }) => (
-                <Link key={href} href={href} onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-sm px-3 py-3 text-sm font-bold hover:bg-surface-elevated">
+                <Link key={href} href={href} onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-sm px-3 py-3 text-body-s font-bold hover:bg-surface-3">
                   <Icon size={18} />
                   {label}
                 </Link>
@@ -154,7 +154,7 @@ export function Navbar() {
               </Link>
             )}
             {networkUser && hasProductionDashboard ? (
-              <Link href="/social-media-dashboard" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-sm px-3 py-3 text-sm font-bold hover:bg-surface-elevated">
+              <Link href="/social-media-dashboard" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-sm px-3 py-3 text-body-s font-bold hover:bg-surface-3">
                 <Gauge size={18} />
                 Production control
               </Link>

@@ -7,7 +7,7 @@ import styles from "@/components/news/news.module.css";
 
 export const metadata: Metadata = {
   title: "News",
-  description: "Latest news and updates from the Goonginga League",
+  description: "Latest news and updates from the GGL",
 };
 
 export const dynamic = "force-dynamic";
@@ -37,7 +37,7 @@ export default async function NewsPage() {
             <span className={styles.newsBadge}>League Newsroom</span>
             <h1 className={styles.newsTitle}>News</h1>
             <p className={styles.newsSubtitle}>
-              Stay up to date with the latest from the Goonginga League.
+              Stay up to date with the latest from the GGL.
             </p>
             {latest && (
               <p className={styles.newsLatest}>

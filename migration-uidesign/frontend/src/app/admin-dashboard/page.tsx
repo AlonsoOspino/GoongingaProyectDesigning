@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, ShieldCheck, Users } from "lucide-react";
+import { Search, Users } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -69,7 +69,7 @@ export default function AdminDashboardPage() {
     <main className="ow-section">
       <div className="ow-container">
         <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
-          <div><span className="ow-eyebrow"><ShieldCheck size={15} /> Administration</span><h1 className="mt-3 font-display text-6xl uppercase">Network Members</h1><p className="mt-2 text-sm text-muted">Discord accounts and Network roles. Access is managed only from this role list.</p></div>
+          <div><h1 className="font-display text-6xl uppercase">Network Members</h1><p className="mt-2 text-sm text-muted">Discord accounts and Network roles. Access is managed only from this role list.</p></div>
           <div className="relative w-full md:w-72"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={17} /><Input aria-label="Search members" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search Discord member" className="pl-10" /></div>
         </div>
         {error && <div className="mb-5 rounded-sm border border-danger/30 bg-danger/10 p-3 text-sm text-danger">{error}</div>}

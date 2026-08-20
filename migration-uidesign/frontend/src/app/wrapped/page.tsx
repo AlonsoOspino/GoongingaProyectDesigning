@@ -338,7 +338,7 @@ function OpeningSlide({ wrapped, variant }: { wrapped: GoongingaWrapped; variant
   return (
     <section className={`${styles.slide} ${styles.openingTeams}`} aria-label="The teams of the season">
       <div className={styles.openingTeamCopy}>
-        <p>THE TEAMS OF GOONGINGA LEAGUE</p>
+        <p>THE TEAMS OF GGL</p>
         <h2>YOU BUILT<br />THIS SEASON.</h2>
       </div>
       <div className={styles.logoField}>
@@ -384,14 +384,14 @@ function HeroBansSlide({ wrapped, most, least }: { wrapped: GoongingaWrapped; mo
 function FinalistsSlide({ teams, active, reducedMotion }: { teams: FinalsTeam[]; active: boolean; reducedMotion: boolean }) {
   const matchup = teams.slice(0, 2);
   return (
-    <section className={`${styles.slide} ${styles.finalistsSlide}`} aria-label="Goonginga League Grand Final">
+    <section className={`${styles.slide} ${styles.finalistsSlide}`} aria-label="GGL Grand Final">
       <div className={styles.finalistsBackdrop} aria-hidden="true"><span /><span /><span /></div>
       {/* Opaque black canvas the typed GRAND FINAL headline is written on. It
           fades away once the typing resolves, revealing the arena background. */}
       <div className={styles.finalistsBlackCanvas} aria-hidden="true" />
       <header className={styles.finalistsHeader}>
-        <p aria-label="GOONGINGA LEAGUE">
-          <TypewriterText text="GOONGINGA LEAGUE" active={active} reducedMotion={reducedMotion} delay={180} speed={68} />
+        <p aria-label="GGL">
+          <TypewriterText text="GGL" active={active} reducedMotion={reducedMotion} delay={180} speed={68} />
         </p>
         <h2 aria-label="THE GRAND FINAL">
           <TypewriterText text="THE GRAND FINAL" active={active} reducedMotion={reducedMotion} delay={1_150} speed={145} />
@@ -552,7 +552,7 @@ function StatsIntroSlide({ active, reducedMotion }: { active: boolean; reducedMo
 function EndThanksSlide() {
   return (
     <section className={`${styles.slide} ${styles.communityThanks}`} aria-label="Final community thank you">
-      <p>FROM GOONGINGA LEAGUE</p>
+      <p>FROM GGL</p>
       <h2>THANK YOU FOR<br />BACKING THE LEAGUE.</h2>
       <span>Every match watched, every clip shared, and every voice in the community made this season matter.</span>
     </section>
@@ -891,7 +891,7 @@ function FinaleSlide({ wrapped, active, reducedMotion }: { wrapped: GoongingaWra
     <section className={`${styles.slide} ${styles.finaleSlide}`} aria-label="Season finale">
       <div className={styles.finaleGlow} aria-hidden="true" />
       <div className={styles.finaleHeading}>
-        <p className={styles.eyebrow}>GOONGINGA LEAGUE · {new Date(wrapped.generatedAt).getFullYear()}</p>
+        <p className={styles.eyebrow}>GGL · {new Date(wrapped.generatedAt).getFullYear()}</p>
         <h2>The complete season in numbers</h2>
       </div>
       <div className={styles.counterGrid}>
@@ -902,7 +902,7 @@ function FinaleSlide({ wrapped, active, reducedMotion }: { wrapped: GoongingaWra
           </div>
         ))}
       </div>
-      <p className={styles.finaleSignoff}>GOONGINGA LEAGUE · OFFICIAL SEASON RECORD</p>
+      <p className={styles.finaleSignoff}>GGL · OFFICIAL SEASON RECORD</p>
     </section>
   );
 }
@@ -962,7 +962,7 @@ export default function FinalsPage() {
         setSeasonTeams(tournamentTeams);
         setFinalsMatchup(matchupTeams);
       } catch (err: any) {
-        setError(err?.status === 404 ? "The Finals story is still being prepared." : err?.message || "Could not load the Goonginga Finals experience.");
+        setError(err?.status === 404 ? "The Finals story is still being prepared." : err?.message || "Could not load the GGL Finals experience.");
       } finally {
         setLoading(false);
       }
@@ -1303,7 +1303,7 @@ export default function FinalsPage() {
   }, [activeIndex, beginPlayback, goTo, started]);
 
   if (loading) return <main className={styles.status}>Building the season story...</main>;
-  if (error || !wrapped) return <main className={styles.status}><p>GOONGINGA FINALS</p><h1>{error || "No Finals recap found"}</h1></main>;
+  if (error || !wrapped) return <main className={styles.status}><p>GGL FINALS</p><h1>{error || "No Finals recap found"}</h1></main>;
 
   return (
     <main className={styles.wrapped}>

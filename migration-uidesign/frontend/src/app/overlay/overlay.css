@@ -8,6 +8,8 @@
   --overlay-width: 1280px;
   --overlay-height: 720px;
   --overlay-header-height: 112px;
+  --font-overlay-display: var(--font-display);
+  --font-overlay-body: var(--font-sans);
 }
 
 html,

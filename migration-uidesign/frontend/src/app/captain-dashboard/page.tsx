@@ -73,7 +73,7 @@ export default function CaptainDashboardPage() {
   const [teamFormData, setTeamFormData] = useState({ name: "", logo: "", roster: "" });
   const [teamNotification, setTeamNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("idle");
-  const [connectionMessage, setConnectionMessage] = useState("Ready to test Goonginga services.");
+  const [connectionMessage, setConnectionMessage] = useState("Ready to test GGL services.");
   const [connectionSteps, setConnectionSteps] = useState<ConnectionStepStatus[]>(
     () => CONNECTION_STEPS.map(() => "idle")
   );
@@ -218,7 +218,7 @@ export default function CaptainDashboardPage() {
     if (connectionStatus === "running") return;
 
     setConnectionStatus("running");
-    setConnectionMessage("Testing Goonginga connection...");
+    setConnectionMessage("Testing GGL connection...");
     resetConnectionSteps();
     let activeStep = 0;
 
@@ -281,14 +281,14 @@ export default function CaptainDashboardPage() {
       setMatches(matchesData);
       setTeams(teamsData);
     } catch (err) {
-      console.error("Goonginga connection test failed:", err);
+      console.error("GGL connection test failed:", err);
       if (isAuthFailure(err)) {
         failConnectionStep(activeStep, SESSION_EXPIRED_MESSAGE);
         expireSessionAndRedirect();
         return;
       }
 
-      failConnectionStep(activeStep, errorMessage(err, "Goonginga connection test failed."));
+      failConnectionStep(activeStep, errorMessage(err, "GGL connection test failed."));
     }
   }
 
@@ -533,7 +533,7 @@ export default function CaptainDashboardPage() {
                 </div>
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-base font-bold text-foreground">GOONGINGA Connection Check</h2>
+                    <h2 className="text-base font-bold text-foreground">GGL Connection Check</h2>
                     <Badge
                       variant={
                         connectionStatus === "success"
@@ -565,7 +565,7 @@ export default function CaptainDashboardPage() {
                   isLoading={connectionStatus === "running"}
                   className="w-full lg:w-auto"
                 >
-                  TEST CONNECTION WITH GOONGINGA
+                  TEST CONNECTION WITH GGL
                 </Button>
                 <div className="flex flex-wrap justify-start gap-2 lg:justify-end">
                   {CONNECTION_STEPS.map((label, index) => {

@@ -114,8 +114,8 @@ function buildEmbed({ teamAName, teamBName, startDate, matchBannerUrl, isResched
     color: isReschedule ? 0xf59e0b : 0x5865f2,
     author: {
       name: isReschedule
-        ? "GOONGINGA LEAGUE - MATCH UPDATED"
-        : "GOONGINGA LEAGUE - MATCH LOCKED IN",
+        ? "GGL - MATCH UPDATED"
+        : "GGL - MATCH LOCKED IN",
       icon_url: SERVER_ICON,
     },
     title: `${teamAName} vs ${teamBName}`,
@@ -128,7 +128,7 @@ function buildEmbed({ teamAName, teamBName, startDate, matchBannerUrl, isResched
       { name: "Team Two", value: `**${teamBName}**`, inline: true },
     ],
     image: matchBannerUrl ? { url: matchBannerUrl } : undefined,
-    footer: { text: "Goonginga League" },
+    footer: { text: "GGL" },
     timestamp: new Date().toISOString(),
   };
 }

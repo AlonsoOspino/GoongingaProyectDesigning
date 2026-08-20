@@ -11,10 +11,10 @@ interface AvatarProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, "size"> 
 }
 
 const sizeStyles: Record<AvatarSize, string> = {
-  sm: "w-8 h-8 text-xs",
-  md: "w-10 h-10 text-sm",
-  lg: "w-12 h-12 text-base",
-  xl: "w-16 h-16 text-lg",
+  sm: "w-8 h-8 text-label",
+  md: "w-10 h-10 text-body-s",
+  lg: "w-12 h-12 text-body",
+  xl: "w-16 h-16 text-body-l",
 };
 
 export const Avatar = forwardRef<HTMLDivElement, AvatarProps>(
@@ -34,7 +34,7 @@ export const Avatar = forwardRef<HTMLDivElement, AvatarProps>(
       <div
         ref={ref}
         className={clsx(
-          "relative inline-flex items-center justify-center rounded-full bg-surface-elevated overflow-hidden",
+          "relative inline-flex items-center justify-center rounded-full bg-surface-2 overflow-hidden",
           sizeStyles[size],
           className
         )}
@@ -48,7 +48,7 @@ export const Avatar = forwardRef<HTMLDivElement, AvatarProps>(
             {...props}
           />
         ) : (
-          <span className="font-medium text-muted">{initials}</span>
+          <span className="font-medium text-text-muted">{initials}</span>
         )}
       </div>
     );

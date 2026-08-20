@@ -13,7 +13,7 @@ import styles from "./social-dashboard.module.css";
 type Workspace = "league" | "minigames" | "stream";
 
 const workspaces = [
-  { id: "league" as const, label: "Goonginga League", icon: Trophy },
+  { id: "league" as const, label: "GGL", icon: Trophy },
   { id: "minigames" as const, label: "Minigames", icon: Gamepad2 },
   { id: "stream" as const, label: "Stream management", icon: RadioTower },
 ];

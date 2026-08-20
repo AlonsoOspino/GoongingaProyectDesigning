@@ -10,10 +10,9 @@ export default function HistoryPage() {
       <section className="history-intro">
         <div className="ow-container history-intro-grid">
           <div className="history-intro-copy">
-            <span className="ow-eyebrow">Goonginga League</span>
             <h1>League history</h1>
             <p>
-              Goonginga is an Overwatch league founded in 2023. The league has completed eight seasons with drafted teams,
+              GGL is an Overwatch league founded in 2022. The league has completed eight seasons with drafted teams,
               regular-season matches and playoffs. Final results, teams and statistics are archived here.
             </p>
             <div className="history-intro-stats">
@@ -23,8 +22,8 @@ export default function HistoryPage() {
             </div>
           </div>
           <div className="history-intro-media">
-            <img src="/emotionalsupport.png" alt="Goonginga League match night" />
-            <span>Goonginga League archive</span>
+            <img src="/emotionalsupport.png" alt="GGL match night" />
+            <span>GGL archive</span>
           </div>
         </div>
       </section>
@@ -33,7 +32,6 @@ export default function HistoryPage() {
         <div className="ow-container">
           <div className="season-library-heading">
             <div>
-              <span className="ow-eyebrow">Previous seasons</span>
               <h2>Select a season</h2>
             </div>
             <p>Completed seasons are frozen snapshots. Their records no longer depend on live match data.</p>
@@ -42,7 +40,7 @@ export default function HistoryPage() {
           <Link href="/history/season-8" className="season-archive-card">
             <div className="season-archive-copy">
               <span className="season-archive-status"><Trophy size={17} /> Complete</span>
-              <p>Goonginga League</p>
+              <p>GGL</p>
               <h3>Season 8</h3>
               <span className="season-archive-open">View Season 8 <ArrowRight size={20} /></span>
             </div>

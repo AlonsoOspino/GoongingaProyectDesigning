@@ -37,7 +37,7 @@ export function TournamentMode({ payload, config, now, standalone = false }: { p
 
         {!match ? (
           <div className={styles.idle}>
-            <div><span>Goonginga · Season 9</span><h2>Match schedule in preparation</h2></div>
+            <div><span>GGL · Season 9</span><h2>Match schedule in preparation</h2></div>
             <div className={styles.idleActions}>
               <AnnouncementCountdown target={config.countdownAt} now={now} />
               <Link href="/season-9">View Season 9 <ArrowRight size={18} /></Link>

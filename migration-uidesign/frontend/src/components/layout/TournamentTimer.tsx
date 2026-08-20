@@ -83,28 +83,28 @@ export function TournamentTimer() {
   }
 
   return (
-    <div className="border-b border-accent/35 bg-bg-primary px-4 py-3 text-center text-white">
+    <div className="border-b border-brand-bright/35 bg-surface-1 px-4 py-3 text-center text-text-primary">
       <div className="container mx-auto">
-        <p className="text-sm font-medium mb-2">Tournament Starting In (EST):</p>
-        <div className="flex justify-center items-center gap-2 text-lg font-bold">
+        <p className="text-body-s font-medium mb-2">Tournament Starting In (EST):</p>
+        <div className="flex justify-center items-center gap-2 font-mono text-body-l font-bold tabular-nums">
           <div className="flex flex-col items-center">
-            <span className="text-2xl">{timeRemaining.days}</span>
-            <span className="text-xs uppercase">Days</span>
+            <span className="text-display-m">{timeRemaining.days}</span>
+            <span className="text-label uppercase">Days</span>
           </div>
           <span>:</span>
           <div className="flex flex-col items-center">
-            <span className="text-2xl">{String(timeRemaining.hours).padStart(2, "0")}</span>
-            <span className="text-xs uppercase">Hours</span>
+            <span className="text-display-m">{String(timeRemaining.hours).padStart(2, "0")}</span>
+            <span className="text-label uppercase">Hours</span>
           </div>
           <span>:</span>
           <div className="flex flex-col items-center">
-            <span className="text-2xl">{String(timeRemaining.minutes).padStart(2, "0")}</span>
-            <span className="text-xs uppercase">Mins</span>
+            <span className="text-display-m">{String(timeRemaining.minutes).padStart(2, "0")}</span>
+            <span className="text-label uppercase">Mins</span>
           </div>
           <span>:</span>
           <div className="flex flex-col items-center">
-            <span className="text-2xl">{String(timeRemaining.seconds).padStart(2, "0")}</span>
-            <span className="text-xs uppercase">Secs</span>
+            <span className="text-display-m">{String(timeRemaining.seconds).padStart(2, "0")}</span>
+            <span className="text-label uppercase">Secs</span>
           </div>
         </div>
       </div>

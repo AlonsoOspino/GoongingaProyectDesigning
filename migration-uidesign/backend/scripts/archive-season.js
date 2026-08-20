@@ -317,7 +317,7 @@ async function main() {
     schemaVersion: 1,
     season: options.season,
     slug: seasonSlug,
-    title: `Goonginga Season ${options.season}`,
+    title: `GGL Season ${options.season}`,
     status: "complete",
     archivedAt: new Date().toISOString(),
     tournament: {

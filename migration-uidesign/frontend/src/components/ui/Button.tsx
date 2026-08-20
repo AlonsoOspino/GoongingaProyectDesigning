@@ -12,23 +12,23 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantStyles: Record<ButtonVariant, string> = {
   default:
-    "bg-primary text-primary-foreground hover:bg-primary-hover active:bg-primary-hover/90",
+    "bg-brand-bright text-text-inverse hover:bg-brand hover:text-text-primary active:bg-brand active:text-text-primary",
   primary:
-    "bg-primary text-primary-foreground hover:bg-primary-hover active:bg-primary-hover/90",
+    "bg-brand-bright text-text-inverse hover:bg-brand hover:text-text-primary active:bg-brand active:text-text-primary",
   secondary:
-    "bg-surface-elevated text-foreground hover:bg-border active:bg-border/90",
+    "bg-surface-2 text-text-primary hover:bg-border active:bg-border/90",
   ghost:
-    "bg-transparent text-foreground hover:bg-surface-elevated active:bg-border",
+    "bg-transparent text-text-primary hover:bg-surface-3 active:bg-border",
   danger:
     "bg-danger text-danger-foreground hover:bg-danger/90 active:bg-danger/80",
   outline:
-    "bg-transparent border border-border text-foreground hover:bg-surface-elevated hover:border-muted-foreground",
+    "bg-transparent border border-border text-text-primary hover:bg-surface-3 hover:border-border-strong",
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
-  sm: "px-3 py-1.5 text-sm",
-  md: "px-4 py-2 text-sm",
-  lg: "px-6 py-3 text-base",
+  sm: "px-3 py-1.5 text-body-s",
+  md: "px-4 py-2 text-body-s",
+  lg: "px-6 py-3 text-body",
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
@@ -48,8 +48,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         className={clsx(
-          "inline-flex items-center justify-center gap-2 font-medium rounded-md transition-colors duration-150",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+          "inline-flex items-center justify-center gap-2 font-medium rounded-sm transition-colors duration-fast ease-out",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-bright focus-visible:ring-offset-2 focus-visible:ring-offset-surface-0",
           "disabled:opacity-50 disabled:cursor-not-allowed",
           variantStyles[variant],
           sizeStyles[size],
@@ -60,7 +60,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       >
         {isLoading && (
           <svg
-            className="animate-spin h-4 w-4"
+            className="h-4 w-4 animate-[spin_var(--duration-slow)_linear_infinite]"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"

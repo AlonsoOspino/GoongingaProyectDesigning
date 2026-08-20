@@ -11,11 +11,11 @@ export const Skeleton = forwardRef<HTMLDivElement, SkeletonProps>(
       <div
         ref={ref}
         className={clsx(
-          "animate-pulse bg-surface-elevated",
+        "bg-surface-2",
           {
-            "h-4 rounded": variant === "text",
+        "h-4 rounded-sm": variant === "text",
             "rounded-full": variant === "circular",
-            "rounded-md": variant === "rectangular",
+        "rounded-md": variant === "rectangular",
           },
           className
         )}

@@ -11,13 +11,13 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
       <div
         ref={ref}
         className={clsx(
-          "rounded-lg relative overflow-hidden",
+          "rounded-md relative overflow-hidden",
           {
-            "bg-card/95 border border-border-subtle": variant === "default",
-            "bg-surface-elevated/90 border border-border-subtle shadow-lg shadow-black/20": variant === "elevated",
-            "bg-card/95 border border-border hover:border-border/80 transition-colors": variant === "bordered",
-            "bg-card/95 border border-border before:absolute before:inset-0 before:bg-gradient-to-br before:from-primary/5 before:via-transparent before:to-accent/5 before:pointer-events-none": variant === "gradient",
-            "bg-card/90 border border-primary/25 shadow-lg shadow-black/20 before:absolute before:inset-0 before:bg-gradient-to-br before:from-primary/10 before:via-transparent before:to-accent/5 before:pointer-events-none hover:border-primary/40 transition-all duration-200": variant === "featured",
+            "bg-surface-1 border border-border-subtle": variant === "default",
+            "bg-surface-2 border border-border-subtle shadow-lg shadow-surface-inset/20": variant === "elevated",
+            "bg-surface-1 border border-border hover:border-border-strong transition-colors duration-fast ease-out": variant === "bordered",
+            "bg-surface-2 border border-border": variant === "gradient",
+            "bg-brand-deep border border-brand shadow-lg shadow-surface-inset/20 hover:border-brand-bright transition-all duration-base ease-out": variant === "featured",
           },
           className
         )}
@@ -48,7 +48,7 @@ export const CardTitle = forwardRef<
 >(({ className, ...props }, ref) => (
   <h3
     ref={ref}
-    className={clsx("text-lg font-semibold text-foreground", className)}
+    className={clsx("text-body-l font-semibold text-text-primary", className)}
     {...props}
   />
 ));

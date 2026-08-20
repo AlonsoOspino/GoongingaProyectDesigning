@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Save, UserRound } from "lucide-react";
+import { Save } from "lucide-react";
 import { useSession } from "@/features/session/SessionProvider";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
@@ -43,5 +43,5 @@ export default function ProfilePage() {
   };
 
   if (!user) return null;
-  return <main className="ow-section"><div className="ow-container max-w-3xl"><span className="ow-eyebrow"><UserRound size={15} /> Network Member</span><h1 className="mt-3 font-display text-6xl uppercase">Your profile</h1><div className="ow-panel mt-7 grid gap-6 p-6 md:grid-cols-[100px_1fr]"><Avatar size="xl" className="h-24 w-24" src={form.profilePic || user.profilePic || undefined} fallback={form.nickname || user.nickname} /><div className="grid gap-4"><Input label="Display name" value={form.nickname} onChange={(event) => setForm({ ...form, nickname: event.target.value })} /><Input label="Profile image URL" value={form.profilePic} onChange={(event) => setForm({ ...form, profilePic: event.target.value })} /><Input label="OBS WebSocket URL" value={form.obsWebsocketUrl} onChange={(event) => setForm({ ...form, obsWebsocketUrl: event.target.value })} placeholder="Optional" />{message && <p className="text-sm text-muted">{message}</p>}<Button onClick={save} isLoading={saving} className="w-fit"><Save size={17} /> Save profile</Button></div></div></div></main>;
+  return <main className="ow-section"><div className="ow-container max-w-3xl"><h1 className="font-display text-6xl uppercase">Your profile</h1><p className="mt-2 text-body-s text-text-secondary">Network member</p><div className="ow-panel mt-7 grid gap-6 p-6 md:grid-cols-[100px_1fr]"><Avatar size="xl" className="h-24 w-24" src={form.profilePic || user.profilePic || undefined} fallback={form.nickname || user.nickname} /><div className="grid gap-4"><Input label="Display name" value={form.nickname} onChange={(event) => setForm({ ...form, nickname: event.target.value })} /><Input label="Profile image URL" value={form.profilePic} onChange={(event) => setForm({ ...form, profilePic: event.target.value })} /><Input label="OBS WebSocket URL" value={form.obsWebsocketUrl} onChange={(event) => setForm({ ...form, obsWebsocketUrl: event.target.value })} placeholder="Optional" />{message && <p className="text-sm text-muted">{message}</p>}<Button onClick={save} isLoading={saving} className="w-fit"><Save size={17} /> Save profile</Button></div></div></div></main>;
 }

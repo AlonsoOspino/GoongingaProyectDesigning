@@ -65,7 +65,7 @@ export function Modal({ isOpen, onClose, title, children, className }: ModalProp
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-6 sm:items-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+        className="absolute inset-0 bg-surface-0/80 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -78,19 +78,19 @@ export function Modal({ isOpen, onClose, title, children, className }: ModalProp
         aria-labelledby={title ? titleId : undefined}
         tabIndex={-1}
         className={clsx(
-          "relative z-10 w-full max-w-lg bg-card border border-border rounded-xl shadow-2xl animate-fade-in max-h-[calc(100vh-3rem)] overflow-y-auto",
+          "relative z-10 w-full max-w-lg bg-surface-1 border border-border rounded-lg shadow-2xl animate-fade-in max-h-[calc(100vh-3rem)] overflow-y-auto",
           className
         )}
       >
         {title && (
           <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-            <h2 id={titleId} className="text-lg font-semibold text-foreground">
+            <h2 id={titleId} className="text-body-l font-semibold text-text-primary">
               {title}
             </h2>
             <button
               type="button"
               onClick={onClose}
-              className="p-1 rounded-md text-muted hover:text-foreground hover:bg-surface-elevated transition-colors"
+              className="p-1 rounded-sm text-text-muted hover:text-text-primary hover:bg-surface-3 transition-colors duration-fast ease-out"
               aria-label="Close modal"
             >
               <svg
@@ -137,7 +137,7 @@ export function ModalHeader({ children, className, ...props }: ModalSectionProps
 
 export function ModalTitle({ children, className, ...props }: ModalTitleProps) {
   return (
-    <h2 className={clsx("text-lg font-semibold text-foreground", className)} {...props}>
+    <h2 className={clsx("text-body-l font-semibold text-text-primary", className)} {...props}>
       {children}
     </h2>
   );

@@ -6,7 +6,7 @@ export const Table = forwardRef<HTMLTableElement, HTMLAttributes<HTMLTableElemen
     <div className="w-full overflow-auto">
       <table
         ref={ref}
-        className={clsx("w-full caption-bottom text-sm", className)}
+        className={clsx("w-full caption-bottom text-body-s", className)}
         {...props}
       />
     </div>
@@ -21,7 +21,7 @@ export const TableHeader = forwardRef<
 >(({ className, ...props }, ref) => (
   <thead
     ref={ref}
-    className={clsx("bg-surface border-b border-border", className)}
+    className={clsx("bg-surface-1 border-b border-border", className)}
     {...props}
   />
 ));
@@ -48,7 +48,7 @@ export const TableRow = forwardRef<
   <tr
     ref={ref}
     className={clsx(
-      "border-b border-border transition-colors hover:bg-surface-elevated/50",
+        "border-b border-border transition-colors duration-fast ease-out hover:bg-surface-3/50",
       className
     )}
     {...props}
@@ -67,8 +67,8 @@ export const TableHead = forwardRef<HTMLTableCellElement, TableHeadProps>(
     <th
       ref={ref}
       className={clsx(
-        "h-10 px-4 text-left align-middle font-medium text-muted",
-        sortable && "cursor-pointer select-none hover:text-foreground",
+        "h-10 px-4 text-left align-middle font-medium text-text-muted",
+        sortable && "cursor-pointer select-none hover:text-text-primary",
         className
       )}
       {...props}
@@ -104,7 +104,7 @@ export const TableCell = forwardRef<
 >(({ className, ...props }, ref) => (
   <td
     ref={ref}
-    className={clsx("px-4 py-3 align-middle text-foreground", className)}
+    className={clsx("px-4 py-3 align-middle text-text-primary", className)}
     {...props}
   />
 ));

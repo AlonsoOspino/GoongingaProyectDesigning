@@ -47,11 +47,11 @@ export function ImageUploadField({
 
   return (
     <div className="space-y-2">
-      <label className="block text-sm font-medium text-foreground">{label}</label>
+      <label className="block text-body-s font-medium text-text-primary">{label}</label>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div
           className={clsx(
-            "relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-surface text-xs text-muted",
+            "relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-surface-1 text-label text-text-muted",
             previewClassName
           )}
         >
@@ -67,7 +67,7 @@ export function ImageUploadField({
             value={value}
             onChange={(event) => onChange(event.target.value)}
             placeholder={placeholder}
-            className="w-full rounded-md border border-input-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+            className="w-full rounded-sm border border-border bg-surface-inset px-3 py-2 text-body-s text-text-primary placeholder:text-text-secondary focus:border-brand focus:outline-none"
           />
           <div className="flex items-center gap-2">
             <input
@@ -94,7 +94,7 @@ export function ImageUploadField({
           </div>
         </div>
       </div>
-      {error && <p className="text-sm text-danger">{error}</p>}
+      {error && <p className="text-body-s text-danger">{error}</p>}
     </div>
   );
 }

@@ -1,8 +1,8 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Developer | Goonginga League",
-  description: "System map and broadcast pipeline for Goonginga League.",
+  title: "Developer | GGL",
+  description: "System map and broadcast pipeline for GGL.",
 };
 
 const pipeline = [
@@ -138,7 +138,7 @@ export default function DevPage() {
                 </span>
               </div>
               <h1 className="font-display text-6xl uppercase leading-[0.9] text-white md:text-8xl lg:text-9xl">
-                Goonginga League System
+                GGL System
               </h1>
               <p className="mt-6 max-w-3xl text-base leading-7 text-zinc-300 md:text-lg">
                 This page explains how the league website, database, overlays, launcher, OBS, and Twitch connect.
@@ -279,7 +279,7 @@ export default function DevPage() {
         <div className="mt-10 flex justify-end">
           <Link
             href="/"
-            className="border border-primary bg-primary/10 px-5 py-3 text-sm font-black uppercase tracking-wider text-primary transition-colors hover:bg-primary hover:text-white"
+            className="border border-primary bg-primary/10 px-5 py-3 text-sm font-black uppercase tracking-wider text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
           >
             Back to League
           </Link>

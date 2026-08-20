@@ -109,8 +109,8 @@ function PlayerLeaderboard() {
   return (
     <section className="player-leaders">
       <div className="history-section-heading">
-        <div><span className="ow-eyebrow">Frozen final averages</span><h2>Top players</h2></div>
-        <p>Choose a category and role. Every number is the final Season 8 average per 10 minutes.</p>
+        <div><h2>Top players</h2></div>
+        <p>Choose a category and role. Every number is the frozen final Season 8 average per 10 minutes.</p>
       </div>
 
       <div className="metric-selector" aria-label="Statistic category">
@@ -183,7 +183,7 @@ export function HistoryClient() {
       <div className="ow-container ow-section history-snapshot-content animate-fade-in" key={active}>
         {active === "standings" && (
           <section>
-            <div className="history-section-heading"><div><span className="ow-eyebrow">Season complete</span><h2>Final standings</h2></div><p>The regular-season table exactly as it stood when Season 8 closed.</p></div>
+            <div className="history-section-heading"><div><h2>Final standings</h2></div><p>The regular-season table exactly as it stood when Season 8 closed.</p></div>
             <div className="history-table-wrap"><table className="history-table standings-table"><thead><tr><th>Rank</th><th>Team</th><th>W</th><th>L</th><th>Maps</th><th>Diff.</th></tr></thead><tbody>{archive.standings.map((row) => <tr key={row.teamId}><td className="ranking-number">{String(row.rank).padStart(2, "0")}</td><td><div className="history-team"><TeamLogo src={row.logo} name={row.team} />{row.team}</div></td><td>{row.wins}</td><td>{row.losses}</td><td>{row.mapWins}-{row.mapLosses}</td><td className={row.mapDifferential >= 0 ? "text-success" : "text-danger"}>{row.mapDifferential > 0 ? "+" : ""}{row.mapDifferential}</td></tr>)}</tbody></table></div>
           </section>
         )}
@@ -192,21 +192,21 @@ export function HistoryClient() {
 
         {active === "teams" && (
           <section>
-            <div className="history-section-heading"><div><span className="ow-eyebrow">Nine lineups</span><h2>Season 8 rosters</h2></div><p>The teams that played Season 8, preserved with their final five-player lineups.</p></div>
+            <div className="history-section-heading"><div><h2>Season 8 rosters</h2></div><p>The nine teams that played Season 8, preserved with their final five-player lineups.</p></div>
             <div className="roster-visual-grid">{archive.teams.map((team) => <TeamRosterVisual team={team} key={team.id} />)}</div>
           </section>
         )}
 
         {active === "playoffs" && (
           <section>
-            <div className="history-section-heading"><div><span className="ow-eyebrow">Final bracket</span><h2>Playoffs</h2></div><p>Quarterfinals through the Grand Final, with every result frozen.</p></div>
+            <div className="history-section-heading"><div><h2>Playoffs</h2></div><p>Quarterfinals through the Grand Final, with every result frozen.</p></div>
             <div className="bracket-grid">{playoffRounds.map(([label, matches]) => <div className="bracket-round" key={label}><h3>{label}</h3>{matches.map((match) => <article className="bracket-match" key={match.legacyId}><p>{match.title || `Best of ${match.bestOf}`}</p><div className="bracket-side"><span><TeamLogo src={match.teamA.logo} name={match.teamA.name} />{match.teamA.name}</span><strong>{match.score.teamA}</strong></div><div className="bracket-side"><span><TeamLogo src={match.teamB.logo} name={match.teamB.name} />{match.teamB.name}</span><strong>{match.score.teamB}</strong></div></article>)}</div>)}</div>
           </section>
         )}
 
         {active === "finals" && (
           <section className="grand-final-section">
-            <div className="history-section-heading"><div><span className="ow-eyebrow">August 8, 2026</span><h2>Grand Finals</h2></div><p>Best of seven. The final result and published MVP are preserved as part of the season record.</p></div>
+            <div className="history-section-heading"><div><h2>Grand Finals</h2></div><p>Played August 8, 2026. Best of seven. The final result and published MVP are preserved as part of the season record.</p></div>
             <div className="grand-final-scoreboard">
               <div className="final-team runner-up"><TeamLogo src={grandFinal.runnerUp.logo} name={grandFinal.runnerUp.name} /><span>Runner-up</span><h3>{grandFinal.runnerUp.name}</h3><strong>{grandFinal.runnerUp.score}</strong></div>
               <div className="final-score-divider"><span>Final</span><strong>{grandFinal.runnerUp.score} : {grandFinal.champion.score}</strong><small>Best of {grandFinal.bestOf}</small></div>
@@ -222,7 +222,7 @@ export function HistoryClient() {
 
         {active === "wrapped" && (
           <section className="wrapped-entry">
-            <div><span className="ow-eyebrow">Season recap</span><h2>Season 8 Wrapped</h2><p>The full recap is frozen with final statistics, videos, story audio, soundtrack, and artwork.</p><Link href="/history/season-8/wrapped" className="ow-button"><Film size={19} /> Play Wrapped</Link></div>
+            <div><h2>Season 8 Wrapped</h2><p>The full recap is frozen with final statistics, videos, story audio, soundtrack, and artwork.</p><Link href="/history/season-8/wrapped" className="ow-button"><Film size={19} /> Play Wrapped</Link></div>
             <div className="wrapped-entry-stats"><div><strong>{archive.wrapped.snapshot.overview.games}</strong><span>Maps</span></div><div><strong>{archive.wrapped.snapshot.overview.players}</strong><span>Players</span></div><div><strong>{Object.keys(archive.wrapped.assets.videos || {}).length}</strong><span>Videos</span></div><div><strong>{archive.teams.length}</strong><span>Teams</span></div></div>
           </section>
         )}

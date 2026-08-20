@@ -90,7 +90,7 @@ export async function generateMetadata({ params }: TeamPageProps): Promise<Metad
 
   return {
     title: data.team.name,
-    description: `View stats and matches for ${data.team.name} in the Goonginga League`,
+    description: `View stats and matches for ${data.team.name} in the GGL`,
   };
 }
 
