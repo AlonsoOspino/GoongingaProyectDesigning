@@ -12,9 +12,9 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantStyles: Record<ButtonVariant, string> = {
   default:
-    "bg-brand-bright text-text-inverse hover:bg-brand hover:text-text-primary active:bg-brand active:text-text-primary",
+    "bg-brand-bright text-text-inverse hover:bg-brand-hover active:bg-brand-hover",
   primary:
-    "bg-brand-bright text-text-inverse hover:bg-brand hover:text-text-primary active:bg-brand active:text-text-primary",
+    "bg-brand-bright text-text-inverse hover:bg-brand-hover active:bg-brand-hover",
   secondary:
     "bg-surface-2 text-text-primary hover:bg-border active:bg-border/90",
   ghost:

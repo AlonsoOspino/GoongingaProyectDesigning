@@ -23,6 +23,7 @@
   --color-brand-deep: #0F2A20;
   --color-brand: #1F7A52;
   --color-brand-bright: #35B37E;
+  --color-brand-hover: #2C9C6C;
   --color-brand-muted: #9BA8A4;
 
   /*
@@ -93,10 +94,10 @@
   --color-muted: var(--color-text-muted);
   --color-muted-foreground: var(--color-text-secondary);
   --color-primary: var(--color-brand-bright);
-  --color-primary-hover: var(--color-brand);
+  --color-primary-hover: var(--color-brand-hover);
   --color-primary-foreground: var(--color-text-inverse);
   --color-accent: var(--color-brand-bright);
-  --color-accent-hover: var(--color-brand-bright);
+  --color-accent-hover: var(--color-brand-hover);
   --color-accent-foreground: var(--color-text-inverse);
   --color-success-foreground: var(--color-text-inverse);
   --color-danger-foreground: var(--color-text-primary);
@@ -197,15 +198,13 @@ body.jeopardy-overlay-root {
 }
 
 .ow-button:hover {
-  background: var(--color-brand);
-  color: var(--color-text-primary);
+  background: var(--color-brand-hover);
   box-shadow: 0 8px 20px color-mix(in srgb, var(--color-surface-inset) 18%, transparent);
   transform: translateY(-1px);
 }
 
 .ow-button:active {
-  background: var(--color-brand);
-  color: var(--color-text-primary);
+  background: var(--color-brand-hover);
 }
 
 .ow-button-secondary { border: 1px solid var(--color-border-strong, color-mix(in srgb, var(--color-brand-bright) 28%, transparent)); background: color-mix(in srgb, var(--color-surface-0) 62%, transparent); color: var(--color-text-primary); }
@@ -480,8 +479,8 @@ body.jeopardy-overlay-root {
 .login-copy h1 { margin: 15px 0 14px; font-size: var(--text-display-xl); line-height: 0.84; }
 .login-copy > p { max-width: 430px; color: var(--color-text-primary); line-height: 1.65; animation: login-item-arrival var(--duration-slow) var(--duration-base) var(--ease-out) both; }
 .discord-action { display: flex; width: 100%; min-height: 58px; margin-top: 28px; align-items: center; justify-content: center; gap: 12px; border: 0; border-radius: var(--radius-sm); background: var(--color-brand-bright); color: var(--color-text-inverse); font-size: var(--text-body); font-weight: 800; cursor: pointer; animation: login-item-arrival var(--duration-slow) var(--duration-slow) var(--ease-out) both; transition: background var(--duration-base) var(--ease-out), transform var(--duration-base) var(--ease-out), box-shadow var(--duration-base) var(--ease-out); }
-.discord-action:hover { background: var(--color-brand); color: var(--color-text-primary); box-shadow: 0 12px 26px color-mix(in srgb, var(--color-surface-inset) 28%, transparent); transform: translateY(-3px); }
-.discord-action:active { background: var(--color-brand); color: var(--color-text-primary); }
+.discord-action:hover { background: var(--color-brand-hover); box-shadow: 0 12px 26px color-mix(in srgb, var(--color-surface-inset) 28%, transparent); transform: translateY(-3px); }
+.discord-action:active { background: var(--color-brand-hover); }
 .login-notice { width: 100%; margin-top: 14px; border-left: 2px solid var(--color-brand-bright); padding: 11px 13px; background: color-mix(in srgb, var(--color-surface-2) 86%, transparent); color: var(--color-text-primary); font-size: var(--text-body-s); animation: login-item-arrival var(--duration-slow) var(--duration-slow) var(--ease-out) both; }
 .login-server-link { margin-top: 16px; color: var(--color-text-secondary); font-size: var(--text-body-s); animation: login-item-arrival var(--duration-slow) var(--duration-slow) var(--ease-out) both; }
 .login-server-link a { color: var(--color-brand-muted); font-weight: 800; text-decoration: none; }
@@ -1279,8 +1278,8 @@ body {
   clip-path: polygon(0 0, calc(100% - 13px) 0, 100% 13px, 100% 100%, 13px 100%, 0 calc(100% - 13px));
 }
 
-.hero-primary-action:hover { background: var(--color-brand); color: var(--color-text-primary); box-shadow: 11px 11px 0 color-mix(in srgb, var(--color-brand-bright) 18%, transparent); transform: translate(-2px,-2px); }
-.hero-primary-action:active { background: var(--color-brand); color: var(--color-text-primary); }
+.hero-primary-action:hover { background: var(--color-brand-hover); color: var(--color-text-inverse); box-shadow: 11px 11px 0 color-mix(in srgb, var(--color-brand-bright) 18%, transparent); transform: translate(-2px,-2px); }
+.hero-primary-action:active { background: var(--color-brand-hover); color: var(--color-text-inverse); }
 .hero-secondary-action { border-color: color-mix(in srgb, var(--color-border-strong) 26%, transparent); background: color-mix(in srgb, var(--color-surface-inset) 45%, transparent); backdrop-filter: blur(12px); }
 .hero-secondary-action:hover { border-color: var(--color-brand-bright); background: color-mix(in srgb, var(--color-brand-bright) 8%, transparent); transform: translateY(-2px); }
 

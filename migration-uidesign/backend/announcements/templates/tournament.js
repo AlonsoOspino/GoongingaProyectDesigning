@@ -35,30 +35,35 @@ function pinnedState(status) {
   return "IDLE";
 }
 
-async function resolvePayload(content) {
+async function resolvePayload(content, client = prisma) {
   if (content.matchId) {
-    const pinned = await prisma.match.findUnique({ where: { id: content.matchId }, select: matchSelect });
-    if (!pinned) return { state: "IDLE", match: null };
-    const state = pinnedState(pinned.status);
-    // A pinned match that is over must not keep announcing itself as the next
-    // one. Dropping the match sends the view to its idle presentation, the same
-    // fallback the automatic branch uses when nothing is live or upcoming.
-    return state === "IDLE" ? { state, match: null } : { state, match: pinned };
+    const pinned = await client.match.findUnique({ where: { id: content.matchId }, select: matchSelect });
+    if (pinned) {
+      const state = pinnedState(pinned.status);
+      if (state !== "IDLE") return { state, match: pinned };
+    }
   }
 
-  const active = await prisma.match.findFirst({
+  const active = await client.match.findFirst({
     where: { status: "ACTIVE" },
     select: matchSelect,
     orderBy: [{ startDate: "asc" }, { id: "asc" }],
   });
   if (active) return { state: "LIVE", match: active };
 
-  const upcoming = await prisma.match.findFirst({
+  const upcoming = await client.match.findFirst({
     where: { status: "SCHEDULED", startDate: { gte: new Date() } },
     select: matchSelect,
     orderBy: [{ startDate: "asc" }, { id: "asc" }],
   });
-  return { state: upcoming ? "UPCOMING" : "IDLE", match: upcoming };
+  if (upcoming) return { state: "UPCOMING", match: upcoming };
+
+  const result = await client.match.findFirst({
+    where: { status: "FINISHED" },
+    select: matchSelect,
+    orderBy: [{ startDate: { sort: "desc", nulls: "last" } }, { id: "desc" }],
+  });
+  return { state: result ? "RESULT" : "IDLE", match: result };
 }
 
 module.exports = { type: "TOURNAMENT", validateContent, resolvePayload, __testables: { pinnedState } };

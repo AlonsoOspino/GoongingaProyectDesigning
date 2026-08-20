@@ -1,30 +1,58 @@
 "use client";
-
 import { useEffect, useState } from "react";
-import { getActiveAnnouncement } from "@/lib/api/announcement";
-import type { ActiveAnnouncement, JeopardyAnnouncementPayload, TournamentAnnouncementPayload } from "@/announcements/types";
-import { TournamentMode } from "@/announcements/TournamentMode";
-import { JeopardyMode } from "@/announcements/JeopardyMode";
+import { getActiveAnnouncements } from "@/lib/api/announcement";
+import { getAnnouncementTemplate } from "@/announcements/registry";
+import type { ActiveAnnouncements } from "@/announcements/types";
 import styles from "@/announcements/announcements.module.css";
 
-export function AnnouncementRenderer({ standalone = false }: { standalone?: boolean }) {
-  const [announcement, setAnnouncement] = useState<ActiveAnnouncement | null>(null);
+export function AnnouncementRenderer({
+  standalone = false,
+}: {
+  standalone?: boolean;
+}) {
+  const [state, setState] = useState<ActiveAnnouncements | null>(null);
   const [now, setNow] = useState(() => Date.now());
-
   useEffect(() => {
     let mounted = true;
-    const load = () => getActiveAnnouncement().then((data) => { if (mounted) setAnnouncement(data); }).catch(() => undefined);
+    const load = () =>
+      getActiveAnnouncements()
+        .then((next) => {
+          if (mounted) setState(next);
+        })
+        .catch(() => undefined);
     void load();
     const poll = window.setInterval(load, 12000);
     const clock = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => { mounted = false; window.clearInterval(poll); window.clearInterval(clock); };
+    return () => {
+      mounted = false;
+      window.clearInterval(poll);
+      window.clearInterval(clock);
+    };
   }, []);
-
-  if (!announcement) return standalone ? <div className={styles.loading}>Loading event...</div> : null;
-  if (!announcement.enabled) return standalone ? <div className={styles.loading}>No active league event.</div> : null;
-
-  if (announcement.mode === "JEOPARDY") {
-    return <JeopardyMode payload={announcement.payload as JeopardyAnnouncementPayload} config={announcement.config} now={now} standalone={standalone} />;
-  }
-  return <TournamentMode payload={announcement.payload as TournamentAnnouncementPayload} config={announcement.config} now={now} standalone={standalone} />;
+  if (!state)
+    return standalone ? (
+      <div className={styles.loading}>Loading announcements...</div>
+    ) : null;
+  if (!state.enabled || state.announcements.length === 0)
+    return standalone ? (
+      <div className={styles.loading}>No active league announcements.</div>
+    ) : null;
+  return (
+    <div className={styles.announcementList}>
+      {state.announcements.map((announcement, index) => {
+        const { View } = getAnnouncementTemplate(announcement.type);
+        return (
+          <View
+            key={announcement.id}
+            content={announcement.content}
+            payload={announcement.payload}
+            countdownAt={announcement.countdownAt}
+            now={now}
+            standalone={standalone && index === 0}
+            secondary={index > 0}
+          />
+        );
+      })}
+    </div>
+  );
 }

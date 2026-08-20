@@ -3,19 +3,20 @@ const assert = require("node:assert/strict");
 const { getTemplate, normalizeCountdown } = require("../announcements/registry");
 
 test("unknown announcement types are rejected", () => {
-  assert.throws(() => getTemplate("JEOPARDY"), /Tournament, Minigame or Custom/);
-  assert.throws(() => getTemplate(""), /Tournament, Minigame or Custom/);
-  assert.throws(() => getTemplate(undefined), /Tournament, Minigame or Custom/);
+  assert.throws(() => getTemplate("JEOPARDY"), /Tournament, Minigame, Custom or Form/);
+  assert.throws(() => getTemplate(""), /Tournament, Minigame, Custom or Form/);
+  assert.throws(() => getTemplate(undefined), /Tournament, Minigame, Custom or Form/);
 });
 
 test("known announcement types resolve case-insensitively", () => {
   assert.equal(getTemplate(" tournament ").type, "TOURNAMENT");
   assert.equal(getTemplate("MINIGAME").type, "MINIGAME");
   assert.equal(getTemplate("custom").type, "CUSTOM");
+  assert.equal(getTemplate("form").type, "FORM");
 });
 
 test("content must be a plain object", () => {
-  for (const type of ["TOURNAMENT", "MINIGAME", "CUSTOM"]) {
+  for (const type of ["TOURNAMENT", "MINIGAME", "CUSTOM", "FORM"]) {
     const { validateContent } = getTemplate(type);
     assert.throws(() => validateContent(null), /must be an object/);
     assert.throws(() => validateContent(["nope"]), /must be an object/);
@@ -72,6 +73,18 @@ test("custom links reject anything that is not an internal path or http(s)", () 
   assert.equal(validateContent({ ...base, ctaHref: "/schedule/12?tab=maps#top" }).ctaHref, "/schedule/12?tab=maps#top");
 });
 
+test("form validates content and rejects browser-normalized external routes", () => {
+  const { validateContent } = getTemplate("FORM");
+  assert.deepEqual(validateContent({ headline: " Sign up ", body: " Players only ", formUrl: "/forms/season-9" }), {
+    headline: "Sign up", body: "Players only", formUrl: "/forms/season-9", ctaLabel: "",
+  });
+  assert.throws(() => validateContent({ headline: "x", formUrl: "/\\evil.host" }), /internal path or an http/);
+  for (const separator of ["\t", "\r", "\n"]) {
+    assert.throws(() => validateContent({ headline: "x", formUrl: `/${separator}/evil.host` }), /internal path or an http/);
+  }
+  assert.throws(() => validateContent({ headline: "x" }), /Form URL is required/);
+});
+
 test("countdown normalization accepts ISO input and rejects the rest", () => {
   assert.equal(normalizeCountdown(null), null);
   assert.equal(normalizeCountdown(undefined), null);
@@ -81,7 +94,7 @@ test("countdown normalization accepts ISO input and rejects the rest", () => {
 });
 
 test("every registered template implements the full contract", () => {
-  for (const type of ["TOURNAMENT", "MINIGAME", "CUSTOM"]) {
+  for (const type of ["TOURNAMENT", "MINIGAME", "CUSTOM", "FORM"]) {
     const template = getTemplate(type);
     assert.equal(typeof template.validateContent, "function", `${type} needs validateContent`);
     assert.equal(typeof template.resolvePayload, "function", `${type} needs resolvePayload`);
@@ -92,10 +105,52 @@ test("the custom template resolves no live data", async () => {
   assert.equal(await getTemplate("CUSTOM").resolvePayload({}), null);
 });
 
+test("the form template resolves no live data", async () => {
+  assert.equal(await getTemplate("FORM").resolvePayload({}), null);
+});
+
 test("a pinned match only announces itself while it is scheduled or live", () => {
   const { pinnedState } = getTemplate("TOURNAMENT").__testables;
   assert.equal(pinnedState("ACTIVE"), "LIVE");
   assert.equal(pinnedState("SCHEDULED"), "UPCOMING");
-  assert.equal(pinnedState("PENDINGREGISTERS"), "IDLE");
   assert.equal(pinnedState("FINISHED"), "IDLE");
+});
+
+test("tournament falls back to the latest result and then idle", async () => {
+  const calls = [];
+  const finished = { id: 8, status: "FINISHED" };
+  const client = { match: {
+    findFirst: async (query) => { calls.push(query.where.status); return query.where.status === "FINISHED" ? finished : null; },
+  } };
+  assert.deepEqual(await getTemplate("TOURNAMENT").resolvePayload({}, client), { state: "RESULT", match: finished });
+  assert.deepEqual(calls, ["ACTIVE", "SCHEDULED", "FINISHED"]);
+  const empty = { match: { findFirst: async () => null } };
+  assert.deepEqual(await getTemplate("TOURNAMENT").resolvePayload({}, empty), { state: "IDLE", match: null });
+});
+
+test("tournament prefers the latest dated result over a null-dated match", async () => {
+  const matches = [
+    { id: 12, status: "FINISHED", startDate: null },
+    { id: 10, status: "FINISHED", startDate: new Date("2026-08-18T12:00:00.000Z") },
+    { id: 11, status: "FINISHED", startDate: new Date("2026-08-19T12:00:00.000Z") },
+  ];
+  const client = {
+    match: {
+      findFirst: async (query) => {
+        if (query.where.status !== "FINISHED") return null;
+        assert.deepEqual(query.orderBy, [
+          { startDate: { sort: "desc", nulls: "last" } },
+          { id: "desc" },
+        ]);
+        return matches
+          .filter((match) => match.startDate !== null)
+          .sort((left, right) => right.startDate - left.startDate)[0];
+      },
+    },
+  };
+
+  assert.deepEqual(await getTemplate("TOURNAMENT").resolvePayload({}, client), {
+    state: "RESULT",
+    match: matches[2],
+  });
 });

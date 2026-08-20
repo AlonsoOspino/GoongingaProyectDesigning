@@ -1,100 +1,162 @@
 const prisma = require("../config/prisma");
+const { getTemplate, normalizeCountdown } = require("../announcements/registry");
 
-const MODES = new Set(["TOURNAMENT", "JEOPARDY"]);
-
-function normalizeMode(value) {
-  const mode = String(value || "").trim().toUpperCase();
-  return MODES.has(mode) ? mode : null;
+function serialize(announcement) {
+  return {
+    id: announcement.id,
+    name: announcement.name,
+    type: announcement.type,
+    content: announcement.content,
+    countdownAt: announcement.countdownAt,
+    published: announcement.published,
+    order: announcement.order,
+    createdAt: announcement.createdAt,
+    updatedAt: announcement.updatedAt,
+  };
 }
 
-function normalizeConfig(value) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-  const config = { ...value };
-  if (Object.prototype.hasOwnProperty.call(config, "countdownAt")) {
-    const timestamp = config.countdownAt ? new Date(config.countdownAt).getTime() : NaN;
-    config.countdownAt = Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : null;
-  }
-  return config;
+function serializePublic(announcement, payload) {
+  return {
+    id: announcement.id,
+    name: announcement.name,
+    type: announcement.type,
+    content: announcement.content,
+    countdownAt: announcement.countdownAt,
+    order: announcement.order,
+    payload,
+  };
 }
 
 async function getState() {
   return prisma.announcementMode.upsert({
     where: { id: 1 },
-    create: { id: 1, activeMode: "TOURNAMENT", enabled: true, config: {} },
+    create: { id: 1, enabled: true },
     update: {},
   });
 }
 
-const matchSelect = {
-  id: true,
-  title: true,
-  type: true,
-  bestOf: true,
-  status: true,
-  startDate: true,
-  mapWinsTeamA: true,
-  mapWinsTeamB: true,
-  gameNumber: true,
-  teamA: { select: { id: true, name: true, logo: true } },
-  teamB: { select: { id: true, name: true, logo: true } },
-};
-
-async function getTournamentPayload() {
-  const active = await prisma.match.findFirst({
-    where: { status: "ACTIVE" },
-    select: matchSelect,
-    orderBy: [{ startDate: "asc" }, { id: "asc" }],
-  });
-  if (active) return { state: "LIVE", match: active };
-
-  const upcoming = await prisma.match.findFirst({
-    where: { status: "SCHEDULED", startDate: { gte: new Date() } },
-    select: matchSelect,
-    orderBy: [{ startDate: "asc" }, { id: "asc" }],
-  });
-  return { state: upcoming ? "UPCOMING" : "IDLE", match: upcoming };
+function readId(value) {
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? id : null;
 }
 
-async function getJeopardyPayload() {
-  const game = await prisma.miniGame.findFirst({
-    where: { gameType: "JEOPARDY", status: "LIVE" },
-    select: {
-      slug: true,
-      title: true,
-      description: true,
-      coverImageUrl: true,
-      phase: true,
-      state: true,
-      updatedAt: true,
-    },
-    orderBy: { updatedAt: "desc" },
-  });
-  return { state: game ? "LIVE" : "IDLE", game };
+function readName(value) {
+  const name = String(value || "").trim();
+  if (!name) throw new Error("Give this announcement a name.");
+  return name.slice(0, 120);
 }
 
-async function getActive(req, res) {
+async function getActive(_req, res) {
   try {
     const state = await getState();
-    const payload = state.activeMode === "JEOPARDY"
-      ? await getJeopardyPayload()
-      : await getTournamentPayload();
-
+    if (!state.enabled) return res.json({ enabled: false, announcements: [] });
+    const announcements = await prisma.announcement.findMany({
+      where: { published: true },
+      orderBy: [{ order: "asc" }, { id: "asc" }],
+    });
+    const payloads = await Promise.all(announcements.map(async (announcement) => {
+      try {
+        return await getTemplate(announcement.type).resolvePayload(announcement.content);
+      } catch (error) {
+        console.error(`Announcement ${announcement.id} payload could not be resolved:`, error);
+        return null;
+      }
+    }));
     return res.json({
-      enabled: state.enabled,
-      mode: state.activeMode,
-      config: state.config,
-      updatedAt: state.updatedAt,
-      payload,
+      enabled: true,
+      announcements: announcements.map((announcement, index) => serializePublic(announcement, payloads[index])),
     });
   } catch (error) {
-    return res.status(500).json({ message: error?.message || "Could not load the active announcement." });
+    return res.status(500).json({ message: error?.message || "Could not load active announcements." });
   }
 }
 
-async function getSettings(req, res) {
+async function list(_req, res) {
+  try {
+    const announcements = await prisma.announcement.findMany({ orderBy: [{ order: "asc" }, { id: "asc" }] });
+    return res.json(announcements.map(serialize));
+  } catch (error) {
+    return res.status(500).json({ message: error?.message || "Could not load announcements." });
+  }
+}
+
+async function create(req, res) {
+  try {
+    const template = getTemplate(req.body?.type);
+    const tail = await prisma.announcement.aggregate({ _max: { order: true } });
+    const created = await prisma.announcement.create({
+      data: {
+        name: readName(req.body?.name),
+        type: template.type,
+        content: template.validateContent(req.body?.content),
+        countdownAt: normalizeCountdown(req.body?.countdownAt),
+        published: req.body?.published === true,
+        order: (tail._max.order ?? -1) + 1,
+        createdById: req.networkMember.id,
+        updatedById: req.networkMember.id,
+      },
+    });
+    return res.status(201).json(serialize(created));
+  } catch (error) {
+    return res.status(400).json({ message: error?.message || "Could not create this announcement." });
+  }
+}
+
+async function update(req, res) {
+  try {
+    const id = readId(req.params.id);
+    if (!id) return res.status(400).json({ message: "Invalid announcement id." });
+    const existing = await prisma.announcement.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ message: "Announcement not found." });
+    const template = getTemplate(req.body?.type ?? existing.type);
+    const data = {
+      type: template.type,
+      content: template.validateContent(req.body?.content === undefined ? existing.content : req.body.content),
+      updatedById: req.networkMember.id,
+    };
+    if (req.body?.name !== undefined) data.name = readName(req.body.name);
+    if (req.body?.countdownAt !== undefined) data.countdownAt = normalizeCountdown(req.body.countdownAt);
+    if (typeof req.body?.published === "boolean") data.published = req.body.published;
+    return res.json(serialize(await prisma.announcement.update({ where: { id }, data })));
+  } catch (error) {
+    return res.status(400).json({ message: error?.message || "Could not update this announcement." });
+  }
+}
+
+async function remove(req, res) {
+  try {
+    const id = readId(req.params.id);
+    if (!id) return res.status(400).json({ message: "Invalid announcement id." });
+    await prisma.announcement.delete({ where: { id } });
+    return res.json({ deleted: true, id });
+  } catch (error) {
+    return res.status(400).json({ message: error?.message || "Could not delete this announcement." });
+  }
+}
+
+async function reorder(req, res) {
+  try {
+    const ids = req.body?.ids;
+    if (!Array.isArray(ids) || ids.length === 0) throw new Error("Provide announcement ids in their new order.");
+    const normalized = ids.map(readId);
+    if (normalized.some((id) => !id) || new Set(normalized).size !== normalized.length) {
+      throw new Error("Announcement order must contain unique valid ids.");
+    }
+    const found = await prisma.announcement.count({ where: { id: { in: normalized } } });
+    if (found !== normalized.length) return res.status(404).json({ message: "An announcement no longer exists." });
+    await prisma.$transaction(normalized.map((id, order) => prisma.announcement.update({
+      where: { id }, data: { order, updatedById: req.networkMember.id },
+    })));
+    return res.json({ ids: normalized });
+  } catch (error) {
+    return res.status(400).json({ message: error?.message || "Could not reorder announcements." });
+  }
+}
+
+async function getSettings(_req, res) {
   try {
     const state = await getState();
-    return res.json(state);
+    return res.json({ enabled: state.enabled, updatedAt: state.updatedAt });
   } catch (error) {
     return res.status(500).json({ message: error?.message || "Could not load announcement settings." });
   }
@@ -102,30 +164,16 @@ async function getSettings(req, res) {
 
 async function updateSettings(req, res) {
   try {
-    const mode = req.body?.activeMode === undefined ? undefined : normalizeMode(req.body.activeMode);
-    if (req.body?.activeMode !== undefined && !mode) {
-      return res.status(400).json({ message: "Choose Tournament or Jeopardy mode." });
-    }
-
+    if (typeof req.body?.enabled !== "boolean") return res.status(400).json({ message: "Enabled must be true or false." });
     const state = await getState();
     const updated = await prisma.announcementMode.update({
       where: { id: state.id },
-      data: {
-        ...(mode ? { activeMode: mode } : {}),
-        ...(typeof req.body?.enabled === "boolean" ? { enabled: req.body.enabled } : {}),
-        ...(req.body?.config === undefined ? {} : { config: normalizeConfig(req.body.config) }),
-        updatedById: req.networkMember.id,
-      },
+      data: { enabled: req.body.enabled, updatedById: req.networkMember.id },
     });
-    return res.json(updated);
+    return res.json({ enabled: updated.enabled, updatedAt: updated.updatedAt });
   } catch (error) {
     return res.status(400).json({ message: error?.message || "Could not update announcement settings." });
   }
 }
 
-module.exports = {
-  getActive,
-  getSettings,
-  updateSettings,
-  __testables: { normalizeMode, normalizeConfig },
-};
+module.exports = { getActive, list, create, update, remove, reorder, getSettings, updateSettings };

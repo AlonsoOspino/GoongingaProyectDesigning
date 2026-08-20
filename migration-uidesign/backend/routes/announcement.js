@@ -3,10 +3,15 @@ const announcementController = require("../controllers/announcement");
 const { networkAuthMiddleware, requireNetworkRole } = require("../middlewares/networkAuthMiddleware");
 
 const router = express.Router();
-const socialMedia = [networkAuthMiddleware, requireNetworkRole("SOCIAL_MEDIA", "ADMIN")];
+const manager = [networkAuthMiddleware, requireNetworkRole("SOCIAL_MEDIA", "ADMIN")];
 
 router.get("/active", announcementController.getActive);
-router.get("/settings", ...socialMedia, announcementController.getSettings);
-router.patch("/settings", ...socialMedia, announcementController.updateSettings);
+router.patch("/reorder", ...manager, announcementController.reorder);
+router.get("/settings", ...manager, announcementController.getSettings);
+router.patch("/settings", ...manager, announcementController.updateSettings);
+router.get("/", ...manager, announcementController.list);
+router.post("/", ...manager, announcementController.create);
+router.patch("/:id", ...manager, announcementController.update);
+router.delete("/:id", ...manager, announcementController.remove);
 
 module.exports = router;

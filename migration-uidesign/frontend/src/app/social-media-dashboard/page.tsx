@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ExternalLink, Gamepad2, Images, LayoutDashboard, RadioTower, Trophy } from "lucide-react";
-import { AnnouncementModeControl } from "@/announcements/AnnouncementModeControl";
+import { AnnouncementStudio } from "@/announcements/AnnouncementStudio";
 import { ManagerDashboardFrame } from "@/components/dashboard/ManagerDashboardFrame";
 import { readNetworkSessionUser, type NetworkSessionUser } from "@/features/networkSession/storage";
 import { JeopardyDashboard } from "@/minigames/JeopardyDashboard";
@@ -90,7 +90,7 @@ export default function SocialMediaDashboardPage() {
       <div className={styles.workspaceBody}>
         {activeWorkspace === "league" ? (
           <>
-            <div className="ow-container"><AnnouncementModeControl /></div>
+            <div className="ow-container"><AnnouncementStudio /></div>
             <ManagerDashboardFrame />
           </>
         ) : null}
