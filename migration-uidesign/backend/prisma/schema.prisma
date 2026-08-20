@@ -209,6 +209,7 @@ model NetworkMember {
   team                   Team?                 @relation(fields: [teamId], references: [id])
   playerStats            PlayerStat[]
   createdMiniGames       MiniGame[]            @relation("MiniGameCreator")
+  announcements          Announcement[]        @relation("AnnouncementCreator")
   underDevelopmentGames  MiniGame[]            @relation("MiniGameDeveloper")
   miniGameParticipations MiniGameParticipant[]
   managedFeudGames       FamilyFeudGame[]      @relation("FeudGameManager")
@@ -266,16 +267,35 @@ model MiniGameParticipant {
   @@index([memberId])
 }
 
-/// Estado editorial principal del sitio. Se mantiene como un singleton (id 1)
-/// para que la landing y los overlays compartan el mismo modo activo.
-model AnnouncementMode {
-  id          Int                  @id @default(1)
-  activeMode  AnnouncementModeType @default(TOURNAMENT)
-  enabled     Boolean              @default(true)
-  config      Json                 @default("{}")
+/// Un anuncio guardado. `content` tiene la forma que declara su plantilla
+/// (ver backend/announcements/templates). Publicado o no lo decide
+/// AnnouncementMode.publishedId, por eso aqui no hay campo de estado.
+model Announcement {
+  id          Int                @id @default(autoincrement())
+  name        String
+  type        AnnouncementType
+  content     Json               @default("{}")
+  countdownAt DateTime?
+  createdById Int
   updatedById Int?
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  createdBy   NetworkMember      @relation("AnnouncementCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  publishedIn AnnouncementMode[] @relation("PublishedAnnouncement")
+
+  @@index([type, updatedAt])
+}
+
+/// Estado editorial principal del sitio. Sigue siendo un singleton (id 1);
+/// ahora solo apunta al anuncio publicado en lugar de contenerlo.
+model AnnouncementMode {
+  id          Int           @id @default(1)
+  enabled     Boolean       @default(true)
+  publishedId Int?
+  published   Announcement? @relation("PublishedAnnouncement", fields: [publishedId], references: [id], onDelete: SetNull)
+  updatedById Int?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 }
 
 /// Participación de un miembro de la red en una temporada o torneo.
@@ -538,9 +558,10 @@ enum JeopardyPhase {
   FINALIZED
 }
 
-enum AnnouncementModeType {
+enum AnnouncementType {
   TOURNAMENT
-  JEOPARDY
+  MINIGAME
+  CUSTOM
 }
 
 enum NetworkMemberStatus {
