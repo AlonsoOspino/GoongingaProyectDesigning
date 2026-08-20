@@ -929,7 +929,7 @@ const isAuthorizedByUserOrKey = (req) => {
 };
 
 // Draft state for polling. When the background worker is disabled, this applies
-// elapsed timeouts on demand so Neon can still scale to zero while idle.
+// elapsed timeouts on demand, so no process has to stay awake between drafts.
 const getDraftStateReadOnly = async (draftId, req) => {
   if (!isAuthorizedByUserOrKey(req)) {
     throw new Error("Forbidden: provide login token or valid key.");

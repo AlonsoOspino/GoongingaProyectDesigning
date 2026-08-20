@@ -12,26 +12,23 @@
 
 ## Global Constraints
 
-**DATABASE — read this before running any backend command.** `backend/.env` points at a **shared
-Neon cloud database**. This plan's migration is destructive (it drops columns and a type). All work
-targets the **local** development database only: `127.0.0.1:55432/goonginga_dev`, configured in
-`backend/.env.local`.
+**DATABASE.** Every database this plan touches is the local development one:
+`127.0.0.1:55432/goonginga_dev`. Both `backend/.env` and `backend/.env.local` point at it, and
+`backend/prisma.config.ts` prefers `.env.local`, so Prisma commands and `node app.js` agree without
+any exported override.
 
-- Prisma commands are safe by default: `backend/prisma.config.ts` loads `.env.local` when it exists,
-  in preference to `.env`. Verify every Prisma command prints
-  `Datasource "db": PostgreSQL database "goonginga_dev" … at "127.0.0.1:55432"` before trusting it.
-  If it ever names a `neon.tech` host, **stop immediately** and report it.
-- `node app.js` is **not** safe by default — `-r dotenv/config` loads `.env` (Neon). Start the
-  backend like this, which takes secrets from `.env` but forces the local database and port:
+Production is a Postgres container on the VPS, defined as the `database` service in `compose.yaml`.
+Its environment file is generated on the server by `scripts/create-vps-env.sh` and never exists in
+this checkout, so no command you run here can reach it.
 
-```bash
-cd backend && export DATABASE_URL="$(grep '^DATABASE_URL=' .env.local | cut -d= -f2- | tr -d '\r')" && export PORT=3100 && node -r dotenv/config app.js
-```
-
-  dotenv does not override variables already present in the environment, so the exported values win.
 - Start PostgreSQL first if nothing is listening on 55432:
   `& "C:\Program Files\PostgreSQL\18\bin\pg_ctl.exe" -D <repo>/migration-uidesign/.local-postgres/data -l <repo>/migration-uidesign/.local-postgres/postgres.log -o "-p 55432 -h 127.0.0.1" start`
-- Never run `prisma migrate reset`, `prisma db push`, or any command against `.env`'s datasource.
+- Start the backend with: `cd backend && export PORT=3100 && node -r dotenv/config app.js`
+- Every Prisma command prints its datasource. It must read
+  `PostgreSQL database "goonginga_dev", schema "public" at "127.0.0.1:55432"`. Anything else means
+  the environment changed under you — stop and report it.
+- Never run `prisma migrate reset` or `prisma db push`; this plan's migrations are hand-written and
+  applied with `prisma migrate deploy`.
 
 **PORTS (local development).** Backend `http://localhost:3100`; frontend `http://localhost:3001`
 (`npm run dev -- -p 3001`). `frontend/.env.development.local` already points the browser client at
@@ -235,8 +232,8 @@ cd backend && npx prisma migrate deploy && npx prisma generate
 Expected: the migration applies with no error and generation reports the client was written.
 
 **Before trusting the result, read the datasource line in the output.** It must say
-`PostgreSQL database "goonginga_dev", schema "public" at "127.0.0.1:55432"`. If it names a
-`neon.tech` host, the migration hit the shared cloud database — stop and report it immediately.
+`PostgreSQL database "goonginga_dev", schema "public" at "127.0.0.1:55432"`. Anything else means
+the environment changed under you — stop and report it immediately.
 
 - [ ] **Step 7: Confirm the data survived**
 

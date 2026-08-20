@@ -191,7 +191,8 @@ async function main() {
   const maps = mapFiles.map(parseMapFromFileName);
   const heroes = heroFiles.map(parseHeroFromFileName);
 
-  // Delete in sequence (no transaction, to avoid Neon 5s timeout)
+  // Delete in sequence rather than in one transaction: the cascade is large
+  // enough to hit the pooler's statement timeout when wrapped.
   await prisma.$executeRawUnsafe('DELETE FROM "_AllowedMaps";');
   await prisma.map.deleteMany();
   await prisma.hero.deleteMany();
