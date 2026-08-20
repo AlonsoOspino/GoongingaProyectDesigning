@@ -46,7 +46,7 @@ const findLeaderboard = async (tournamentId) => {
       where: {
         ...(tournamentId ? { tournamentId } : {}),
         type: "ROUNDROBIN",
-        status: { in: ["PENDINGREGISTERS", "FINISHED"] },
+        status: "FINISHED",
       },
       select: {
         teamAId: true,

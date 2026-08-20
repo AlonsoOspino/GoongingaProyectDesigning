@@ -17,7 +17,6 @@ interface MatchCardProps {
 const statusVariants: Record<MatchStatus, { label: string; variant: "default" | "primary" | "success" | "warning" }> = {
   SCHEDULED: { label: "Scheduled", variant: "default" },
   ACTIVE: { label: "Live", variant: "primary" },
-  PENDINGREGISTERS: { label: "Pending", variant: "warning" },
   FINISHED: { label: "Finished", variant: "success" },
 };
 
@@ -49,8 +48,7 @@ export function MatchCard({ match, teamA, teamB }: MatchCardProps) {
           isLive && "border-primary animate-pulse-glow",
           isFinished && "border-l-success",
           match.status === "SCHEDULED" && "border-l-primary/50",
-          match.status === "PENDINGREGISTERS" && "border-l-warning",
-          !isLive && !isFinished && match.status !== "PENDINGREGISTERS" && "border-l-accent"
+          !isLive && !isFinished && "border-l-accent"
         )}
       >
         {/* Colored top accent bar based on status */}
@@ -58,8 +56,7 @@ export function MatchCard({ match, teamA, teamB }: MatchCardProps) {
           "h-1",
           isLive && "bg-gradient-to-r from-primary via-accent to-primary",
           isFinished && "bg-gradient-to-r from-success/50 via-success to-success/50",
-          match.status === "SCHEDULED" && "bg-gradient-to-r from-border via-primary/30 to-border",
-          match.status === "PENDINGREGISTERS" && "bg-gradient-to-r from-warning/50 via-warning to-warning/50"
+          match.status === "SCHEDULED" && "bg-gradient-to-r from-border via-primary/30 to-border"
         )} />
         
         <CardContent className="p-4">

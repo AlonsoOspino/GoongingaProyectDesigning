@@ -7,6 +7,7 @@ const adminMiddleware = require("../middlewares/admin");
 const router = express.Router();
 
 router.get("/recent", networkMemberController.getRecent);
+router.get("/me/capabilities", networkAuthMiddleware, networkMemberController.getCapabilities);
 router.get("/me", networkAuthMiddleware, networkMemberController.getCurrent);
 router.get("/admin/users", networkAuthMiddleware, requireNetworkRole("ADMIN", "DEVELOPER"), networkMemberController.getForAdmin);
 router.patch("/admin/users/:id/roles", networkAuthMiddleware, requireNetworkRole("ADMIN", "DEVELOPER"), networkMemberController.updateRoles);

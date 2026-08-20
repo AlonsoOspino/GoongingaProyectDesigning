@@ -280,7 +280,7 @@ const submitResult = async (id, winnerTeamId) => {
         teamAready: 0,
         teamBready: 0,
         mapResults: nextMapResults,
-        status: isFinished ? "PENDINGREGISTERS" : "ACTIVE",
+        status: isFinished ? "FINISHED" : "ACTIVE",
       },
       include: {
         draft: {
@@ -301,6 +301,15 @@ const submitResult = async (id, winnerTeamId) => {
           currentMapId: null,
           currentTurnTeamId: isFinished ? null : nextTurnTeamId,
         },
+      });
+    }
+
+    if (isFinished && isBracketMatch(match)) {
+      await finalizeBracketMatch(tx, {
+        ...match,
+        mapWinsTeamA: nextMapWinsA,
+        mapWinsTeamB: nextMapWinsB,
+        status: "FINISHED",
       });
     }
 
@@ -354,19 +363,6 @@ const undoLastResult = async (id) => {
         : match.mapWinsTeamB > match.mapWinsTeamA
         ? match.teamBId
         : null;
-
-    if (match.status === "PENDINGREGISTERS" && matchWinnerTeamId && !isBracketMatch(match)) {
-      const losingTeamId =
-        matchWinnerTeamId === match.teamAId ? match.teamBId : match.teamAId;
-      await tx.team.update({
-        where: { id: matchWinnerTeamId },
-        data: { victories: { decrement: 1 } },
-      });
-      await tx.team.update({
-        where: { id: losingTeamId },
-        data: { defeats: { decrement: 1 } },
-      });
-    }
 
     let nextMapWinsA = match.mapWinsTeamA;
     let nextMapWinsB = match.mapWinsTeamB;
@@ -540,52 +536,25 @@ const createGuaranteedNextRoundMatches = async (tx, tournamentId, currentRound) 
   }
 };
 
-const finishPendingRegisters = async (id) => {
-  return prisma.$transaction(async (tx) => {
-    const match = await tx.match.findUnique({ where: { id } });
-    if (!match) {
-      throw new Error("Match not found.");
-    }
-    if (match.status !== "PENDINGREGISTERS") {
-      throw new Error("Only matches in PENDINGREGISTERS can be marked as FINISHED.");
-    }
+const finalizeBracketMatch = async (tx, match) => {
+  const winnerTeamId = getMatchWinnerTeamId(match);
+  if (!winnerTeamId) {
+    throw new Error("A playoff match cannot finish without a winner.");
+  }
 
-    const claim = await tx.match.updateMany({
-      where: { id, status: "PENDINGREGISTERS" },
-      data: { status: "FINISHED" },
+  const loserTeamId = winnerTeamId === match.teamAId ? match.teamBId : match.teamAId;
+  await tx.team.update({ where: { id: loserTeamId }, data: { state: "ELIMINATED" } });
+
+  if (isGrandFinal(match)) {
+    await tx.team.update({ where: { id: winnerTeamId }, data: { state: "ACTIVE" } });
+    await tx.tournament.update({
+      where: { id: match.tournamentId },
+      data: { state: "FINISHED" },
     });
-    if (claim.count !== 1) {
-      throw new Error("This match was already finalized.");
-    }
+    return;
+  }
 
-    const updatedMatch = await tx.match.findUnique({ where: { id } });
-    if (!isBracketMatch(match)) {
-      return updatedMatch;
-    }
-
-    const winnerTeamId = getMatchWinnerTeamId(match);
-    if (!winnerTeamId) {
-      throw new Error("A playoff match cannot finish without a winner.");
-    }
-    const loserTeamId = winnerTeamId === match.teamAId ? match.teamBId : match.teamAId;
-    await tx.team.update({ where: { id: loserTeamId }, data: { state: "ELIMINATED" } });
-
-    if (isGrandFinal(match)) {
-      await tx.team.update({ where: { id: winnerTeamId }, data: { state: "ACTIVE" } });
-      await tx.tournament.update({
-        where: { id: match.tournamentId },
-        data: { state: "FINISHED" },
-      });
-    } else {
-      await createGuaranteedNextRoundMatches(
-        tx,
-        match.tournamentId,
-        match.playoffRound
-      );
-    }
-
-    return updatedMatch;
-  });
+  await createGuaranteedNextRoundMatches(tx, match.tournamentId, match.playoffRound);
 };
 
 /**
@@ -636,7 +605,7 @@ const resetMatchToSchedule = async (id) => {
     // 2. Roll back the match-level record. Bracket matches never award these.
     const matchWinnerTeamId = getMatchWinnerTeamId(match);
     const awardedMatchRecord =
-      ["PENDINGREGISTERS", "FINISHED"].includes(match.status) &&
+      match.status === "FINISHED" &&
       matchWinnerTeamId &&
       !isBracketMatch(match);
 
@@ -736,7 +705,6 @@ module.exports = {
   submitResult,
   undoLastResult,
   findSoonest,
-  finishPendingRegisters,
   resetMatchToSchedule,
   isBracketMatch,
   isGrandFinal,

@@ -1,6 +1,6 @@
 export type MemberRole = "ADMIN" | "MANAGER" | "CAPTAIN" | "EDITOR" | "DEFAULT";
 
-export type MatchStatus = "SCHEDULED" | "ACTIVE" | "PENDINGREGISTERS" | "FINISHED";
+export type MatchStatus = "SCHEDULED" | "ACTIVE" | "FINISHED";
 export type MatchType =
   | "ROUNDROBIN"
   | "PLAYINS"

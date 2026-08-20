@@ -227,7 +227,7 @@ const captainUpdate = async (req, res) => {
       return res.status(404).json({ message: "Match not found" });
     }
 
-    const captainTeamId = Number(req.user.teamId);
+    const captainTeamId = req.seasonPlayer.teamId;
 
     if (captainTeamId === match.teamAId && req.body.teamAready !== undefined) {
       updateData.teamAready = Number(req.body.teamAready) === 1 ? 1 : 0;
@@ -381,15 +381,6 @@ const managerResetMatch = async (req, res) => {
   }
 };
 
-const finishPendingRegisters = async (req, res) => {
-  try {
-    const updatedMatch = await matchService.finishPendingRegisters(Number(req.params.id));
-    res.json(updatedMatch);
-  } catch (err) {
-    res.status(400).json({ message: err.message });
-  }
-};
-
 const adminUpdateWeekMaps = async (req, res) => {
   try {
     const { tournamentId, semanas, mapsAllowedByRound } = req.body;
@@ -422,7 +413,7 @@ const captainRequestPause = async (req, res) => {
       return res.status(404).json({ message: "Match not found" });
     }
 
-    const captainTeamId = Number(req.user.teamId);
+    const captainTeamId = req.seasonPlayer.teamId;
     if (captainTeamId !== match.teamAId && captainTeamId !== match.teamBId) {
       return res.status(403).json({ message: "You are not part of this match" });
     }
@@ -570,7 +561,6 @@ module.exports = {
   findSoonest,
   getActiveMatches,
   submitResult,
-  finishPendingRegisters,
   adminUpdateWeekMaps,
   adminGetWeekMapsConfig,
   captainRequestPause,

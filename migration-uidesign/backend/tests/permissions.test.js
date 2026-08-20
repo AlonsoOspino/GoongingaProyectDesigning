@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { hasManagerAccess } = require("../utils/permissions");
+const { hasManagerAccess, isCaptainOf } = require("../utils/permissions");
 const familyFeudManager = require("../middlewares/familyFeudManager");
 const { __testables: minigamePermissions } = require("../middlewares/minigameOperator");
 const adminMiddleware = require("../middlewares/admin");
@@ -48,4 +48,24 @@ test("Admin and editor middleware use Network roles", () => {
   assert.deepEqual(runMiddleware(adminMiddleware, { role: "DEFAULT", roles: ["ADMIN"] }), { allowed: true, statusCode: 200 });
   assert.deepEqual(runMiddleware(editorMiddleware, { role: "EDITOR", roles: ["MEMBER"] }), { allowed: false, statusCode: 403 });
   assert.deepEqual(runMiddleware(editorMiddleware, { role: "DEFAULT", roles: ["CONTENT_CREATOR"] }), { allowed: true, statusCode: 200 });
+});
+
+test("captain authority is scoped to the requested tournament", async () => {
+  const client = {
+    seasonPlayer: {
+      findUnique: async ({ where }) => {
+        const key = where.memberId_tournamentId;
+        if (key.memberId === 7 && key.tournamentId === 9) {
+          return { id: 70, teamId: 3, role: "CAPTAIN" };
+        }
+        if (key.memberId === 7 && key.tournamentId === 10) {
+          return { id: 71, teamId: 8, role: "PLAYER" };
+        }
+        return null;
+      },
+    },
+  };
+
+  assert.equal(await isCaptainOf(7, 9, 3, client), true);
+  assert.equal(await isCaptainOf(7, 10, 3, client), false);
 });

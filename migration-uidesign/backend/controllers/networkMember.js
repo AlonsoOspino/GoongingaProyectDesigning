@@ -1,6 +1,7 @@
 const networkMemberRepo = require("../repositories/networkMember");
 const teamRepo = require("../repositories/team");
 const { hasNetworkRole } = require("../utils/permissions");
+const prisma = require("../config/prisma");
 
 function toLeagueMember(member, includePrivate = false) {
   const profile = {
@@ -51,6 +52,29 @@ async function getRecent(req, res) {
 
 async function getCurrent(req, res) {
   return res.json(req.networkMember);
+}
+
+async function getCapabilities(req, res) {
+  try {
+    const captainOf = await prisma.seasonPlayer.findMany({
+      where: {
+        memberId: req.networkMember.id,
+        role: "CAPTAIN",
+        teamId: { not: null },
+        tournament: { state: { not: "FINISHED" } },
+      },
+      select: { tournamentId: true, teamId: true },
+      orderBy: [{ tournamentId: "asc" }, { teamId: "asc" }],
+    });
+    return res.json({
+      isAdmin: hasNetworkRole(req.networkMember, "ADMIN"),
+      isCaster: hasNetworkRole(req.networkMember, "CASTER"),
+      isCaptain: captainOf.length > 0,
+      captainOf,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error?.message || "Unable to load capabilities." });
+  }
 }
 
 async function getForAdmin(req, res) {
@@ -137,6 +161,7 @@ async function adminUpdateLeagueMember(req, res) {
 module.exports = {
   getRecent,
   getCurrent,
+  getCapabilities,
   getForAdmin,
   updateRoles,
   getLeagueMembers,

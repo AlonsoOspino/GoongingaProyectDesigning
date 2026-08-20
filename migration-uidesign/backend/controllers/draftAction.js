@@ -55,7 +55,7 @@ const captainCreate = async (req, res) => {
     }
 
     // Get teamId from authenticated user
-    allowedFields.teamId = req.user.teamId;
+    allowedFields.teamId = req.seasonPlayer.teamId;
 
     // Require matchId in body (or could be in params)
     const matchIdValue = req.body.matchId || req.params.matchId;

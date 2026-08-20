@@ -242,14 +242,6 @@ const getActiveMatches = async () => {
   });
 } 
 
-const finishPendingRegisters = async (id) => {
-  const parsedId = Number(id);
-  if (!Number.isInteger(parsedId) || parsedId <= 0) {
-    throw new Error("id must be a positive integer.");
-  }
-  return matchRepo.finishPendingRegisters(parsedId);
-};
-
 const updateWeekMaps = async (tournamentId, semanas, mapsAllowedByRound) => {
   const parsedTournamentId = parsePositiveInt(tournamentId, "tournamentId");
   const parsedWeek = parsePositiveInt(semanas, "semanas");
@@ -315,7 +307,6 @@ module.exports = {
   create,
   findSoonest,
   getActiveMatches,
-  finishPendingRegisters,
   updateWeekMaps,
   getWeekMapsConfig,
 };

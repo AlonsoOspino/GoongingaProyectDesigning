@@ -30,7 +30,6 @@ router.get("/active", matchController.getActiveMatches);
 // ID-based routes
 router.post("/:id/result", authMiddleware, managerMiddleware, matchController.submitResult);
 router.post("/:id/undo-result", authMiddleware, managerMiddleware, matchController.undoLastResult);
-router.post("/:id/finish-registers", authMiddleware, managerMiddleware, matchController.finishPendingRegisters);
 router.get("/:id", matchController.getById);
 
 module.exports = router;

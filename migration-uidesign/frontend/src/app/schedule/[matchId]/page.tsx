@@ -16,7 +16,6 @@ interface MatchPageProps {
 const statusVariants: Record<MatchStatus, { label: string; variant: "default" | "primary" | "success" | "warning" }> = {
   SCHEDULED: { label: "Scheduled", variant: "default" },
   ACTIVE: { label: "Live", variant: "primary" },
-  PENDINGREGISTERS: { label: "Pending", variant: "warning" },
   FINISHED: { label: "Finished", variant: "success" },
 };
 

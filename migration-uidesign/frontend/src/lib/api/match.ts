@@ -68,13 +68,6 @@ export async function undoMatchResult(token: string, matchId: number) {
   });
 }
 
-export async function finishPendingRegisters(token: string, matchId: number) {
-  return apiRequest<Match>(`/match/${matchId}/finish-registers`, {
-    method: "POST",
-    token,
-  });
-}
-
 export async function captainRequestPause(token: string, matchId: number) {
   return apiRequest<Match>(`/match/captain/${matchId}/request-pause`, {
     method: "POST",

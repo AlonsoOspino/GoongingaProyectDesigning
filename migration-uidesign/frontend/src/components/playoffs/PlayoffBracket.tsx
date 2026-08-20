@@ -21,14 +21,13 @@ const ROUNDS = [
 ];
 
 function winnerTeamId(match: Match) {
-  if (!(["PENDINGREGISTERS", "FINISHED"] as Match["status"][]).includes(match.status)) return null;
+  if (match.status !== "FINISHED") return null;
   if (match.mapWinsTeamA > match.mapWinsTeamB) return match.teamAId;
   if (match.mapWinsTeamB > match.mapWinsTeamA) return match.teamBId;
   return null;
 }
 
 function statusLabel(match: Match) {
-  if (match.status === "PENDINGREGISTERS") return "Result pending";
   if (match.status === "FINISHED") return "Final";
   if (match.status === "ACTIVE") return "Live";
   return match.startDate ? "Scheduled" : "Date TBD";

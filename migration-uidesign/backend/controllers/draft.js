@@ -1,5 +1,5 @@
 const prisma = require("../config/prisma");
-const { hasManagerAccess } = require("../utils/permissions");
+const { hasManagerAccess, resolveSeasonPlayer } = require("../utils/permissions");
 
 const mapOrder = ["CONTROL", "HYBRID", "PAYLOAD", "PUSH", "FLASHPOINT"];
 // Best of 5 cycle used by playoff rounds 1 and 2.
@@ -118,13 +118,14 @@ const ensureManagerRole = (user) => {
   }
 };
 
-const resolveActingTeamId = (user, bodyTeamId, match) => {
+const resolveActingTeamId = async (user, bodyTeamId, match) => {
   if (!user) {
     throw new Error("Unauthorized.");
   }
 
-  if (user.role === "CAPTAIN") {
-    const captainTeamId = Number(user.teamId);
+  const seasonPlayer = await resolveSeasonPlayer(user.id, match.tournamentId);
+  if (seasonPlayer?.role === "CAPTAIN") {
+    const captainTeamId = seasonPlayer.teamId;
     if (captainTeamId !== match.teamAId && captainTeamId !== match.teamBId) {
       throw new Error("Captain can only act on own match.");
     }
@@ -540,7 +541,7 @@ const pickMap = async (draftId, payload, user) => {
     throw new Error("Draft phase must be MAPPICKING.");
   }
 
-  const actingTeamId = resolveActingTeamId(user, payload.teamId, draft.match);
+  const actingTeamId = await resolveActingTeamId(user, payload.teamId, draft.match);
 
   if (draft.currentTurnTeamId && actingTeamId !== draft.currentTurnTeamId) {
     throw new Error("It is not your turn to pick the map.");
@@ -665,7 +666,7 @@ const banHero = async (draftId, payload, user) => {
     throw new Error("Draft phase must be BAN.");
   }
 
-  const actingTeamId = resolveActingTeamId(user, payload.teamId, draft.match);
+  const actingTeamId = await resolveActingTeamId(user, payload.teamId, draft.match);
 
   if (draft.currentTurnTeamId && actingTeamId !== draft.currentTurnTeamId) {
     throw new Error("It is not your turn to ban.");
@@ -806,32 +807,29 @@ const endMap = async (draftId, user) => {
     throw new Error("Draft phase must be BAN or PLAYING to end map.");
   }
 
-  return prisma.$transaction(async (tx) => {
-    await tx.match.update({
-      where: { id: draft.match.id },
-      data: { status: "PENDINGREGISTERS" },
-    });
-
-    return tx.draftTable.update({
-      where: { id: draft.id },
-      data: {
-        phase: "ENDMAP",
-        phaseStartedAt: new Date(),
-      },
-      include: {
-        actions: { orderBy: { order: "asc" } },
-        match: true,
-      },
-    });
+  return prisma.draftTable.update({
+    where: { id: draft.id },
+    data: {
+      phase: "ENDMAP",
+      phaseStartedAt: new Date(),
+    },
+    include: {
+      actions: { orderBy: { order: "asc" } },
+      match: true,
+    },
   });
 };
 
 const yieldFirstPick = async (draftId, user) => {
-  if (!user || user.role !== "CAPTAIN") {
+  if (!user) {
     throw new Error("Only the higher-seeded captain can hand over first pick.");
   }
 
   const draft = await getDraftByIdOrThrow(draftId);
+  const seasonPlayer = await resolveSeasonPlayer(user.id, draft.match.tournamentId);
+  if (seasonPlayer?.role !== "CAPTAIN") {
+    throw new Error("Only the higher-seeded captain can hand over first pick.");
+  }
   if (
     !isBracketMatchType(draft.match.type) ||
     draft.match.gameNumber !== 0 ||
@@ -849,7 +847,7 @@ const yieldFirstPick = async (draftId, user) => {
   }
 
   const higherSeed = [...teams].sort((a, b) => a.playoffSeed - b.playoffSeed)[0];
-  const captainTeamId = Number(user.teamId);
+  const captainTeamId = seasonPlayer.teamId;
   if (captainTeamId !== higherSeed.id || draft.currentTurnTeamId !== higherSeed.id) {
     throw new Error("Only the higher-seeded captain can hand over first pick.");
   }
@@ -986,9 +984,10 @@ const getDraftShareInfo = async (matchId, user) => {
   }
 
   const isManager = hasManagerAccess(user);
+  const seasonPlayer = await resolveSeasonPlayer(user.id, draft.match.tournamentId);
   const isMatchCaptain =
-    user.role === "CAPTAIN" &&
-    (Number(user.teamId) === draft.match.teamAId || Number(user.teamId) === draft.match.teamBId);
+    seasonPlayer?.role === "CAPTAIN" &&
+    (seasonPlayer.teamId === draft.match.teamAId || seasonPlayer.teamId === draft.match.teamBId);
 
   if (!isManager && !isMatchCaptain) {
     throw new Error("Forbidden: only match captains or managers can share this draft.");

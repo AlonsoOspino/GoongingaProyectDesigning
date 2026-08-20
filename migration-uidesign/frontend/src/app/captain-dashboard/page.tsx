@@ -296,7 +296,7 @@ export default function CaptainDashboardPage() {
   const myMatches = matches.filter((m) => m.teamAId === user?.teamId || m.teamBId === user?.teamId);
   const upcomingMatches = myMatches.filter((m) => m.status === "SCHEDULED");
   const activeMatches = myMatches.filter((m) => m.status === "ACTIVE");
-  const historyMatches = myMatches.filter((m) => m.status === "FINISHED" || m.status === "PENDINGREGISTERS");
+  const historyMatches = myMatches.filter((m) => m.status === "FINISHED");
 
   const getTeamName = (teamId: number) => teams.find((t) => t.id === teamId)?.name || `Team ${teamId}`;
   const isTeamA = (match: Match) => match.teamAId === user?.teamId;

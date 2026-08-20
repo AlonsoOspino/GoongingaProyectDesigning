@@ -270,18 +270,18 @@ model MiniGameParticipant {
 /// Un anuncio guardado. `content` tiene la forma que declara su plantilla
 /// (ver backend/announcements/templates).
 model Announcement {
-  id          Int                @id @default(autoincrement())
+  id          Int              @id @default(autoincrement())
   name        String
   type        AnnouncementType
-  content     Json               @default("{}")
+  content     Json             @default("{}")
   countdownAt DateTime?
-  published   Boolean             @default(false)
-  order       Int                 @default(0)
+  published   Boolean          @default(false)
+  order       Int              @default(0)
   createdById Int
   updatedById Int?
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
-  createdBy   NetworkMember      @relation("AnnouncementCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  createdBy   NetworkMember    @relation("AnnouncementCreator", fields: [createdById], references: [id], onDelete: Restrict)
 
   @@index([type, updatedAt])
   @@index([published, order])
@@ -296,21 +296,25 @@ model AnnouncementMode {
   updatedAt   DateTime @updatedAt
 }
 
-/// Participación de un miembro de la red en una temporada o torneo.
-/// Por ahora solo representa el vínculo; equipo, posición y estado competitivo
-/// se agregarán cuando se defina el flujo de Season Player.
+/// Participación competitiva de un miembro de la red en una temporada.
+/// La identidad y autenticación permanecen en NetworkMember.
 model SeasonPlayer {
-  id           Int           @id @default(autoincrement())
+  id           Int              @id @default(autoincrement())
   memberId     Int
   tournamentId Int
-  joinedAt     DateTime      @default(now())
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  member       NetworkMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  tournament   Tournament    @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  teamId       Int?
+  role         SeasonPlayerRole @default(PLAYER)
+  joinedAt     DateTime         @default(now())
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  member       NetworkMember    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  tournament   Tournament       @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  team         Team?            @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  playerStats  PlayerStat[]
 
   @@unique([memberId, tournamentId])
-  @@index([tournamentId])
+  @@index([tournamentId, teamId])
+  @@index([teamId])
 }
 
 model Team {
@@ -333,6 +337,7 @@ model Team {
   matchesB      Match[]         @relation("TeamB")
   members       NetworkMember[]
   tournament    Tournament      @relation(fields: [tournamentId], references: [id])
+  seasonPlayers SeasonPlayer[]
 
   @@unique([tournamentId, playoffSeed])
 }
@@ -455,11 +460,20 @@ model PlayerStat {
   mapType         MapType
   role            HeroRole
   userId          Int
+  seasonPlayerId  Int?
   createdAt       DateTime      @default(now())
   matchId         Int
   gameNumber      Int
   match           Match         @relation(fields: [matchId], references: [id])
   user            NetworkMember @relation(fields: [userId], references: [id])
+  seasonPlayer    SeasonPlayer? @relation(fields: [seasonPlayerId], references: [id])
+
+  @@index([seasonPlayerId])
+}
+
+enum SeasonPlayerRole {
+  CAPTAIN
+  PLAYER
 }
 
 enum TournamentState {
@@ -585,7 +599,6 @@ enum MatchType {
 enum MatchStatus {
   SCHEDULED
   ACTIVE
-  PENDINGREGISTERS
   FINISHED
 }
 

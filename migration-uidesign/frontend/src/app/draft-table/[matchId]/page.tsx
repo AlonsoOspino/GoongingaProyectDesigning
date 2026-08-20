@@ -182,8 +182,8 @@ export default function DraftTablePage() {
     };
   }, []);
 
-  // Show draft history only when match is PENDINGRESULT or FINISHED
-  const showDraftHistory = matchStatus === "PENDINGREGISTERS" || matchStatus === "FINISHED" || currentPhase === "FINISHED";
+  // Show draft history once the match or draft has finished.
+  const showDraftHistory = matchStatus === "FINISHED" || currentPhase === "FINISHED";
 
   // Check if I'm ready (for captains)
   const amIReady = isCaptain && myTeamId === teamA?.id 

@@ -20,13 +20,12 @@ interface LeaderboardOverlayViewProps {
   leaderboardAfterText?: string | null;
 }
 
-const finalizedStatuses = new Set(["PENDINGREGISTERS", "FINISHED"]);
+const finalizedStatuses = new Set(["FINISHED"]);
 
 const matchStatusPriority: Record<Match["status"], number> = {
-  PENDINGREGISTERS: 0,
-  FINISHED: 1,
-  ACTIVE: 2,
-  SCHEDULED: 3,
+  FINISHED: 0,
+  ACTIVE: 1,
+  SCHEDULED: 2,
 };
 
 function sortMatchesByScheduledDate(matches: Match[]) {
@@ -341,12 +340,12 @@ export function LeaderboardOverlayFromData({
     ? Number(settings.weekNumber)
     : 1;
 
-  const lastPendingMatch = [...weekMatches]
-    .filter((m) => m.status === "PENDINGREGISTERS")
+  const lastFinishedMatch = [...weekMatches]
+    .filter((m) => m.status === "FINISHED")
     .sort((a, b) => b.id - a.id)[0];
 
-  const leaderboardAfterText = lastPendingMatch
-    ? `LEADERBOARD AFTER ${teamsById.get(lastPendingMatch.teamAId)?.name || ""} VS ${teamsById.get(lastPendingMatch.teamBId)?.name || ""}`
+  const leaderboardAfterText = lastFinishedMatch
+    ? `LEADERBOARD AFTER ${teamsById.get(lastFinishedMatch.teamAId)?.name || ""} VS ${teamsById.get(lastFinishedMatch.teamBId)?.name || ""}`
     : null;
 
   return (

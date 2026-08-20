@@ -22,36 +22,20 @@ import {
   createDraft,
   getDraftByMatchId,
   updateManagerMatch,
-  finishPendingRegisters,
   getAllPlayerStats,
-  createBatchPlayerStats,
   managerTogglePause,
   managerClearPauseRequest,
   type Match,
   type Team,
   type DraftState,
   type Member,
-  type MatchStatGameEntry,
-  type MatchStatEntryRow,
 } from "@/lib/api";
 import { formatDateEST, formatDateTimeEST } from "@/lib/dateUtils";
 import type { PlayerStat } from "@/lib/api/types";
 
-type TabValue = "scheduled" | "active" | "pending" | "stats";
-type MapType = "CONTROL" | "HYBRID" | "PAYLOAD" | "PUSH" | "FLASHPOINT";
-type HeroRole = "TANK" | "DPS" | "SUPPORT";
-
-type PendingStatFormState = {
-  mapType: MapType;
-  matchTitle: string;
-};
+type TabValue = "scheduled" | "active" | "stats";
 
 const POLL_INTERVAL = 12000;
-
-const DEFAULT_PENDING_STAT_FORM: PendingStatFormState = {
-  mapType: "FLASHPOINT",
-  matchTitle: "",
-};
 
 function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean }) {
   const router = useRouter();
@@ -66,12 +50,6 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
   const [loading, setLoading] = useState(true);
   const [dataError, setDataError] = useState<string | null>(null);
   const [creatingDraft, setCreatingDraft] = useState<number | null>(null);
-  const [activeStatMatchId, setActiveStatMatchId] = useState<number | null>(null);
-  const [statForms, setStatForms] = useState<Record<number, PendingStatFormState>>({});
-  const [gameEntries, setGameEntries] = useState<Record<number, MatchStatGameEntry[]>>({});
-  const [confirmingMatchId, setConfirmingMatchId] = useState<number | null>(null);
-  const [statMessages, setStatMessages] = useState<Record<number, string>>({});
-  const [finishingMatchId, setFinishingMatchId] = useState<number | null>(null);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
   const [notificationsSupported, setNotificationsSupported] = useState(false);
   // Stats tab state
@@ -227,163 +205,11 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
     }
   }
 
-  function getPlayersForMatch(match: Match) {
-    return members.filter((member) => member.teamId === match.teamAId || member.teamId === match.teamBId);
-  }
-
-  function getOrCreateStatForm(matchId: number) {
-    return statForms[matchId] ?? DEFAULT_PENDING_STAT_FORM;
-  }
-
-  function openStatForm(match: Match) {
-    const matchId = match.id;
-    setActiveStatMatchId((prev) => (prev === matchId ? null : matchId));
-    setStatForms((prev) => {
-      if (prev[matchId]) return prev;
-      return {
-        ...prev,
-        [matchId]: {
-          ...DEFAULT_PENDING_STAT_FORM,
-          matchTitle: String(match.title || ""),
-        },
-      };
-    });
-  }
-
-  function updateStatForm(matchId: number, patch: Partial<PendingStatFormState>) {
-    setStatForms((prev) => ({
-      ...prev,
-      [matchId]: { ...(prev[matchId] ?? DEFAULT_PENDING_STAT_FORM), ...patch },
-    }));
-  }
-
-  function updateGameRow(matchId: number, gameIndex: number, rowIndex: number, patch: Partial<MatchStatEntryRow>) {
-    setGameEntries((prev) => {
-      const entries = prev[matchId] || [];
-      const target = entries[gameIndex];
-      if (!target) return prev;
-      const rows = [...target.rows];
-      rows[rowIndex] = { ...rows[rowIndex], ...patch };
-      const nextEntries = [...entries];
-      nextEntries[gameIndex] = { ...target, rows };
-      return { ...prev, [matchId]: nextEntries };
-    });
-  }
-
-  function addGameEntry(match: Match) {
-    const matchPlayers = getPlayersForMatch(match);
-    const form = getOrCreateStatForm(match.id);
-    const expectedGames = Math.max(1, (match.mapWinsTeamA || 0) + (match.mapWinsTeamB || 0));
-    const existingEntries = gameEntries[match.id] || [];
-    if (existingEntries.length >= expectedGames) {
-      setStatMessages((prev) => ({
-        ...prev,
-        [match.id]: `All ${expectedGames} game entries are already open.`,
-      }));
-      return;
-    }
-    const rows: MatchStatEntryRow[] = matchPlayers.slice(0, 10).map((player) => ({
-      userId: player.id,
-      role: "DPS",
-      kills: 0,
-      assists: 0,
-      deaths: 0,
-      damage: 0,
-      healing: 0,
-      mitigation: 0,
-    }));
-    setGameEntries((prev) => ({
-      ...prev,
-      [match.id]: [...(prev[match.id] || []), { mapType: form.mapType, gameDuration: 0, rows, players: matchPlayers }],
-    }));
-    setStatMessages((prev) => ({ ...prev, [match.id]: `Game ${existingEntries.length + 1} is ready for manual entry.` }));
-  }
-
-  async function handleConfirmBatch(matchId: number) {
-    if (!token) return;
-    const form = getOrCreateStatForm(matchId);
-    const title = form.matchTitle.trim();
-    if (!title) {
-      setStatMessages((prev) => ({
-        ...prev,
-        [matchId]: "Please set a match title first (example: MATCH OF NEPAL).",
-      }));
-      return;
-    }
-
-    const entries = gameEntries[matchId] || [];
-    const expectedGames = Math.max(1, (matches.find((m) => m.id === matchId)?.mapWinsTeamA || 0) + (matches.find((m) => m.id === matchId)?.mapWinsTeamB || 0));
-    if (entries.length < expectedGames) {
-      setStatMessages((prev) => ({
-        ...prev,
-        [matchId]: `Complete ${expectedGames} game entries before saving (${entries.length}/${expectedGames} ready).`,
-      }));
-      return;
-    }
-    const entriesToSave = entries.slice(0, expectedGames);
-    if (entriesToSave.some((entry) => entry.gameDuration <= 0)) {
-      setStatMessages((prev) => ({ ...prev, [matchId]: "Enter a duration for every game before saving." }));
-      return;
-    }
-
-    setConfirmingMatchId(matchId);
-    setStatMessages((prev) => ({ ...prev, [matchId]: "Saving player stats..." }));
-
-    try {
-      await updateManagerMatch(token, matchId, { title });
-
-      const result = await createBatchPlayerStats(token, {
-        matchId,
-        games: entriesToSave.map((entry, batchIndex) => ({
-          mapType: entry.mapType,
-          gameNumber: batchIndex + 1,
-          gameDuration: entry.gameDuration,
-          rows: entry.rows.slice(0, 10).map((row) => ({
-            userId: row.userId,
-            role: row.role,
-            kills: Number(row.kills),
-            assists: Number(row.assists),
-            deaths: Number(row.deaths),
-            damage: Number(row.damage),
-            healing: Number(row.healing),
-            mitigation: Number(row.mitigation),
-          })),
-        })),
-      });
-      setStatMessages((prev) => ({
-        ...prev,
-        [matchId]: `Saved ${result.count} player stats across ${entriesToSave.length} game(s) for ${title}. Mark as finished when done.`,
-      }));
-      setGameEntries((prev) => ({ ...prev, [matchId]: [] }));
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to save match stats.";
-      setStatMessages((prev) => ({ ...prev, [matchId]: message }));
-    } finally {
-      setConfirmingMatchId(null);
-    }
-  }
-
-  async function handleFinishMatch(matchId: number) {
-    if (!token) return;
-    setFinishingMatchId(matchId);
-    try {
-      await finishPendingRegisters(token, matchId);
-      setStatMessages((prev) => ({ ...prev, [matchId]: "Match moved to FINISHED." }));
-      await loadData(true);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to mark match as finished.";
-      setStatMessages((prev) => ({ ...prev, [matchId]: message }));
-    } finally {
-      setFinishingMatchId(null);
-    }
-  }
-
   const getTeamName = (teamId: number) =>
     teams.find((t) => t.id === teamId)?.name || `Team ${teamId}`;
 
   const scheduledMatches = matches.filter((m) => m.status === "SCHEDULED");
   const activeMatches = matches.filter((m) => m.status === "ACTIVE");
-  const pendingMatches = matches.filter((m) => m.status === "PENDINGREGISTERS");
 
   // Group scheduled matches by week
   const scheduledByWeek = scheduledMatches.reduce((acc, m) => {
@@ -487,7 +313,6 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
           {[
             { label: "Scheduled", count: scheduledMatches.length, color: "text-foreground" },
             { label: "Active", count: activeMatches.length, color: "text-accent" },
-            { label: "Pending Results", count: pendingMatches.length, color: "text-warning" },
           ].map(({ label, count, color }) => (
             <Card key={label} variant="featured">
               <CardContent className="p-6">
@@ -537,7 +362,6 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
           <TabsList className="mb-6">
             <TabsTrigger value="scheduled">Scheduled ({scheduledMatches.length})</TabsTrigger>
             <TabsTrigger value="active">Active ({activeMatches.length})</TabsTrigger>
-            <TabsTrigger value="pending">Pending ({pendingMatches.length})</TabsTrigger>
             <TabsTrigger value="stats">Stats</TabsTrigger>
           </TabsList>
 
@@ -682,225 +506,6 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
                               </div>
                             )}
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* PENDING TAB */}
-          <TabsContent value="pending">
-            <Card variant="featured">
-              <CardHeader><CardTitle>Pending Results</CardTitle></CardHeader>
-              <CardContent>
-                {loading ? (
-                  <p className="text-muted text-center py-8">Loading...</p>
-                ) : pendingMatches.length === 0 ? (
-                  <p className="text-muted text-center py-8">No matches pending results.</p>
-                ) : (
-                  <div className="space-y-4">
-                    {pendingMatches.map((match) => {
-                      const teamAName = getTeamName(match.teamAId);
-                      const teamBName = getTeamName(match.teamBId);
-                      const matchPlayers = getPlayersForMatch(match);
-                      const form = getOrCreateStatForm(match.id);
-                      const entries = gameEntries[match.id] || [];
-                      const expectedGames = Math.max(1, (match.mapWinsTeamA || 0) + (match.mapWinsTeamB || 0));
-                      const isOpen = activeStatMatchId === match.id;
-
-                      return (
-                        <div key={match.id} className="border border-warning/30 rounded-lg p-4 bg-warning/5">
-                          <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-1">
-                                <span className="text-lg font-semibold text-foreground">{teamAName}</span>
-                                <span className="font-mono text-lg text-warning">{match.mapWinsTeamA} - {match.mapWinsTeamB}</span>
-                                <span className="text-lg font-semibold text-foreground">{teamBName}</span>
-                              </div>
-                              <div className="flex items-center gap-2 text-sm text-muted">
-                                <Badge variant="secondary">{match.type}</Badge>
-                                <span>BO{match.bestOf}</span>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Button size="sm" variant="secondary" onClick={() => openStatForm(match)}>
-                                {isOpen ? "Hide Stats Form" : "Register Stats"}
-                              </Button>
-                              <Link href={`/draft-table/${match.id}`}>
-                                <Button size="sm" variant="secondary">View Draft</Button>
-                              </Link>
-                            </div>
-                          </div>
-
-                          {isOpen && (
-                            <div className="mt-4 border-t border-border pt-4 space-y-4">
-                              <p className="text-sm text-muted">
-                                Enter the official scoreboard values for each played map. Match rosters are loaded automatically; verify roles, duration, and values before saving.
-                              </p>
-
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                <label className="text-sm md:col-span-3">
-                                  <span className="text-muted block mb-1">Match Title</span>
-                                  <input
-                                    type="text"
-                                    className="w-full rounded-md border border-border bg-background px-3 py-2"
-                                    placeholder="MATCH OF NEPAL"
-                                    value={form.matchTitle}
-                                    onChange={(e) => updateStatForm(match.id, { matchTitle: e.target.value })}
-                                  />
-                                </label>
-
-                                <label className="text-sm">
-                                  <span className="text-muted block mb-1">Default map type</span>
-                                  <select
-                                    className="w-full rounded-md border border-border bg-background px-3 py-2"
-                                    value={form.mapType}
-                                    onChange={(e) => updateStatForm(match.id, { mapType: e.target.value as MapType })}
-                                  >
-                                    {["CONTROL", "HYBRID", "PAYLOAD", "PUSH", "FLASHPOINT"].map((t) => (
-                                      <option key={t} value={t}>{t}</option>
-                                    ))}
-                                  </select>
-                                </label>
-
-                              </div>
-
-                              <div className="flex flex-wrap items-center gap-3">
-                                <Button onClick={() => addGameEntry(match)} disabled={entries.length >= expectedGames}>
-                                  {entries.length >= expectedGames ? "All games added" : `Add game ${entries.length + 1}`}
-                                </Button>
-                                <Button
-                                  onClick={() => void handleConfirmBatch(match.id)}
-                                  disabled={entries.length < expectedGames || confirmingMatchId === match.id}
-                                >
-                                  {confirmingMatchId === match.id ? "Saving..." : `Save ${entries.length} game${entries.length === 1 ? "" : "s"}`}
-                                </Button>
-                                <Button
-                                  variant="secondary"
-                                  onClick={() => {
-                                    if (window.confirm("Mark this match finished? This publishes the final score and stats.")) void handleFinishMatch(match.id);
-                                  }}
-                                  disabled={finishingMatchId === match.id}
-                                >
-                                  {finishingMatchId === match.id ? "Finishing..." : "Mark Match Finished"}
-                                </Button>
-                                {statMessages[match.id] && (
-                                  <span className="text-sm text-muted" role="status" aria-live="polite">{statMessages[match.id]}</span>
-                                )}
-                              </div>
-
-                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                {Array.from({ length: expectedGames }).map((_, slotIndex) => {
-                                  const entry = entries[slotIndex];
-                                  return (
-                                    <div
-                                      key={slotIndex}
-                                      className={`rounded-md border p-3 ${entry ? "border-success/40 bg-success/5" : "border-border bg-surface/40"}`}
-                                    >
-                                      <p className="text-sm font-semibold text-foreground">Game {slotIndex + 1}</p>
-                                      <p className="text-xs text-muted">
-                                        {entry ? "Manual entry open" : "Not added"}
-                                      </p>
-                                      {entry && (
-                                        <p className="text-xs text-muted mt-1">
-                                          {entry.mapType} &middot; {entry.gameDuration ? `${entry.gameDuration}s` : "Duration required"}
-                                        </p>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-
-                              {entries.map((entry, gameIndex) => (
-                                <div key={gameIndex} className="space-y-3 rounded-md border border-border p-3 bg-surface/40">
-                                  <div className="flex items-center justify-between">
-                                    <p className="text-sm font-semibold text-foreground">Game {gameIndex + 1} stats</p>
-                                    <button type="button" className="text-xs font-semibold text-danger underline underline-offset-4" onClick={() => setGameEntries((current) => ({ ...current, [match.id]: (current[match.id] || []).filter((_, index) => index !== gameIndex) }))}>Remove game</button>
-                                  </div>
-
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                  <label className="text-sm block">
-                                    <span className="text-muted">Map type</span>
-                                    <select className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2" value={entry.mapType} onChange={(event) => setGameEntries((prev) => { const list = [...(prev[match.id] || [])]; list[gameIndex] = { ...entry, mapType: event.target.value as MapType }; return { ...prev, [match.id]: list }; })}>
-                                      {["CONTROL", "HYBRID", "PAYLOAD", "PUSH", "FLASHPOINT"].map((type) => <option key={type} value={type}>{type}</option>)}
-                                    </select>
-                                  </label>
-                                  <label className="text-sm block">
-                                    <span className="text-muted">Duration in seconds</span>
-                                    <input
-                                      type="number" min={1}
-                                      className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
-                                      value={entry.gameDuration || ""}
-                                      onChange={(e) =>
-                                        setGameEntries((prev) => {
-                                          const list = [...(prev[match.id] || [])];
-                                          list[gameIndex] = { ...entry, gameDuration: Number(e.target.value || 0) };
-                                          return { ...prev, [match.id]: list };
-                                        })
-                                      }
-                                    />
-                                  </label>
-                                  </div>
-
-                                  <div className="overflow-x-auto rounded-md border border-border">
-                                    <table className="w-full text-sm">
-                                      <thead className="bg-surface">
-                                        <tr>
-                                          {["#", "Player", "Role", "K", "A", "D", "DMG", "HEAL", "MIT"].map((h) => (
-                                            <th key={h} className="px-2 py-2 text-left text-xs">{h}</th>
-                                          ))}
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {entry.rows.slice(0, 10).map((row, rowIndex) => (
-                                          <tr key={rowIndex} className="border-t border-border">
-                                            <td className="px-2 py-1 text-xs text-muted">{rowIndex + 1}</td>
-                                            <td className="px-2 py-1">
-                                              <select
-                                                className="w-36 rounded border border-border bg-background px-2 py-1 text-xs"
-                                                value={row.userId ?? ""}
-                                                onChange={(e) => updateGameRow(match.id, gameIndex, rowIndex, { userId: e.target.value ? Number(e.target.value) : null })}
-                                              >
-                                                <option value="">— select —</option>
-                                                {entry.players.map((player) => (
-                                                  <option key={player.id} value={player.id}>{player.nickname}</option>
-                                                ))}
-                                              </select>
-                                            </td>
-                                            <td className="px-2 py-1">
-                                              <select
-                                                className="w-20 rounded border border-border bg-background px-2 py-1 text-xs"
-                                                value={row.role}
-                                                onChange={(e) => updateGameRow(match.id, gameIndex, rowIndex, { role: e.target.value as HeroRole })}
-                                              >
-                                                <option value="TANK">TANK</option>
-                                                <option value="DPS">DPS</option>
-                                                <option value="SUPPORT">SUPPORT</option>
-                                              </select>
-                                            </td>
-                                            {(["kills", "assists", "deaths", "damage", "healing", "mitigation"] as const).map((field) => (
-                                              <td key={field} className="px-2 py-1">
-                                                <input
-                                                  type="number" min={0}
-                                                  className="w-16 rounded border border-border bg-background px-2 py-1 text-xs"
-                                                  value={row[field]}
-                                                  onChange={(e) => updateGameRow(match.id, gameIndex, rowIndex, { [field]: Number(e.target.value || 0) })}
-                                                />
-                                              </td>
-                                            ))}
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-
-                                </div>
-                              ))}
-                            </div>
-                          )}
                         </div>
                       );
                     })}
