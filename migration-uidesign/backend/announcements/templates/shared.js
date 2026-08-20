@@ -17,15 +17,40 @@ function requiredText(value, label, max) {
   return text;
 }
 
-// Operators type these by hand, so a bare `javascript:` URL would be stored XSS.
-// Only an internal path or an absolute http(s) URL is allowed through.
+// RFC 2606 reserved TLD: can never resolve to a real host.
+const INTERNAL_BASE = "http://internal.invalid";
+
+// Operators type these by hand, so this is a security control, not formatting.
+// String prefix checks cannot decide this: the WHATWG URL parser treats a
+// backslash as a slash and strips tab/CR/LF before resolving, so "/\evil.host"
+// and "/<TAB>/evil.host" both reach an external origin while looking internal.
+// Resolving against a sentinel origin is the only check that sees what the
+// browser will actually do.
 function safeLink(value, label) {
   const text = optionalText(value, 500);
   if (!text) return "";
-  if (text.startsWith("//")) throw new Error(`${label} must be an internal path or an http(s) URL.`);
-  if (text.startsWith("/")) return text;
-  if (/^https?:\/\//i.test(text)) return text;
-  throw new Error(`${label} must be an internal path or an http(s) URL.`);
+
+  const invalid = () => new Error(`${label} must be an internal path or an http(s) URL.`);
+
+  if (/^https?:\/\//i.test(text)) {
+    try {
+      new URL(text);
+    } catch {
+      throw invalid();
+    }
+    return text;
+  }
+
+  if (!text.startsWith("/")) throw invalid();
+
+  let resolved;
+  try {
+    resolved = new URL(text, INTERNAL_BASE);
+  } catch {
+    throw invalid();
+  }
+  if (resolved.origin !== INTERNAL_BASE) throw invalid();
+  return text;
 }
 
 module.exports = { assertPlainObject, optionalText, requiredText, safeLink };

@@ -66,6 +66,10 @@ test("custom links reject anything that is not an internal path or http(s)", () 
   assert.throws(() => validateContent({ ...base, ctaHref: "javascript:alert(1)" }), /internal path or an http/);
   assert.throws(() => validateContent({ ...base, ctaHref: "//evil.example" }), /internal path or an http/);
   assert.throws(() => validateContent({ ...base, imageUrl: "javascript:alert(1)" }), /internal path or an http/);
+  assert.throws(() => validateContent({ ...base, ctaHref: "/\\evil.example" }), /internal path or an http/);
+  assert.throws(() => validateContent({ ...base, ctaHref: "/\\/evil.example" }), /internal path or an http/);
+  assert.throws(() => validateContent({ ...base, ctaHref: "/\t/evil.example" }), /internal path or an http/);
+  assert.equal(validateContent({ ...base, ctaHref: "/schedule/12?tab=maps#top" }).ctaHref, "/schedule/12?tab=maps#top");
 });
 
 test("countdown normalization accepts ISO input and rejects the rest", () => {
