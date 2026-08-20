@@ -29,11 +29,21 @@ const matchSelect = {
   teamB: { select: { id: true, name: true, logo: true } },
 };
 
+function pinnedState(status) {
+  if (status === "ACTIVE") return "LIVE";
+  if (status === "SCHEDULED") return "UPCOMING";
+  return "IDLE";
+}
+
 async function resolvePayload(content) {
   if (content.matchId) {
     const pinned = await prisma.match.findUnique({ where: { id: content.matchId }, select: matchSelect });
     if (!pinned) return { state: "IDLE", match: null };
-    return { state: pinned.status === "ACTIVE" ? "LIVE" : "UPCOMING", match: pinned };
+    const state = pinnedState(pinned.status);
+    // A pinned match that is over must not keep announcing itself as the next
+    // one. Dropping the match sends the view to its idle presentation, the same
+    // fallback the automatic branch uses when nothing is live or upcoming.
+    return state === "IDLE" ? { state, match: null } : { state, match: pinned };
   }
 
   const active = await prisma.match.findFirst({
@@ -51,4 +61,4 @@ async function resolvePayload(content) {
   return { state: upcoming ? "UPCOMING" : "IDLE", match: upcoming };
 }
 
-module.exports = { type: "TOURNAMENT", validateContent, resolvePayload };
+module.exports = { type: "TOURNAMENT", validateContent, resolvePayload, __testables: { pinnedState } };

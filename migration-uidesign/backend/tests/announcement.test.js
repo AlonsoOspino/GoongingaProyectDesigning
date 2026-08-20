@@ -91,3 +91,11 @@ test("every registered template implements the full contract", () => {
 test("the custom template resolves no live data", async () => {
   assert.equal(await getTemplate("CUSTOM").resolvePayload({}), null);
 });
+
+test("a pinned match only announces itself while it is scheduled or live", () => {
+  const { pinnedState } = getTemplate("TOURNAMENT").__testables;
+  assert.equal(pinnedState("ACTIVE"), "LIVE");
+  assert.equal(pinnedState("SCHEDULED"), "UPCOMING");
+  assert.equal(pinnedState("PENDINGREGISTERS"), "IDLE");
+  assert.equal(pinnedState("FINISHED"), "IDLE");
+});

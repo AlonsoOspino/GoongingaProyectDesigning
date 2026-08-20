@@ -12,8 +12,8 @@ function validateContent(content) {
 }
 
 async function resolvePayload(content) {
-  // The migration can seed a row with an empty slug, and a game can be deleted
-  // after an announcement referencing it was saved. Both degrade to idle.
+  // The migration can seed a row with an empty slug; that degrades to idle
+  // rather than querying prisma with an empty string.
   if (!content.minigameSlug) return { state: "IDLE", game: null };
 
   const game = await prisma.miniGame.findUnique({
