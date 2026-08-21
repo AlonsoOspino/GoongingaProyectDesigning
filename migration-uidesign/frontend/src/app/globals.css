@@ -257,6 +257,68 @@ body.jeopardy-overlay-root {
   background: var(--color-border);
 }
 
+.nav-ggl-trigger {
+  display: inline-flex;
+  height: 40px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 0 12px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--text-label);
+  font-weight: 800;
+  transition: border-color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+
+.nav-ggl-trigger:hover,
+.nav-ggl-trigger[aria-expanded="true"] {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-3);
+  color: var(--color-text-primary);
+}
+
+.nav-ggl-trigger-active { box-shadow: inset 0 -2px var(--color-brand-bright); }
+.nav-ggl-chevron { transition: rotate var(--duration-fast) var(--ease-out); }
+.nav-ggl-chevron-open { rotate: 180deg; }
+
+.nav-ggl-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  display: grid;
+  width: 248px;
+  gap: 2px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  padding: 6px;
+  background: var(--color-surface-1);
+  box-shadow: 0 18px 34px color-mix(in srgb, var(--color-surface-inset) 48%, transparent);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--duration-fast) var(--ease-out), visibility var(--duration-fast) var(--ease-out);
+}
+
+.nav-ggl-menu-open { opacity: 1; visibility: visible; }
+
+.nav-ggl-item {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 10px;
+  border-radius: var(--radius-sm);
+  padding: 0 10px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-body-s);
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.nav-ggl-item:hover,
+.nav-ggl-item:focus-visible { background: var(--color-surface-3); color: var(--color-text-primary); }
+.nav-ggl-item-active { box-shadow: inset 3px 0 var(--color-brand-bright); color: var(--color-text-primary); }
+
 .nav-secondary-link {
   border: 1px solid var(--color-border);
   color: var(--color-text-muted);
@@ -296,6 +358,20 @@ body.jeopardy-overlay-root {
 .mobile-nav-secondary > span {
   padding: 0 12px 4px;
   color: var(--color-text-muted);
+  font-size: var(--text-label);
+  font-weight: 850;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.mobile-nav-group {
+  display: grid;
+  gap: 2px;
+}
+
+.mobile-nav-group > span {
+  padding: 8px 12px 4px;
+  color: var(--color-brand-bright);
   font-size: var(--text-label);
   font-weight: 850;
   letter-spacing: .09em;
