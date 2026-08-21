@@ -3,18 +3,14 @@
 import Link from "next/link";
 import { ArrowRight, CalendarClock, Check, MessageCircle, Users } from "lucide-react";
 import { TournamentTimer } from "@/components/layout/TournamentTimer";
-import { resolveSeasonLabel } from "@/features/tournament/seasonIdentity";
+import { resolveSeasonLabel, resolveSeasonStatusLabel } from "@/features/tournament/seasonIdentity";
 import { useCurrentTournament } from "@/features/tournament/useCurrentTournament";
 
 export function CurrentSeasonPage() {
   const tournament = useCurrentTournament();
   const seasonLabel = resolveSeasonLabel(tournament);
   const hasSeason = Boolean(tournament);
-  const statusLabel = tournament?.state === "SCHEDULED"
-    ? "Coming soon"
-    : tournament?.state
-      ? tournament.state.replace(/_/g, " ")
-      : "In preparation";
+  const statusLabel = resolveSeasonStatusLabel(tournament?.state);
 
   return (
     <div>

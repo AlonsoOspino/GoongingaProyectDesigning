@@ -111,7 +111,7 @@ export function TournamentMode({
             <div className={styles.seasonPosterArtwork} aria-hidden="true" />
             <div className={styles.seasonPosterCopy}>
               <strong className={styles.seasonPosterWordmark}>Overtime Productions</strong>
-              <span>GGL season desk</span>
+              <span>GGL tournament</span>
               <h2>{scheduledSeason ? seasonLabel : "Next season in preparation"}</h2>
               <p>{scheduledSeason ? "Registration details and the first match schedule will be published here." : "League staff will publish the next season name and dates when they are confirmed."}</p>
             </div>
