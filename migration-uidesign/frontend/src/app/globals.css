@@ -319,6 +319,67 @@ body.jeopardy-overlay-root {
 .nav-ggl-item:focus-visible { background: var(--color-surface-3); color: var(--color-text-primary); }
 .nav-ggl-item-active { box-shadow: inset 3px 0 var(--color-brand-bright); color: var(--color-text-primary); }
 
+.nav-profile-trigger {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 3px 10px 3px 4px;
+  background: var(--color-surface-1);
+  color: var(--color-text-primary);
+  font-size: var(--text-body-s);
+  font-weight: 800;
+  transition: border-color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
+}
+
+.nav-profile-trigger:hover,
+.nav-profile-trigger[aria-expanded="true"] { border-color: var(--color-brand-bright); background: var(--color-surface-2); }
+
+.nav-profile-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  width: 264px;
+  gap: 2px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  padding: 6px;
+  background: var(--color-surface-1);
+  box-shadow: 0 18px 34px color-mix(in srgb, var(--color-surface-inset) 48%, transparent);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--duration-fast) var(--ease-out), visibility var(--duration-fast) var(--ease-out);
+}
+
+.nav-profile-menu-open { opacity: 1; visibility: visible; }
+.nav-profile-identity { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; border-bottom: 1px solid var(--color-border); padding: 8px 8px 12px; }
+.nav-profile-identity div { display: grid; min-width: 0; }
+.nav-profile-identity strong { overflow: hidden; color: var(--color-text-primary); font-size: var(--text-body-s); text-overflow: ellipsis; white-space: nowrap; }
+.nav-profile-identity span { color: var(--color-text-muted); font-size: var(--text-label); }
+
+.nav-profile-item {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  padding: 0 10px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--text-body-s);
+  font-weight: 750;
+  text-align: left;
+  text-decoration: none;
+}
+
+.nav-profile-item:hover,
+.nav-profile-item:focus-visible { background: var(--color-surface-3); color: var(--color-text-primary); }
+.nav-profile-logout { margin-top: 4px; border-top: 1px solid var(--color-border); padding-top: 4px; color: var(--color-text-muted); }
+
 .nav-secondary-link {
   border: 1px solid var(--color-border);
   color: var(--color-text-muted);
@@ -376,6 +437,26 @@ body.jeopardy-overlay-root {
   font-weight: 850;
   letter-spacing: .09em;
   text-transform: uppercase;
+}
+
+.mobile-nav-account {
+  display: grid;
+  gap: 2px;
+  margin-top: 8px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 10px;
+}
+
+.mobile-nav-account > span {
+  overflow: hidden;
+  padding: 0 12px 4px;
+  color: var(--color-text-muted);
+  font-size: var(--text-label);
+  font-weight: 850;
+  letter-spacing: .06em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .home-hero {

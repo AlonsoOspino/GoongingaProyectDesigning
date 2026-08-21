@@ -9,6 +9,20 @@ export function getCurrentNetworkMember(token: string) {
   return apiRequest<NetworkMember>("/network-members/me", { token, cache: "no-store" });
 }
 
+export interface NetworkMemberCapabilities {
+  isAdmin: boolean;
+  isCaster: boolean;
+  isCaptain: boolean;
+  captainOf: Array<{ tournamentId: number; teamId: number }>;
+}
+
+export function getNetworkMemberCapabilities(token: string) {
+  return apiRequest<NetworkMemberCapabilities>("/network-members/me/capabilities", {
+    token,
+    cache: "no-store",
+  });
+}
+
 export function getNetworkMembersForAdmin(token: string, search = "") {
   return apiRequest<NetworkMember[]>(`/network-members/admin/users?search=${encodeURIComponent(search)}`, { token, cache: "no-store" });
 }
