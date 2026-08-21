@@ -118,12 +118,12 @@ const ensureManagerRole = (user) => {
   }
 };
 
-const resolveActingTeamId = async (user, bodyTeamId, match) => {
+const resolveActingTeamId = async (user, bodyTeamId, match, client = prisma) => {
   if (!user) {
     throw new Error("Unauthorized.");
   }
 
-  const seasonPlayer = await resolveSeasonPlayer(user.id, match.tournamentId);
+  const seasonPlayer = await resolveSeasonPlayer(user.id, match.tournamentId, client);
   if (seasonPlayer?.role === "CAPTAIN") {
     const captainTeamId = seasonPlayer.teamId;
     if (captainTeamId !== match.teamAId && captainTeamId !== match.teamBId) {
@@ -1022,6 +1022,7 @@ module.exports = {
   getRoundKey,
   isBracketMatchType,
   determineFirstPicker,
+  __testables: { resolveActingTeamId },
 };
 
 // Background worker: periodically scan active drafts and apply timeouts server-side.
