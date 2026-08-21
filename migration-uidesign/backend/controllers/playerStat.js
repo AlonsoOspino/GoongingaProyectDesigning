@@ -1,5 +1,9 @@
 const playerStatService = require("../services/playerStat");
-const PRIVILEGED_STAT_ROLES = new Set(["MANAGER", "ADMIN"]);
+const { hasNetworkRole } = require("../utils/permissions");
+
+function canSubmitForOthers(user) {
+  return hasNetworkRole(user, "ADMIN", "SOCIAL_MEDIA");
+}
 
 function resolveEffectiveUserId(req) {
   const requesterId = Number(req.user?.id);
@@ -21,8 +25,7 @@ function resolveEffectiveUserId(req) {
     throw err;
   }
 
-  const canSubmitForOthers = PRIVILEGED_STAT_ROLES.has(String(req.user?.role || "").toUpperCase());
-  if (!canSubmitForOthers && requestedUserId !== requesterId) {
+  if (!canSubmitForOthers(req.user) && requestedUserId !== requesterId) {
     const err = new Error("Forbidden: You can only submit stats for your own user.");
     err.statusCode = 403;
     throw err;
@@ -100,4 +103,5 @@ module.exports = {
   getMine,
   getPublic,
   getPublicByUser,
+  __testables: { canSubmitForOthers, resolveEffectiveUserId },
 };

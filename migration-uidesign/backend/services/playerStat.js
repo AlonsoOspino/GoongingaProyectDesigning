@@ -54,27 +54,36 @@ const buildPer10Stats = ({ gameDuration, damage, healing, mitigation, kills, ass
   };
 };
 
-const getMatchPlayers = async (matchId) => {
-  const match = await prisma.match.findUnique({
+const getMatchPlayers = async (matchId, client = prisma) => {
+  const match = await client.match.findUnique({
     where: { id: matchId },
-    include: {
-      teamA: { include: { members: true } },
-      teamB: { include: { members: true } },
-    },
   });
   if (!match) throw new Error("Match not found.");
-  const players = [...(match.teamA?.members || []), ...(match.teamB?.members || [])].map((member) => ({
-    id: member.id,
-    nickname: member.nickname,
-    user: member.user,
-    teamId: member.teamId,
+  const seasonPlayers = await client.seasonPlayer.findMany({
+    where: {
+      tournamentId: match.tournamentId,
+      teamId: { in: [match.teamAId, match.teamBId] },
+    },
+    select: {
+      id: true,
+      teamId: true,
+      member: { select: { id: true, nickname: true, username: true } },
+    },
+    orderBy: [{ teamId: "asc" }, { member: { username: "asc" } }],
+  });
+  const players = seasonPlayers.map((seasonPlayer) => ({
+    memberId: seasonPlayer.member.id,
+    seasonPlayerId: seasonPlayer.id,
+    nickname: seasonPlayer.member.nickname,
+    username: seasonPlayer.member.username,
+    teamId: seasonPlayer.teamId,
   }));
   return { match, players };
 };
 
 const ensureUserInMatch = async (matchId, userId) => {
   const { players } = await getMatchPlayers(matchId);
-  if (!players.some((player) => player.id === userId)) {
+  if (!players.some((player) => player.memberId === userId)) {
     throw new Error("User does not belong to this match teams.");
   }
 };
@@ -113,7 +122,7 @@ const create = async (payload) => playerStatRepo.create(await normalizePayload(p
 const createBatch = async ({ matchId, games }) => {
   const parsedMatchId = parsePositiveInt(matchId, "matchId");
   const { players } = await getMatchPlayers(parsedMatchId);
-  const allowedUserIds = new Set(players.map((player) => player.id));
+  const allowedUserIds = new Set(players.map((player) => player.memberId));
   if (!Array.isArray(games) || games.length < 1 || games.length > 20) throw new Error("games must include between 1 and 20 entries.");
 
   const normalized = [];
@@ -162,4 +171,12 @@ const getByUserId = async (userId) => playerStatRepo.findByUserId(parsePositiveI
 const getAllPublic = async () => playerStatRepo.findAllPublic();
 const getPublicByUserId = async (userId) => playerStatRepo.findByUserIdPublic(parsePositiveInt(userId, "userId"));
 
-module.exports = { create, createBatch, getAll, getByUserId, getAllPublic, getPublicByUserId };
+module.exports = {
+  create,
+  createBatch,
+  getAll,
+  getByUserId,
+  getAllPublic,
+  getPublicByUserId,
+  __testables: { getMatchPlayers },
+};

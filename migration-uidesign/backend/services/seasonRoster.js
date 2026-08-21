@@ -136,9 +136,10 @@ async function upsertMember(tournamentValue, memberValue, payload, client = pris
       },
     });
 
-    // Temporary legacy bridge: public roster readers still use NetworkMember.teamId and role.
-    // Mirror only the active season, and never replace ADMIN/MANAGER/EDITOR because that scalar is
-    // still read as an authorization input. Delete this once every reader uses SeasonPlayer.
+    // Temporary legacy bridge. The remaining consumers are networkMemberRepo.findLeagueMembers
+    // (public roster ordering/payload) and frontend/src/app/my-team/page.tsx (team lookup and canEdit).
+    // Run B must migrate both to SeasonPlayer before this mirror and the legacy scalars are deleted.
+    // Mirror only the active season, and never replace ADMIN/MANAGER/EDITOR in the meantime.
     if (tournament.state !== "FINISHED") {
       await tx.networkMember.update({
         where: { id: memberId },
