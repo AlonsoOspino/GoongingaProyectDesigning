@@ -1,359 +1,137 @@
 import Link from "next/link";
-import type { CSSProperties } from "react";
 import {
-  Activity,
-  ArrowDown,
   ArrowRight,
+  CalendarDays,
   ExternalLink,
-  Flame,
-  Gamepad2,
   GitBranch,
   MessageCircle,
   Play,
   Radio,
   ShieldCheck,
-  Sparkles,
   Swords,
   Users,
-  Video,
-  Zap,
 } from "lucide-react";
-import { Avatar } from "@/components/ui/Avatar";
-import { getRecentNetworkMembers } from "@/lib/api/networkMember";
-import type { NetworkMemberRole } from "@/lib/api/types";
 import { AnnouncementRenderer } from "@/announcements/AnnouncementRenderer";
-import { LandingMotion } from "@/components/landing/LandingMotion";
-import { getCurrentTournament } from "@/lib/api/admin";
 import { resolveSeasonLabel } from "@/features/tournament/seasonIdentity";
+import { getCurrentTournament } from "@/lib/api/admin";
 
 export const revalidate = 60;
 
-const roleLabels: Record<NetworkMemberRole, string> = {
-  MEMBER: "Member",
-  ADMIN: "Admin",
-  CASTER: "Caster",
-  DEVELOPER: "Developer",
-  SEASON_PLAYER: "Season player",
-  MODERATOR: "Moderator",
-  COMMUNITY_MANAGER: "Community manager",
-  CONTENT_CREATOR: "Content creator",
-  SOCIAL_MEDIA: "Social media",
-};
-
 const seasonFlow = [
-  {
-    image: "/icons/league-process/registration.svg",
-    title: "Registration",
-    copy: "Players register through Discord and confirm their preferred competitive roles.",
-  },
-  {
-    image: "/icons/league-process/captain-selection.svg",
-    title: "Captain selection",
-    copy: "League staff appoint the captains responsible for building and leading each roster.",
-  },
-  {
-    image: "/icons/league-process/team-draft.svg",
-    title: "Team draft",
-    copy: "Captains select their rosters through the live draft system until every team is complete.",
-  },
-  {
-    image: "/icons/league-process/match-week.svg",
-    title: "Match week",
-    copy: "Confirmed rosters move into the published schedule, live broadcasts, standings, and results.",
-  },
+  { title: "Registration", copy: "Players join through Discord and confirm their competitive roles." },
+  { title: "Captain selection", copy: "League staff appoint captains to build and lead each roster." },
+  { title: "Team draft", copy: "Captains select players through the live draft system." },
+  { title: "Match weeks", copy: "Confirmed teams move into the schedule, standings and playoffs." },
 ];
 
 const socialLinks = [
-  {
-    name: "Instagram",
-    handle: "@goongingatournament",
-    copy: "League announcements, match graphics, results, and season updates.",
-    href: "https://www.instagram.com/goongingatournament/",
-    icon: "/icons/social/instagram.svg",
-  },
-  {
-    name: "Twitch",
-    handle: "goongingatournament",
-    copy: "Live match broadcasts, community events, and tournament coverage.",
-    href: "https://www.twitch.tv/goongingatournament",
-    icon: "/icons/social/twitch.svg",
-  },
-  {
-    name: "TikTok",
-    handle: "@goongingatournament",
-    copy: "Match clips, production highlights, and moments from the community.",
-    href: "https://www.tiktok.com/@goongingatournament",
-    icon: "/icons/social/tiktok.svg",
-  },
-];
-
-const experienceCards = [
-  {
-    icon: Swords,
-    number: "01",
-    title: "Structured competition",
-    copy: "Drafted rosters, defined match rules, a regular schedule, standings, and playoffs.",
-  },
-  {
-    icon: Video,
-    number: "02",
-    title: "Broadcast production",
-    copy: "Live casting, real-time overlays, and match coverage designed for every scheduled fixture.",
-  },
-  {
-    icon: Gamepad2,
-    number: "03",
-    title: "Community programs",
-    copy: "Minigames, seasonal awards, voting, and events that support the league beyond match day.",
-  },
+  { label: "Instagram", href: "https://www.instagram.com/goongingatournament/" },
+  { label: "Twitch", href: "https://www.twitch.tv/goongingatournament" },
+  { label: "YouTube", href: "https://www.youtube.com/@goongingatournament" },
 ];
 
 export default async function HomePage() {
-  const [members, currentTournament] = await Promise.all([
-    getRecentNetworkMembers().catch(() => []),
-    getCurrentTournament({ cache: "no-store" }).catch(() => null),
-  ]);
+  const currentTournament = await getCurrentTournament({ cache: "no-store" }).catch(() => null);
   const seasonLabel = resolveSeasonLabel(currentTournament);
-  const seasonStatus = currentTournament?.state === "SCHEDULED" ? "Coming soon" : "Current season";
+  const activeSeason = currentTournament && currentTournament.state !== "FINISHED";
 
   return (
-    <div className="home-page home-editorial">
-      <LandingMotion />
-
-      <section className="goon-hero" aria-labelledby="goon-hero-title">
-        <div className="goon-hero-backdrop" aria-hidden="true" />
-        <div className="hero-speed-lines" aria-hidden="true" />
-        <div className="ow-container goon-hero-grid">
-          <div className="goon-hero-copy">
-            <span className="hero-kicker"><i /> {seasonLabel} · {seasonStatus}</span>
-            <h1 id="goon-hero-title">
-              <span>Overwatch.</span>
-              <span>Organized.</span>
-              <span className="hero-accent-line">Competitive.</span>
-            </h1>
-            <p>
-              GGL is a community Overwatch league with drafted rosters, scheduled matches,
-              live broadcasts, standings, and playoffs.
-            </p>
-            <div className="goon-hero-actions">
-              <Link href="/season" className="hero-primary-action">
-                {seasonLabel} overview <ArrowRight size={19} />
-              </Link>
-              <a href="https://discord.gg/QMukTWr32f" target="_blank" rel="noopener noreferrer" className="hero-secondary-action">
-                <MessageCircle size={18} /> Join Discord
-              </a>
+    <div className="landing-b">
+      <section className="landing-b-hero" aria-labelledby="landing-title">
+        <div className="ow-container landing-b-hero-grid">
+          <div className="landing-b-hero-copy">
+            <h1 id="landing-title">GGL</h1>
+            <p className="landing-b-hero-lead">Overtime Productions&apos; community Overwatch league.</p>
+            <p>Drafted rosters, scheduled competition, live broadcasts and a shared match system built for players, captains and viewers.</p>
+            <div className="landing-b-actions">
+              <Link href="/season" className="ow-button">Open the season <ArrowRight size={18} /></Link>
+              <a href="https://discord.gg/QMukTWr32f" target="_blank" rel="noopener noreferrer" className="ow-button-secondary landing-b-secondary-action"><MessageCircle size={18} /> Join Discord</a>
             </div>
           </div>
-
-          <aside className="hero-scorecard" aria-label="League information">
-            <div className="scorecard-status"><span /> Next league season</div>
-            <div className="scorecard-season"><small>Status</small><strong>{seasonLabel}</strong></div>
-            <div className="scorecard-coming">{seasonStatus}</div>
-            <div className="scorecard-rule" />
-            <div className="scorecard-stats">
-              <div><strong>8</strong><span>completed seasons</span></div>
-              <div><strong>122</strong><span>maps in S8</span></div>
-              <div><strong>2023</strong><span>established</span></div>
+          <aside className="landing-b-season-card" aria-label="League season status">
+            <div>
+              <span>GGL season desk</span>
+              <h2>{activeSeason ? seasonLabel : "Next season in preparation"}</h2>
+              <p>{activeSeason ? `Status: ${currentTournament.state.replace(/_/g, " ")}` : "The next season name and dates will appear when league staff publish them."}</p>
             </div>
-            <a href="https://www.twitch.tv/goongingatournament" target="_blank" rel="noopener noreferrer">
-              <Play size={16} fill="currentColor" /> Watch on Twitch <ExternalLink size={14} />
-            </a>
+            <Link href="/season">Season details <ArrowRight size={17} /></Link>
           </aside>
         </div>
-        <a className="hero-scroll-cue" href="#format" aria-label="Explore the league">
-          <span>Explore the league</span><ArrowDown size={18} />
-        </a>
       </section>
 
-      <div className="energy-ticker" aria-label="GGL league features">
-        <div className="energy-ticker-track">
-          {["LIVE DRAFT", "HERO BANS", "CASTERS", "PLAYOFFS", "COMMUNITY", "WEEKLY MATCHES", "LIVE DRAFT", "HERO BANS", "CASTERS", "PLAYOFFS", "COMMUNITY", "WEEKLY MATCHES"].map((item, index) => (
-            <span key={`${item}-${index}`}><Zap size={14} fill="currentColor" /> {item}</span>
-          ))}
-        </div>
-      </div>
-
-      <section id="format" className="season-overview ow-section">
-        <div className="ow-container overview-heading" data-reveal>
-          <h2>From registration<br />to match week</h2>
-          <p>
-            Players register individually through Discord. Captains are appointed, rosters are drafted live,
-            and regular-season play begins on the published schedule.
-          </p>
-        </div>
-        <div className="ow-container overview-layout">
-          <figure className="overview-image media-frame" data-reveal>
-            <img src="/landing/overview.webp" alt="Overwatch heroes assembled before a match" />
-            <figcaption><Activity size={14} /> Season preparation</figcaption>
-          </figure>
-          <div className="season-flow" data-reveal>
-            {seasonFlow.map(({ image, title, copy }, index) => (
-              <article className="season-flow-step" key={title} style={{ "--step-delay": `${index * 80}ms` } as CSSProperties}>
-                <span className="season-flow-number">{String(index + 1).padStart(2, "0")}</span>
-                <span className="season-flow-icon"><img src={image} alt="" /></span>
-                <div><h3>{title}</h3><p>{copy}</p></div>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="experience-section">
-        <div className="ow-container experience-intro" data-reveal>
-          <h2>A complete league format.<br /><em>On and off stream.</em></h2>
-        </div>
-        <div className="ow-container experience-grid">
-          {experienceCards.map(({ icon: Icon, number, title, copy }, index) => (
-            <article className="experience-card" key={title} data-reveal style={{ "--reveal-delay": `${index * 100}ms` } as CSSProperties}>
-              <div><span>{number}</span><Icon size={28} /></div>
-              <h3>{title}</h3>
-              <p>{copy}</p>
-              <i aria-hidden="true" />
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="competition-system">
-        <article className="system-feature system-feature-dark">
-          <div className="ow-container system-feature-grid">
-            <div className="system-feature-copy" data-reveal>
-              <p className="system-index">01</p>
-              <h2>Hero bans</h2>
-              <p>Each map begins with a ban phase, giving both teams a direct way to challenge the opposing composition.</p>
-              <p>Teams can ban up to two heroes per role between them. A banned hero cannot be selected for another ban later in the same match.</p>
-              <span className="system-callout"><Flame size={17} /> The team that lost the previous map opens the next ban phase.</span>
-            </div>
-            <figure className="system-feature-media" data-reveal>
-              <img src="/landing/hero-bans.webp" alt="GGL hero ban interface" />
-              <figcaption>Live hero ban system</figcaption>
-            </figure>
-          </div>
-        </article>
-
-        <article className="system-feature system-feature-light">
-          <div className="ow-container system-feature-grid reverse">
-            <div className="system-feature-copy" data-reveal>
-              <p className="system-index">02</p>
-              <h2>Map pool</h2>
-              <p>League staff publish a map pool before each match week. Every team competes from the same rotation.</p>
-              <p>Control, Hybrid, Escort, Push, and Flashpoint are balanced to test a wider range of team compositions and strategies.</p>
-              <span className="system-callout light"><ShieldCheck size={17} /> One published pool for every scheduled team.</span>
-            </div>
-            <figure className="system-feature-media map-pool-media" data-reveal>
-              <img src="/landing/map-pool.webp" alt="Weekly Overwatch map pool" />
-              <figcaption>Published weekly rotation</figcaption>
-            </figure>
-          </div>
-        </article>
-      </section>
-
-      <section className="live-stage">
-        <div className="ow-container live-stage-heading" data-reveal>
-          <div><span className="live-dot" /> Community events and broadcasts</div>
-          <p>Special events and minigames are managed separately from the upcoming season schedule.</p>
+      <section className="landing-b-live" aria-labelledby="live-desk-title">
+        <div className="ow-container landing-b-section-heading">
+          <div><h2 id="live-desk-title">League desk</h2><p>Live matches, upcoming fixtures and the latest confirmed result appear here first.</p></div>
+          <Link href="/schedule">Schedule and results <CalendarDays size={17} /></Link>
         </div>
         <AnnouncementRenderer />
       </section>
 
-      <section className="realtime-section">
-        <div className="realtime-visual">
-          <img src="/landing/realtime.webp" alt="Live Overwatch match operations" />
-          <div className="realtime-overlay" />
+      <section className="landing-b-process" aria-labelledby="process-title">
+        <div className="ow-container landing-b-section-heading">
+          <div><h2 id="process-title">From registration to match week</h2><p>Each season follows one competitive path, from individual registration to a published team schedule.</p></div>
         </div>
-        <div className="ow-container realtime-content">
-          <div className="realtime-copy" data-reveal>
-            <h2>One match state.<br />Updated live.</h2>
-            <p>Captains submit picks and bans through the draft application. Each update is sent directly to the broadcast overlay.</p>
-            <p>Players, staff, and viewers follow the same match state throughout the pre-match and live production workflow.</p>
-            <div className="realtime-points">
-              <span><GitBranch size={18} /> Captain draft application</span>
-              <span><Radio size={18} /> Broadcast overlay</span>
-              <span><Activity size={18} /> Synchronized match state</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="league-history-expanded ow-section">
-        <div className="ow-container league-history-header" data-reveal>
-          <div><h2>From a private tournament<br />to a recurring league</h2></div>
-          <div className="league-history-intro">
-            <p>Overtime Productions started GGL in 2022 as an organized Overwatch competition among friends. It has since developed into a recurring league with drafted teams, weekly fixtures, standings, playoffs, and live broadcasts.</p>
-            <p>The administrative team coordinates registrations, captain selection, team formation, scheduling, match rules, and competitive operations. The socials team works alongside production staff to prepare match graphics, stream coverage, results, and community updates.</p>
-            <p>Community feedback is reviewed throughout each season. Staff use that feedback, together with match results and scheduling data, to improve team balance, refine league rules, strengthen the broadcast experience, and make each season more reliable for players and viewers.</p>
-          </div>
-        </div>
-        <div className="ow-container history-image-grid">
-          <figure className="history-image-item" data-reveal>
-            <img src="/emotionalsupport.png" alt="GGL match broadcast" />
-            <figcaption><span>01</span><strong>League operations and broadcast production</strong><p>Each match week requires coordination between administrators, captains, casters, and the socials team. Fixtures are scheduled, match data is prepared, live overlays are connected, and results are documented for players and viewers.</p></figcaption>
+        <div className="ow-container landing-b-process-grid">
+          <figure className="landing-b-media">
+            <img src="/landing/overview.webp" alt="Overwatch heroes assembled before a match" />
+            <figcaption><Users size={16} /> Player registration and team formation</figcaption>
           </figure>
-          <figure className="history-image-item" data-reveal>
-            <img src="/community.png" alt="GGL player community" />
-            <figcaption><span>02</span><strong>Eight seasons of scheduled competition</strong><p>Across eight completed seasons, dozens of players have formed drafted teams, coordinated weekly match times, and competed through regular-season and playoff schedules. Every season has provided new feedback for the league format.</p></figcaption>
-          </figure>
-        </div>
-        <div className="ow-container history-commitment" data-reveal>
-          <span>Continuous development</span>
-          <p>GGL is reviewed as an ongoing league project. The staff continues to evaluate player experience, match balance, scheduling, production quality, and community communication before introducing changes to future seasons.</p>
-        </div>
-        <div className="ow-container league-history-footer" data-reveal>
-          <div><strong>2023</strong><span>league established</span></div>
-          <div><strong>08</strong><span>completed seasons</span></div>
-          <div><strong>122</strong><span>maps in Season 8</span></div>
-          <a href="https://www.twitch.tv/goongingatournament" target="_blank" rel="noopener noreferrer"><Radio size={18} /> Watch match archives <ExternalLink size={15} /></a>
+          <ol className="landing-b-steps">
+            {seasonFlow.map((step, index) => (
+              <li key={step.title}><span>{String(index + 1).padStart(2, "0")}</span><div><h3>{step.title}</h3><p>{step.copy}</p></div></li>
+            ))}
+          </ol>
         </div>
       </section>
 
-      <section className="social-hub ow-section">
-        <div className="ow-container social-hub-heading" data-reveal>
-          <div><h2>League updates<br />across every platform</h2></div>
-          <p>Follow official channels for schedule announcements, match broadcasts, results, clips, and production updates.</p>
+      <section className="landing-b-competition" aria-labelledby="competition-title">
+        <div className="ow-container landing-b-section-heading">
+          <div><h2 id="competition-title">Competitive systems</h2><p>Shared rules and published match information keep every team on the same playing field.</p></div>
         </div>
-        <div className="ow-container social-hub-grid">
-          {socialLinks.map((social, index) => (
-            <a key={social.name} href={social.href} target="_blank" rel="noopener noreferrer" className="social-platform-card" data-reveal style={{ "--reveal-delay": `${index * 90}ms` } as CSSProperties}>
-              <span className="social-platform-icon"><img src={social.icon} alt="" /></span>
-              <div><span>{social.name}</span><strong>{social.handle}</strong><p>{social.copy}</p></div>
-              <ExternalLink size={18} />
-            </a>
-          ))}
-        </div>
-      </section>
-
-      <section className="members-section ow-section">
-        <div className="ow-container">
-          <div className="section-lead compact" data-reveal>
-            <div><h2>New members</h2><p>Recently registered Overtime Productions members.</p></div>
-            <Link href="/login" className="section-link">Create a profile <ArrowRight size={18} /></Link>
-          </div>
-          {members.length ? (
-            <div className="members-strip" data-reveal>
-              {members.map((member, index) => (
-                <div className="member-cell" key={member.id} style={{ "--member-delay": `${index * 70}ms` } as CSSProperties}>
-                  <Avatar src={member.avatarUrl || undefined} fallback={member.username} />
-                  <div className="min-w-0"><p>{member.username}</p><span>{roleLabels[member.roles[0] || "MEMBER"]}</span></div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="members-empty" data-reveal><Users size={23} /> New Discord members will appear here.</div>
-          )}
+        <div className="ow-container landing-b-feature-grid">
+          <article>
+            <img src="/landing/hero-bans.webp" alt="GGL hero ban interface" />
+            <div><Swords size={22} /><h3>Hero bans</h3><p>Teams challenge compositions through the live ban phase. Across both teams, no more than two heroes per role can be banned on a map.</p></div>
+          </article>
+          <article>
+            <img src="/landing/map-pool.webp" alt="Published Overwatch map pool" />
+            <div><ShieldCheck size={22} /><h3>Published map pools</h3><p>Control, Hybrid, Escort, Push and Flashpoint maps are prepared for the match schedule and shared with every roster.</p></div>
+          </article>
         </div>
       </section>
 
-      <section className="final-rally">
-        <div className="final-rally-art" aria-hidden="true" />
-        <div className="ow-container final-rally-grid" data-reveal>
+      <section className="landing-b-production" aria-labelledby="production-title">
+        <div className="landing-b-production-image"><img src="/landing/realtime.webp" alt="Live Overwatch match production" /></div>
+        <div className="ow-container landing-b-production-grid">
           <div>
-            <span><Sparkles size={16} /> {seasonLabel} status</span>
-            <h2>{seasonLabel} is<br />in preparation.</h2>
-            <p>Dates, registration details, captain selection, and the competitive schedule will be announced when they are confirmed.</p>
+            <h2 id="production-title">One match state, from captain to broadcast</h2>
+            <p>Captains submit picks and bans through the draft application. Production tools read the same state for match graphics and stream overlays.</p>
+            <ul>
+              <li><GitBranch size={18} /> Captain draft workflow</li>
+              <li><Radio size={18} /> Live broadcast outputs</li>
+              <li><ShieldCheck size={18} /> Shared competitive state</li>
+            </ul>
           </div>
-          <div className="final-rally-actions">
-            <a href="https://discord.gg/QMukTWr32f" target="_blank" rel="noopener noreferrer" className="hero-primary-action"><MessageCircle size={19} /> Join for updates</a>
-            <Link href="/season" className="hero-secondary-action">{seasonLabel} overview <ArrowRight size={18} /></Link>
+        </div>
+      </section>
+
+      <section className="landing-b-history" aria-labelledby="history-title">
+        <div className="ow-container landing-b-history-grid">
+          <div><h2 id="history-title">A recurring league, built by Overtime Productions</h2><p>Founded in 2022, GGL grew from a private competition into a recurring community league. The website preserves Season 8 onward; the league itself has completed eight seasons.</p><Link href="/history">Browse the available archive <ArrowRight size={17} /></Link></div>
+          <dl>
+            <div><dt>Founded</dt><dd>2022</dd></div>
+            <div><dt>Completed seasons</dt><dd>8</dd></div>
+            <div><dt>Maps played in Season 8</dt><dd>122</dd></div>
+          </dl>
+        </div>
+      </section>
+
+      <section className="landing-b-connect" aria-labelledby="connect-title">
+        <div className="ow-container landing-b-connect-grid">
+          <div><h2 id="connect-title">Follow the league</h2><p>Official channels carry schedule announcements, broadcasts, results and community updates.</p></div>
+          <div className="landing-b-channel-list">
+            {socialLinks.map((social) => <a key={social.label} href={social.href} target="_blank" rel="noopener noreferrer">{social.label} <ExternalLink size={16} /></a>)}
+            <a href="https://www.twitch.tv/goongingatournament" target="_blank" rel="noopener noreferrer"><Play size={16} /> Watch match archives</a>
           </div>
         </div>
       </section>

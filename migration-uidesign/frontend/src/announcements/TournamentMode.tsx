@@ -78,6 +78,7 @@ export function TournamentMode({
 }: ViewProps) {
   const currentTournament = useCurrentTournament();
   const seasonLabel = resolveSeasonLabel(currentTournament);
+  const scheduledSeason = currentTournament?.state === "SCHEDULED";
   const content = rawContent as TournamentContent;
   const payload = rawPayload as TournamentPayload | null;
   const match = payload?.match ?? null;
@@ -106,14 +107,18 @@ export function TournamentMode({
               : "Tournament update"}
         </div>
         {!match ? (
-          <div className={styles.idle}>
-            <div>
-              <h2>{content.headline || "Match schedule in preparation"}</h2>
+          <div className={styles.seasonPoster}>
+            <div className={styles.seasonPosterArtwork} aria-hidden="true" />
+            <div className={styles.seasonPosterCopy}>
+              <strong className={styles.seasonPosterWordmark}>Overtime Productions</strong>
+              <span>GGL season desk</span>
+              <h2>{scheduledSeason ? seasonLabel : "Next season in preparation"}</h2>
+              <p>{scheduledSeason ? "Registration details and the first match schedule will be published here." : "League staff will publish the next season name and dates when they are confirmed."}</p>
             </div>
-            <div className={styles.idleActions}>
-              <AnnouncementCountdown target={countdownAt} now={now} />
-              <Link href="/season">
-                View {seasonLabel} <ArrowRight size={18} />
+            <div className={styles.seasonPosterActions}>
+              {scheduledSeason ? <AnnouncementCountdown target={currentTournament.startDate} now={now} /> : null}
+              <Link href="/season" className={styles.matchLink}>
+                {scheduledSeason ? `View ${seasonLabel}` : "Season updates"} <ArrowRight size={18} />
               </Link>
             </div>
           </div>
