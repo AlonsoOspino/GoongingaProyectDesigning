@@ -9,6 +9,8 @@ import type {
 import { AnnouncementCountdown } from "@/announcements/AnnouncementCountdown";
 import styles from "@/announcements/announcements.module.css";
 import studio from "@/announcements/studio.module.css";
+import { resolveSeasonLabel } from "@/features/tournament/seasonIdentity";
+import { useCurrentTournament } from "@/features/tournament/useCurrentTournament";
 
 function Team({
   name,
@@ -74,6 +76,8 @@ export function TournamentMode({
   standalone = false,
   secondary = false,
 }: ViewProps) {
+  const currentTournament = useCurrentTournament();
+  const seasonLabel = resolveSeasonLabel(currentTournament);
   const content = rawContent as TournamentContent;
   const payload = rawPayload as TournamentPayload | null;
   const match = payload?.match ?? null;
@@ -108,8 +112,8 @@ export function TournamentMode({
             </div>
             <div className={styles.idleActions}>
               <AnnouncementCountdown target={countdownAt} now={now} />
-              <Link href="/season-9">
-                View Season 9 <ArrowRight size={18} />
+              <Link href="/season">
+                View {seasonLabel} <ArrowRight size={18} />
               </Link>
             </div>
           </div>

@@ -68,9 +68,10 @@ const getAll = async () => {
   return await tournamentRepo.findAll();
 };
 
-const getCurrent = async () => {
-  const tournaments = await tournamentRepo.findAll();
-  return tournaments[0] || null;
+const getCurrent = async (client = tournamentRepo) => {
+  const activeTournament = await client.findActive();
+  if (activeTournament) return activeTournament;
+  return client.findMostRecent();
 };
 
 module.exports = {
@@ -80,5 +81,5 @@ module.exports = {
   getAll,
   getCurrent,
   startPlayoffs,
-  __testables: { normalizeCreateData },
+  __testables: { normalizeCreateData, getCurrent },
 };

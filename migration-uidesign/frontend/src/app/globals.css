@@ -580,7 +580,7 @@ body.jeopardy-overlay-root {
   *, *::before, *::after { animation-duration: var(--duration-fast) !important; animation-iteration-count: 1 !important; transition-duration: var(--duration-fast) !important; }
 }
 
-/* Season 9 visual refresh */
+/* Current season visual refresh */
 
 body {
   background: var(--color-surface-0);

@@ -38,3 +38,25 @@ test("tournament creation cannot bypass the active-season guard with a supplied 
   });
   assert.equal(result.state, "SCHEDULED");
 });
+
+test("current tournament prefers the active season", async () => {
+  let fallbackCalled = false;
+  const active = { id: 9, name: "Administered season", state: "SCHEDULED" };
+  const result = await __testables.getCurrent({
+    findActive: async () => active,
+    findMostRecent: async () => { fallbackCalled = true; return { id: 8 }; },
+  });
+
+  assert.equal(result, active);
+  assert.equal(fallbackCalled, false);
+});
+
+test("current tournament falls back to the most recent finished season", async () => {
+  const finished = { id: 8, name: "Latest finished season", state: "FINISHED" };
+  const result = await __testables.getCurrent({
+    findActive: async () => null,
+    findMostRecent: async () => finished,
+  });
+
+  assert.equal(result, finished);
+});

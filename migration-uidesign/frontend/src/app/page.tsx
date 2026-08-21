@@ -23,6 +23,8 @@ import { getRecentNetworkMembers } from "@/lib/api/networkMember";
 import type { NetworkMemberRole } from "@/lib/api/types";
 import { AnnouncementRenderer } from "@/announcements/AnnouncementRenderer";
 import { LandingMotion } from "@/components/landing/LandingMotion";
+import { getCurrentTournament } from "@/lib/api/admin";
+import { resolveSeasonLabel } from "@/features/tournament/seasonIdentity";
 
 export const revalidate = 60;
 
@@ -107,7 +109,12 @@ const experienceCards = [
 ];
 
 export default async function HomePage() {
-  const members = await getRecentNetworkMembers().catch(() => []);
+  const [members, currentTournament] = await Promise.all([
+    getRecentNetworkMembers().catch(() => []),
+    getCurrentTournament({ cache: "no-store" }).catch(() => null),
+  ]);
+  const seasonLabel = resolveSeasonLabel(currentTournament);
+  const seasonStatus = currentTournament?.state === "SCHEDULED" ? "Coming soon" : "Current season";
 
   return (
     <div className="home-page home-editorial">
@@ -118,7 +125,7 @@ export default async function HomePage() {
         <div className="hero-speed-lines" aria-hidden="true" />
         <div className="ow-container goon-hero-grid">
           <div className="goon-hero-copy">
-            <span className="hero-kicker"><i /> Season 9 · Coming soon</span>
+            <span className="hero-kicker"><i /> {seasonLabel} · {seasonStatus}</span>
             <h1 id="goon-hero-title">
               <span>Overwatch.</span>
               <span>Organized.</span>
@@ -129,8 +136,8 @@ export default async function HomePage() {
               live broadcasts, standings, and playoffs.
             </p>
             <div className="goon-hero-actions">
-              <Link href="/season-9" className="hero-primary-action">
-                Season 9 overview <ArrowRight size={19} />
+              <Link href="/season" className="hero-primary-action">
+                {seasonLabel} overview <ArrowRight size={19} />
               </Link>
               <a href="https://discord.gg/QMukTWr32f" target="_blank" rel="noopener noreferrer" className="hero-secondary-action">
                 <MessageCircle size={18} /> Join Discord
@@ -140,8 +147,8 @@ export default async function HomePage() {
 
           <aside className="hero-scorecard" aria-label="League information">
             <div className="scorecard-status"><span /> Next league season</div>
-            <div className="scorecard-season"><small>Status</small><strong>S09</strong></div>
-            <div className="scorecard-coming">Coming soon</div>
+            <div className="scorecard-season"><small>Status</small><strong>{seasonLabel}</strong></div>
+            <div className="scorecard-coming">{seasonStatus}</div>
             <div className="scorecard-rule" />
             <div className="scorecard-stats">
               <div><strong>8</strong><span>completed seasons</span></div>
@@ -244,7 +251,7 @@ export default async function HomePage() {
       <section className="live-stage">
         <div className="ow-container live-stage-heading" data-reveal>
           <div><span className="live-dot" /> Community events and broadcasts</div>
-          <p>Special events and minigames are managed separately from the upcoming Season 9 schedule.</p>
+          <p>Special events and minigames are managed separately from the upcoming season schedule.</p>
         </div>
         <AnnouncementRenderer />
       </section>
@@ -340,13 +347,13 @@ export default async function HomePage() {
         <div className="final-rally-art" aria-hidden="true" />
         <div className="ow-container final-rally-grid" data-reveal>
           <div>
-            <span><Sparkles size={16} /> Season 9 status</span>
-            <h2>Season 9 is<br />in preparation.</h2>
+            <span><Sparkles size={16} /> {seasonLabel} status</span>
+            <h2>{seasonLabel} is<br />in preparation.</h2>
             <p>Dates, registration details, captain selection, and the competitive schedule will be announced when they are confirmed.</p>
           </div>
           <div className="final-rally-actions">
             <a href="https://discord.gg/QMukTWr32f" target="_blank" rel="noopener noreferrer" className="hero-primary-action"><MessageCircle size={19} /> Join for updates</a>
-            <Link href="/season-9" className="hero-secondary-action">Season 9 overview <ArrowRight size={18} /></Link>
+            <Link href="/season" className="hero-secondary-action">{seasonLabel} overview <ArrowRight size={18} /></Link>
           </div>
         </div>
       </section>

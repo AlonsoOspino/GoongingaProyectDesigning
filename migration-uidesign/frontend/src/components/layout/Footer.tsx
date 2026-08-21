@@ -1,7 +1,13 @@
+"use client";
+
 import Link from "next/link";
 import { MessageCircle, Play } from "lucide-react";
+import { resolveSeasonLabel } from "@/features/tournament/seasonIdentity";
+import { useCurrentTournament } from "@/features/tournament/useCurrentTournament";
 
 export function Footer() {
+  const seasonLabel = resolveSeasonLabel(useCurrentTournament());
+
   return (
     <footer className="mt-auto border-t border-border bg-surface-inset text-text-primary">
       <div className="ow-container flex flex-col gap-8 py-10 md:flex-row md:items-center md:justify-between">
@@ -10,7 +16,7 @@ export function Footer() {
           <p className="mt-2 text-body-s leading-6 text-text-secondary">Community Overwatch competition with drafted rosters, live broadcasts, standings, and season archives.</p>
         </div>
         <nav className="flex flex-wrap gap-x-5 gap-y-2 text-body-s font-bold" aria-label="Footer navigation">
-          <Link href="/season-9" className="hover:text-brand-bright">Season 9</Link>
+          <Link href="/season" className="inline-block w-36 truncate hover:text-brand-bright">{seasonLabel}</Link>
           <Link href="/history" className="hover:text-brand-bright">History</Link>
           <Link href="/news" className="hover:text-brand-bright">News</Link>
         </nav>

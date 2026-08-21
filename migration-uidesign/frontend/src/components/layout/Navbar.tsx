@@ -11,9 +11,11 @@ import {
   readNetworkSessionUser,
   type NetworkSessionUser,
 } from "@/features/networkSession/storage";
+import { resolveSeasonLabel } from "@/features/tournament/seasonIdentity";
+import { useCurrentTournament } from "@/features/tournament/useCurrentTournament";
 
-const links = [
-  { href: "/season-9", label: "Season 9", icon: Trophy },
+const leagueLinks = (seasonLabel: string) => [
+  { href: "/season", label: seasonLabel, icon: Trophy },
   { href: "/teams", label: "Teams", icon: Users },
   { href: "/schedule", label: "Schedule / Results", icon: CalendarDays },
   { href: "/standings", label: "Standings", icon: Shield },
@@ -30,6 +32,9 @@ export function Navbar() {
   const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
   const [networkUser, setNetworkUser] = useState<NetworkSessionUser | null>(null);
+  const currentTournament = useCurrentTournament();
+  const seasonLabel = resolveSeasonLabel(currentTournament);
+  const links = leagueLinks(seasonLabel);
 
   useEffect(() => {
     const refresh = () => setNetworkUser(readNetworkSessionUser());
@@ -82,7 +87,7 @@ export function Navbar() {
                 )}
               >
                 <Icon size={16} aria-hidden="true" />
-                {label}
+                <span className={href === "/season" ? "w-28 truncate" : undefined}>{label}</span>
               </Link>
             );
           })}

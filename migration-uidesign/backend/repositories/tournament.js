@@ -21,6 +21,10 @@ const findActive = () => prisma.tournament.findFirst({
   orderBy: [{ startDate: "desc" }, { id: "desc" }],
 });
 
+const findMostRecent = () => prisma.tournament.findFirst({
+  orderBy: [{ startDate: "desc" }, { id: "desc" }],
+});
+
 const startPlayoffs = (id, seededTeamIds) =>
   prisma.$transaction(async (tx) => {
     const tournament = await tx.tournament.findUnique({ where: { id } });
@@ -104,5 +108,6 @@ module.exports = {
   findById,
   findAll,
   findActive,
+  findMostRecent,
   startPlayoffs,
 };
