@@ -16,6 +16,11 @@ const findById = (id) =>
 
 const findAll = () => prisma.tournament.findMany();
 
+const findActive = () => prisma.tournament.findFirst({
+  where: { state: { not: "FINISHED" } },
+  orderBy: [{ startDate: "desc" }, { id: "desc" }],
+});
+
 const startPlayoffs = (id, seededTeamIds) =>
   prisma.$transaction(async (tx) => {
     const tournament = await tx.tournament.findUnique({ where: { id } });
@@ -98,5 +103,6 @@ module.exports = {
   findByName,
   findById,
   findAll,
+  findActive,
   startPlayoffs,
 };

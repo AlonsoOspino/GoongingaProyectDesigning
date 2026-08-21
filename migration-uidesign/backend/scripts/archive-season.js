@@ -1,3 +1,6 @@
+// One-shot pre-migration importer used to create the frozen Season 8 archive. It depends on the
+// retired Wrapped table and cannot run against the current schema. Use export-season.js for new
+// seasons; do not use this script to regenerate frontend/src/data/history/season-8.json.
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");

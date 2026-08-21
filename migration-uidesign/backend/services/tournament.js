@@ -1,23 +1,28 @@
 const tournamentRepo = require("../repositories/tournament");
 const teamRepo = require("../repositories/team");
 
-const create = async (data) => {
+const normalizeCreateData = (data, activeTournament = null) => {
   if (!data) throw new Error("Body is missing");
   const { name, startDate, state } = data;
   if (!name || !startDate) {
     throw new Error("name and startDate are required");
   }
-  const existingTournaments = await tournamentRepo.findAll();
-  if (existingTournaments.length > 0) {
-    throw new Error("A tournament already exists");
+  const parsedStartDate = new Date(startDate);
+  if (Number.isNaN(parsedStartDate.getTime())) {
+    throw new Error("startDate must be a valid date");
   }
-  const existing = await tournamentRepo.findByName(name);
+  if (activeTournament) {
+    throw new Error(`Finish ${activeTournament.name} before creating another season`);
+  }
+  return { name, startDate: parsedStartDate, state: state || "SCHEDULED" };
+};
+
+const create = async (data) => {
+  const activeTournament = await tournamentRepo.findActive();
+  const normalized = normalizeCreateData(data, activeTournament);
+  const existing = await tournamentRepo.findByName(normalized.name);
   if (existing) throw new Error("Tournament already exists");
-  return await tournamentRepo.create({
-    name,
-    startDate,
-    state: state || "SCHEDULED",
-  });
+  return await tournamentRepo.create(normalized);
 };
 
 
@@ -75,4 +80,5 @@ module.exports = {
   getAll,
   getCurrent,
   startPlayoffs,
+  __testables: { normalizeCreateData },
 };
