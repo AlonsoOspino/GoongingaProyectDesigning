@@ -1,5 +1,4 @@
 const networkMemberRepo = require("../repositories/networkMember");
-const teamRepo = require("../repositories/team");
 const { hasNetworkRole } = require("../utils/permissions");
 const prisma = require("../config/prisma");
 
@@ -20,16 +19,6 @@ function toLeagueMember(member, includePrivate = false) {
     obsWebsocketUrl: member.obsWebsocketUrl,
     obsWebsocketPassword: member.obsWebsocketPassword,
   };
-}
-
-async function normalizeTeamId(value) {
-  if (value === undefined) return undefined;
-  if (value === null || value === "") return null;
-  const teamId = Number(value);
-  if (!Number.isInteger(teamId) || teamId < 1 || !(await teamRepo.findById(teamId))) {
-    throw new Error("Select a valid team.");
-  }
-  return teamId;
 }
 
 function cleanSearch(value) {
@@ -144,13 +133,16 @@ async function updateLeagueMember(req, res) {
 
 async function adminUpdateLeagueMember(req, res) {
   try {
+    if (req.body?.role !== undefined || req.body?.teamId !== undefined) {
+      return res.status(400).json({
+        message: "Competitive role and team assignments must be managed from the Season Roster.",
+      });
+    }
     const memberId = Number(req.params.id);
     const data = {};
     if (req.body?.nickname !== undefined) data.nickname = req.body.nickname;
     if (req.body?.profilePic !== undefined) data.profilePic = req.body.profilePic;
     if (req.body?.rank !== undefined) data.rank = Number(req.body.rank) || 0;
-    if (req.body?.role !== undefined) data.role = req.body.role;
-    if (req.body?.teamId !== undefined) data.teamId = await normalizeTeamId(req.body.teamId);
     await networkMemberRepo.updateCompetitiveProfile(memberId, data);
     return res.json(await networkMemberRepo.findById(memberId));
   } catch (error) {

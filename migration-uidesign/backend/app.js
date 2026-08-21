@@ -19,6 +19,7 @@ const networkAuthRoutes = require("./routes/networkAuth");
 const networkMemberRoutes = require("./routes/networkMember");
 const minigameRoutes = require("./routes/minigame");
 const announcementRoutes = require("./routes/announcement");
+const seasonRosterRoutes = require("./routes/seasonRoster");
 const cors = require("cors");
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -82,6 +83,7 @@ app.use("/network-auth", networkAuthRoutes);
 app.use("/network-members", networkMemberRoutes);
 app.use("/minigames", minigameRoutes);
 app.use("/announcements", announcementRoutes);
+app.use("/season-roster", seasonRosterRoutes);
 
 const startServer = async () => {
   if (!process.env.DATABASE_URL) {
