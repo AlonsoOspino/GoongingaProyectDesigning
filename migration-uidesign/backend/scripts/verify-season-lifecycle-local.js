@@ -56,7 +56,7 @@ async function main() {
     await prisma.tournament.update({ where: { id: seasonEight.id }, data: { state: "FINISHED" } });
     const created = await request("/tournament/create", token, {
       method: "POST",
-      body: JSON.stringify({ name: verificationName, startDate: "2026-09-01T00:00:00.000Z" }),
+      body: JSON.stringify({ name: verificationName, startDate: "2026-09-01T00:00:00.000Z", state: "FINISHED" }),
     });
     createdId = created.body?.id || null;
     console.log("CREATE_NEXT_SEASON", JSON.stringify(created));

@@ -83,6 +83,10 @@ export default function SeasonRosterPage() {
     () => (roster?.teams || []).map((team) => ({ value: String(team.id), label: team.name })),
     [roster]
   );
+  const teamOrNoneOptions = useMemo(
+    () => [{ value: "", label: "No team" }, ...teamOptions],
+    [teamOptions]
+  );
 
   const changeSeason = async (value: string) => {
     const tournamentId = Number(value);
@@ -210,9 +214,13 @@ export default function SeasonRosterPage() {
                           <Select
                             aria-label={`Team for ${memberName(player.member)}`}
                             value={String(player.teamId || "")}
-                            options={teamOptions}
+                            options={teamOrNoneOptions}
                             disabled={savingMemberId === player.memberId}
-                            onChange={(event) => void saveMember(player.memberId, Number(event.target.value), player.role)}
+                            onChange={(event) => {
+                              const teamId = event.target.value ? Number(event.target.value) : null;
+                              const role = teamId === null ? "PLAYER" : player.role;
+                              void saveMember(player.memberId, teamId, role);
+                            }}
                           />
                           <div className="flex gap-2">
                             <Button
@@ -249,6 +257,59 @@ export default function SeasonRosterPage() {
             <section className="rounded-sm border border-border bg-surface-1 p-4">
               <div className="mb-4 flex items-center justify-between gap-3 border-b border-border pb-3">
                 <div>
+                  <h2 className="font-display text-2xl uppercase">In Season, No Team</h2>
+                  <p className="text-xs text-muted">
+                    {roster.assigned.filter((player) => player.teamId === null).length} awaiting assignment
+                  </p>
+                </div>
+                <UsersRound size={20} className="text-muted" />
+              </div>
+              <div className="space-y-3">
+                {roster.assigned.filter((player) => player.teamId === null).map((player) => (
+                  <article key={player.id} className="rounded-sm border border-border bg-surface-inset p-3">
+                    <div className="mb-3 flex items-center gap-3">
+                      <Avatar
+                        size="sm"
+                        src={player.member.avatarUrl || undefined}
+                        fallback={memberName(player.member)}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-text-primary">{memberName(player.member)}</p>
+                        <p className="text-xs text-muted">Player awaiting team</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Select
+                        aria-label={`Team for ${memberName(player.member)}`}
+                        value=""
+                        options={teamOrNoneOptions}
+                        disabled={savingMemberId === player.memberId}
+                        onChange={(event) => {
+                          const teamId = event.target.value ? Number(event.target.value) : null;
+                          void saveMember(player.memberId, teamId, "PLAYER");
+                        }}
+                      />
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        aria-label={`Remove ${memberName(player.member)} from season`}
+                        disabled={savingMemberId === player.memberId}
+                        onClick={() => void removeMember(player.memberId)}
+                      >
+                        <Trash2 size={15} />
+                      </Button>
+                    </div>
+                  </article>
+                ))}
+                {!roster.assigned.some((player) => player.teamId === null) && (
+                  <p className="py-4 text-center text-sm text-muted">No players are waiting for a team.</p>
+                )}
+              </div>
+            </section>
+
+            <section className="rounded-sm border border-border bg-surface-1 p-4">
+              <div className="mb-4 flex items-center justify-between gap-3 border-b border-border pb-3">
+                <div>
                   <h2 className="font-display text-2xl uppercase">Unassigned</h2>
                   <p className="text-xs text-muted">{roster.unassigned.length} available</p>
                 </div>
@@ -273,16 +334,27 @@ export default function SeasonRosterPage() {
                         disabled={!teamOptions.length || savingMemberId === member.id}
                         onChange={(event) => setPendingTeams((current) => ({ ...current, [member.id]: event.target.value }))}
                       />
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full"
-                        disabled={!pendingTeams[member.id] || savingMemberId === member.id}
-                        onClick={() => void saveMember(member.id, Number(pendingTeams[member.id]), "PLAYER")}
-                      >
-                        <UserPlus size={14} />
-                        Assign player
-                      </Button>
+                      <div className="flex flex-col gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full"
+                          disabled={!pendingTeams[member.id] || savingMemberId === member.id}
+                          onClick={() => void saveMember(member.id, Number(pendingTeams[member.id]), "PLAYER")}
+                        >
+                          <UserPlus size={14} />
+                          Assign player
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="w-full"
+                          disabled={savingMemberId === member.id}
+                          onClick={() => void saveMember(member.id, null, "PLAYER")}
+                        >
+                          Add without team
+                        </Button>
+                      </div>
                     </div>
                   </article>
                 ))}

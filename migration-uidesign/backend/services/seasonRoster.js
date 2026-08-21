@@ -27,6 +27,11 @@ function normalizeAssignment(payload) {
   return { teamId, role };
 }
 
+function legacyRoleUpdate(currentRole, seasonRole) {
+  if (!(currentRole === "CAPTAIN" || currentRole === "DEFAULT")) return {};
+  return { role: seasonRole === "CAPTAIN" ? "CAPTAIN" : "DEFAULT" };
+}
+
 async function getTournaments(client = prisma) {
   return client.tournament.findMany({
     select: { id: true, name: true, startDate: true, state: true },
@@ -83,7 +88,7 @@ async function upsertMember(tournamentValue, memberValue, payload, client = pris
 
     const member = await tx.networkMember.findUnique({
       where: { id: memberId },
-      select: { id: true, username: true, status: true },
+      select: { id: true, username: true, status: true, role: true },
     });
     if (!member || member.status !== "ACTIVE") {
       throw httpError(400, "The selected Network Member does not exist or is not active.");
@@ -103,13 +108,16 @@ async function upsertMember(tournamentValue, memberValue, payload, client = pris
     if (assignment.role === "CAPTAIN") {
       const incumbent = await tx.seasonPlayer.findFirst({
         where: { tournamentId, teamId: assignment.teamId, role: "CAPTAIN", memberId: { not: memberId } },
-        select: { id: true, memberId: true, member: { select: { username: true } } },
+        select: { id: true, memberId: true, member: { select: { username: true, role: true } } },
       });
       if (incumbent) {
         await tx.seasonPlayer.update({ where: { id: incumbent.id }, data: { role: "PLAYER" } });
         demoted = { memberId: incumbent.memberId, username: incumbent.member.username };
         if (tournament.state !== "FINISHED") {
-          await tx.networkMember.update({ where: { id: incumbent.memberId }, data: { role: "DEFAULT" } });
+          await tx.networkMember.update({
+            where: { id: incumbent.memberId },
+            data: legacyRoleUpdate(incumbent.member.role, "PLAYER"),
+          });
         }
       }
     }
@@ -129,11 +137,12 @@ async function upsertMember(tournamentValue, memberValue, payload, client = pris
     });
 
     // Temporary legacy bridge: public roster readers still use NetworkMember.teamId and role.
-    // Mirror only the active season; delete this once every reader resolves through SeasonPlayer.
+    // Mirror only the active season, and never replace ADMIN/MANAGER/EDITOR because that scalar is
+    // still read as an authorization input. Delete this once every reader uses SeasonPlayer.
     if (tournament.state !== "FINISHED") {
       await tx.networkMember.update({
         where: { id: memberId },
-        data: { teamId: assignment.teamId, role: assignment.role === "CAPTAIN" ? "CAPTAIN" : "DEFAULT" },
+        data: { teamId: assignment.teamId, ...legacyRoleUpdate(member.role, assignment.role) },
       });
     }
     return { seasonPlayer, demoted };
@@ -151,12 +160,15 @@ async function removeMember(tournamentValue, memberValue, client = prisma) {
     if (!tournament) throw httpError(404, "Tournament not found.");
     const existing = await tx.seasonPlayer.findUnique({
       where: { memberId_tournamentId: { memberId, tournamentId } },
-      select: { id: true },
+      select: { id: true, member: { select: { role: true } } },
     });
     if (!existing) throw httpError(404, "This member is not assigned to the season.");
     await tx.seasonPlayer.delete({ where: { id: existing.id } });
     if (tournament.state !== "FINISHED") {
-      await tx.networkMember.update({ where: { id: memberId }, data: { teamId: null, role: "DEFAULT" } });
+      await tx.networkMember.update({
+        where: { id: memberId },
+        data: { teamId: null, ...legacyRoleUpdate(existing.member.role, "PLAYER") },
+      });
     }
     return { memberId };
   }, { isolationLevel: "Serializable" });
@@ -167,5 +179,5 @@ module.exports = {
   getRoster,
   upsertMember,
   removeMember,
-  __testables: { normalizeAssignment },
+  __testables: { normalizeAssignment, legacyRoleUpdate },
 };

@@ -8,14 +8,22 @@ test("season export reconciliation requires the exact participant set", () => {
       { players: [{ memberId: 8 }, { memberId: 3 }] },
       { players: [{ memberId: 5 }] },
     ],
+    unassignedParticipants: [{ memberId: 13 }],
   };
   assert.deepEqual(
-    __testables.reconcileMemberIds(archive, [{ memberId: 3 }, { memberId: 5 }, { memberId: 8 }]),
-    { matches: true, exported: [3, 5, 8], stored: [3, 5, 8] }
+    __testables.reconcileMemberIds(archive, [{ memberId: 3 }, { memberId: 5 }, { memberId: 8 }, { memberId: 13 }]),
+    { matches: true, exported: [3, 5, 8, 13], stored: [3, 5, 8, 13] }
   );
   assert.equal(
-    __testables.reconcileMemberIds(archive, [{ memberId: 3 }, { memberId: 5 }, { memberId: 8 }, { memberId: 13 }]).matches,
+    __testables.reconcileMemberIds(archive, [{ memberId: 3 }, { memberId: 5 }, { memberId: 8 }, { memberId: 13 }, { memberId: 21 }]).matches,
     false
+  );
+});
+
+test("season purge targets only the participant ids that were reconciled", () => {
+  assert.deepEqual(
+    __testables.purgeWhere(9, [3, 5, 8]),
+    { tournamentId: 9, memberId: { in: [3, 5, 8] } }
   );
 });
 

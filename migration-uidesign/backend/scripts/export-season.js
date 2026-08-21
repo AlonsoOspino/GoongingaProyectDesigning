@@ -34,7 +34,10 @@ function uniqueSortedMemberIds(values) {
 
 function exportedMemberIds(archive) {
   return uniqueSortedMemberIds(
-    (archive?.teams || []).flatMap((team) => (team.players || []).map((player) => player.memberId))
+    [
+      ...(archive?.teams || []).flatMap((team) => (team.players || []).map((player) => player.memberId)),
+      ...(archive?.unassignedParticipants || []).map((player) => player.memberId),
+    ]
   );
 }
 
@@ -43,6 +46,10 @@ function reconcileMemberIds(archive, seasonPlayers) {
   const stored = uniqueSortedMemberIds(seasonPlayers.map((player) => player.memberId));
   const matches = exported.length === stored.length && exported.every((memberId, index) => memberId === stored[index]);
   return { matches, exported, stored };
+}
+
+function purgeWhere(tournamentId, memberIds) {
+  return { tournamentId, memberId: { in: memberIds } };
 }
 
 function readArchive(outputPath) {
@@ -184,6 +191,15 @@ async function buildArchive(options) {
       }))
       .sort((left, right) => left.name.localeCompare(right.name)),
   }));
+  const unassignedParticipants = seasonPlayers
+    .filter((player) => player.teamId === null)
+    .map((player) => ({
+      memberId: player.memberId,
+      name: player.member.nickname || player.member.username,
+      role: player.role,
+      profileImage: player.member.avatarUrl || player.member.profilePic || null,
+    }))
+    .sort((left, right) => left.name.localeCompare(right.name));
   const finalMatch = [...playoffMatches].reverse().find((match) => match.type === "FINALS") || null;
 
   return {
@@ -206,6 +222,7 @@ async function buildArchive(options) {
       mapDifferential: Number(team.mapWins || 0) - Number(team.mapLoses || 0),
     })),
     teams: archivedTeams,
+    unassignedParticipants,
     playerLeaderboard: buildPlayerLeaderboard(stats, seasonPlayerByMemberId, teamById),
     playoffs: playoffMatches.map(matchArchive),
     grandFinal: grandFinalArchive(finalMatch),
@@ -236,7 +253,9 @@ async function purgeSeasonPlayers(options) {
 
   // PlayerStat.seasonPlayerId uses ON DELETE SET NULL. Purging these temporary rows is safe only
   // because this verified season JSON is the durable historical record.
-  return prisma.seasonPlayer.deleteMany({ where: { tournamentId: tournament.id } });
+  return prisma.seasonPlayer.deleteMany({
+    where: purgeWhere(tournament.id, reconciliation.stored),
+  });
 }
 
 async function main() {
@@ -248,6 +267,13 @@ async function main() {
     console.log(JSON.stringify({ outputPath: options.outputPath, participants: exportedMemberIds(archive).length }, null, 2));
   }
   if (options.purge || options.purgeOnly) {
+    if (options.purgeOnly) {
+      const trustedArchive = readArchive(options.outputPath);
+      console.warn(
+        `WARNING_PURGE_ONLY trusting export archivedAt=${trustedArchive.archivedAt || "unknown"} ` +
+        `tournamentState=${trustedArchive.tournament?.finalState || "unknown"}; prefer --purge for a fresh export.`
+      );
+    }
     const result = await purgeSeasonPlayers(options);
     console.log(JSON.stringify({ purgedSeasonPlayers: result.count }, null, 2));
   }
@@ -264,4 +290,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { __testables: { parseArguments, exportedMemberIds, reconcileMemberIds } };
+module.exports = { __testables: { parseArguments, exportedMemberIds, reconcileMemberIds, purgeWhere } };

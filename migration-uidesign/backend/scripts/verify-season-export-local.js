@@ -21,10 +21,10 @@ async function main() {
   const members = await prisma.networkMember.findMany({
     where: { status: "ACTIVE" },
     select: { id: true },
-    take: 3,
+    take: 4,
     orderBy: { id: "asc" },
   });
-  if (members.length < 3) throw new Error("Three active members are required for export verification.");
+  if (members.length < 4) throw new Error("Four active members are required for export verification.");
 
   fs.mkdirSync(verificationRoot, { recursive: true });
   const validPath = path.join(verificationRoot, "season-99.json");
@@ -62,6 +62,7 @@ async function main() {
         { tournamentId: tournament.id, teamId: teamA.id, memberId: members[0].id, role: "CAPTAIN" },
         { tournamentId: tournament.id, teamId: teamA.id, memberId: members[1].id, role: "PLAYER" },
         { tournamentId: tournament.id, teamId: teamB.id, memberId: members[2].id, role: "CAPTAIN" },
+        { tournamentId: tournament.id, teamId: null, memberId: members[3].id, role: "PLAYER" },
       ],
     });
 
@@ -74,6 +75,7 @@ async function main() {
       wrappedPresent: Object.hasOwn(archive, "wrapped"),
       tournamentId: archive.tournament.id,
       participants: archive.teams.flatMap((team) => team.players).length,
+      unassignedParticipants: archive.unassignedParticipants.map((player) => player.memberId),
     }));
 
     await prisma.tournament.update({ where: { id: tournament.id }, data: { state: "SCHEDULED" } });
@@ -91,8 +93,8 @@ async function main() {
     fs.writeFileSync(missingParticipantPath, JSON.stringify(incomplete));
     console.log("GATE_PARTICIPANTS", JSON.stringify(runExport([...baseArguments, `--output=${missingParticipantPath}`, "--purge-only"])));
 
-    const purged = runExport([...baseArguments, `--output=${validPath}`, "--purge"]);
-    console.log("EXPORT_THEN_PURGE", JSON.stringify(purged));
+    const purged = runExport([...baseArguments, `--output=${validPath}`, "--purge-only"]);
+    console.log("TRUSTED_EXPORT_THEN_PURGE", JSON.stringify(purged));
     const counts = {
       seasonPlayers: await prisma.seasonPlayer.count({ where: { tournamentId: tournament.id } }),
       tournaments: await prisma.tournament.count({ where: { id: tournament.id } }),

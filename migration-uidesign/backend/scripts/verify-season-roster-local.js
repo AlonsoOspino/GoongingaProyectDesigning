@@ -60,6 +60,7 @@ async function main() {
       where: { id: admin.id },
       data: { roles: [...new Set([...admin.roles, "ADMIN"])] },
     });
+    await prisma.networkMember.update({ where: { id: members[3].id }, data: { role: "ADMIN" } });
     const createdTournament = await request("/tournament/create", adminToken, {
       method: "POST",
       body: JSON.stringify({ name: `GGL Season 9 roster verification ${Date.now()}`, startDate: "2026-09-01T00:00:00.000Z" }),
@@ -95,6 +96,9 @@ async function main() {
       teamId: entry.body?.seasonPlayer?.teamId,
       role: entry.body?.seasonPlayer?.role,
     }))));
+    console.log("BRIDGE_ROLE_PRESERVATION", JSON.stringify({
+      adminPlayer: await prisma.networkMember.findUnique({ where: { id: members[3].id }, select: { role: true } }),
+    }));
 
     console.log("CROSS_SEASON_TEAM", JSON.stringify(await request(`/season-roster/${tournamentId}/members/${members[2].id}`, adminToken, {
       method: "PUT",
@@ -110,6 +114,9 @@ async function main() {
       body: JSON.stringify({ teamId: teamA.id, role: "CAPTAIN" }),
     });
     console.log("CAPTAIN_REPLACEMENT", JSON.stringify(promotion));
+    console.log("DEFAULT_PROMOTED_TO_CAPTAIN", JSON.stringify(
+      await prisma.networkMember.findUnique({ where: { id: members[2].id }, select: { role: true } })
+    ));
     const afterPromotion = await request(`/season-roster/${tournamentId}`, adminToken);
     console.log("TEAM_A_CAPTAINS", JSON.stringify(afterPromotion.body.assigned.filter(
       (player) => player.teamId === teamA.id && player.role === "CAPTAIN"

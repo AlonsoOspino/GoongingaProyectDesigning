@@ -9,11 +9,18 @@ test("season roster rejects a captain without a team", () => {
   );
 });
 
+test("season roster bridge preserves permanent scalar roles", () => {
+  assert.deepEqual(seasonRoster.__testables.legacyRoleUpdate("ADMIN", "PLAYER"), {});
+  assert.deepEqual(seasonRoster.__testables.legacyRoleUpdate("MANAGER", "CAPTAIN"), {});
+  assert.deepEqual(seasonRoster.__testables.legacyRoleUpdate("DEFAULT", "CAPTAIN"), { role: "CAPTAIN" });
+  assert.deepEqual(seasonRoster.__testables.legacyRoleUpdate("CAPTAIN", "PLAYER"), { role: "DEFAULT" });
+});
+
 test("season roster rejects a team from another tournament", async () => {
   const client = {
     $transaction: async (operation) => operation(client),
     tournament: { findUnique: async () => ({ id: 9, state: "SCHEDULED" }) },
-    networkMember: { findUnique: async () => ({ id: 4, username: "Ana", status: "ACTIVE" }) },
+    networkMember: { findUnique: async () => ({ id: 4, username: "Ana", status: "ACTIVE", role: "DEFAULT" }) },
     team: { findUnique: async () => ({ id: 30, tournamentId: 8 }) },
   };
   await assert.rejects(
@@ -29,11 +36,11 @@ test("promoting a captain demotes the incumbent in the same transaction", async 
     tournament: { findUnique: async () => ({ id: 9, state: "SCHEDULED" }) },
     team: { findUnique: async () => ({ id: 30, tournamentId: 9 }) },
     networkMember: {
-      findUnique: async () => ({ id: 4, username: "Ana", status: "ACTIVE" }),
+      findUnique: async () => ({ id: 4, username: "Ana", status: "ACTIVE", role: "DEFAULT" }),
       update: async (request) => { updates.push(["member", request]); return request; },
     },
     seasonPlayer: {
-      findFirst: async () => ({ id: 70, memberId: 7, member: { username: "Luis" } }),
+      findFirst: async () => ({ id: 70, memberId: 7, member: { username: "Luis", role: "CAPTAIN" } }),
       update: async (request) => { updates.push(["season", request]); return request; },
       upsert: async () => ({ id: 71, memberId: 4, teamId: 30, role: "CAPTAIN" }),
     },

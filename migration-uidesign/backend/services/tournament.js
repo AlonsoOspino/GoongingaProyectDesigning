@@ -3,7 +3,7 @@ const teamRepo = require("../repositories/team");
 
 const normalizeCreateData = (data, activeTournament = null) => {
   if (!data) throw new Error("Body is missing");
-  const { name, startDate, state } = data;
+  const { name, startDate } = data;
   if (!name || !startDate) {
     throw new Error("name and startDate are required");
   }
@@ -14,7 +14,7 @@ const normalizeCreateData = (data, activeTournament = null) => {
   if (activeTournament) {
     throw new Error(`Finish ${activeTournament.name} before creating another season`);
   }
-  return { name, startDate: parsedStartDate, state: state || "SCHEDULED" };
+  return { name, startDate: parsedStartDate, state: "SCHEDULED" };
 };
 
 const create = async (data) => {

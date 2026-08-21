@@ -29,3 +29,12 @@ test("tournament creation rejects an invalid countdown date", () => {
     /startDate must be a valid date/
   );
 });
+
+test("tournament creation cannot bypass the active-season guard with a supplied state", () => {
+  const result = __testables.normalizeCreateData({
+    name: "GGL Season 9",
+    startDate: "2026-09-01T00:00:00.000Z",
+    state: "FINISHED",
+  });
+  assert.equal(result.state, "SCHEDULED");
+});
