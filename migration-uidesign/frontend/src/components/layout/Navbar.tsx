@@ -140,7 +140,7 @@ export function Navbar() {
     { href: "/profile", label: "Profile", icon: UserRound, show: true },
     { href: "/my-team", label: "My Team", icon: Users, show: Boolean(capabilities?.isCaptain || hasSeasonTeam) },
     { href: "/captain-dashboard", label: "Captain Dashboard", icon: Crown, show: Boolean(capabilities?.isCaptain) },
-    { href: "/social-media-dashboard", label: "Casting Dashboard", icon: Gauge, show: canOpenCasting },
+    { href: "/casting-dashboard", label: "Casting Dashboard", icon: Gauge, show: canOpenCasting },
     { href: "/admin-dashboard", label: "Admin Dashboard", icon: Shield, show: Boolean(capabilities?.isAdmin) },
   ].filter((entry) => entry.show) : [];
 

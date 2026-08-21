@@ -37,7 +37,7 @@ function ToolLinks({ items }: { items: typeof streamTools }) {
   );
 }
 
-export default function SocialMediaDashboardPage() {
+export default function CastingDashboardPage() {
   const router = useRouter();
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace>("league");
   const [user, setUser] = useState<NetworkSessionUser | null>(null);
@@ -63,7 +63,7 @@ export default function SocialMediaDashboardPage() {
 
   const canManageProduction = user.roles.some((role) => role === "SOCIAL_MEDIA" || role === "ADMIN");
   const visibleWorkspaces = canManageProduction ? workspaces : workspaces.filter((workspace) => workspace.id === "minigames");
-  const dashboardTitle = canManageProduction ? "Production control" : "Jeopardy control";
+  const dashboardTitle = "Casting Dashboard";
   const dashboardCopy = canManageProduction
     ? "League operations, minigames and stream outputs."
     : "Open an existing Jeopardy game and control questions, scores and stream order.";
