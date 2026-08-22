@@ -1,32 +1,71 @@
-"use client";
+import Image from "next/image";
 
-import Link from "next/link";
-import { MessageCircle, Play } from "lucide-react";
-import { resolveSeasonLabel } from "@/features/tournament/seasonIdentity";
-import { useCurrentTournament } from "@/features/tournament/useCurrentTournament";
+const projectImage = "/landing/realtime.webp";
+
+const socialLinks = [
+  { label: "TikTok", icon: "tiktok", href: "https://www.tiktok.com/@goongingatournament" },
+  { label: "YouTube", icon: "youtube", href: "https://www.youtube.com/@goongingatournament" },
+  { label: "Instagram", icon: "instagram", href: "https://www.instagram.com/goongingatournament/" },
+  { label: "Discord", icon: "discord", href: "https://discord.gg/QMukTWr32f" },
+  { label: "Twitch", icon: "twitch", href: "https://www.twitch.tv/goongingatournament", featured: true },
+];
 
 export function Footer() {
-  const seasonLabel = resolveSeasonLabel(useCurrentTournament());
-
   return (
-    <footer className="mt-auto border-t border-border bg-surface-inset text-text-primary">
-      <div className="ow-container flex flex-col gap-8 py-10 md:flex-row md:items-center md:justify-between">
-        <div className="max-w-md">
-          <p className="font-display text-display-l uppercase">Overtime Productions</p>
-          <p className="mt-2 text-body-s leading-6 text-text-secondary">Community Overwatch competition with drafted rosters, live broadcasts, standings, and season archives.</p>
+    <footer className="otp-footer">
+      <div className="landing-shell otp-footer-feature">
+        <div className="otp-footer-feature-copy">
+          <h2>Watch GGL live on Twitch.</h2>
+          <p>
+            Live matches, draft decisions, and Finals are carried on the same channel whenever a
+            season is running.
+          </p>
+          <a
+            href="https://www.twitch.tv/goongingatournament"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Open the Twitch channel
+          </a>
         </div>
-        <nav className="flex flex-wrap gap-x-5 gap-y-2 text-body-s font-bold" aria-label="Footer navigation">
-          <Link href="/season" className="inline-block w-36 truncate hover:text-brand-bright">{seasonLabel}</Link>
-          <Link href="/history" className="hover:text-brand-bright">History</Link>
-          <Link href="/news" className="hover:text-brand-bright">News</Link>
+        <figure>
+          <Image
+            src={projectImage}
+            alt=""
+            fill
+            sizes="(max-width: 800px) 100vw, 44vw"
+          />
+        </figure>
+      </div>
+
+      <div className="landing-shell otp-footer-bottom">
+        <div className="otp-footer-brand">
+          <span className="otp-footer-brand-image">
+            <Image src={projectImage} alt="" fill sizes="36px" />
+          </span>
+          <div>
+            <strong>Overtime Productions</strong>
+            <span>Community events and live production</span>
+          </div>
+        </div>
+
+        <nav className="otp-social-links" aria-label="Overtime Productions social channels">
+          {socialLinks.map((social) => (
+            <a
+              key={social.label}
+              href={social.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={social.featured ? "otp-social-featured" : ""}
+            >
+              <span
+                className={`otp-social-icon otp-social-icon--${social.icon}`}
+                aria-hidden="true"
+              />
+              <span>{social.label}</span>
+            </a>
+          ))}
         </nav>
-        <div className="flex gap-2">
-          <a className="ow-icon-button" href="https://discord.gg/QMukTWr32f" aria-label="Discord" title="Discord"><MessageCircle size={19} /></a>
-          <a className="ow-icon-button" href="https://www.instagram.com/goongingatournament/" aria-label="Instagram" title="Instagram"><img src="/icons/social/instagram.svg" alt="" /></a>
-          <a className="ow-icon-button" href="https://www.twitch.tv/goongingatournament" aria-label="Twitch" title="Twitch"><img src="/icons/social/twitch.svg" alt="" /></a>
-          <a className="ow-icon-button" href="https://www.tiktok.com/@goongingatournament" aria-label="TikTok" title="TikTok"><img src="/icons/social/tiktok.svg" alt="" /></a>
-          <a className="ow-icon-button" href="https://www.youtube.com/@goongingatournament" aria-label="YouTube" title="YouTube"><Play size={19} /></a>
-        </div>
       </div>
     </footer>
   );

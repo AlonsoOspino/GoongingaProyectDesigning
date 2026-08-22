@@ -7,8 +7,10 @@ import styles from "@/announcements/announcements.module.css";
 
 export function AnnouncementRenderer({
   standalone = false,
+  limit,
 }: {
   standalone?: boolean;
+  limit?: number;
 }) {
   const [state, setState] = useState<ActiveAnnouncements | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -37,9 +39,13 @@ export function AnnouncementRenderer({
     return standalone ? (
       <div className={styles.loading}>No active league announcements.</div>
     ) : null;
+  const announcements =
+    typeof limit === "number"
+      ? state.announcements.slice(0, Math.max(0, limit))
+      : state.announcements;
   return (
     <div className={styles.announcementList}>
-      {state.announcements.map((announcement, index) => {
+      {announcements.map((announcement, index) => {
         const { View } = getAnnouncementTemplate(announcement.type);
         return (
           <View
