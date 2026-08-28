@@ -117,7 +117,7 @@ export function TournamentMode({
             </div>
             <div className={styles.seasonPosterActions}>
               {scheduledSeason ? <AnnouncementCountdown target={currentTournament.startDate} now={now} /> : null}
-              <Link href="/season" className={styles.matchLink}>
+              <Link href="/season-9" className={styles.matchLink}>
                 {scheduledSeason ? `View ${seasonLabel}` : "Season updates"} <ArrowRight size={18} />
               </Link>
             </div>

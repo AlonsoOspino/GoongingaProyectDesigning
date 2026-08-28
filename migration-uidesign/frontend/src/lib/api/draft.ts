@@ -1,5 +1,5 @@
 import { apiRequest } from "@/lib/api/client";
-import type { DraftShareInfo, DraftState } from "@/lib/api/types";
+import type { DraftShareInfo, DraftState, MapType } from "@/lib/api/types";
 
 type DraftReadAccess =
   | string
@@ -29,6 +29,18 @@ export async function startMapPicking(token: string, draftId: number) {
   return apiRequest<DraftState>(`/draft/${draftId}/start-map-picking`, {
     method: "PATCH",
     token,
+  });
+}
+
+export async function pickMapType(
+  token: string,
+  draftId: number,
+  payload: { mapType: MapType; teamId?: number }
+) {
+  return apiRequest<DraftState>(`/draft/${draftId}/pick-map-type`, {
+    method: "POST",
+    token,
+    body: payload,
   });
 }
 

@@ -2,32 +2,8 @@ const prisma = require("../config/prisma");
 const { hasManagerAccess, resolveSeasonPlayer } = require("../utils/permissions");
 
 const mapOrder = ["CONTROL", "HYBRID", "PAYLOAD", "PUSH", "FLASHPOINT"];
-// Best of 5 cycle used by playoff rounds 1 and 2.
-const playoffMapTypesByGame = [
-  ["CONTROL"],
-  ["HYBRID"],
-  ["PAYLOAD"],
-  ["PUSH", "FLASHPOINT"],
-  ["CONTROL"],
-];
-// Best of 7 cycle used by the Grand Final:
-// control, hybrid, payload, push, flashpoint, control, hybrid.
-// Push and Flashpoint are separate games in the finals (not a combined pool).
-const finalsMapTypesByGame = [
-  ["CONTROL"],
-  ["HYBRID"],
-  ["PAYLOAD"],
-  ["PUSH"],
-  ["FLASHPOINT"],
-  ["CONTROL"],
-  ["HYBRID"],
-];
-
-const getMapTypeCycle = (matchType) => {
-  if (matchType === "FINALS") return finalsMapTypesByGame;
-  if (matchType === "PLAYOFFS") return playoffMapTypesByGame;
-  return null;
-};
+const FIRST_GAME_MAP_TYPE = "CONTROL";
+const LOSER_PICKABLE_MAP_TYPES = ["HYBRID", "PAYLOAD", "PUSH", "FLASHPOINT"];
 
 // Bracket matches (playoff rounds and the Grand Final) draft from the full map
 // pool filtered by the cycle type, not from the per-round pools of round robin.
@@ -54,25 +30,21 @@ const assertPositiveInt = (value, fieldName) => {
   return parsed;
 };
 
-const getAllowedMapTypes = (gameNumber, matchType) => {
+// Game one always opens on Control. From game two onward the team that lost
+// the previous game chooses the mode before choosing a map. Match type no
+// longer changes that sequence; the parameter remains for API compatibility.
+const getAllowedMapTypes = (gameNumber, _matchType) => {
   const safeGameNumber = normalizeGameNumber(gameNumber);
-  const cycle = getMapTypeCycle(matchType);
-  if (cycle) {
-    return cycle[(safeGameNumber - 1) % cycle.length];
-  }
-
-  if (safeGameNumber <= 5) {
-    return [mapOrder[safeGameNumber - 1] || "CONTROL"];
-  }
-
-  return [mapOrder[(safeGameNumber - 5) % 5] || "CONTROL"];
+  return safeGameNumber === 1
+    ? [FIRST_GAME_MAP_TYPE]
+    : [...LOSER_PICKABLE_MAP_TYPES];
 };
 
 // Round keys must span the whole cycle, otherwise games 6-7 of a best of 7
 // would collide with the pools configured for games 1-2.
 const getRoundKey = (gameNumber, matchType) => {
   const safe = normalizeGameNumber(gameNumber);
-  const cycleLength = getMapTypeCycle(matchType)?.length || 5;
+  const cycleLength = matchType === "FINALS" ? 7 : 5;
   return String(((safe - 1) % cycleLength) + 1);
 };
 
@@ -85,6 +57,22 @@ const parseAllowedMapPool = (mapsAllowedByRound, gameNumber, matchType) => {
     .map((v) => Number(v))
     .filter((v) => Number.isInteger(v) && v > 0);
   return ids.length ? ids : null;
+};
+
+// Weekly map configuration was historically stored by fixed game number. The
+// loser-picks-mode flow treats that object as one weekly pool and filters the
+// union by the selected mode. This preserves existing admin data without
+// forcing a second map-pool migration.
+const parseAllAllowedMapIds = (mapsAllowedByRound) => {
+  if (!mapsAllowedByRound || typeof mapsAllowedByRound !== "object") return null;
+
+  const ids = Object.values(mapsAllowedByRound)
+    .flatMap((value) => (Array.isArray(value) ? value : []))
+    .map((value) => Number(value))
+    .filter((value) => Number.isInteger(value) && value > 0);
+
+  const uniqueIds = [...new Set(ids)];
+  return uniqueIds.length ? uniqueIds : null;
 };
 
 const getNextOrder = (actions) => {
@@ -147,87 +135,62 @@ const getOtherTeamId = (match, actingTeamId) => {
   return actingTeamId === match.teamAId ? match.teamBId : match.teamAId;
 };
 
-const getAvailableMaps = async ({ match, pickedMapIds, actions = [] }) => {
-  // Current game is gameNumber+1 (gameNumber is last completed game, 0 at start)
-  const currentGame = (match.gameNumber || 0) + 1;
-  if (isBracketMatchType(match.type)) {
-    const allowedTypes = getAllowedMapTypes(currentGame, match.type);
-    return prisma.map.findMany({
-      where: {
-        type: { in: allowedTypes },
-        id: { notIn: pickedMapIds },
-      },
-      orderBy: { id: "asc" },
-    });
-  }
-  const poolIds = parseAllowedMapPool(
-    match.mapsAllowedByRound,
-    currentGame,
-    match.type
-  );
+const getMapPoolWhere = ({ match, pickedMapIds, mapTypes }) => {
+  const configuredPoolIds = isBracketMatchType(match.type)
+    ? null
+    : parseAllAllowedMapIds(match.mapsAllowedByRound);
 
-  if (currentGame === 5) {
-    // Game 5: show maps from mapsAllowedByRound["5"] + unpicked map from game 1
-    const game5PoolIds = parseAllowedMapPool(match.mapsAllowedByRound, 5, match.type);
-    const game1PoolIds = parseAllowedMapPool(match.mapsAllowedByRound, 1, match.type);
-    
-    // Find maps picked in game 1
-    const game1PickedMapIds = new Set(
-      actions
-        .filter((a) => a.action === "PICK" && a.gameNumber === 1)
-        .map((a) => Number(a.value))
-    );
-
-    // Build allowed map IDs: game5 pool + unpicked from game1
-    let allowedIds = new Set();
-    if (game5PoolIds) {
-      game5PoolIds.forEach((id) => allowedIds.add(id));
-    }
-    
-    // Add the map from game1 pool that wasn't picked
-    if (game1PoolIds) {
-      game1PoolIds.forEach((id) => {
-        if (!game1PickedMapIds.has(id)) {
-          allowedIds.add(id);
+  return {
+    type: { in: mapTypes },
+    id: configuredPoolIds
+      ? {
+          in: configuredPoolIds,
+          notIn: pickedMapIds,
         }
-      });
-    }
+      : { notIn: pickedMapIds },
+  };
+};
 
-    // If no explicit pools, fall back to type-based filtering
-    if (allowedIds.size === 0) {
-      const allowedTypes = getAllowedMapTypes(currentGame, match.type);
-      return prisma.map.findMany({
-        where: {
-          type: { in: allowedTypes },
-          id: { notIn: pickedMapIds },
-        },
-        orderBy: { id: "asc" },
-      });
-    }
+const getAvailableMapTypes = async ({ match, pickedMapIds }) => {
+  const currentGame = (match.gameNumber || 0) + 1;
+  const candidateTypes = getAllowedMapTypes(currentGame, match.type);
+  const maps = await prisma.map.findMany({
+    where: getMapPoolWhere({ match, pickedMapIds, mapTypes: candidateTypes }),
+    select: { type: true },
+  });
+  const availableTypes = new Set(maps.map((map) => map.type));
 
-    return prisma.map.findMany({
-      where: {
-        id: { in: Array.from(allowedIds).filter((id) => !pickedMapIds.includes(id)) },
-      },
-      orderBy: { id: "asc" },
-    });
-  }
+  return candidateTypes.filter((mapType) => availableTypes.has(mapType));
+};
 
-  if (poolIds) {
-    return prisma.map.findMany({
-      where: {
-        id: { in: poolIds.filter((id) => !pickedMapIds.includes(id)) },
-      },
-      orderBy: { id: "asc" },
-    });
-  }
+// How many unplayed maps sit behind each mode this game. The map-type screen
+// shows this on every plate so a captain can see that picking Push leaves them
+// one map while Payload leaves four, before committing to the mode.
+const getAvailableMapTypeCounts = async ({ match, pickedMapIds }) => {
+  const currentGame = (match.gameNumber || 0) + 1;
+  const candidateTypes = getAllowedMapTypes(currentGame, match.type);
+  const grouped = await prisma.map.groupBy({
+    by: ["type"],
+    where: getMapPoolWhere({ match, pickedMapIds, mapTypes: candidateTypes }),
+    _count: { _all: true },
+  });
 
-  const allowedTypes = getAllowedMapTypes(currentGame, match.type);
+  return Object.fromEntries(grouped.map((row) => [row.type, row._count._all]));
+};
+
+const getAvailableMaps = async ({ match, pickedMapIds, selectedMapType }) => {
+  const currentGame = (match.gameNumber || 0) + 1;
+  const effectiveMapType =
+    selectedMapType || (currentGame === 1 ? FIRST_GAME_MAP_TYPE : null);
+
+  if (!effectiveMapType) return [];
+
   return prisma.map.findMany({
-    where: {
-      type: { in: allowedTypes },
-      id: { notIn: pickedMapIds },
-    },
+    where: getMapPoolWhere({
+      match,
+      pickedMapIds,
+      mapTypes: [effectiveMapType],
+    }),
     orderBy: { id: "asc" },
   });
 };
@@ -256,7 +219,7 @@ const reloadDraft = (tx, draftId) =>
 
 const applyTimeoutIfNeeded = async (draft) => {
   if (!draft.currentTurnTeamId) return draft;
-  if (!["MAPPICKING", "BAN"].includes(draft.phase)) return draft;
+  if (!["MAPTYPEPICKING", "MAPPICKING", "BAN"].includes(draft.phase)) return draft;
   // Manager-initiated pause freezes the draft turn timer entirely.
   if (draft.match && draft.match.mapTimerPaused) return draft;
 
@@ -272,6 +235,49 @@ const applyTimeoutIfNeeded = async (draft) => {
   const originalTurnTeamId = draft.currentTurnTeamId;
   const originalPhaseStartedAt = draft.phaseStartedAt;
 
+  if (draft.phase === "MAPTYPEPICKING") {
+    const pickedMapIds = Array.isArray(draft.pickedMaps) ? draft.pickedMaps : [];
+    const availableMapTypes = await getAvailableMapTypes({
+      match: draft.match,
+      pickedMapIds,
+    });
+    const fallbackMapType = availableMapTypes[0];
+
+    if (!fallbackMapType) {
+      throw new Error("No map types with available maps remain for this match.");
+    }
+
+    return prisma.$transaction(async (tx) => {
+      const claim = await tx.draftTable.updateMany({
+        where: {
+          id: draft.id,
+          phase: originalPhase,
+          currentTurnTeamId: originalTurnTeamId,
+          phaseStartedAt: originalPhaseStartedAt,
+        },
+        data: { phaseStartedAt: new Date() },
+      });
+
+      if (claim.count === 0) {
+        return reloadDraft(tx, draft.id);
+      }
+
+      return tx.draftTable.update({
+        where: { id: draft.id },
+        data: {
+          phase: "MAPPICKING",
+          selectedMapType: fallbackMapType,
+          currentTurnTeamId: originalTurnTeamId,
+          phaseStartedAt: new Date(Date.now() + PHASE_START_HOLD_MS),
+        },
+        include: {
+          match: true,
+          actions: { orderBy: { order: "asc" } },
+        },
+      });
+    });
+  }
+
   if (draft.phase === "MAPPICKING") {
     const alreadyPicked = draft.actions.some(
       (a) => a.action === "PICK" && a.gameNumber === currentGame
@@ -279,7 +285,11 @@ const applyTimeoutIfNeeded = async (draft) => {
     if (alreadyPicked) return draft;
 
     const pickedMapIds = Array.isArray(draft.pickedMaps) ? draft.pickedMaps : [];
-    const availableMaps = await getAvailableMaps({ match: draft.match, pickedMapIds, actions: draft.actions });
+    const availableMaps = await getAvailableMaps({
+      match: draft.match,
+      pickedMapIds,
+      selectedMapType: draft.selectedMapType,
+    });
     if (!availableMaps.length) {
       throw new Error("No available maps left for random timeout pick.");
     }
@@ -431,6 +441,7 @@ const createDraft = async (matchId, user) => {
       bannedHeroes: [],
       pickedMaps: [],
       currentMapId: null,
+      selectedMapType: null,
     },
     include: {
       actions: { orderBy: { order: "asc" } },
@@ -512,12 +523,15 @@ const startMapPicking = async (draftId, user) => {
       },
     });
 
+    const isFirstGame = currentGame === 1;
+
     return tx.draftTable.update({
       where: { id: draft.id },
       data: {
-        phase: "MAPPICKING",
+        phase: isFirstGame ? "MAPPICKING" : "MAPTYPEPICKING",
         currentTurnTeamId: turnStarter,
         currentMapId: null,
+        selectedMapType: isFirstGame ? FIRST_GAME_MAP_TYPE : null,
         phaseStartedAt: new Date(Date.now() + PHASE_START_HOLD_MS),
       },
       include: {
@@ -525,6 +539,55 @@ const startMapPicking = async (draftId, user) => {
         match: true,
       },
     });
+  });
+};
+
+const pickMapType = async (draftId, payload, user) => {
+  if (!payload || typeof payload !== "object") {
+    throw new Error("Body is required.");
+  }
+
+  const mapType = String(payload.mapType || "").trim().toUpperCase();
+  if (!mapType) {
+    throw new Error("mapType is required.");
+  }
+
+  const currentDraft = await getDraftByIdOrThrow(draftId);
+  const draft = await applyTimeoutIfNeeded(currentDraft);
+
+  if (draft.phase !== "MAPTYPEPICKING") {
+    throw new Error("Draft phase must be MAPTYPEPICKING.");
+  }
+
+  const actingTeamId = await resolveActingTeamId(user, payload.teamId, draft.match);
+  if (draft.currentTurnTeamId && actingTeamId !== draft.currentTurnTeamId) {
+    throw new Error("It is not your turn to pick the map type.");
+  }
+
+  const pickedMapIds = Array.isArray(draft.pickedMaps) ? draft.pickedMaps : [];
+  const availableMapTypes = await getAvailableMapTypes({
+    match: draft.match,
+    pickedMapIds,
+  });
+
+  if (!availableMapTypes.includes(mapType)) {
+    throw new Error(
+      `Invalid map type. Available choices: ${availableMapTypes.join(", ") || "none"}.`
+    );
+  }
+
+  return prisma.draftTable.update({
+    where: { id: draft.id },
+    data: {
+      phase: "MAPPICKING",
+      selectedMapType: mapType,
+      currentTurnTeamId: actingTeamId,
+      phaseStartedAt: new Date(Date.now() + PHASE_START_HOLD_MS),
+    },
+    include: {
+      actions: { orderBy: { order: "asc" } },
+      match: true,
+    },
   });
 };
 
@@ -548,36 +611,36 @@ const pickMap = async (draftId, payload, user) => {
   }
 
   const currentGame = (draft.match.gameNumber || 0) + 1;
-  const allowedTypes = getAllowedMapTypes(currentGame, draft.match.type);
-  const poolIds = parseAllowedMapPool(
-    draft.match.mapsAllowedByRound,
-    currentGame,
-    draft.match.type
-  );
-  const isBracket = isBracketMatchType(draft.match.type);
+  const selectedMapType =
+    draft.selectedMapType || (currentGame === 1 ? FIRST_GAME_MAP_TYPE : null);
+
+  if (!selectedMapType) {
+    throw new Error("A map type must be selected before picking a map.");
+  }
 
   const map = await prisma.map.findUnique({ where: { id: mapId } });
   if (!map) {
     throw new Error("Map not found.");
   }
 
-  if (!isBracket && currentGame !== 5 && poolIds && !poolIds.includes(mapId)) {
+  if (map.type !== selectedMapType) {
     throw new Error(
-      `Map ${mapId} is not allowed for round ${getRoundKey(currentGame, draft.match.type)}.`
+      `Invalid map type. ${selectedMapType} was selected for game ${currentGame}.`
     );
-  }
-
-  if (!isBracket && currentGame !== 5 && !poolIds && !allowedTypes.includes(map.type)) {
-    throw new Error(`Invalid map type. Allowed for game ${currentGame}: ${allowedTypes.join(", ")}.`);
-  }
-
-  if (isBracket && !allowedTypes.includes(map.type)) {
-    throw new Error(`Invalid playoff map type. Allowed for game ${currentGame}: ${allowedTypes.join(", ")}.`);
   }
 
   const pickedMapIds = Array.isArray(draft.pickedMaps) ? draft.pickedMaps : [];
   if (pickedMapIds.includes(mapId)) {
     throw new Error("Map already picked in this match.");
+  }
+
+  const availableMaps = await getAvailableMaps({
+    match: draft.match,
+    pickedMapIds,
+    selectedMapType,
+  });
+  if (!availableMaps.some((availableMap) => availableMap.id === mapId)) {
+    throw new Error("Map is not available in this match pool.");
   }
 
   const pickForCurrentGame = draft.actions.find(
@@ -869,19 +932,23 @@ const yieldFirstPick = async (draftId, user) => {
 const buildDraftState = async (draft) => {
   // Current game is gameNumber+1 (gameNumber = last completed, 0 at start)
   const gameNumber = (draft.match.gameNumber || 0) + 1;
-  const allowedMapTypes = getAllowedMapTypes(gameNumber, draft.match.type);
   const pickedMapIds = Array.isArray(draft.pickedMaps) ? draft.pickedMaps : [];
+  const selectedMapType =
+    draft.selectedMapType || (gameNumber === 1 ? FIRST_GAME_MAP_TYPE : null);
 
-  const availableMaps = await getAvailableMaps({ match: draft.match, pickedMapIds, actions: draft.actions });
+  const [availableMapTypes, availableMaps, availableMapTypeCounts] = await Promise.all([
+    getAvailableMapTypes({ match: draft.match, pickedMapIds }),
+    getAvailableMaps({
+      match: draft.match,
+      pickedMapIds,
+      selectedMapType,
+    }),
+    getAvailableMapTypeCounts({ match: draft.match, pickedMapIds }),
+  ]);
 
-  const poolIds = parseAllowedMapPool(
-    draft.match.mapsAllowedByRound,
-    gameNumber,
-    draft.match.type
-  );
-  const allowedTypesFromPool = isBracketMatchType(draft.match.type) || poolIds
-    ? [...new Set(availableMaps.map((m) => m.type))]
-    : allowedMapTypes;
+  const allowedMapTypes = selectedMapType
+    ? [selectedMapType]
+    : availableMapTypes;
 
   const heroes = await prisma.hero.findMany({
     orderBy: { id: "asc" },
@@ -895,7 +962,7 @@ const buildDraftState = async (draft) => {
   // don't have to trust their local clock. This accounts for manager pause.
   const TURN_SECONDS = Math.floor(TURN_TIMEOUT_MS / 1000);
   let remainingSeconds = TURN_SECONDS;
-  if (draft && draft.phase && ["MAPPICKING", "BAN"].includes(draft.phase)) {
+  if (draft && draft.phase && ["MAPTYPEPICKING", "MAPPICKING", "BAN"].includes(draft.phase)) {
     const phaseStart = draft.phaseStartedAt ? new Date(draft.phaseStartedAt).getTime() : Date.now();
     const referenceNow =
       draft.match && draft.match.mapTimerPaused && draft.match.mapTimerPausedAt
@@ -908,7 +975,10 @@ const buildDraftState = async (draft) => {
 
   return {
     ...draft,
-    allowedMapTypes: allowedTypesFromPool,
+    selectedMapType,
+    allowedMapTypes,
+    availableMapTypes,
+    availableMapTypeCounts,
     availableMaps,
     allMaps,
     heroes: heroes.map((hero) => ({
@@ -1008,6 +1078,7 @@ module.exports = {
   mapOrder,
   createDraft,
   startMapPicking,
+  pickMapType,
   pickMap,
   startBan,
   banHero,
@@ -1022,7 +1093,12 @@ module.exports = {
   getRoundKey,
   isBracketMatchType,
   determineFirstPicker,
-  __testables: { resolveActingTeamId },
+  __testables: {
+    resolveActingTeamId,
+    parseAllAllowedMapIds,
+    FIRST_GAME_MAP_TYPE,
+    LOSER_PICKABLE_MAP_TYPES,
+  },
 };
 
 // Background worker: periodically scan active drafts and apply timeouts server-side.
@@ -1031,7 +1107,7 @@ const startDraftTimeoutWorker = (intervalMs = 3000) => {
     try {
       const activeDrafts = await prisma.draftTable.findMany({
         where: {
-          phase: { in: ["MAPPICKING", "BAN"] },
+          phase: { in: ["MAPTYPEPICKING", "MAPPICKING", "BAN"] },
           currentTurnTeamId: { not: null },
         },
         include: { actions: { orderBy: { order: "asc" } }, match: true },

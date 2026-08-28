@@ -409,6 +409,7 @@ model DraftTable {
   bannedHeroes      Json
   pickedMaps        Json
   currentMapId      Int?
+  selectedMapType   MapType?
   actions           DraftAction[]
   match             Match         @relation(fields: [matchId], references: [id])
 }
@@ -624,6 +625,7 @@ enum DraftActionType {
 
 enum phase {
   STARTING
+  MAPTYPEPICKING
   MAPPICKING
   BAN
   PLAYING

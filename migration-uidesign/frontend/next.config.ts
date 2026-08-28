@@ -5,7 +5,6 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: process.cwd(),
   async redirects() {
     return [
-      { source: "/season-9", destination: "/season", permanent: false },
       { source: "/social-media-dashboard", destination: "/casting-dashboard", permanent: false },
     ];
   },

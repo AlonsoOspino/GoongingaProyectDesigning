@@ -1,32 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, type ComponentType } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import {
-  Activity,
-  BarChart3,
-  Crosshair,
-  Film,
-  Flame,
-  GitBranch,
-  HeartPulse,
-  Medal,
-  Shield,
-  Skull,
-  Sparkles,
-  Trophy,
-  Users,
-} from "lucide-react";
 import archive from "@/data/history/season-8.json";
 
 const tabs = [
-  { id: "standings", label: "Standings", icon: Trophy },
-  { id: "players", label: "Top Players", icon: BarChart3 },
-  { id: "teams", label: "Teams", icon: Users },
-  { id: "playoffs", label: "Playoffs", icon: GitBranch },
-  { id: "finals", label: "Grand Finals", icon: Medal },
-  { id: "wrapped", label: "Wrapped", icon: Film },
+  { id: "rosters", label: "Rosters" },
+  { id: "players", label: "Player Stats" },
+  { id: "standings", label: "Standings" },
+  { id: "results", label: "Schedule & Results" },
+  { id: "finals", label: "Grand Finals" },
+  { id: "wrapped", label: "Wrapped" },
 ] as const;
 
 type TabId = (typeof tabs)[number]["id"];
@@ -34,22 +19,13 @@ type Player = (typeof archive.playerLeaderboard)[number];
 type MetricKey = "killsPer10" | "damagePer10" | "healingPer10" | "mitigationPer10" | "assistsPer10" | "deathsPer10";
 type PlayerRole = "ALL" | "TANK" | "DPS" | "SUPPORT";
 
-type MetricOption = {
-  key: MetricKey;
-  label: string;
-  short: string;
-  icon: ComponentType<{ size?: number }>;
-  tone: string;
-  lowerIsBetter?: boolean;
-};
-
-const metrics: MetricOption[] = [
-  { key: "killsPer10", label: "Eliminations", short: "ELIM", icon: Crosshair, tone: "cyan" },
-  { key: "damagePer10", label: "Damage", short: "DMG", icon: Flame, tone: "navy" },
-  { key: "healingPer10", label: "Healing", short: "HEAL", icon: HeartPulse, tone: "green" },
-  { key: "mitigationPer10", label: "Mitigation", short: "MIT", icon: Shield, tone: "cyan" },
-  { key: "assistsPer10", label: "Assists", short: "AST", icon: Sparkles, tone: "muted-cyan" },
-  { key: "deathsPer10", label: "Lowest deaths", short: "DTH", icon: Skull, tone: "charcoal", lowerIsBetter: true },
+const metrics: Array<{ key: MetricKey; label: string; short: string; lowerIsBetter?: boolean }> = [
+  { key: "killsPer10", label: "Eliminations", short: "ELIM" },
+  { key: "damagePer10", label: "Damage", short: "DMG" },
+  { key: "healingPer10", label: "Healing", short: "HEAL" },
+  { key: "mitigationPer10", label: "Mitigation", short: "MIT" },
+  { key: "assistsPer10", label: "Assists", short: "AST" },
+  { key: "deathsPer10", label: "Lowest deaths", short: "DTH", lowerIsBetter: true },
 ];
 
 const roles: Array<{ id: PlayerRole; label: string }> = [
@@ -59,34 +35,55 @@ const roles: Array<{ id: PlayerRole; label: string }> = [
   { id: "SUPPORT", label: "Support" },
 ];
 
+const tabAliases: Record<string, TabId> = {
+  teams: "rosters",
+  playoffs: "results",
+  stats: "players",
+};
+
+const playoffRounds = (() => {
+  const groups = new Map<string, typeof archive.playoffs>();
+  for (const match of archive.playoffs) {
+    const label = match.type === "FINALS"
+      ? "Grand Final"
+      : match.round === 2
+        ? "Semifinals"
+        : match.round
+          ? "Quarterfinals"
+          : match.type;
+    groups.set(label, [...(groups.get(label) ?? []), match]);
+  }
+  return [...groups.entries()];
+})();
+
 const statFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
 
-function TeamLogo({ src, name, className = "" }: { src: string | null; name: string; className?: string }) {
-  return src ? <img className={`history-logo ${className}`} src={src} alt={`${name} logo`} /> : <span className={`history-logo grid place-items-center ${className}`}><Shield size={18} /></span>;
+function normalizeTab(value: string | null): TabId {
+  if (!value) return "rosters";
+  const alias = tabAliases[value];
+  if (alias) return alias;
+  return tabs.some((tab) => tab.id === value) ? value as TabId : "rosters";
 }
 
-function TeamRosterVisual({ team }: { team: (typeof archive.teams)[number] }) {
-  const localRosterImage = team.rosterImage?.startsWith("/history/") ? team.rosterImage : null;
+function TeamLogo({ src, name }: { src: string | null; name: string }) {
+  return src
+    ? <img src={src} alt={`${name} logo`} width={48} height={48} />
+    : <span aria-hidden="true">—</span>;
+}
+
+function TeamRoster({ team }: { team: (typeof archive.teams)[number] }) {
+  const rosterImage = team.rosterImage?.startsWith("/history/") ? team.rosterImage : null;
 
   return (
-    <article className="roster-visual-card">
-      {localRosterImage ? (
-        <img className="roster-visual-art" src={localRosterImage} alt={`${team.name} Season 8 roster`} />
-      ) : (
-        <div className="roster-visual-fallback">
-          <div className="roster-watermark"><TeamLogo src={team.logo} name={team.name} /></div>
-          <div className="roster-name-list">
-            {team.players.map((player, index) => (
-              <span key={player.legacyUserId}><small>{String(index + 1).padStart(2, "0")}</small>{player.name}</span>
-            ))}
-          </div>
-        </div>
-      )}
-      <div className="roster-visual-shade" />
-      <div className="roster-logo-lockup">
-        <TeamLogo src={team.logo} name={team.name} className="roster-logo" />
-        <strong>{team.name}</strong>
-      </div>
+    <article>
+      <h3>{team.name}</h3>
+      <TeamLogo src={team.logo} name={team.name} />
+      {rosterImage ? (
+        <img src={rosterImage} alt={`${team.name} Season 8 roster`} width={1200} height={675} />
+      ) : null}
+      <ul>
+        {team.players.map((player) => <li key={player.legacyUserId}>{player.name}</li>)}
+      </ul>
     </article>
   );
 }
@@ -94,10 +91,13 @@ function TeamRosterVisual({ team }: { team: (typeof archive.teams)[number] }) {
 function PlayerLeaderboard() {
   const [metricKey, setMetricKey] = useState<MetricKey>("killsPer10");
   const [role, setRole] = useState<PlayerRole>("ALL");
-  const metric = metrics.find((item) => item.key === metricKey) || metrics[0];
+  const metric = metrics.find((item) => item.key === metricKey) ?? metrics[0];
 
   const leaderboard = useMemo(() => {
-    const filtered = role === "ALL" ? [...archive.playerLeaderboard] : archive.playerLeaderboard.filter((player) => player.role === role);
+    const filtered = role === "ALL"
+      ? [...archive.playerLeaderboard]
+      : archive.playerLeaderboard.filter((player) => player.role === role);
+
     return filtered.sort((left, right) => {
       const delta = Number(left[metricKey]) - Number(right[metricKey]);
       return metric.lowerIsBetter ? delta : -delta;
@@ -107,125 +107,172 @@ function PlayerLeaderboard() {
   const leader = leaderboard[0] as Player | undefined;
 
   return (
-    <section className="player-leaders">
-      <div className="history-section-heading">
-        <div><h2>Top players</h2></div>
-        <p>Choose a category and role. Every number is the frozen final Season 8 average per 10 minutes.</p>
-      </div>
+    <section aria-labelledby="history-player-stats">
+      <h2 id="history-player-stats">Player Stats</h2>
+      <p>Final Season 8 averages per 10 minutes.</p>
 
-      <div className="metric-selector" aria-label="Statistic category">
-        {metrics.map(({ key, label, short, icon: Icon, tone }) => (
-          <button type="button" key={key} data-active={metricKey === key} data-tone={tone} onClick={() => setMetricKey(key)}>
-            <span><Icon size={23} /></span>
-            <small>{short}</small>
-            <strong>{label}</strong>
-          </button>
-        ))}
-      </div>
+      <fieldset>
+        <legend>Statistic</legend>
+        <ul>
+          {metrics.map((item) => (
+            <li key={item.key}>
+              <button
+                type="button"
+                aria-pressed={metricKey === item.key}
+                onClick={() => setMetricKey(item.key)}
+              >
+                {item.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </fieldset>
 
-      <div className="role-selector" aria-label="Player role">
-        {roles.map((item) => <button type="button" key={item.id} data-active={role === item.id} onClick={() => setRole(item.id)}>{item.label}</button>)}
-      </div>
+      <fieldset>
+        <legend>Role</legend>
+        <ul>
+          {roles.map((item) => (
+            <li key={item.id}>
+              <button
+                type="button"
+                aria-pressed={role === item.id}
+                onClick={() => setRole(item.id)}
+              >
+                {item.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </fieldset>
 
-      {leader && (
-        <div className="leader-spotlight" data-tone={metric.tone}>
-          <div><span>Season leader</span><strong>{leader.player}</strong><small>{leader.team || "Free agent"} / {leader.role}</small></div>
-          <div><strong>{statFormatter.format(Number(leader[metricKey]))}</strong><span>{metric.short} / 10</span></div>
-        </div>
-      )}
+      {leader ? <p>Season leader: <strong>{leader.player}</strong> — {statFormatter.format(Number(leader[metricKey]))} {metric.short} / 10</p> : null}
 
-      <div className="history-table-wrap player-table-wrap">
-        <table className="history-table player-ranking-table">
-          <thead><tr><th>Rank</th><th>Player</th><th>Team</th><th>Role</th><th>Maps</th><th>{metric.label} / 10</th></tr></thead>
-          <tbody>{leaderboard.map((player, index) => (
+      <table>
+        <caption>Season 8 player ranking by {metric.label.toLowerCase()}</caption>
+        <thead>
+          <tr><th scope="col">Rank</th><th scope="col">Player</th><th scope="col">Team</th><th scope="col">Role</th><th scope="col">Maps</th><th scope="col">{metric.label} / 10</th></tr>
+        </thead>
+        <tbody>
+          {leaderboard.map((player, index) => (
             <tr key={player.legacyUserId}>
-              <td className="ranking-number">{String(index + 1).padStart(2, "0")}</td>
-              <td><strong>{player.player}</strong></td>
+              <td>{index + 1}</td>
+              <th scope="row">{player.player}</th>
               <td>{player.team || "Free agent"}</td>
-              <td><span className="role-mark" data-role={player.role}>{player.role}</span></td>
+              <td>{player.role}</td>
               <td>{player.mapsPlayed}</td>
-              <td className="metric-value">{statFormatter.format(Number(player[metricKey]))}</td>
+              <td>{statFormatter.format(Number(player[metricKey]))}</td>
             </tr>
-          ))}</tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </table>
     </section>
   );
 }
 
 export function HistoryClient() {
   const searchParams = useSearchParams();
-  const requestedTab = searchParams.get("tab") as TabId | null;
-  const [active, setActive] = useState<TabId>(tabs.some((tab) => tab.id === requestedTab) ? requestedTab! : "standings");
-  const playoffRounds = useMemo(() => {
-    const groups = new Map<string, typeof archive.playoffs>();
-    for (const match of archive.playoffs) {
-      const label = match.type === "FINALS" ? "Grand Final" : match.round === 2 ? "Semifinals" : match.round ? "Quarterfinals" : match.type;
-      groups.set(label, [...(groups.get(label) || []), match]);
-    }
-    return [...groups.entries()];
-  }, []);
-
+  const [active, setActive] = useState<TabId>(() => normalizeTab(searchParams.get("tab")));
   const grandFinal = archive.grandFinal;
+
+  const selectTab = (tab: TabId) => {
+    setActive(tab);
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", tab);
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  };
 
   return (
     <>
-      <div className="history-tabs">
-        <div className="ow-container history-tabs-inner">
-          {tabs.map(({ id, label, icon: Icon }) => (
-            <button key={id} type="button" className="history-tab" data-active={active === id} onClick={() => setActive(id)}>
-              <Icon size={17} />{label}
-            </button>
+      <nav aria-label="Season 8 history sections">
+        <ul>
+          {tabs.map((tab) => (
+            <li key={tab.id}>
+              <button
+                id={`history-tab-${tab.id}`}
+                type="button"
+                aria-controls="history-panel"
+                aria-pressed={active === tab.id}
+                onClick={() => selectTab(tab.id)}
+              >
+                {tab.label}
+              </button>
+            </li>
           ))}
-        </div>
-      </div>
+        </ul>
+      </nav>
 
-      <div className="ow-container ow-section history-snapshot-content animate-fade-in" key={active}>
-        {active === "standings" && (
-          <section>
-            <div className="history-section-heading"><div><h2>Final standings</h2></div><p>The regular-season table exactly as it stood when Season 8 closed.</p></div>
-            <div className="history-table-wrap"><table className="history-table standings-table"><thead><tr><th>Rank</th><th>Team</th><th>W</th><th>L</th><th>Maps</th><th>Diff.</th></tr></thead><tbody>{archive.standings.map((row) => <tr key={row.teamId}><td className="ranking-number">{String(row.rank).padStart(2, "0")}</td><td><div className="history-team"><TeamLogo src={row.logo} name={row.team} />{row.team}</div></td><td>{row.wins}</td><td>{row.losses}</td><td>{row.mapWins}-{row.mapLosses}</td><td className={row.mapDifferential >= 0 ? "text-success" : "text-danger"}>{row.mapDifferential > 0 ? "+" : ""}{row.mapDifferential}</td></tr>)}</tbody></table></div>
+      <div id="history-panel">
+        {active === "rosters" ? (
+          <section aria-labelledby="history-rosters">
+            <h2 id="history-rosters">Rosters</h2>
+            <p>The final five-player lineups for every Season 8 team.</p>
+            <div>{archive.teams.map((team) => <TeamRoster team={team} key={team.id} />)}</div>
           </section>
-        )}
+        ) : null}
 
-        {active === "players" && <PlayerLeaderboard />}
+        {active === "players" ? <PlayerLeaderboard /> : null}
 
-        {active === "teams" && (
-          <section>
-            <div className="history-section-heading"><div><h2>Season 8 rosters</h2></div><p>The nine teams that played Season 8, preserved with their final five-player lineups.</p></div>
-            <div className="roster-visual-grid">{archive.teams.map((team) => <TeamRosterVisual team={team} key={team.id} />)}</div>
+        {active === "standings" ? (
+          <section aria-labelledby="history-standings">
+            <h2 id="history-standings">Standings</h2>
+            <p>The regular-season table as it stood when Season 8 closed.</p>
+            <table>
+              <caption>Final Season 8 standings</caption>
+              <thead><tr><th scope="col">Rank</th><th scope="col">Team</th><th scope="col">Wins</th><th scope="col">Losses</th><th scope="col">Maps</th><th scope="col">Differential</th></tr></thead>
+              <tbody>
+                {archive.standings.map((row) => (
+                  <tr key={row.teamId}>
+                    <td>{row.rank}</td>
+                    <th scope="row"><TeamLogo src={row.logo} name={row.team} />{row.team}</th>
+                    <td>{row.wins}</td>
+                    <td>{row.losses}</td>
+                    <td>{row.mapWins}-{row.mapLosses}</td>
+                    <td>{row.mapDifferential > 0 ? "+" : ""}{row.mapDifferential}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </section>
-        )}
+        ) : null}
 
-        {active === "playoffs" && (
-          <section>
-            <div className="history-section-heading"><div><h2>Playoffs</h2></div><p>Quarterfinals through the Grand Final, with every result frozen.</p></div>
-            <div className="bracket-grid">{playoffRounds.map(([label, matches]) => <div className="bracket-round" key={label}><h3>{label}</h3>{matches.map((match) => <article className="bracket-match" key={match.legacyId}><p>{match.title || `Best of ${match.bestOf}`}</p><div className="bracket-side"><span><TeamLogo src={match.teamA.logo} name={match.teamA.name} />{match.teamA.name}</span><strong>{match.score.teamA}</strong></div><div className="bracket-side"><span><TeamLogo src={match.teamB.logo} name={match.teamB.name} />{match.teamB.name}</span><strong>{match.score.teamB}</strong></div></article>)}</div>)}</div>
+        {active === "results" ? (
+          <section aria-labelledby="history-results">
+            <h2 id="history-results">Schedule &amp; Results</h2>
+            <p>Season 8 playoff matches from the quarterfinals through the Grand Final.</p>
+            {playoffRounds.map(([label, matches]) => (
+              <section key={label} aria-labelledby={`history-round-${label.replace(/\s+/g, "-").toLowerCase()}`}>
+                <h3 id={`history-round-${label.replace(/\s+/g, "-").toLowerCase()}`}>{label}</h3>
+                <ul>
+                  {matches.map((match) => (
+                    <li key={match.legacyId}>
+                      {match.title || `Best of ${match.bestOf}`}: {match.teamA.name} {match.score.teamA}–{match.score.teamB} {match.teamB.name}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
           </section>
-        )}
+        ) : null}
 
-        {active === "finals" && (
-          <section className="grand-final-section">
-            <div className="history-section-heading"><div><h2>Grand Finals</h2></div><p>Played August 8, 2026. Best of seven. The final result and published MVP are preserved as part of the season record.</p></div>
-            <div className="grand-final-scoreboard">
-              <div className="final-team runner-up"><TeamLogo src={grandFinal.runnerUp.logo} name={grandFinal.runnerUp.name} /><span>Runner-up</span><h3>{grandFinal.runnerUp.name}</h3><strong>{grandFinal.runnerUp.score}</strong></div>
-              <div className="final-score-divider"><span>Final</span><strong>{grandFinal.runnerUp.score} : {grandFinal.champion.score}</strong><small>Best of {grandFinal.bestOf}</small></div>
-              <div className="final-team champion"><TeamLogo src={grandFinal.champion.logo} name={grandFinal.champion.name} /><span>Season 8 Champion</span><h3>{grandFinal.champion.name}</h3><strong>{grandFinal.champion.score}</strong></div>
-            </div>
-            <div className="grand-final-mvp">
-              <div className="mvp-image"><img src={grandFinal.mvp.image} alt={`${grandFinal.mvp.name}, Grand Finals MVP`} /></div>
-              <div><span><Medal size={19} /> Grand Finals MVP</span><h3>{grandFinal.mvp.name}</h3><p>{grandFinal.mvp.team}</p></div>
-              <div className="mvp-stamp">MVP</div>
-            </div>
+        {active === "finals" ? (
+          <section aria-labelledby="history-finals">
+            <h2 id="history-finals">Grand Finals</h2>
+            <p>Played August 8, 2026. Best of {grandFinal.bestOf}.</p>
+            <p><TeamLogo src={grandFinal.runnerUp.logo} name={grandFinal.runnerUp.name} /> {grandFinal.runnerUp.name}: {grandFinal.runnerUp.score}</p>
+            <p><TeamLogo src={grandFinal.champion.logo} name={grandFinal.champion.name} /> {grandFinal.champion.name}: {grandFinal.champion.score} — Season 8 Champion</p>
+            <h3>Grand Finals MVP</h3>
+            <img src={grandFinal.mvp.image} alt={`${grandFinal.mvp.name}, Grand Finals MVP`} width={640} height={640} />
+            <p><strong>{grandFinal.mvp.name}</strong> — {grandFinal.mvp.team}</p>
           </section>
-        )}
+        ) : null}
 
-        {active === "wrapped" && (
-          <section className="wrapped-entry">
-            <div><h2>Season 8 Wrapped</h2><p>The full recap is frozen with final statistics, videos, story audio, soundtrack, and artwork.</p><Link href="/history/season-8/wrapped" className="ow-button"><Film size={19} /> Play Wrapped</Link></div>
-            <div className="wrapped-entry-stats"><div><strong>{archive.wrapped.snapshot.overview.games}</strong><span>Maps</span></div><div><strong>{archive.wrapped.snapshot.overview.players}</strong><span>Players</span></div><div><strong>{Object.keys(archive.wrapped.assets.videos || {}).length}</strong><span>Videos</span></div><div><strong>{archive.teams.length}</strong><span>Teams</span></div></div>
+        {active === "wrapped" ? (
+          <section aria-labelledby="history-wrapped">
+            <h2 id="history-wrapped">Season 8 Wrapped</h2>
+            <p>The complete recap contains the final statistics, videos, story audio, soundtrack, and artwork.</p>
+            <p><Link href="/history/season-8/wrapped">Open Season 8 Wrapped</Link></p>
           </section>
-        )}
+        ) : null}
       </div>
     </>
   );

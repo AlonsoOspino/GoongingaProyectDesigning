@@ -1,0 +1,589 @@
+/* INFORMATION — hoja de papel.
+   Se apoya en la última lámina del ciclo (hogar): papel cálido de interior.
+   Los títulos son limpios como un documento impreso, pero en League Gothic y con
+   el verde OTP marcando la estructura, así que sigue siendo de la casa. */
+
+.page {
+  position: relative;
+  min-height: 100vh;
+  isolation: isolate;
+
+  --ink: #2a221a;
+  --ink-soft: #5a4c3d;
+  --ink-faint: #8a7c6b;
+  --green: #197a47;
+  --rule: color-mix(in srgb, #2a221a 15%, transparent);
+  --rule-strong: color-mix(in srgb, #2a221a 26%, transparent);
+}
+
+/* La lámina va fija: se comporta como el papel sobre el que está impreso el
+   documento, en vez de como un fondo que hay que renderizar a cinco mil píxeles
+   de alto. Doble clase para ganar a .plate sin recurrir a !important. */
+.page .paper {
+  position: fixed;
+}
+
+.sheet {
+  position: relative;
+  z-index: 1;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: clamp(48px, 7vw, 92px) clamp(20px, 4vw, 40px) 140px;
+  color: var(--ink);
+  font-family: var(--font-otp-body), "Barlow", system-ui, sans-serif;
+}
+
+/* ---------- cabecera ---------- */
+
+.masthead {
+  padding-bottom: clamp(34px, 4.5vw, 52px);
+  border-bottom: 1px solid var(--rule-strong);
+}
+
+.eyebrow {
+  margin: 0;
+  font-family: var(--font-otp-heading), "Chakra Petch", system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--green);
+}
+
+.h1 {
+  margin: 16px 0 0;
+  font-family: var(--font-otp-display), "League Gothic", "Arial Narrow", sans-serif;
+  font-weight: 400;
+  font-size: clamp(56px, 11vw, 124px);
+  line-height: 0.84;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+
+.standfirst {
+  max-width: 54ch;
+  margin: 22px 0 0;
+  font-size: clamp(17px, 1.7vw, 20px);
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+/* ---------- secciones ---------- */
+
+.section {
+  padding-top: clamp(64px, 8vw, 104px);
+}
+
+.kicker {
+  margin: 0 0 14px;
+  font-family: var(--font-otp-heading), "Chakra Petch", system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--green);
+}
+
+.h2 {
+  margin: 0;
+  font-family: var(--font-otp-display), "League Gothic", "Arial Narrow", sans-serif;
+  font-weight: 400;
+  font-size: clamp(36px, 5.6vw, 62px);
+  line-height: 0.92;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+
+.h3 {
+  margin: 0 0 10px;
+  font-family: var(--font-otp-heading), "Chakra Petch", system-ui, sans-serif;
+  font-size: clamp(17px, 2vw, 21px);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+/* La medida se queda cerca de 65 caracteres: es lo que hace que un bloque de
+   texto se lea como documento y no como pared. */
+.lead {
+  max-width: 64ch;
+  margin: 20px 0 0;
+  font-size: clamp(17px, 1.6vw, 19px);
+  line-height: 1.62;
+  color: var(--ink-soft);
+}
+
+.body {
+  max-width: 66ch;
+  margin: 14px 0 0;
+  font-size: 17px;
+  line-height: 1.66;
+  color: var(--ink-soft);
+}
+
+/* ---------- ranura de arte ---------- */
+
+.slot {
+  margin: clamp(28px, 3.5vw, 40px) 0 0;
+}
+
+.slotFrame {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  min-height: 140px;
+  padding: 14px 16px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: color-mix(in srgb, #2a221a 3.5%, transparent);
+}
+
+.slotId {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+}
+
+.slotRatio {
+  font-family: var(--font-otp-heading), "Chakra Petch", system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-left: auto;
+}
+
+.slotCaption {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+/* ---------- raíl de fases ---------- */
+
+.rail {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+  margin: clamp(34px, 4.5vw, 52px) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* stretch, no center: las cinco tarjetas arrancan a la misma altura pase lo que
+   pase con el largo del texto. */
+.railStep {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  min-width: 0;
+}
+
+.railCard {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+  padding: 16px 16px 18px;
+  border-top: 2px solid var(--green);
+  background: color-mix(in srgb, #fff 34%, transparent);
+}
+
+.railWhen {
+  font-family: var(--font-otp-heading), "Chakra Petch", system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--green);
+}
+
+.railName {
+  margin: 0;
+  font-family: var(--font-otp-display), "League Gothic", "Arial Narrow", sans-serif;
+  font-weight: 400;
+  font-size: 26px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.railText {
+  margin: 2px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.chevron {
+  flex: none;
+  align-self: center;
+  width: 20px;
+  height: 14px;
+  color: var(--ink-faint);
+}
+
+.railStep:last-child {
+  padding-right: 26px;
+}
+
+/* Estrecho: la secuencia se pone en vertical y las flechas giran con ella, en
+   lugar de recortar la quinta tarjeta fuera de la pantalla. */
+@media (max-width: 900px) {
+  .rail {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .railStep {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .chevron {
+    transform: rotate(90deg);
+    align-self: flex-start;
+    margin-left: 22px;
+  }
+}
+
+/* ---------- modos ---------- */
+
+.modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: clamp(24px, 3vw, 32px) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 15px 9px 11px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  background: color-mix(in srgb, #fff 30%, transparent);
+}
+
+.modeIcon {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  flex: none;
+}
+
+.modeName {
+  font-family: var(--font-otp-heading), "Chakra Petch", system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+/* ---------- pasos del draft ---------- */
+
+.steps {
+  display: grid;
+  gap: 0;
+  margin: clamp(30px, 4vw, 44px) 0 0;
+}
+
+.step {
+  padding: 26px 0;
+  border-top: 1px solid var(--rule);
+}
+
+.step:first-child {
+  border-top: 1px solid var(--rule-strong);
+}
+
+.rules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rule {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 9px;
+  padding: 8px 15px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  background: color-mix(in srgb, #fff 30%, transparent);
+}
+
+.ruleValue {
+  font-family: var(--font-otp-display), "League Gothic", "Arial Narrow", sans-serif;
+  font-size: 28px;
+  line-height: 1;
+  color: var(--green);
+}
+
+.ruleLabel {
+  font-family: var(--font-otp-heading), "Chakra Petch", system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+/* ---------- cierre ---------- */
+
+.closing {
+  max-width: 62ch;
+  margin: clamp(36px, 4.5vw, 52px) 0 0;
+  padding-left: 20px;
+  border-left: 2px solid var(--green);
+  font-size: clamp(17px, 1.6vw, 18.5px);
+  line-height: 1.65;
+  color: var(--ink);
+}
+
+@media (max-width: 720px) {
+  .railCard {
+    min-width: 176px;
+  }
+}
+
+
+/* ============================================================================
+   PESO ESTRUCTURAL
+   ----------------------------------------------------------------------------
+   La página era correcta pero demasiado plana: párrafo, párrafo, párrafo. Lo que
+   sigue no añade adorno, añade estructura — cifras que ya estaban en el texto,
+   una secuencia numerada porque de verdad es una secuencia, y modos que se ven
+   antes de leerse.
+   ============================================================================ */
+
+/* ---- cifras de un vistazo ---- */
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0;
+  margin: clamp(30px, 4vw, 44px) 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--rule-strong);
+  border-bottom: 1px solid var(--rule-strong);
+}
+
+.fact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 20px 22px 22px;
+  border-left: 1px solid var(--rule);
+}
+
+.fact:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+
+.factValue {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  font-family: var(--font-otp-display), "League Gothic", "Arial Narrow", sans-serif;
+  font-size: clamp(40px, 5vw, 58px);
+  line-height: 0.9;
+  color: var(--green);
+}
+
+.factValue i {
+  font-family: var(--font-otp-heading), "Chakra Petch", system-ui, sans-serif;
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.factLabel {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink-faint);
+}
+
+/* ---- modos: fichas, no etiquetas ----
+   El icono es lo que identifica el modo de un vistazo; como chip diminuto no
+   servía para nada. */
+.modes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 10px;
+}
+
+.mode {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 112px;
+  padding: 16px;
+  transition: border-color 120ms cubic-bezier(0.16, 1, 0.3, 1), background-color 120ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mode:hover {
+  border-color: color-mix(in srgb, #197a47 45%, transparent);
+  background: color-mix(in srgb, #fff 52%, transparent);
+}
+
+.modeIcon {
+  width: 34px;
+  height: 34px;
+}
+
+.modeName {
+  font-size: 14px;
+  letter-spacing: 0.08em;
+}
+
+/* ---- pasos numerados ---- */
+.h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.stepNum {
+  flex: none;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--green);
+}
+
+/* ---- el cierre ---- */
+.cta {
+  display: grid;
+  grid-template-columns: minmax(0, 0.72fr) minmax(0, 1fr);
+  gap: clamp(24px, 4vw, 48px);
+  align-items: center;
+  margin-top: clamp(72px, 9vw, 116px);
+  padding: clamp(28px, 4vw, 44px);
+  border: 1px solid var(--rule-strong);
+  border-left: 3px solid var(--green);
+  border-radius: 2px;
+  background: color-mix(in srgb, #fff 40%, transparent);
+}
+
+.ctaArt .slot {
+  margin: 0;
+}
+
+.ctaCopy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.ctaTitle {
+  margin: 12px 0 0;
+  font-family: var(--font-otp-display), "League Gothic", "Arial Narrow", sans-serif;
+  font-weight: 400;
+  font-size: clamp(38px, 6vw, 76px);
+  line-height: 0.9;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+
+.ctaButton {
+  margin-top: 26px;
+  padding: 15px 30px;
+  border: 1px solid var(--green);
+  border-radius: 2px;
+  background: var(--green);
+  color: #f4f1e6;
+  font-family: var(--font-otp-heading), "Chakra Petch", system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-decoration: none;
+  /* Sube la luz, no escala: la regla de movimiento del sitio. */
+  transition: background-color 120ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 120ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ctaButton:hover {
+  background: #1f9d5a;
+  box-shadow: 0 0 26px -8px var(--green);
+}
+
+@media (max-width: 760px) {
+  .cta {
+    grid-template-columns: 1fr;
+  }
+  .fact:first-child {
+    padding-left: 22px;
+  }
+}
+
+
+/* ============================================================================
+   LA MEDIDA
+   ----------------------------------------------------------------------------
+   Una sola columna de texto, centrada, de la que cuelga todo. Es la respuesta a
+   "se queda todo a la izquierda": el problema no era que faltaran columnas, era
+   que el texto y el contenedor no compartían anchura, así que cada bloque
+   terminaba donde quería y el borde derecho quedaba roto.
+
+   Dos cosas que hay que respetar al tocar esto:
+
+   1. Va al FINAL del archivo. Las reglas originales traen `margin: 20px 0 0`, y
+      el atajo `margin` reinicia `margin-inline`: si esto va antes, el centrado
+      se pierde sin dejar rastro.
+   2. La medida es un valor FIJO, no `ch`. La unidad ch depende del tamaño de
+      fuente de cada elemento, así que 74ch en un titular de 62px son ~2200px y
+      en un párrafo de 17px son ~650: cada bloque calculaba una columna distinta
+      y por eso no compartían borde.
+   ============================================================================ */
+
+.sheet {
+  --measure: 760px;
+}
+
+.kicker,
+.h2,
+.h3,
+.lead,
+.body,
+.modes,
+.steps,
+.closing,
+.facts,
+.masthead .eyebrow,
+.masthead .h1,
+.masthead .standfirst {
+  max-width: var(--measure);
+  margin-inline: auto;
+}
+
+/* Las imágenes viven DENTRO de la columna, con su mismo ancho y sus mismos dos
+   bordes. Antes rompían a lo ancho con medidas distintas cada una y parecían
+   colocadas al azar: anchos arbitrarios no son ritmo, son ruido.
+
+   Solo dos elementos rompen, y lo hacen a la MISMA anchura para que se lea como
+   una decisión y no como un descuadre: el raíl de fases, que necesita cinco
+   columnas, y el bloque de cierre. */
+.slot {
+  max-width: var(--measure);
+  margin-inline: auto;
+}
+
+.rail,
+.cta {
+  max-width: none;
+  margin-inline: 0;
+}

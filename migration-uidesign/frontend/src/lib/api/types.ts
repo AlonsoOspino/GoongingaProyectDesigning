@@ -188,7 +188,12 @@ export interface DraftState {
   bannedHeroes: number[];
   pickedMaps: number[];
   currentMapId: number | null;
+  selectedMapType?: MapType | null;
   allowedMapTypes?: MapType[];
+  availableMapTypes?: MapType[];
+  // Unplayed maps behind each mode, shown on the map-type plates. Present even
+  // when availableMaps is empty, which it is until a mode is chosen.
+  availableMapTypeCounts?: Partial<Record<MapType, number>>;
   availableMaps?: GameMap[];
   allMaps?: GameMap[];
   heroes?: Hero[];

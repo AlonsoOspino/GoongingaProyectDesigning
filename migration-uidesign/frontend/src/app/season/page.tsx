@@ -1,7 +1,5 @@
-import { CurrentSeasonPage } from "./CurrentSeasonPage";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Current season" };
-
-export default function SeasonPage() {
-  return <CurrentSeasonPage />;
+export default function SeasonRedirect() {
+  redirect("/season-9");
 }

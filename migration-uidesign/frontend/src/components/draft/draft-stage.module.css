@@ -1,0 +1,648 @@
+/*
+ * The draft stage.
+ *
+ * Every phase — check-in, map type, map pick, bans — renders into the same
+ * three-column frame: team rail, decision surface, team rail. The rails never
+ * move; only the middle changes.
+ *
+ * Type rules for everything in here: one family (inherited), hierarchy from
+ * size and weight only. Two text sizes on the board — label and name — plus
+ * the phase title. Anything beyond that reads as clutter at broadcast size.
+ *
+ * Each rail is handed `--team` and `--team-bright` inline, so one stylesheet
+ * serves both sides. The brush X is the sole fixed red: it means "banned",
+ * while the surrounding border and labels continue to identify the team.
+ */
+
+.stage {
+  display: grid;
+  grid-template-columns: var(--rail-w, 148px) minmax(0, 1fr) var(--rail-w, 148px);
+  gap: var(--stage-gap, 1.25rem);
+  align-items: start;
+  width: 100%;
+  min-width: 0;
+}
+
+.stageBroadcast {
+  --rail-w: 216px;
+  --stage-gap: 1.75rem;
+}
+
+/* ---------- Shared text roles ---------- */
+
+.label {
+  color: var(--color-muted);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+}
+
+.phaseHead {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  align-items: center;
+  text-align: center;
+}
+
+.phaseEyebrow {
+  composes: label;
+  color: var(--color-accent);
+}
+
+/* Accent use 1 of 3. */
+.phaseTitle {
+  color: var(--color-foreground);
+  font-family: var(--font-accent);
+  font-size: clamp(2rem, 3.6vw, 3.25rem);
+  font-weight: 400;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.015em;
+}
+
+.phaseNote {
+  max-width: 48ch;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+/* ---------- Team rail ---------- */
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.railLogo {
+  position: relative;
+  display: grid;
+  width: 100%;
+  aspect-ratio: 1;
+  place-items: center;
+  overflow: hidden;
+  border: 2px solid color-mix(in srgb, var(--team) 55%, transparent);
+  border-radius: 50%;
+  background: var(--color-surface-elevated);
+  transition: filter var(--duration-slow) var(--ease-out), opacity var(--duration-slow) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out);
+}
+
+.railLogo img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.railLogoFallback {
+  color: var(--team-bright);
+  font-size: clamp(1.75rem, 3.5vw, 2.75rem);
+  font-weight: 800;
+}
+
+/* Dormant until the captain checks in. */
+.railLogoIdle {
+  filter: grayscale(1);
+  opacity: 0.45;
+}
+
+.railRing {
+  position: absolute;
+  inset: -7px;
+  overflow: visible;
+  pointer-events: none;
+  transform: rotate(-90deg);
+}
+
+.railRingTrack {
+  fill: none;
+  stroke: var(--color-border);
+  stroke-width: 2;
+}
+
+.railRingProgress {
+  fill: none;
+  stroke: var(--team-bright);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 620ms var(--ease-strike);
+}
+
+.railTurn {
+  border-color: var(--team-bright);
+  animation: var(--animate-turn-glow-a);
+}
+
+.railTurnB {
+  border-color: var(--team-bright);
+  animation: var(--animate-turn-glow-b);
+}
+
+.railPlate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  text-align: center;
+}
+
+.railName {
+  width: 100%;
+  overflow-wrap: anywhere;
+  color: var(--color-foreground);
+  font-size: clamp(0.8125rem, 1vw, 1rem);
+  font-weight: 700;
+  line-height: 1.15;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+
+.railStatus {
+  composes: label;
+  color: var(--team-bright);
+}
+
+.railStatusIdle {
+  color: var(--color-muted);
+}
+
+.railBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  align-items: center;
+  width: 100%;
+}
+
+/* ---------- Ban slots ---------- */
+
+.banSlot {
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--team) 55%, transparent);
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--team) 12%, var(--color-surface));
+}
+
+.banSlotFigure {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+}
+
+.banSlotFigure img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  filter: grayscale(1);
+  opacity: 0.75;
+}
+
+.banSlotMark {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.banSlotName {
+  display: block;
+  overflow: hidden;
+  padding: 0.3125rem 0.25rem;
+  color: var(--color-text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.1;
+  text-align: center;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.banSlotSkip {
+  display: grid;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  place-items: center;
+  color: var(--color-muted);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.banSlotEmpty {
+  display: grid;
+  width: 100%;
+  aspect-ratio: 1 / 1.22;
+  place-items: center;
+  border: 1px dashed color-mix(in srgb, var(--team) 40%, transparent);
+  border-radius: var(--radius-xl);
+  color: color-mix(in srgb, var(--color-muted) 60%, transparent);
+  font-family: var(--font-mono);
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+/* ---------- Hero grid tile ---------- */
+
+.heroTile {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  /* The rounded portrait is what makes the grid feel like Overwatch rather
+     than a spreadsheet. Keep the curve. */
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  cursor: default;
+  transition: transform var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out), opacity var(--duration-base) var(--ease-out);
+}
+
+.heroTilePortrait {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  background: var(--color-surface-elevated);
+}
+
+.heroTilePortrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: filter var(--duration-slow) var(--ease-out);
+}
+
+/*
+ * The grid is ~40 portraits. A permanent caption under every one of them turns
+ * the board into a wall of 10px text, which is the single loudest source of
+ * clutter here. Players read these portraits by sight; the name is confirmation,
+ * so it surfaces on hover and stays in the accessible name for everyone else.
+ * Where the name genuinely matters — the ceremony and the rail — it is always on.
+ */
+.heroTileName {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  overflow: hidden;
+  padding: 0.25rem 0.125rem;
+  background: color-mix(in srgb, var(--color-surface-inset) 88%, transparent);
+  color: var(--color-foreground);
+  font-size: 0.625rem;
+  font-weight: 600;
+  line-height: 1.2;
+  opacity: 0;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: opacity var(--duration-fast) var(--ease-out);
+  pointer-events: none;
+}
+
+.heroTile:hover .heroTileName,
+.heroTile:focus-visible .heroTileName {
+  opacity: 1;
+}
+
+.heroTileSelectable {
+  cursor: pointer;
+}
+
+.heroTileSelectable:hover,
+.heroTileSelectable:focus-visible {
+  z-index: 10;
+  border-color: var(--color-danger);
+  transform: translateY(-2px) scale(1.05);
+}
+
+.heroTileSelectable:hover .heroTilePortrait img {
+  filter: brightness(1.12);
+}
+
+/* Not this captain's turn: present but recessed. */
+.heroTileDimmed {
+  opacity: 0.6;
+}
+
+/* Role quota spent this game — off, but back next game. */
+.heroTileLocked {
+  opacity: 0.32;
+}
+
+.heroTileLocked .heroTilePortrait img {
+  filter: grayscale(1);
+}
+
+/* Banned in an earlier game of this series. */
+.heroTileSpent {
+  border-color: color-mix(in srgb, var(--color-danger) 45%, transparent);
+  opacity: 0.45;
+}
+
+.heroTileSpent .heroTilePortrait img {
+  filter: grayscale(1);
+}
+
+/* Banned in THIS game. */
+.heroTileStruck {
+  border-color: color-mix(in srgb, var(--team, var(--color-danger)) 60%, transparent);
+}
+
+.heroTileStruck .heroTilePortrait img {
+  filter: grayscale(1);
+  opacity: 0.34;
+}
+
+.strike {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.brushStrike {
+  display: block;
+  overflow: visible;
+  color: #f3202c;
+  shape-rendering: geometricPrecision;
+}
+
+.brushStrikePaint {
+  fill: currentColor;
+}
+
+.spentSlashStroke {
+  fill: none;
+  stroke: var(--color-muted);
+  stroke-width: 4;
+  stroke-linecap: round;
+  opacity: 0.6;
+}
+
+/* ---------- Ban ceremony ---------- */
+
+/*
+ * The ban is the loudest moment in the draft, so it happens center stage:
+ * the hero comes up big, takes the X, and only then travels out to the rail
+ * that now owns it. Everything else on the board holds still underneath.
+ */
+.ceremony {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--color-surface-inset) 82%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.ceremonyStack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Accent use 2 of 3. */
+.ceremonyKicker {
+  color: var(--team-bright);
+  font-family: var(--font-accent);
+  font-size: clamp(1rem, 1.5vw, 1.375rem);
+  font-weight: 400;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.34em;
+  /* Tracking is applied on the right side too, so nudge back to optical center. */
+  text-indent: 0.34em;
+}
+
+.ceremonyPortrait {
+  position: relative;
+  width: clamp(160px, 22vh, 260px);
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border: 3px solid var(--team-bright);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface-elevated);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--team-bright) 30%, transparent),
+    0 30px 80px -30px var(--team-bright);
+}
+
+.ceremonyPortrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ceremonyX {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 3px 2px rgb(54 0 5 / 55%));
+  pointer-events: none;
+}
+
+/* Accent use 3 of 3. */
+.ceremonyName {
+  color: var(--color-foreground);
+  font-family: var(--font-accent);
+  font-size: clamp(2.5rem, 5vw, 4.5rem);
+  font-weight: 400;
+  line-height: 0.95;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+
+.ceremonyTeam {
+  composes: label;
+  color: var(--color-text-secondary);
+}
+
+.ceremonyTeamName {
+  color: var(--team-bright);
+}
+
+/* ---------- Map type plates ---------- */
+
+.plateRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.plate {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.5rem 1rem 1.125rem;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  cursor: default;
+  transition: transform var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out), background-color var(--duration-base) var(--ease-out);
+}
+
+.plateSelectable {
+  cursor: pointer;
+}
+
+.plateSelectable:hover,
+.plateSelectable:focus-visible {
+  border-color: var(--team-bright, var(--color-accent));
+  background: var(--color-surface-elevated);
+  transform: translateY(-4px);
+}
+
+.plateSelectable:hover .plateIcon,
+.plateSelectable:focus-visible .plateIcon {
+  color: var(--team-bright, var(--color-accent));
+}
+
+/*
+ * The official mode glyphs ship as white-on-transparent bitmaps, so they are
+ * used as alpha masks. That keeps them one painted color we can tint to
+ * whichever team is choosing, rather than a fixed white image.
+ */
+.plateIcon {
+  width: clamp(44px, 4.5vw, 64px);
+  height: clamp(44px, 4.5vw, 64px);
+  color: var(--color-text-secondary);
+  background-color: currentColor;
+  transition: color var(--duration-base) var(--ease-out);
+  -webkit-mask: var(--icon) center / contain no-repeat;
+  mask: var(--icon) center / contain no-repeat;
+}
+
+.plateName {
+  color: var(--color-foreground);
+  font-size: clamp(1rem, 1.4vw, 1.25rem);
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+
+.plateMeta {
+  composes: label;
+  font-family: var(--font-mono);
+  letter-spacing: 0.1em;
+}
+
+.plateChosen {
+  border-color: var(--team-bright, var(--color-accent));
+  background: var(--color-surface-elevated);
+  transform: translateY(-4px);
+}
+
+.plateDismissed {
+  animation: var(--animate-plate-dismiss);
+  pointer-events: none;
+}
+
+/* ---------- Ban phase shell ---------- */
+
+.banPhase {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  animation: var(--animate-phase-in);
+}
+
+/*
+ * One band, not two: what map we are on (left) and how the grid is filtered
+ * (right). The ban phase needs its vertical space for portraits, so the map
+ * name is sized to identify rather than to announce.
+ */
+.banHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.25rem;
+  margin-bottom: 0.875rem;
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding-bottom: 0.75rem;
+}
+
+.banHeaderMap {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.banHeaderTitle {
+  overflow: hidden;
+  color: var(--color-foreground);
+  font-family: var(--font-accent);
+  font-size: clamp(1.375rem, 2.2vw, 2rem);
+  font-weight: 400;
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  letter-spacing: 0.015em;
+  white-space: nowrap;
+}
+
+.banHeaderControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.banCenter {
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.roleHead {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.375rem;
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding-bottom: 0.25rem;
+}
+
+.roleLockedChip {
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-danger) 18%, transparent);
+  padding: 0.1875rem 0.5rem;
+  color: var(--color-danger);
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heroTileSelectable:hover {
+    transform: none;
+  }
+}

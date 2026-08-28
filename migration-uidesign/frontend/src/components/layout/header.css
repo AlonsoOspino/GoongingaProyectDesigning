@@ -1,0 +1,421 @@
+.otp-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: rgb(9 12 10 / 94%);
+  backdrop-filter: blur(12px);
+}
+
+.otp-header-inner {
+  display: grid;
+  width: min(1460px, calc(100% - 56px));
+  height: 72px;
+  margin-inline: auto;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 28px;
+}
+
+.otp-brand {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+  justify-self: start;
+  color: var(--color-foreground);
+  text-decoration: none;
+}
+
+.otp-brand-mark {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  place-items: center;
+  background: var(--color-brand);
+  color: var(--color-foreground);
+}
+
+.otp-brand-mark svg {
+  width: 18px;
+  height: 18px;
+}
+
+.otp-brand-word {
+  display: flex;
+  min-width: 0;
+  gap: 0.34em;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.otp-brand-word b {
+  font-weight: 800;
+}
+
+.otp-brand-word i {
+  color: var(--color-text-muted);
+  font-style: normal;
+  font-weight: 600;
+}
+
+.otp-primary-nav {
+  display: flex;
+  align-items: center;
+  gap: clamp(22px, 3vw, 42px);
+  justify-self: center;
+}
+
+.otp-nav-link {
+  position: relative;
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.otp-nav-link::after {
+  position: absolute;
+  right: 0;
+  bottom: 6px;
+  left: 0;
+  height: 1px;
+  background: var(--color-brand-bright);
+  content: "";
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform var(--duration-base) var(--ease-out);
+}
+
+.otp-nav-link:hover,
+.otp-nav-link:focus-visible,
+.otp-nav-link[aria-current="page"] {
+  color: var(--color-foreground);
+}
+
+.otp-nav-link:hover::after,
+.otp-nav-link:focus-visible::after,
+.otp-nav-link[aria-current="page"]::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+.otp-account {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  justify-self: end;
+}
+
+.otp-header-socials {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 12px;
+  border-right: 1px solid var(--color-border-subtle);
+}
+
+.otp-header-socials a {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+.otp-header-socials a:hover,
+.otp-header-socials a:focus-visible {
+  background: var(--color-surface-2);
+  color: var(--color-foreground);
+}
+
+.otp-social-icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+  background: currentcolor;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+.otp-social-icon--discord {
+  -webkit-mask-image: url("/icons/social/discord.svg");
+  mask-image: url("/icons/social/discord.svg");
+}
+
+.otp-social-icon--twitch {
+  -webkit-mask-image: url("/icons/social/twitch.svg");
+  mask-image: url("/icons/social/twitch.svg");
+}
+
+.otp-account-placeholder {
+  width: 116px;
+  height: 38px;
+}
+
+.otp-login,
+.otp-mobile-toggle {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-brand-bright);
+  background: var(--color-brand);
+  padding-inline: 18px;
+  color: var(--color-foreground);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.otp-login:hover,
+.otp-login:focus-visible,
+.otp-mobile-toggle:hover,
+.otp-mobile-toggle:focus-visible {
+  background: var(--color-brand-hover);
+}
+
+.otp-profile {
+  position: relative;
+}
+
+.otp-profile-trigger {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--color-foreground);
+  font-size: 0.84rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.otp-profile-trigger > span:first-child {
+  display: block;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.otp-profile-trigger img,
+.otp-avatar-fallback {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.otp-avatar-fallback {
+  display: grid;
+  place-items: center;
+  background: var(--color-surface-2);
+  color: var(--color-brand-muted);
+  font-family: var(--font-mono);
+}
+
+.otp-profile-menu {
+  position: absolute;
+  top: calc(100% + 14px);
+  right: 0;
+  z-index: 20;
+  display: grid;
+  width: 280px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-1);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-6px);
+  visibility: hidden;
+  transition:
+    opacity var(--duration-base) var(--ease-out),
+    transform var(--duration-base) var(--ease-out),
+    visibility var(--duration-base) var(--ease-out);
+}
+
+.otp-profile-menu-open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+  visibility: visible;
+}
+
+.otp-profile-menu-name {
+  display: grid;
+  gap: 9px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding: 18px 20px;
+}
+
+.otp-profile-menu-name strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.otp-role-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.otp-role-chips span {
+  border: 1px solid var(--color-border);
+  padding: 4px 7px;
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.otp-profile-menu > a,
+.otp-profile-menu > button {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  border: 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: transparent;
+  padding: 0 20px;
+  color: var(--color-text-secondary);
+  font-size: 0.87rem;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.otp-profile-menu > button {
+  border-bottom: 0;
+}
+
+.otp-profile-menu > a:hover,
+.otp-profile-menu > a:focus-visible,
+.otp-profile-menu > button:hover,
+.otp-profile-menu > button:focus-visible {
+  background: var(--color-surface-2);
+  color: var(--color-foreground);
+}
+
+.otp-mobile-toggle,
+.otp-mobile-nav {
+  display: none;
+}
+
+.otp-mobile-toggle {
+  background: transparent;
+  cursor: pointer;
+}
+
+.otp-mobile-nav {
+  border-top: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-1);
+}
+
+.otp-mobile-group-label {
+  padding: 18px 24px 8px;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.61rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.otp-mobile-nav a {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding-inline: 24px;
+  color: var(--color-foreground);
+  text-decoration: none;
+}
+
+.otp-mobile-nav a.otp-mobile-sub {
+  min-height: 46px;
+  padding-left: 40px;
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+}
+
+@media (max-width: 1040px) {
+  .otp-header-inner {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .otp-primary-nav,
+  .otp-profile-trigger > span:first-child {
+    display: none;
+  }
+
+  .otp-mobile-toggle {
+    display: inline-flex;
+  }
+
+  .otp-mobile-nav {
+    display: block;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height var(--duration-slow) var(--ease-out);
+  }
+
+  .otp-mobile-nav-open {
+    max-height: calc(100vh - 72px);
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .otp-header-inner {
+    width: calc(100% - 28px);
+    height: 64px;
+    gap: 12px;
+  }
+
+  .otp-brand-word {
+    flex-direction: column;
+    gap: 0;
+    font-size: 0.78rem;
+    line-height: 0.98;
+  }
+
+  .otp-brand-mark {
+    width: 28px;
+    height: 28px;
+  }
+
+  .otp-header-socials {
+    display: none;
+  }
+
+  .otp-profile-menu {
+    width: min(88vw, 280px);
+  }
+}

@@ -39,6 +39,11 @@ router.post(
 	handle((req) => draftController.yieldFirstPick(req.params.id, req.user))
 );
 router.post(
+	"/:id/pick-map-type",
+	authMiddleware,
+	handle((req) => draftController.pickMapType(req.params.id, req.body, req.user))
+);
+router.post(
 	"/:id/pick-map",
 	authMiddleware,
 	handle((req) => draftController.pickMap(req.params.id, req.body, req.user))

@@ -1,40 +1,48 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Navbar } from "@/components/layout/Navbar";
-import { Footer } from "@/components/layout/Footer";
+import { SiteHeader } from "@/components/layout/SiteHeader";
 import { useSession } from "@/features/session/SessionProvider";
 
 export function RouteAwareShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() || "";
   const searchParams = useSearchParams();
   const { user } = useSession();
-  const [shellReady, setShellReady] = useState(false);
-
-  // During hydration Next can briefly return an empty pathname. Rendering the
-  // route-aware shell only after mount prevents the server's Wrapped-only tree
-  // from being reconciled against a client tree containing Navbar/Footer.
-  useEffect(() => setShellReady(true), []);
-  if (!shellReady) return <>{children}</>;
 
   const isOverlayRoute = pathname.startsWith("/overlay");
+  const isLandingRoute = pathname === "/";
   const isWrappedRoute = pathname.startsWith("/wrapped") || pathname.startsWith("/history/season-8/wrapped");
   const isDraftTableRoute = pathname.startsWith("/draft-table");
+  const isDraftTableDevRoute = pathname === "/draft-table-dev";
   const isMinigamesRoute = pathname.startsWith("/minigames");
   const isEmbeddedManager = pathname === "/manager-dashboard" && searchParams?.get("embedded") === "1";
   const hasDraftAccessKey = isDraftTableRoute && Boolean(searchParams?.get("key"));
   const isKeyViewerMode = hasDraftAccessKey && user?.role !== "MANAGER";
 
-  if (isOverlayRoute || isWrappedRoute || isMinigamesRoute || isEmbeddedManager || hasDraftAccessKey || isKeyViewerMode) {
+  if (isOverlayRoute || isWrappedRoute || isDraftTableDevRoute || isMinigamesRoute || isEmbeddedManager || hasDraftAccessKey || isKeyViewerMode) {
     return <>{children}</>;
+  }
+
+  /*
+    La landing sí lleva header: es el mismo de todo el sitio, que era el punto —
+    antes tenía uno propio y coexistían dos headers distintos. Lo que no recibe
+    es el <main> del shell, porque la landing ya trae el suyo y anidar dos
+    landmarks main no es válido.
+  */
+  if (isLandingRoute) {
+    return (
+      <>
+        <SiteHeader />
+        {children}
+      </>
+    );
   }
 
   return (
     <>
-      <Navbar />
+      <SiteHeader />
       <main className="flex-1">{children}</main>
-      <Footer />
     </>
   );
 }

@@ -22,7 +22,7 @@ interface UseDraftPollingResult {
 }
 
 const TURN_DURATION = 95;
-const TURN_PHASES = new Set(["MAPPICKING", "BAN"]);
+const TURN_PHASES = new Set(["MAPTYPEPICKING", "MAPPICKING", "BAN"]);
 
 const isTurnPhase = (phase: string) => TURN_PHASES.has(phase);
 

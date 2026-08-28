@@ -40,5 +40,8 @@ deploy.local.bat
 *.log
 tmp/
 
+# Local-only draft-table fixture used by /draft-table-dev
+migration-uidesign/frontend/.draft-table-dev-data.json
+
 # Subagent-driven development scratch (ledger, briefs, review packages)
 .superpowers/

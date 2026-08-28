@@ -210,7 +210,8 @@ const submitResult = async (id, winnerTeamId) => {
       nextMapWinsA >= requiredWins ||
       nextMapWinsB >= requiredWins;
 
-    // For next turn: loser picks next map. On draw, alternate.
+    // For the next draft, the loser chooses the map type and then the map.
+    // On a draw, the team that did not pick the current map receives that turn.
     const pickForCurrentGame = match.draft?.actions?.find(
       (a) => a.action === "PICK" && a.gameNumber === currentGameBeingReported
     );
@@ -299,6 +300,7 @@ const submitResult = async (id, winnerTeamId) => {
         data: {
           phase: isFinished ? "FINISHED" : "STARTING",
           currentMapId: null,
+          selectedMapType: null,
           currentTurnTeamId: isFinished ? null : nextTurnTeamId,
         },
       });
@@ -417,6 +419,7 @@ const undoLastResult = async (id) => {
         phase: "ENDMAP",
         phaseStartedAt: new Date(),
         currentMapId: lastResult.mapId,
+        selectedMapType: null,
         currentTurnTeamId: null,
       },
     });

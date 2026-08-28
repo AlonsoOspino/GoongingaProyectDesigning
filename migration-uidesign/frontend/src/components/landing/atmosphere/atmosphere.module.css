@@ -1,0 +1,106 @@
+/* Lámina de atmósfera. Vive detrás del contenido de su sección, a sangre completa.
+   El scrim no es una capa de seguridad: sin él la atmósfera se come el texto. */
+
+.plate {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  /* Suelo mientras el canvas todavía no se ha construido, para que nunca se vea
+     un hueco transparente al entrar en pantalla. */
+  background: var(--plate-ground, #0a0f0d);
+
+  /* Costura hero -> anuncios. Un solo valor leído por las dos láminas: si se
+     cambia aquí, los dos lados se mueven juntos. */
+  --seam-arena-dawn: #070b09;
+}
+
+.art {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* Tres capas: empalme superior, empalme inferior y el scrim de texto propio de
+     la lámina. Las dos primeras existen para que la costura entre secciones no
+     sea un corte: cada lámina aterriza en el mismo color con el que arranca la
+     siguiente, así el cambio de tono ocurre DENTRO de la lámina y nunca en la
+     junta. Una lámina sin empalme declarado simplemente no pinta esa capa. */
+  background-image:
+    var(--plate-edge-top, none),
+    var(--plate-edge-bottom, none),
+    var(--plate-scrim, none);
+}
+
+/* ---- las cinco horas ----
+   Cada suelo es la primera parada de color de su rampa, así que el fondo previo
+   al render ya está en la temperatura correcta. */
+
+.plate[data-hour="arena"] {
+  --plate-ground: #050807;
+  --plate-scrim: linear-gradient(
+    0deg,
+    var(--seam-arena-dawn) 0%,
+    rgba(7, 11, 9, 0.86) 8%,
+    rgba(7, 11, 9, 0.5) 34%,
+    rgba(7, 11, 9, 0) 62%
+  );
+}
+
+.plate[data-hour="dawn"] {
+  --plate-ground: #0a0f0d;
+  /* Arranca donde termina arena y suelta el ámbar progresivamente. Antes esta
+     lámina empezaba con la luz cálida a plena fuerza justo en la junta, que era
+     el salto de valor y de tono a la vez. */
+  --plate-edge-top: linear-gradient(
+    180deg,
+    var(--seam-arena-dawn) 0%,
+    rgba(7, 11, 9, 0.88) 7%,
+    rgba(7, 11, 9, 0.45) 20%,
+    rgba(7, 11, 9, 0) 40%
+  );
+  --plate-scrim: linear-gradient(
+    0deg,
+    rgba(10, 15, 13, 0.9) 0%,
+    rgba(10, 15, 13, 0.45) 40%,
+    rgba(10, 15, 13, 0) 66%
+  );
+}
+
+.plate[data-hour="day"] {
+  --plate-ground: #eef1ec;
+  --plate-scrim: linear-gradient(
+    180deg,
+    rgba(238, 241, 236, 0.9) 0%,
+    rgba(238, 241, 236, 0.42) 42%,
+    rgba(238, 241, 236, 0) 70%
+  );
+}
+
+.plate[data-hour="night"] {
+  --plate-ground: #05080c;
+  --plate-scrim: linear-gradient(
+    0deg,
+    rgba(5, 8, 12, 0.92) 0%,
+    rgba(5, 8, 12, 0.5) 38%,
+    rgba(5, 8, 12, 0) 68%
+  );
+}
+
+.plate[data-hour="hearth"] {
+  --plate-ground: #f6efe2;
+  --plate-scrim: linear-gradient(
+    180deg,
+    rgba(246, 239, 226, 0.9) 0%,
+    rgba(246, 239, 226, 0.44) 44%,
+    rgba(246, 239, 226, 0) 72%
+  );
+}

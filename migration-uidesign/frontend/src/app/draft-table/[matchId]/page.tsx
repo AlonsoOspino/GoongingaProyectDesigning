@@ -13,6 +13,7 @@ import {
   getDraftState,
   getDraftShareInfo,
   startMapPicking,
+  pickMapType,
   yieldPlayoffFirstPick,
   pickMap,
   startBan,
@@ -21,6 +22,7 @@ import {
   type DraftState,
   type GameMap,
   type Hero,
+  type MapType,
 } from "@/lib/api";
 import {
   getTeams,
@@ -36,8 +38,30 @@ import {
 import { clsx } from "clsx";
 import { resolveGenericBackendAsset, resolveHeroImageUrl, resolveMapImageUrl } from "@/lib/assetUrls";
 import { MapImage, MapBackground, useImageReady, preloadImages } from "@/components/draft/MapImage";
+import { DraftStage, TeamRail, teamVars, type TeamSide } from "@/components/draft/DraftStage";
+import { BanTile, type HeroTileState } from "@/components/draft/BanTile";
+import { BanSlot, EmptyBanSlot } from "@/components/draft/BanRail";
+import { BanCeremony, type BanCeremonyRequest } from "@/components/draft/BanCeremony";
+import { MapTypeIcon, MapTypePlate, MAP_TYPE_LABEL } from "@/components/draft/MapTypePlate";
+import stageStyles from "@/components/draft/draft-stage.module.css";
 import waitingStyles from "@/components/draft/waiting-room.module.css";
 import { isBracketMatch, getRequiredWins, getSeriesLength } from "@/lib/match-format";
+import { useDraftTableDevData } from "@/app/draft-table-dev/DraftTableDevContext";
+import {
+  banDraftTableDevHero,
+  createDraftTableDevState,
+  createDraftTableDevTeams,
+  endDraftTableDevGame,
+  pickDraftTableDevMap,
+  pickDraftTableDevMapType,
+  readyNextDraftTableDevCaptain,
+  startDraftTableDevBans,
+  startDraftTableDevMapPicking,
+  submitDraftTableDevResult,
+  undoDraftTableDevResult,
+  yieldDraftTableDevFirstPick,
+  type DraftTableDevData,
+} from "@/app/draft-table-dev/demo-data";
 
 const POLL_INTERVAL = 3000;
 const TURN_DURATION = 95;
@@ -45,9 +69,10 @@ const KEY_CANVAS_WIDTH = 1920;
 const KEY_CANVAS_HEIGHT = 1080;
 const KEY_CONTENT_MAX_WIDTH = "max-w-[1840px]";
 
-type Phase = "STARTING" | "MAPPICKING" | "BAN" | "PLAYING" | "ENDMAP" | "FINISHED";
-type OverlayKind = "BAN" | "MAP_PICK" | "MAP_PICKING_COUNTDOWN" | "BAN_START_COUNTDOWN";
-
+type Phase = "STARTING" | "MAPTYPEPICKING" | "MAPPICKING" | "BAN" | "PLAYING" | "ENDMAP" | "FINISHED";
+// Phase changes used to open a blocking 5-second countdown card. It hid the
+// board on every transition, so it is gone: phases now animate themselves in
+// and bans announce through a lower third that leaves the draft visible.
 const SESSION_EXPIRED_MESSAGE =
   "Tu sesion expiro o quedo invalida en este navegador. Vuelve a iniciar sesion para continuar.";
 
@@ -62,32 +87,26 @@ function isSessionFailure(error: unknown) {
   return error.status === 403 && /login token|invalid token|no token|token malformed/i.test(error.message);
 }
 
-type DraftOverlay = {
-  id: string;
-  kind: OverlayKind;
-  title: string;
-  subtitle?: string;
-  team?: Team;
-  hero?: Hero | null;
-  map?: GameMap | null;
-  durationMs: number;
-  countdownFrom?: number;
-};
-
 export default function DraftTablePage() {
   const params = useParams();
   const router = useRouter();
   const { user, token, isAuthenticated, isHydrated, clearSession } = useSession();
   const searchParams = useSearchParams();
   const urlKey = searchParams?.get("key");
+  const devData = useDraftTableDevData();
+  const isDevDemo = Boolean(devData);
 
-  const matchId = Number(params.matchId);
+  const matchId = devData?.match.id ?? Number(params.matchId);
   const isObsKeyAccess = Boolean(urlKey);
 
-  const [draftState, setDraftState] = useState<DraftState | null>(null);
+  const [draftState, setDraftState] = useState<DraftState | null>(() =>
+    devData ? createDraftTableDevState(devData) : null
+  );
   const draftId = draftState?.id;
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [teams, setTeams] = useState<Team[]>(() =>
+    devData ? createDraftTableDevTeams(devData) : []
+  );
+  const [loading, setLoading] = useState(!devData);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -98,9 +117,10 @@ export default function DraftTablePage() {
   const [mapCacheById, setMapCacheById] = useState<Record<number, GameMap>>({});
   const [pauseActionPending, setPauseActionPending] = useState(false);
   const [isNavHidden, setIsNavHidden] = useState(false);
-  const [overlayQueue, setOverlayQueue] = useState<DraftOverlay[]>([]);
-  const [activeOverlay, setActiveOverlay] = useState<DraftOverlay | null>(null);
-  const [overlayCountdown, setOverlayCountdown] = useState<number | null>(null);
+  // Bans are announced one at a time, center stage. Two bans landing in the
+  // same poll queue rather than overlapping.
+  const [ceremonyQueue, setCeremonyQueue] = useState<BanCeremonyRequest[]>([]);
+  const [activeCeremony, setActiveCeremony] = useState<BanCeremonyRequest | null>(null);
   const [keyFitScale, setKeyFitScale] = useState(1);
   const [shareOverlayOpen, setShareOverlayOpen] = useState(false);
   const [shareInfo, setShareInfo] = useState<{ matchId: number; key: string; url: string } | null>(null);
@@ -110,16 +130,14 @@ export default function DraftTablePage() {
   const [resetPending, setResetPending] = useState(false);
   const [networkUser, setNetworkUser] = useState<NetworkSessionUser | null>(null);
 
+  // The positioned box a ban portrait flies across. In the broadcast view this
+  // sits inside a scaled canvas, which BanCeremony corrects for.
+  const draftCanvasRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const overlayTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const overlayCountdownRef = useRef<NodeJS.Timeout | null>(null);
   const actionErrorTimerRef = useRef<NodeJS.Timeout | null>(null);
   const seenActionIdsRef = useRef<Set<number>>(new Set());
   const hasInitializedActionsRef = useRef(false);
-  const hasInitializedPhaseRef = useRef(false);
-  const prevPhaseRef = useRef<Phase | null>(null);
-  const overlayIdRef = useRef(0);
 
   useEffect(() => {
     const refresh = () => setNetworkUser(readNetworkSessionUser());
@@ -132,20 +150,21 @@ export default function DraftTablePage() {
     };
   }, []);
 
-  const isManager = Boolean(networkUser?.roles.some((role) => role === "SOCIAL_MEDIA" || role === "ADMIN"));
-  const isAdmin = Boolean(networkUser?.roles.includes("ADMIN"));
+  const isManager = isDevDemo || Boolean(networkUser?.roles.some((role) => role === "SOCIAL_MEDIA" || role === "ADMIN"));
+  const isAdmin = isDevDemo || Boolean(networkUser?.roles.includes("ADMIN"));
   // Destructive operational actions (full match reset) are open to both roles.
   const canResetMatch = isManager || isAdmin;
-  const isCaptain = user?.role === "CAPTAIN";
+  const isCaptain = isDevDemo || user?.role === "CAPTAIN";
   const isKeyAccess = isObsKeyAccess;
   const shouldRenderCompactHeader = true;
-  const myTeamId = user?.teamId;
+  const myTeamId = isDevDemo
+    ? draftState?.currentTurnTeamId ?? devData?.match.initialPickerTeamId
+    : user?.teamId;
   const isMyTurn = draftState?.currentTurnTeamId === myTeamId;
   const currentPhase = draftState?.phase as Phase;
   const isMapSelectionLocked = currentPhase === "MAPPICKING" && Boolean(draftState?.currentMapId);
-  const isOverlayActive = Boolean(activeOverlay);
+  const isCeremonyActive = Boolean(activeCeremony);
   const overlayPositionClass = isKeyAccess ? "absolute" : "fixed";
-  const overlayAlignClass = isKeyAccess ? "items-start pt-8" : "items-center";
   const floatingPositionClass = isKeyAccess ? "absolute" : "fixed";
 
   const teamA = teams.find((t) => t.id === draftState?.match?.teamAId);
@@ -176,6 +195,19 @@ export default function DraftTablePage() {
     [clearSession, showActionError]
   );
 
+  const updateDemoState = (
+    transition: (state: DraftState, data: DraftTableDevData) => DraftState
+  ): boolean => {
+    if (!isDevDemo || !devData || !draftState) return false;
+    try {
+      setDraftState(transition(draftState, devData));
+      setActionError(null);
+    } catch (err) {
+      showActionError(getRequestErrorMessage(err, "The local demo action could not be completed."));
+    }
+    return true;
+  };
+
   useEffect(() => {
     return () => {
       if (actionErrorTimerRef.current) clearTimeout(actionErrorTimerRef.current);
@@ -186,11 +218,14 @@ export default function DraftTablePage() {
   const showDraftHistory = matchStatus === "FINISHED" || currentPhase === "FINISHED";
 
   // Check if I'm ready (for captains)
-  const amIReady = isCaptain && myTeamId === teamA?.id 
-    ? draftState?.match?.teamAready === 1 
-    : draftState?.match?.teamBready === 1;
+  const amIReady = isDevDemo
+    ? draftState?.match?.teamAready === 1 && draftState?.match?.teamBready === 1
+    : isCaptain && myTeamId === teamA?.id
+      ? draftState?.match?.teamAready === 1
+      : draftState?.match?.teamBready === 1;
 
   useEffect(() => {
+    if (isDevDemo) return;
     if (!isHydrated) return;
     if (!Number.isFinite(matchId) || matchId <= 0) {
       setError("Invalid match id.");
@@ -203,9 +238,10 @@ export default function DraftTablePage() {
       return;
     }
     loadData();
-  }, [isHydrated, isAuthenticated, matchId, urlKey]);
+  }, [isDevDemo, isHydrated, isAuthenticated, matchId, urlKey]);
 
   useEffect(() => {
+    if (isDevDemo) return;
     if (!draftState || currentPhase === "FINISHED") return;
     if (!isAuthenticated && !urlKey) return;
     pollRef.current = setInterval(() => {
@@ -214,7 +250,7 @@ export default function DraftTablePage() {
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [draftState, currentPhase, isAuthenticated, urlKey]);
+  }, [isDevDemo, draftState, currentPhase, isAuthenticated, urlKey]);
 
   const isMatchPaused = !!draftState?.match?.mapTimerPaused;
   const pauseRequestedBy = draftState?.match?.pauseRequestedBy ?? null;
@@ -232,7 +268,7 @@ export default function DraftTablePage() {
   };
 
   useEffect(() => {
-    if (!draftState || !["MAPPICKING", "BAN"].includes(currentPhase ?? "")) {
+    if (!draftState || !["MAPTYPEPICKING", "MAPPICKING", "BAN"].includes(currentPhase ?? "")) {
       setTimeLeft(TURN_DURATION);
       if (timerRef.current) clearInterval(timerRef.current);
       return;
@@ -256,7 +292,7 @@ export default function DraftTablePage() {
     // pick/ban is being submitted to the server. Once the action is
     // confirmed and the next turn arrives, the server's fresh
     // `remainingSeconds` re-runs this effect and the timer resumes.
-    if (isMatchPaused || actionLoading || isOverlayActive) {
+    if (isMatchPaused || actionLoading || isCeremonyActive) {
       return;
     }
 
@@ -267,7 +303,7 @@ export default function DraftTablePage() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [draftState?.remainingSeconds, currentPhase, isMatchPaused, actionLoading, isMapSelectionLocked, isOverlayActive]);
+  }, [draftState?.remainingSeconds, currentPhase, isMatchPaused, actionLoading, isMapSelectionLocked, isCeremonyActive]);
 
   useEffect(() => {
     const heroes = draftState?.heroes || [];
@@ -316,6 +352,7 @@ export default function DraftTablePage() {
   }
 
   async function fetchDraftState() {
+    if (isDevDemo) return;
     if (!draftId) return;
     try {
       const draft = await getDraftState(draftId, { key: urlKey ?? undefined, token: token ?? undefined });
@@ -331,6 +368,7 @@ export default function DraftTablePage() {
   }
 
   async function handleStartMapPicking() {
+    if (updateDemoState(startDraftTableDevMapPicking)) return;
     if (!token) {
       showActionError(SESSION_EXPIRED_MESSAGE);
       return;
@@ -352,6 +390,7 @@ export default function DraftTablePage() {
   }
 
   async function handleYieldFirstPick() {
+    if (updateDemoState(yieldDraftTableDevFirstPick)) return;
     if (!token) {
       showActionError(SESSION_EXPIRED_MESSAGE);
       return;
@@ -372,7 +411,44 @@ export default function DraftTablePage() {
     }
   }
 
+  async function handlePickMapType(mapType: MapType) {
+    if (updateDemoState((state, data) => pickDraftTableDevMapType(state, data, mapType))) return;
+    if (!token) {
+      showActionError(SESSION_EXPIRED_MESSAGE);
+      return;
+    }
+    if (!draftId) {
+      showActionError("Draft no disponible todavia. Recarga la pagina e intenta otra vez.");
+      return;
+    }
+    if (!isMyTurn) {
+      showActionError("No es tu turno de escoger el tipo de mapa.");
+      await fetchDraftState();
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const updated = await pickMapType(token, draftId, {
+        mapType,
+        teamId: myTeamId ?? undefined,
+      });
+      setDraftState(updated);
+      setActionError(null);
+    } catch (err) {
+      handleRequestFailure(
+        "Failed to pick map type:",
+        err,
+        "No se pudo escoger el tipo de mapa."
+      );
+      await fetchDraftState();
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
   async function handleStartBan() {
+    if (updateDemoState(startDraftTableDevBans)) return;
     if (!token) {
       showActionError(SESSION_EXPIRED_MESSAGE);
       return;
@@ -394,6 +470,7 @@ export default function DraftTablePage() {
   }
 
   async function handleEndGame() {
+    if (updateDemoState(endDraftTableDevGame)) return;
     if (!token) {
       showActionError(SESSION_EXPIRED_MESSAGE);
       return;
@@ -415,6 +492,7 @@ export default function DraftTablePage() {
   }
 
   async function handlePickMap(mapId: number) {
+    if (updateDemoState((state, data) => pickDraftTableDevMap(state, data, mapId))) return;
     if (!token) {
       showActionError(SESSION_EXPIRED_MESSAGE);
       return;
@@ -442,6 +520,7 @@ export default function DraftTablePage() {
   }
 
   async function handleBanHero(heroId: number | null) {
+    if (updateDemoState((state, data) => banDraftTableDevHero(state, data, heroId))) return;
     if (!token) {
       showActionError(SESSION_EXPIRED_MESSAGE);
       return;
@@ -469,6 +548,7 @@ export default function DraftTablePage() {
   }
 
   async function handleSubmitResult(winnerTeamId: number | null) {
+    if (updateDemoState((state, data) => submitDraftTableDevResult(state, data, winnerTeamId))) return;
     if (!token) {
       showActionError(SESSION_EXPIRED_MESSAGE);
       return;
@@ -490,6 +570,7 @@ export default function DraftTablePage() {
   }
 
   async function handleUndoResult() {
+    if (updateDemoState(undoDraftTableDevResult)) return;
     if (!token) {
       showActionError(SESSION_EXPIRED_MESSAGE);
       return;
@@ -514,6 +595,13 @@ export default function DraftTablePage() {
   // scratch: clears the draft, the score, the timers, the ready flags and the
   // uploaded stats, and rolls back the standings.
   async function handleResetMatch() {
+    if (isDevDemo && devData) {
+      setDraftState(createDraftTableDevState(devData));
+      setTeams(createDraftTableDevTeams(devData));
+      setResetConfirmOpen(false);
+      setActionError(null);
+      return;
+    }
     if (!token) {
       showActionError(SESSION_EXPIRED_MESSAGE);
       return;
@@ -532,6 +620,7 @@ export default function DraftTablePage() {
   }
 
   async function handleSetReady() {
+    if (updateDemoState(readyNextDraftTableDevCaptain)) return;
     if (!token) {
       showActionError(SESSION_EXPIRED_MESSAGE);
       return;
@@ -636,12 +725,6 @@ export default function DraftTablePage() {
     return { bannedByTeamA, bannedByTeamB, teamNames };
   };
 
-  // Check if any team banned this hero in previous games
-  const wasHeroBannedInPreviousGames = (heroId: number) => {
-    const info = getPreviousGameBanInfo(heroId);
-    return info.bannedByTeamA || info.bannedByTeamB;
-  };
-
   // Get which team(s) banned a specific hero in current game
   const getHeroBanInfo = (heroId: number): { bannedByTeamA: boolean; bannedByTeamB: boolean } => {
     if (!draftState?.actions) return { bannedByTeamA: false, bannedByTeamB: false };
@@ -723,8 +806,8 @@ export default function DraftTablePage() {
     [draftState?.allMaps, draftState?.availableMaps, mapCacheById]
   );
 
-  const enqueueOverlay = useCallback((overlay: DraftOverlay) => {
-    setOverlayQueue((prev) => [...prev, overlay]);
+  const enqueueCeremony = useCallback((ceremony: BanCeremonyRequest) => {
+    setCeremonyQueue((prev) => [...prev, ceremony]);
   }, []);
 
   const getTeamById = useCallback(
@@ -732,14 +815,11 @@ export default function DraftTablePage() {
     [teams]
   );
 
-  const getTeamToneClass = useCallback(
-    (teamId?: number | null) => {
-      if (!teamId) return "text-foreground";
-      if (teamId === teamA?.id) return "text-[color:var(--color-team-a)]";
-      if (teamId === teamB?.id) return "text-[color:var(--color-team-b)]";
-      return "text-foreground";
-    },
-    [teamA?.id, teamB?.id]
+  // Left rail is always team A, right rail always team B. Everything that
+  // needs a team color derives it from this instead of hardcoding a hue.
+  const sideForTeam = useCallback(
+    (teamId?: number | null): TeamSide => (teamId === teamB?.id ? "B" : "A"),
+    [teamB?.id]
   );
 
   useEffect(() => {
@@ -778,35 +858,14 @@ export default function DraftTablePage() {
     );
 
   useEffect(() => {
-    if (activeOverlay || overlayQueue.length === 0) return;
-    setActiveOverlay(overlayQueue[0]);
-    setOverlayQueue((prev) => prev.slice(1));
-  }, [activeOverlay, overlayQueue]);
+    if (activeCeremony || ceremonyQueue.length === 0) return;
+    setActiveCeremony(ceremonyQueue[0]);
+    setCeremonyQueue((prev) => prev.slice(1));
+  }, [activeCeremony, ceremonyQueue]);
 
-  useEffect(() => {
-    if (!activeOverlay) {
-      setOverlayCountdown(null);
-      if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
-      if (overlayCountdownRef.current) clearInterval(overlayCountdownRef.current);
-      return;
-    }
-
-    if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
-    if (overlayCountdownRef.current) clearInterval(overlayCountdownRef.current);
-
-    overlayTimerRef.current = setTimeout(() => {
-      setActiveOverlay(null);
-    }, activeOverlay.durationMs);
-
-    if (activeOverlay.countdownFrom) {
-      setOverlayCountdown(activeOverlay.countdownFrom);
-      overlayCountdownRef.current = setInterval(() => {
-        setOverlayCountdown((prev) => (prev && prev > 1 ? prev - 1 : 1));
-      }, 1000);
-    } else {
-      setOverlayCountdown(null);
-    }
-  }, [activeOverlay]);
+  const handleCeremonyComplete = useCallback((key: string) => {
+    setActiveCeremony((current) => (current?.key === key ? null : current));
+  }, []);
 
   useEffect(() => {
     if (!draftState?.actions) return;
@@ -824,86 +883,36 @@ export default function DraftTablePage() {
     if (!newActions.length) return;
 
     newActions.forEach((action) => {
-      if (action.gameNumber !== currentGameNumber) {
-        seenActionIdsRef.current.add(action.id);
-        return;
-      }
-
-      if (action.action === "BAN") {
-        const team = getTeamById(action.teamId);
-        const hero = action.value ? getHeroById(action.value) : null;
-        enqueueOverlay({
-          id: `ban-${action.id}-${overlayIdRef.current++}`,
-          kind: "BAN",
-          title: team?.name ? `${team.name} has banned` : "A team has banned",
-          subtitle: hero?.name ?? (action.value ? "Unknown Hero" : "No Ban"),
-          team,
-          hero,
-          durationMs: 3000,
-        });
-        seenActionIdsRef.current.add(action.id);
-        return;
-      }
-
-      if (action.action === "PICK") {
-        const team = getTeamById(action.teamId);
-        const pickedMapId = Number(action.value);
-        const map = getMapById(pickedMapId) || getMapById(draftState.currentMapId);
-        if (!map && Number.isFinite(pickedMapId)) {
-          // Sometimes the action arrives one poll before the map list;
-          // defer until map metadata is available to avoid "Unknown Map".
-          return;
-        }
-        enqueueOverlay({
-          id: `pick-${action.id}-${overlayIdRef.current++}`,
-          kind: "MAP_PICK",
-          title: team?.name ? `${team.name} picked` : "Map picked",
-          subtitle: map?.description ?? "Map selected",
-          team,
-          map,
-          durationMs: 3000,
-        });
-        seenActionIdsRef.current.add(action.id);
-        return;
-      }
-
       seenActionIdsRef.current.add(action.id);
+
+      if (action.gameNumber !== currentGameNumber) return;
+      if (action.action !== "BAN") return;
+
+      // A skipped turn has nothing to show. It still fills the rail slot.
+      const hero = action.value ? getHeroById(action.value) : null;
+      if (!hero) return;
+
+      const team = getTeamById(action.teamId);
+      // The slot it flies to is however many bans that team had already spent.
+      const slotIndex = (draftState.actions || []).filter(
+        (other) =>
+          other.action === "BAN" &&
+          other.teamId === action.teamId &&
+          other.gameNumber === action.gameNumber &&
+          other.order < action.order
+      ).length;
+
+      enqueueCeremony({
+        key: `ban-${action.id}`,
+        heroName: hero.name,
+        imgPath: hero.imgPath ?? null,
+        teamName: team?.name || "Unknown team",
+        side: action.teamId === draftState.match.teamBId ? "B" : "A",
+        teamId: action.teamId,
+        slotIndex,
+      });
     });
-  }, [draftState?.actions, currentGameNumber, draftState?.currentMapId, enqueueOverlay, getHeroById, getMapById, getTeamById]);
-
-  useEffect(() => {
-    if (!currentPhase) return;
-
-    if (!hasInitializedPhaseRef.current) {
-      prevPhaseRef.current = currentPhase;
-      hasInitializedPhaseRef.current = true;
-      return;
-    }
-
-    const prevPhase = prevPhaseRef.current;
-
-    if (currentPhase === "MAPPICKING" && prevPhase !== "MAPPICKING") {
-      enqueueOverlay({
-        id: `map-start-${overlayIdRef.current++}`,
-        kind: "MAP_PICKING_COUNTDOWN",
-        title: "MAP PICKING STARTS IN",
-        durationMs: 5000,
-        countdownFrom: 5,
-      });
-    }
-
-    if (currentPhase === "BAN" && prevPhase !== "BAN") {
-      enqueueOverlay({
-        id: `ban-start-${overlayIdRef.current++}`,
-        kind: "BAN_START_COUNTDOWN",
-        title: "BAN DRAFT STARTS IN",
-        durationMs: 5000,
-        countdownFrom: 5,
-      });
-    }
-
-    prevPhaseRef.current = currentPhase;
-  }, [currentPhase, enqueueOverlay]);
+  }, [draftState?.actions, currentGameNumber, enqueueCeremony, getHeroById, getTeamById]);
 
   // Use the currently-selected map as the page backdrop for captains and
   // managers. We compute the URL here (before any early return) so the
@@ -924,14 +933,7 @@ export default function DraftTablePage() {
     if (urls.length) preloadImages(urls);
   }, [draftState?.allMaps]);
 
-  useEffect(() => {
-    return () => {
-      if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
-      if (overlayCountdownRef.current) clearInterval(overlayCountdownRef.current);
-    };
-  }, []);
-
-  if (!isHydrated || loading) {
+  if ((!isDevDemo && !isHydrated) || loading) {
     return wrapKeyView(
       <div
         className={clsx("bg-background flex items-center justify-center", !isKeyAccess && "min-h-screen")}
@@ -1004,7 +1006,13 @@ export default function DraftTablePage() {
       {/* Map background — only paints once the bytes have loaded so we never
           flash a half-rendered image between phases. */}
       <MapBackground src={backgroundMapUrl} position={isKeyAccess ? "container" : "viewport"} />
-      <div className="relative w-full h-full">
+      <div ref={draftCanvasRef} className="relative w-full h-full">
+        <BanCeremony
+          request={activeCeremony}
+          containerRef={draftCanvasRef}
+          onComplete={handleCeremonyComplete}
+        />
+
         {waitingForBanBackground && (
           <div className={clsx(overlayPositionClass, "inset-0 z-50 bg-background flex items-center justify-center")}>
             <div className="flex flex-col items-center gap-4">
@@ -1021,109 +1029,6 @@ export default function DraftTablePage() {
           </div>
         )}
 
-        {activeOverlay && (
-          <div
-            className={clsx(
-              overlayPositionClass,
-              "inset-0 z-50 flex justify-center bg-black/60 backdrop-blur-sm",
-              overlayAlignClass
-            )}
-          >
-            <div className="w-[min(620px,92vw)] rounded-2xl border border-border/60 bg-gradient-to-br from-surface/95 via-surface-elevated/95 to-surface/90 p-6 shadow-2xl shadow-black/40 ring-1 ring-white/10 animate-fade-in">
-              {activeOverlay.kind === "MAP_PICKING_COUNTDOWN" || activeOverlay.kind === "BAN_START_COUNTDOWN" ? (
-                <div className="text-center">
-                  <p className="text-[11px] uppercase tracking-[0.35em] text-muted">Get Ready</p>
-                  <h2 className="text-3xl md:text-4xl font-black text-foreground mt-2">
-                    {activeOverlay.title}
-                  </h2>
-                  <div className="mt-5 text-6xl md:text-7xl font-black text-primary">
-                    {overlayCountdown ?? activeOverlay.countdownFrom ?? 5}
-                  </div>
-                  <p className="text-xs text-muted mt-4">Timer resumes when the alert ends.</p>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center gap-5 text-center">
-                  <div className="flex items-center justify-center gap-3">
-                    <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-border bg-surface-elevated">
-                      {activeOverlay.team?.logo ? (
-                        <img
-                          src={resolveGenericBackendAsset(activeOverlay.team.logo)}
-                          alt={activeOverlay.team.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-sm font-bold text-muted">
-                          {activeOverlay.team?.name?.charAt(0) || "T"}
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-left">
-                      <p className="text-[11px] uppercase tracking-widest text-muted">
-                        {activeOverlay.kind === "BAN" ? "Ban Alert" : "Map Pick"}
-                      </p>
-                      <p
-                        className={clsx(
-                          "text-2xl md:text-3xl font-black",
-                          getTeamToneClass(activeOverlay.team?.id)
-                        )}
-                      >
-                        {activeOverlay.title}
-                      </p>
-                    </div>
-                  </div>
-
-                  {activeOverlay.kind === "BAN" && (
-                    <div className="flex items-center gap-4">
-                      <div className="w-24 h-24 rounded-xl overflow-hidden border-2 border-danger/60 bg-danger/10">
-                        {activeOverlay.hero?.imgPath ? (
-                          <img
-                            src={resolveHeroImageUrl(activeOverlay.hero.imgPath)}
-                            alt={activeOverlay.hero.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-2xl font-black text-danger">
-                            {activeOverlay.hero?.name?.charAt(0) || "?"}
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-left">
-                        <p className="text-[11px] uppercase tracking-widest text-muted">Hero</p>
-                        <p className="text-2xl md:text-3xl font-black text-danger">
-                          {activeOverlay.subtitle}
-                        </p>
-                        {activeOverlay.hero?.role && (
-                          <Badge variant="danger" className="mt-2">
-                            {activeOverlay.hero.role}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {activeOverlay.kind === "MAP_PICK" && (
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="w-full max-w-md rounded-xl overflow-hidden border-2 border-primary/50">
-                        <MapImage
-                          src={activeOverlay.map?.imgPath ? resolveMapImageUrl(activeOverlay.map.imgPath) : null}
-                          alt={activeOverlay.subtitle ?? "Map"}
-                          fallbackInitial={activeOverlay.map?.description?.charAt(0) || "M"}
-                          className="w-full aspect-video"
-                        />
-                      </div>
-                      <p className="text-2xl md:text-3xl font-black text-foreground">
-                        {activeOverlay.subtitle}
-                      </p>
-                      {activeOverlay.map?.type && (
-                        <Badge variant="primary">{activeOverlay.map.type}</Badge>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
         <div className="relative z-10 w-full h-full">
         {shouldRenderCompactHeader && (
           <header className="relative border-b border-border bg-surface/50 backdrop-blur-sm sticky top-0 z-10">
@@ -1184,7 +1089,7 @@ export default function DraftTablePage() {
                   >
                     {currentPhase}
                   </Badge>
-                  {(currentPhase === "BAN" || currentPhase === "MAPPICKING") && !isMapSelectionLocked && (
+                  {(currentPhase === "MAPTYPEPICKING" || currentPhase === "BAN" || currentPhase === "MAPPICKING") && !isMapSelectionLocked && (
                     <div
                       className={clsx(
                         "font-mono font-bold tabular-nums",
@@ -1258,6 +1163,18 @@ export default function DraftTablePage() {
           return startingPhase;
         })()}
 
+        {currentPhase === "MAPTYPEPICKING" && (
+          <MapTypePickingPhase
+            isCaptain={isCaptain}
+            isMyTurn={isMyTurn}
+            draftState={draftState}
+            teams={teams}
+            onPickMapType={handlePickMapType}
+            actionLoading={actionLoading}
+            isObsKeyAccess={isObsKeyAccess}
+          />
+        )}
+
         {currentPhase === "MAPPICKING" && (
           <MapPickingPhase
             isManager={isManager}
@@ -1265,7 +1182,6 @@ export default function DraftTablePage() {
             isMyTurn={isMyTurn}
             draftState={draftState}
             teams={teams}
-            myTeamId={myTeamId}
             onPickMap={handlePickMap}
             onStartBan={handleStartBan}
             isMapPicked={isMapPicked}
@@ -1291,12 +1207,10 @@ export default function DraftTablePage() {
             onBanHero={handleBanHero}
             isHeroBanned={isHeroBanned}
             wasHeroBannedByMyTeamBefore={wasHeroBannedByMyTeamBefore}
-            wasHeroBannedInPreviousGames={wasHeroBannedInPreviousGames}
             getPreviousGameBanInfo={getPreviousGameBanInfo}
             getHeroBanInfo={getHeroBanInfo}
             getBannedHeroesByTeam={getBannedHeroesByTeam}
             getTeamTotalBans={getTeamTotalBans}
-            getBanCountByRole={getBanCountByRole}
             canBanRole={canBanRole}
             actionLoading={actionLoading}
             isObsKeyAccess={isObsKeyAccess}
@@ -1366,7 +1280,7 @@ export default function DraftTablePage() {
         </div>
       )}
 
-      {isCaptain && !isObsKeyAccess && (
+      {isCaptain && !isDevDemo && !isObsKeyAccess && (
         <div className={clsx(floatingPositionClass, "right-6 bottom-6 z-40")}>
           <Button size="sm" variant="secondary" onClick={handleOpenShareOverlay} disabled={shareLoading}>
             {shareLoading ? "Loading..." : "Share draft"}
@@ -1437,23 +1351,31 @@ export default function DraftTablePage() {
         >
           <div className="w-[min(92vw,460px)] rounded-lg border border-danger/50 bg-surface p-5 shadow-2xl shadow-black/50">
             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-danger">
-              Destructive action
+              {isDevDemo ? "Local demo" : "Destructive action"}
             </p>
             <h2 id="reset-match-title" className="mt-1 text-2xl font-black text-foreground">
               Reset match #{matchId}?
             </h2>
-            <p className="mt-3 text-sm leading-relaxed text-muted">
-              This sends the match back to the schedule stage. It will:
-            </p>
-            <ul className="mt-3 space-y-1.5 text-sm leading-relaxed text-muted">
-              <li>· Delete the draft and every pick and ban</li>
-              <li>· Clear the score, map results and uploaded player stats</li>
-              <li>· Reset both captain ready flags and all timers</li>
-              <li>· Roll back team standings and un-eliminate the loser</li>
-            </ul>
-            <p className="mt-3 text-sm font-semibold leading-relaxed text-foreground">
-              This cannot be undone.
-            </p>
+            {isDevDemo ? (
+              <p className="mt-3 text-sm leading-relaxed text-muted">
+                This restores the ignored fixture and restarts the local rehearsal at captain check-in.
+              </p>
+            ) : (
+              <>
+                <p className="mt-3 text-sm leading-relaxed text-muted">
+                  This sends the match back to the schedule stage. It will:
+                </p>
+                <ul className="mt-3 space-y-1.5 text-sm leading-relaxed text-muted">
+                  <li>· Delete the draft and every pick and ban</li>
+                  <li>· Clear the score, map results and uploaded player stats</li>
+                  <li>· Reset both captain ready flags and all timers</li>
+                  <li>· Roll back team standings and un-eliminate the loser</li>
+                </ul>
+                <p className="mt-3 text-sm font-semibold leading-relaxed text-foreground">
+                  This cannot be undone.
+                </p>
+              </>
+            )}
 
             <div className="mt-5 grid grid-cols-2 gap-2">
               <Button
@@ -1472,7 +1394,7 @@ export default function DraftTablePage() {
         </div>
       )}
 
-      {isManager && (
+      {isManager && !isDevDemo && (
         <div className={clsx(floatingPositionClass, "right-6 z-40", isObsKeyAccess ? "top-6" : "bottom-6")}>
           <Button size="sm" variant="secondary" onClick={() => toggleNavbar(!isNavHidden)}>
             {isNavHidden ? "Show header" : "Hide header"}
@@ -1481,7 +1403,7 @@ export default function DraftTablePage() {
       )}
 
       {/* Captain pause request button — wired to backend */}
-      {(currentPhase === "MAPPICKING" || currentPhase === "BAN") && isCaptain && !isMatchPaused && (
+      {!isDevDemo && (currentPhase === "MAPTYPEPICKING" || currentPhase === "MAPPICKING" || currentPhase === "BAN") && isCaptain && !isMatchPaused && (
         <button
           onClick={async () => {
             if (pauseActionPending) return;
@@ -1519,7 +1441,7 @@ export default function DraftTablePage() {
       )}
 
       {/* Manager pause/resume control */}
-      {(currentPhase === "MAPPICKING" || currentPhase === "BAN") && isManager && (
+      {!isDevDemo && (currentPhase === "MAPTYPEPICKING" || currentPhase === "MAPPICKING" || currentPhase === "BAN") && isManager && (
         <button
           onClick={async () => {
             if (pauseActionPending) return;
@@ -1561,7 +1483,7 @@ export default function DraftTablePage() {
       )}
 
       {/* Manager-only: floating pause-request notification when a captain asks */}
-      {isManager && pauseRequestedBy && !isMatchPaused && (
+      {!isDevDemo && isManager && pauseRequestedBy && !isMatchPaused && (
         <div className={clsx(floatingPositionClass, "top-24 right-6 z-40 w-80 bg-surface border-2 border-warning rounded-xl shadow-2xl shadow-warning/20 animate-fade-in")}>
           <div className="p-4">
             <div className="flex items-center gap-2 mb-3">
@@ -1681,17 +1603,6 @@ export default function DraftTablePage() {
 
 // ==================== STARTING PHASE ====================
 
-function WaitingTeamLogo({ team, fallback }: { team?: Team; fallback: string }) {
-  const [logoFailed, setLogoFailed] = useState(!team?.logo);
-  return team?.logo && !logoFailed ? (
-    <img
-      src={resolveGenericBackendAsset(team.logo)}
-      alt={`${team.name} logo`}
-      onError={() => setLogoFailed(true)}
-    />
-  ) : <span aria-label={`${team?.name || fallback} logo`}>{team?.name?.slice(0, 2).toUpperCase() || fallback}</span>;
-}
-
 function StartingPhase({
   isManager,
   isCaptain,
@@ -1727,95 +1638,272 @@ function StartingPhase({
   canResetMatch: boolean;
   onRequestResetMatch: () => void;
 }) {
-  const bothReady = match.teamAready === 1 && match.teamBready === 1;
+  const teamAReady = match.teamAready === 1;
+  const teamBReady = match.teamBready === 1;
+  const readyCount = Number(teamAReady) + Number(teamBReady);
+  const bothReady = readyCount === 2;
+  const isFirstGame = match.gameNumber === 0;
+  const gameNumber = match.gameNumber + 1;
   const canUndoResult = isManager && match.status !== "FINISHED" && (match.mapResults?.length || 0) > 0;
   // Anything already committed on this match is worth warning about before a reset.
   const hasProgress =
-    (match.mapResults?.length || 0) > 0 ||
-    match.gameNumber > 0 ||
-    match.teamAready === 1 ||
-    match.teamBready === 1;
+    (match.mapResults?.length || 0) > 0 || match.gameNumber > 0 || teamAReady || teamBReady;
+
+  // Game one always opens on Control, so there is no mode step to run.
+  const runOrder = isFirstGame ? ["Control map", "Bans"] : ["Map type", "Map", "Bans"];
+  const firstPickerName = firstPickerTeam?.name;
 
   return (
-    <div className={clsx(waitingStyles.waitingRoom, isObsKeyAccess && waitingStyles.waitingRoomBroadcast)}>
-      <div className={waitingStyles.waitingGrid} aria-hidden="true" />
-      <header className={waitingStyles.waitingHeading}>
-        <p>{match.gameNumber === 0 ? "CAPTAIN CHECK-IN" : `GAME ${match.gameNumber + 1} · RESET`}</p>
-        <h2>{match.gameNumber === 0 ? "THE LOBBY IS OPEN" : "READY FOR THE NEXT MAP"}</h2>
-        <span>{bothReady ? "Both teams are locked in." : "Captains, confirm your team when you are ready."}</span>
-      </header>
+    <DraftStage
+      broadcast={isObsKeyAccess}
+      left={
+        <TeamRail
+          team={teamA}
+          side="A"
+          ready={teamAReady}
+          status={teamAReady ? "Ready" : "Awaiting captain"}
+        />
+      }
+      right={
+        <TeamRail
+          team={teamB}
+          side="B"
+          ready={teamBReady}
+          status={teamBReady ? "Ready" : "Awaiting captain"}
+        />
+      }
+    >
+      <div className={waitingStyles.checkIn}>
+        <header className={stageStyles.phaseHead}>
+          <span className={stageStyles.phaseEyebrow}>
+            {isFirstGame ? "Captain check-in" : "Game " + gameNumber}
+          </span>
+          <h2 className={stageStyles.phaseTitle}>
+            {isFirstGame ? "The lobby is open" : "Set up the next map"}
+          </h2>
+          <p className={stageStyles.phaseNote}>
+            {bothReady
+              ? "Both captains are locked in. The manager opens the next step."
+              : "Captains confirm their team, then the manager opens the next step."}
+          </p>
+        </header>
 
-      <div className={waitingStyles.waitingMatchup}>
-        {[{ team: teamA, ready: match.teamAready, side: "a" }, { team: teamB, ready: match.teamBready, side: "b" }].map(({ team, ready, side }) => (
-          <div key={side} className={`${waitingStyles.waitingTeam} ${waitingStyles[`waitingTeam${side.toUpperCase()}`]}`}>
-            <div className={waitingStyles.waitingLogo}>
-              <WaitingTeamLogo team={team} fallback={side.toUpperCase()} />
-            </div>
-            <h3>{team?.name || `Team ${side.toUpperCase()}`}</h3>
-            <div className={`${waitingStyles.readyState} ${ready ? waitingStyles.readyStateActive : ""}`}>
-              <i /> {ready ? "READY" : "AWAITING CAPTAIN"}
-            </div>
-          </div>
-        ))}
-        <div className={waitingStyles.waitingVs}>
-          <small>BEST OF {getSeriesLength(match)}</small>
-          <strong>VS</strong>
-          <span>{Number(Boolean(match.teamAready)) + Number(Boolean(match.teamBready))} / 2 READY</span>
+        <div className={waitingStyles.meter}>
+          <span className={clsx(waitingStyles.meterCount, bothReady && waitingStyles.meterCountReady)}>
+            {readyCount}
+          </span>
+          <span>of 2 captains ready · best of {getSeriesLength(match)}</span>
         </div>
-      </div>
 
-      {isBracketMatch(match) && match.gameNumber === 0 && (
-        <div className={waitingStyles.firstPickNotice}>
-          <span>FIRST MOVE</span>
-          <p>{firstPickerTeam?.name || "Best seed"} holds first map pick and first ban.</p>
-          {canYieldFirstPick && <Button type="button" variant="outline" size="sm" onClick={onYieldFirstPick} disabled={actionLoading}>Yield first choice</Button>}
+        <div className={waitingStyles.runOrder}>
+          {runOrder.map((step, index) => (
+            <div key={step} className="flex items-center gap-2">
+              {index > 0 && <span className={waitingStyles.runArrow}>&rarr;</span>}
+              <span className={clsx(waitingStyles.runStep, index === 0 && waitingStyles.runStepNext)}>
+                <span className={waitingStyles.runStepMark} />
+                {step}
+              </span>
+            </div>
+          ))}
         </div>
-      )}
 
-      <div className={waitingStyles.waitingActions}>
-        {isCaptain && !amIReady && (
-          <Button size="lg" onClick={onSetReady} disabled={actionLoading} className="px-10">
-            {actionLoading ? "CONFIRMING..." : "CONFIRM TEAM READY"}
-          </Button>
-        )}
-        {isCaptain && amIReady && <div className={waitingStyles.lockedMessage}><strong>YOU ARE LOCKED IN</strong><span>The manager will open map picking.</span></div>}
-        {isManager && (
-          <>
-            {canUndoResult && <Button size="lg" variant="secondary" onClick={onUndoResult} disabled={actionLoading}>Fix Last Result</Button>}
-            <Button size="lg" onClick={onStart} disabled={actionLoading} className="px-10">
-              {actionLoading ? "OPENING..." : "OPEN MAP PICKING"}
+        <div className={waitingStyles.notice}>
+          <span className={waitingStyles.noticeLabel}>
+            {isFirstGame ? "Control opener" : "Next mode"}
+          </span>
+          <p className={waitingStyles.noticeBody}>
+            {isFirstGame
+              ? "Game one is Control. " +
+                (firstPickerName || "The first captain") +
+                " picks the map and bans first."
+              : (firstPickerName || "The previous game's loser") +
+                " chooses the map type, then the map, and bans first."}
+          </p>
+          {canYieldFirstPick && (
+            <div className="pt-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onYieldFirstPick}
+                disabled={actionLoading}
+              >
+                Yield first choice
+              </Button>
+            </div>
+          )}
+        </div>
+
+        <div className={waitingStyles.actions}>
+          {isCaptain && !amIReady && (
+            <Button size="lg" onClick={onSetReady} disabled={actionLoading} className="px-10">
+              {actionLoading ? "Confirming..." : "Confirm team ready"}
             </Button>
-            {!bothReady && <span className={waitingStyles.overrideNote}>Manager override available · captains are not both ready</span>}
-          </>
-        )}
-        {!isCaptain && !isManager && <p className={waitingStyles.viewerMessage}>Waiting for both captains to check in.</p>}
-      </div>
-
-      {canResetMatch && (
-        <div className={waitingStyles.dangerZone}>
-          <div>
-            <strong>Reset match</strong>
-            <span>
-              {hasProgress
-                ? "Clears the draft, score, timers and uploaded stats, and rolls back the standings."
-                : "Nothing to roll back yet · this match is already at its initial state."}
-            </span>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onRequestResetMatch}
-            disabled={actionLoading}
-          >
-            Reset to schedule
-          </Button>
+          )}
+          {isCaptain && amIReady && (
+            <div className={waitingStyles.lockedMessage}>
+              <strong>You are locked in</strong>
+              <span>
+                Waiting for the manager to open{" "}
+                {isFirstGame ? "Control map picking" : "map type picking"}.
+              </span>
+            </div>
+          )}
+          {isManager && (
+            <>
+              {canUndoResult && (
+                <Button size="lg" variant="secondary" onClick={onUndoResult} disabled={actionLoading}>
+                  Fix last result
+                </Button>
+              )}
+              <Button size="lg" onClick={onStart} disabled={actionLoading} className="px-10">
+                {actionLoading
+                  ? "Opening..."
+                  : isFirstGame
+                  ? "Open Control map picking"
+                  : "Open map type picking"}
+              </Button>
+              {!bothReady && (
+                <span className={waitingStyles.overrideNote}>
+                  Manager override available · captains are not both ready
+                </span>
+              )}
+            </>
+          )}
+          {!isCaptain && !isManager && (
+            <p className={waitingStyles.viewerMessage}>Waiting for both captains to check in.</p>
+          )}
         </div>
-      )}
-    </div>
+
+        {canResetMatch && (
+          <div className={waitingStyles.dangerZone}>
+            <div>
+              <strong>Reset match</strong>
+              <span>
+                {hasProgress
+                  ? "Clears the draft, score, timers and uploaded stats, and rolls back the standings."
+                  : "Nothing to roll back yet · this match is already at its initial state."}
+              </span>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onRequestResetMatch}
+              disabled={actionLoading}
+            >
+              Reset to schedule
+            </Button>
+          </div>
+        )}
+      </div>
+    </DraftStage>
   );
 }
 
+// ==================== MAP TYPE PICKING PHASE ====================
+
+function MapTypePickingPhase({
+  isCaptain,
+  isMyTurn,
+  draftState,
+  teams,
+  onPickMapType,
+  actionLoading,
+  isObsKeyAccess,
+}: {
+  isCaptain: boolean;
+  isMyTurn: boolean;
+  draftState: DraftState;
+  teams: Team[];
+  onPickMapType: (mapType: MapType) => void;
+  actionLoading: boolean;
+  isObsKeyAccess: boolean;
+}) {
+  const teamA = teams.find((team) => team.id === draftState.match.teamAId);
+  const teamB = teams.find((team) => team.id === draftState.match.teamBId);
+  const currentTeam = teams.find((team) => team.id === draftState.currentTurnTeamId);
+  const isTeamATurn = draftState.currentTurnTeamId === teamA?.id;
+  const isTeamBTurn = draftState.currentTurnTeamId === teamB?.id;
+  const choosingSide: TeamSide = isTeamBTurn ? "B" : "A";
+  const availableMapTypes = draftState.availableMapTypes || draftState.allowedMapTypes || [];
+  const mapCounts = draftState.availableMapTypeCounts || {};
+  const canChoose = isCaptain && isMyTurn && !actionLoading;
+  const gameNumber = (draftState.match.gameNumber || 0) + 1;
+
+  // Held between the click and the next poll so the board reacts immediately:
+  // the chosen plate stays lit while the rest fall away.
+  const [chosen, setChosen] = useState<MapType | null>(null);
+
+  const handleSelect = (mapType: MapType) => {
+    setChosen(mapType);
+    onPickMapType(mapType);
+  };
+
+  return (
+    <DraftStage
+      broadcast={isObsKeyAccess}
+      left={
+        <TeamRail
+          team={teamA}
+          side="A"
+          isTurn={isTeamATurn}
+          status={isTeamATurn ? "Choosing" : undefined}
+        />
+      }
+      right={
+        <TeamRail
+          team={teamB}
+          side="B"
+          isTurn={isTeamBTurn}
+          status={isTeamBTurn ? "Choosing" : undefined}
+        />
+      }
+    >
+      <div className={waitingStyles.checkIn}>
+        <header className={stageStyles.phaseHead}>
+          <span className={stageStyles.phaseEyebrow}>Game {gameNumber} · Map type</span>
+          <h2 className={stageStyles.phaseTitle}>
+            {(currentTeam?.name || "The previous game's loser") + " picks the mode"}
+          </h2>
+          <p className={stageStyles.phaseNote}>
+            From game two onward the losing team sets the mode, then picks a map inside it.
+          </p>
+        </header>
+
+        {availableMapTypes.length > 0 ? (
+          <div className={stageStyles.plateRow}>
+            {availableMapTypes.map((mapType) => (
+              <MapTypePlate
+                key={mapType}
+                mapType={mapType}
+                mapCount={mapCounts[mapType] ?? 0}
+                side={choosingSide}
+                selectable={canChoose && !chosen}
+                chosen={chosen === mapType}
+                dismissed={Boolean(chosen) && chosen !== mapType}
+                onSelect={handleSelect}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="max-w-xl border-l-2 border-warning bg-warning/10 px-4 py-3 text-sm text-warning">
+            No eligible map types have an unused map in this match pool. Ask a manager to review the pool
+            configuration.
+          </div>
+        )}
+
+        <p className={stageStyles.phaseNote} aria-live="polite">
+          {isCaptain
+            ? isMyTurn
+              ? "Pick a mode to reveal its maps."
+              : "Waiting for " + (currentTeam?.name || "the other captain") + "."
+            : "Waiting for " + (currentTeam?.name || "the active captain") + " to choose the mode."}
+        </p>
+      </div>
+    </DraftStage>
+  );
+}
 // ==================== MAP PICKING PHASE ====================
 
 function MapPickingPhase({
@@ -1824,7 +1912,6 @@ function MapPickingPhase({
   isMyTurn,
   draftState,
   teams,
-  myTeamId,
   onPickMap,
   onStartBan,
   isMapPicked,
@@ -1836,7 +1923,6 @@ function MapPickingPhase({
   isMyTurn: boolean;
   draftState: DraftState;
   teams: Team[];
-  myTeamId?: number | null;
   onPickMap: (mapId: number) => void;
   onStartBan: () => void;
   isMapPicked: (mapId: number) => boolean;
@@ -1851,206 +1937,141 @@ function MapPickingPhase({
   const isTeamATurn = draftState.currentTurnTeamId === teamA?.id;
   const isTeamBTurn = draftState.currentTurnTeamId === teamB?.id;
   const isMapLocked = Boolean(currentMap);
+  const selectedMapType = draftState.selectedMapType;
+  const gameNumber = (draftState.match.gameNumber || 0) + 1;
 
   return (
-    <div className={clsx("flex flex-col", isMapLocked ? "min-h-[60vh]" : "min-h-[80vh]")}>
-      {/* Three Column Layout - Team A | Map Selection | Team B */}
-      <div
-        className={clsx(
-          "flex-1 grid",
-          isObsKeyAccess
-            ? "grid-cols-[220px_minmax(0,1fr)_220px] xl:grid-cols-[260px_minmax(0,1fr)_260px] gap-6"
-            : "grid-cols-[140px_1fr_140px] xl:grid-cols-[160px_1fr_160px] gap-4",
-          // When in OBS manager-key mode, vertically center team blocks so
-          // logos and player names align with the map area.
-          isObsKeyAccess ? "items-center" : isMapLocked ? "items-center" : "items-start"
-        )}
-      >
-        {/* Left - Team A: big logo on top, rectangle (name) below */}
-        <div className="flex flex-col gap-4">
-          <div className={clsx(
-            "w-full aspect-square rounded-full overflow-hidden border-2 transition-all bg-surface-elevated",
-            isTeamATurn
-              ? "border-[color:var(--color-team-a)] animate-turn-glow-teal"
-              : "border-[color:var(--color-team-a)]/40"
-          )}>
-            {teamA?.logo ? (
-              <img src={resolveGenericBackendAsset(teamA.logo)} alt={teamA.name} className="w-full h-full rounded-full object-cover" />
-            ) : (
-              <div className="w-full h-full bg-[color:var(--color-team-a)]/20 flex items-center justify-center">
-                <span className={clsx("font-black text-[color:var(--color-team-a)]", isObsKeyAccess ? "text-6xl" : "text-5xl")}>
-                  {teamA?.name?.charAt(0) || "A"}
-                </span>
-              </div>
-            )}
-          </div>
-          <div className={clsx(
-            "rounded-lg p-3 transition-all flex flex-col items-center gap-2 border",
-            isTeamATurn
-              ? "bg-[color:var(--color-team-a)]/20 border-[color:var(--color-team-a)] animate-turn-glow-teal"
-              : "bg-surface-elevated/50 border-border"
-          )}>
-            <span className={clsx("font-bold text-foreground text-center leading-tight uppercase tracking-wide break-words", isObsKeyAccess ? "text-lg" : "text-base")}>
-              {teamA?.name}
-            </span>
-            {isTeamATurn && (
-              <Badge variant="primary" className={clsx("px-2 animate-pulse", isObsKeyAccess ? "text-sm" : "text-[10px]")}>Picking</Badge>
-            )}
-          </div>
-        </div>
-
-        {/* Center - Map Selection */}
-        <div className="space-y-4">
-          {/* Selected Map Display - Central */}
-          {currentMap ? (
-            <div className="flex flex-col items-center">
-              <div className={clsx("relative w-full rounded-xl overflow-hidden border-4 border-primary shadow-2xl shadow-primary/30", isObsKeyAccess ? "max-w-3xl" : "max-w-md")}>
-                <MapImage
-                  src={currentMap.imgPath ? resolveMapImageUrl(currentMap.imgPath) : null}
-                  alt={currentMap.description}
-                  fallbackInitial={currentMap.description.charAt(0)}
-                  className="w-full aspect-video"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
-                <div className="absolute bottom-0 left-0 right-0 p-4 text-center">
-                  <p className="text-2xl font-black text-white">{currentMap.description}</p>
-                  <Badge variant="primary" className="mt-2">{currentMap.type}</Badge>
-                </div>
-              </div>
-              {isManager && (
-                <Button size="lg" onClick={onStartBan} disabled={actionLoading} className="mt-4 px-8">
-                  Start Ban Phase
-                </Button>
+    <DraftStage
+      broadcast={isObsKeyAccess}
+      left={
+        <TeamRail
+          team={teamA}
+          side="A"
+          isTurn={isTeamATurn && !isMapLocked}
+          status={isTeamATurn && !isMapLocked ? "Picking" : undefined}
+        />
+      }
+      right={
+        <TeamRail
+          team={teamB}
+          side="B"
+          isTurn={isTeamBTurn && !isMapLocked}
+          status={isTeamBTurn && !isMapLocked ? "Picking" : undefined}
+        />
+      }
+    >
+      <div className={waitingStyles.checkIn}>
+        {isMapLocked && currentMap ? (
+          <>
+            <header className={stageStyles.phaseHead}>
+              <span className={stageStyles.phaseEyebrow}>Game {gameNumber} · Map locked</span>
+              <h2 className={stageStyles.phaseTitle}>{currentMap.description}</h2>
+            </header>
+            <div
+              className={clsx(
+                "relative w-full overflow-hidden border border-border",
+                isObsKeyAccess ? "max-w-3xl" : "max-w-xl"
               )}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center py-8">
-              <p className="text-lg text-muted uppercase tracking-widest mb-2">Awaiting Selection</p>
-              <p className="text-sm text-muted">Captain picks a map below</p>
-            </div>
-          )}
-
-          {/* Map Grid */}
-          {!currentMap && (
-            <Card variant="featured">
-              <CardHeader className={clsx("pb-2 pt-3", isObsKeyAccess && "pb-4")}>
-                <div className="flex items-center justify-between">
-                  <CardTitle className={clsx("text-base", isObsKeyAccess && "text-xl font-bold")}>Available Maps</CardTitle>
-                  {isCaptain && isMyTurn && (
-                    <Badge variant="success" className="animate-pulse-glow">Your Turn</Badge>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className={clsx("pb-4", isObsKeyAccess && "pb-6")}>
-                {isCaptain && !isMyTurn && (
-                  <div className={clsx("mb-3 p-2 rounded-lg bg-surface-elevated text-center", isObsKeyAccess && "mb-5 p-3")}>
-                    <p className={clsx("text-xs text-muted", isObsKeyAccess && "text-base")}>Waiting for {currentTeam?.name} to pick...</p>
-                  </div>
-                )}
-
-                <div className={clsx(
-                  "grid",
-                  isObsKeyAccess
-                    ? "grid-cols-3 gap-6"
-                    : "grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3"
-                )}>
-                  {availableMaps.map((map) => {
-                    const picked = isMapPicked(map.id);
-                    const isCurrentMap = map.id === draftState.currentMapId;
-                    const canSelect = isCaptain && isMyTurn && !picked;
-
-                    return (
-                      <button
-                        key={map.id}
-                        onClick={() => canSelect && onPickMap(map.id)}
-                        disabled={picked || !canSelect || actionLoading}
-                        className={clsx(
-                          "relative rounded-lg overflow-hidden border-2 transition-all",
-                          picked
-                            ? "border-border opacity-30 grayscale cursor-not-allowed"
-                            : isCurrentMap
-                            ? "border-primary ring-2 ring-primary/30 scale-105"
-                            : canSelect
-                            ? "border-border hover:border-primary cursor-pointer hover:scale-105"
-                            : "border-border cursor-default opacity-60"
-                        )}
-                      >
-                        <div className={clsx(
-                          "bg-surface-elevated",
-                          isObsKeyAccess ? "aspect-video" : "aspect-video"
-                        )}>
-                          {map.imgPath ? (
-                            <img
-                              src={resolveMapImageUrl(map.imgPath)}
-                              alt={map.description}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <span className={clsx("font-bold text-muted", isObsKeyAccess ? "text-4xl" : "text-sm")}>
-                                {map.description.charAt(0)}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        <div className={clsx("bg-background", isObsKeyAccess ? "p-4" : "p-2")}>
-                          <p className={clsx("font-medium text-foreground text-center", isObsKeyAccess ? "text-base" : "text-xs truncate")}>
-                            {map.description}
-                          </p>
-                        </div>
-                        {picked && (
-                          <div className="absolute inset-0 bg-background/70 flex items-center justify-center">
-                            <span className={clsx("text-muted font-semibold", isObsKeyAccess ? "text-base" : "text-[10px]")}>USED</span>
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-          {currentMap && !isManager && (
-            <div className="rounded-lg border border-border/50 bg-surface-elevated/50 p-3 text-center text-xs text-muted">
-              Map locked. Waiting for the manager to start the ban phase.
-            </div>
-          )}
-        </div>
-
-        {/* Right - Team B: big logo on top, rectangle (name) below */}
-        <div className="flex flex-col gap-4">
-          <div className={clsx(
-            "w-full aspect-square rounded-full overflow-hidden border-2 transition-all bg-surface-elevated",
-            isTeamBTurn
-              ? "border-[color:var(--color-team-b)] animate-turn-glow-cyan"
-              : "border-[color:var(--color-team-b)]/40"
-          )}>
-            {teamB?.logo ? (
-              <img src={resolveGenericBackendAsset(teamB.logo)} alt={teamB.name} className="w-full h-full rounded-full object-cover" />
-            ) : (
-              <div className="w-full h-full bg-[color:var(--color-team-b)]/20 flex items-center justify-center">
-                <span className={clsx("font-black text-[color:var(--color-team-b)]", isObsKeyAccess ? "text-6xl" : "text-5xl")}>
-                  {teamB?.name?.charAt(0) || "B"}
-                </span>
+            >
+              <MapImage
+                src={currentMap.imgPath ? resolveMapImageUrl(currentMap.imgPath) : null}
+                alt={currentMap.description}
+                fallbackInitial={currentMap.description.charAt(0)}
+                className="aspect-video w-full"
+              />
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 flex items-center gap-3 p-4">
+                <MapTypeIcon mapType={currentMap.type} style={{ width: 32, height: 32 }} />
+                <span className={stageStyles.phaseTitle}>{currentMap.description}</span>
               </div>
+            </div>
+            {isManager ? (
+              <Button size="lg" onClick={onStartBan} disabled={actionLoading} className="px-8">
+                Start ban phase
+              </Button>
+            ) : (
+              <p className={stageStyles.phaseNote}>
+                Map locked. Waiting for the manager to start the ban phase.
+              </p>
             )}
-          </div>
-          <div className={clsx(
-            "rounded-lg p-3 transition-all flex flex-col items-center gap-2 border",
-            isTeamBTurn
-              ? "bg-[color:var(--color-team-b)]/20 border-[color:var(--color-team-b)] animate-turn-glow-cyan"
-              : "bg-surface-elevated/50 border-border"
-          )}>
-            <span className={clsx("font-bold text-foreground text-center leading-tight uppercase tracking-wide break-words", isObsKeyAccess ? "text-lg" : "text-base")}>
-              {teamB?.name}
-            </span>
-            {isTeamBTurn && (
-              <Badge variant="primary" className={clsx("px-2 animate-pulse", isObsKeyAccess ? "text-sm" : "text-[10px]")}>Picking</Badge>
-            )}
-          </div>
-        </div>
+          </>
+        ) : (
+          <>
+            <header className={stageStyles.phaseHead}>
+              <span className={stageStyles.phaseEyebrow}>
+                Game {gameNumber}
+                {selectedMapType ? " · " + MAP_TYPE_LABEL[selectedMapType] : ""}
+              </span>
+              <h2 className={stageStyles.phaseTitle}>
+                {(currentTeam?.name || "The active captain") + " picks the map"}
+              </h2>
+              {selectedMapType && (
+                <div className="flex items-center gap-2 pt-1">
+                  <MapTypeIcon mapType={selectedMapType} style={{ width: 28, height: 28 }} />
+                  <span className={stageStyles.plateMeta}>
+                    {availableMaps.length} {availableMaps.length === 1 ? "map" : "maps"} available
+                  </span>
+                </div>
+              )}
+            </header>
+
+            <div
+              className={clsx(
+                "grid w-full gap-3",
+                isObsKeyAccess
+                  ? "grid-cols-3 gap-6"
+                  : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+              )}
+            >
+              {availableMaps.map((map) => {
+                const picked = isMapPicked(map.id);
+                const canSelect = isCaptain && isMyTurn && !picked && !actionLoading;
+
+                return (
+                  <button
+                    key={map.id}
+                    type="button"
+                    onClick={() => canSelect && onPickMap(map.id)}
+                    disabled={!canSelect}
+                    className={clsx(
+                      "group relative overflow-hidden border transition-transform duration-200",
+                      picked
+                        ? "cursor-not-allowed border-border-subtle opacity-30 grayscale"
+                        : canSelect
+                        ? "cursor-pointer border-border hover:-translate-y-1 hover:border-accent"
+                        : "cursor-default border-border-subtle opacity-60"
+                    )}
+                  >
+                    <MapImage
+                      src={map.imgPath ? resolveMapImageUrl(map.imgPath) : null}
+                      alt={map.description}
+                      fallbackInitial={map.description.charAt(0)}
+                      className="aspect-video w-full"
+                    />
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent px-2 pb-1.5 pt-6">
+                      <p className={stageStyles.banSlotName}>{map.description}</p>
+                    </div>
+                    {picked && (
+                      <span className="absolute inset-0 grid place-items-center bg-background/70 font-mono text-[11px] uppercase tracking-widest text-muted">
+                        Played
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            <p className={stageStyles.phaseNote} aria-live="polite">
+              {isCaptain
+                ? isMyTurn
+                  ? "Pick the map your team wants to play."
+                  : "Waiting for " + (currentTeam?.name || "the other captain") + "."
+                : "Waiting for " + (currentTeam?.name || "the active captain") + " to pick the map."}
+            </p>
+          </>
+        )}
       </div>
-    </div>
+    </DraftStage>
   );
 }
 
@@ -2070,12 +2091,10 @@ function BanPhase({
   onBanHero,
   isHeroBanned,
   wasHeroBannedByMyTeamBefore,
-  wasHeroBannedInPreviousGames,
   getPreviousGameBanInfo,
   getHeroBanInfo,
   getBannedHeroesByTeam,
   getTeamTotalBans,
-  getBanCountByRole,
   canBanRole,
   banWarning,
   setBanWarning,
@@ -2095,12 +2114,10 @@ function BanPhase({
   onBanHero: (heroId: number | null) => void;
   isHeroBanned: (heroId: number) => boolean;
   wasHeroBannedByMyTeamBefore: (heroId: number) => boolean;
-  wasHeroBannedInPreviousGames: (heroId: number) => boolean;
   getPreviousGameBanInfo: (heroId: number) => { bannedByTeamA: boolean; bannedByTeamB: boolean; teamNames: string[] };
   getHeroBanInfo: (heroId: number) => { bannedByTeamA: boolean; bannedByTeamB: boolean };
   getBannedHeroesByTeam: (teamId: number) => (number | null)[];
   getTeamTotalBans: (teamId: number) => number;
-  getBanCountByRole: (teamId: number, role: "TANK" | "DPS" | "SUPPORT") => number;
   canBanRole: (role: "ALL" | "TANK" | "DPS" | "SUPPORT") => boolean;
   banWarning: string | null;
   setBanWarning: (warning: string | null) => void;
@@ -2120,11 +2137,11 @@ function BanPhase({
   const isTeamATurn = draftState.currentTurnTeamId === teamA?.id;
   const isTeamBTurn = draftState.currentTurnTeamId === teamB?.id;
 
-  // Group heroes by role
   const tankHeroes = heroes.filter((h) => h.role === "TANK");
   const dpsHeroes = heroes.filter((h) => h.role === "DPS");
   const supportHeroes = heroes.filter((h) => h.role === "SUPPORT");
   const showBanTeamMarkers = isManager || isObsKeyAccess;
+
   const heroRoleById = useMemo(() => {
     const byId: Record<number, "TANK" | "DPS" | "SUPPORT"> = {};
     for (const hero of heroes) {
@@ -2132,12 +2149,9 @@ function BanPhase({
     }
     return byId;
   }, [heroes]);
+
   const roleBanCounts = useMemo(() => {
-    const counts: Record<"TANK" | "DPS" | "SUPPORT", number> = {
-      TANK: 0,
-      DPS: 0,
-      SUPPORT: 0,
-    };
+    const counts: Record<"TANK" | "DPS" | "SUPPORT", number> = { TANK: 0, DPS: 0, SUPPORT: 0 };
     for (const action of draftState.actions || []) {
       if (action.action !== "BAN" || action.gameNumber !== currentGameNumber || action.value === null) continue;
       const role = heroRoleById[action.value];
@@ -2147,74 +2161,10 @@ function BanPhase({
     }
     return counts;
   }, [draftState.actions, currentGameNumber, heroRoleById]);
+
   const lockedRoles = (["TANK", "DPS", "SUPPORT"] as const).filter((role) => roleBanCounts[role] >= 2);
   const isRoleLocked = (role: "TANK" | "DPS" | "SUPPORT") => roleBanCounts[role] >= 2;
-  const getRoleLimitMessage = (role: "TANK" | "DPS" | "SUPPORT") => `NO MORE ${role} BANS!`;
-
-  const renderBannedHero = (heroId: number | null, index: number) => {
-    // If heroId is null, show "NO BAN" slot
-    if (heroId === null) {
-      return (
-        <div
-          key={`noban-${index}`}
-          className="w-12 h-12 rounded-lg bg-muted/20 border border-muted/50 flex items-center justify-center"
-        >
-          <span className="text-[8px] text-muted font-semibold uppercase">No Ban</span>
-        </div>
-      );
-    }
-    
-    const hero = getHeroById(heroId);
-    return (
-      <div
-        key={heroId}
-        className="w-12 h-12 rounded-lg bg-danger/20 border border-danger/50 flex flex-col items-center justify-center overflow-hidden"
-      >
-        {hero?.imgPath ? (
-          <>
-            <img src={resolveHeroImageUrl(hero.imgPath)} alt="" className="w-full h-8 object-cover grayscale" />
-            <span className="text-[7px] text-danger truncate w-full text-center px-0.5">
-              {hero.name}
-            </span>
-          </>
-        ) : (
-          <span className="text-xs text-danger font-bold">#{heroId}</span>
-        )}
-      </div>
-    );
-  };
-
-  // Handle hero click with role limit warning - blocks backend call entirely
-  const handleHeroClick = (hero: Hero) => {
-    // Check if hero is already banned by either team in current game
-    if (isHeroBanned(hero.id)) {
-      setBanWarning("This hero is already banned in this game.");
-      setTimeout(() => setBanWarning(null), 3000);
-      return;
-    }
-    
-    // Check if my team banned this hero in a previous game (visual feedback via red tones, but also block)
-    if (wasHeroBannedByMyTeamBefore(hero.id)) {
-      // Hero is shown in red, click is blocked by isDisabled, no alert needed
-      return;
-    }
-    
-    // Check if team already has 2 total bans
-    if (myTeamId && getTeamTotalBans(myTeamId) >= 2) {
-      setBanWarning("Your team has already completed both bans.");
-      setTimeout(() => setBanWarning(null), 3000);
-      return;
-    }
-    
-    // Check role-specific limit (max 2 per role counting both teams)
-    if (isRoleLocked(hero.role) || !canBanRole(hero.role)) {
-      setBanWarning(getRoleLimitMessage(hero.role));
-      setTimeout(() => setBanWarning(null), 3000);
-      return;
-    }
-    
-    onBanHero(hero.id);
-  };
+  const getRoleLimitMessage = (role: "TANK" | "DPS" | "SUPPORT") => "No more " + role + " bans this game";
 
   const [hoveredHero, setHoveredHero] = useState<number | null>(null);
   const [showRamattraOverlay, setShowRamattraOverlay] = useState(false);
@@ -2244,9 +2194,7 @@ function BanPhase({
       return;
     }
 
-    const newlyBanned = Array.from(currentBanned).filter(
-      (heroId) => !prevBannedRef.current.has(heroId)
-    );
+    const newlyBanned = Array.from(currentBanned).filter((heroId) => !prevBannedRef.current.has(heroId));
 
     if (newlyBanned.length) {
       const ramattraId = heroes.find(isRamattraHero)?.id;
@@ -2266,379 +2214,199 @@ function BanPhase({
     };
   }, []);
 
-  const renderHeroCard = (hero: Hero, canSelect: boolean, banned: boolean) => {
+  // Blocks the backend call and explains why, rather than letting the server
+  // reject a click the board should never have accepted.
+  const handleHeroClick = (hero: Hero) => {
+    if (isHeroBanned(hero.id)) {
+      setBanWarning("That hero is already banned this game.");
+      setTimeout(() => setBanWarning(null), 3000);
+      return;
+    }
+
+    if (wasHeroBannedByMyTeamBefore(hero.id)) {
+      return;
+    }
+
+    if (myTeamId && getTeamTotalBans(myTeamId) >= 2) {
+      setBanWarning("Your team has already used both bans.");
+      setTimeout(() => setBanWarning(null), 3000);
+      return;
+    }
+
+    if (isRoleLocked(hero.role) || !canBanRole(hero.role)) {
+      setBanWarning(getRoleLimitMessage(hero.role));
+      setTimeout(() => setBanWarning(null), 3000);
+      return;
+    }
+
+    onBanHero(hero.id);
+  };
+
+  const renderHeroTile = (hero: Hero) => {
+    const banned = isHeroBanned(hero.id);
     const roleAtLimit = isRoleLocked(hero.role);
     const teamDone = myTeamId ? getTeamTotalBans(myTeamId) >= 2 : false;
-    
-    // Check if hero was banned in previous games
     const prevBanInfo = getPreviousGameBanInfo(hero.id);
     const wasBannedBefore = prevBanInfo.bannedByTeamA || prevBanInfo.bannedByTeamB;
-    const prevBannedByBoth = prevBanInfo.bannedByTeamA && prevBanInfo.bannedByTeamB;
     const myTeamBannedBefore = wasHeroBannedByMyTeamBefore(hero.id);
-    
-    const prevBannedByTeamAOnly = prevBanInfo.bannedByTeamA && !prevBanInfo.bannedByTeamB;
-    const prevBannedByTeamBOnly = !prevBanInfo.bannedByTeamA && prevBanInfo.bannedByTeamB;
-    
-    // Disable if banned this game, OR if captain and their team banned it before
-    const isDisabled = banned || actionLoading || roleAtLimit || teamDone || (isCaptain && myTeamBannedBefore);
-    
-    // Handle click - show warning for role limit even if disabled
-    const handleCardClick = () => {
-      if (banned) return;
-      if (!isCaptain || !isMyTurn) return;
-      
-      // Show warning for role limit
+    const canSelect =
+      isCaptain && isMyTurn && !banned && !myTeamBannedBefore && !roleAtLimit && !teamDone && canBanRole(hero.role);
+
+    // The mark stays semantic red; team variables color the tile record around it.
+    const banInfo = banned ? getHeroBanInfo(hero.id) : null;
+    const strikeSide: TeamSide | null = banned ? (banInfo?.bannedByTeamB ? "B" : "A") : null;
+
+    let state: HeroTileState;
+    if (banned) {
+      state = "struck";
+    } else if (roleAtLimit) {
+      state = "locked";
+    } else if ((isCaptain && myTeamBannedBefore) || (showBanTeamMarkers && wasBannedBefore)) {
+      state = "spent";
+    } else if (canSelect) {
+      state = "selectable";
+    } else if (teamDone || (isCaptain && !isMyTurn)) {
+      state = "dimmed";
+    } else {
+      state = "idle";
+    }
+
+    const handleClick = () => {
+      if (!isCaptain || !isMyTurn || banned) return;
       if (roleAtLimit) {
         setBanWarning(getRoleLimitMessage(hero.role));
         setTimeout(() => setBanWarning(null), 3000);
         return;
       }
-      
-      // Otherwise use normal handler
-      if (!isDisabled) {
-        handleHeroClick(hero);
-      }
+      handleHeroClick(hero);
     };
 
-    const managerLabelTone = prevBannedByBoth
-      ? "text-foreground"
-      : prevBannedByTeamAOnly
-      ? "text-red-300"
-      : prevBannedByTeamBOnly
-      ? "text-blue-300"
-      : "text-muted";
-
-    // Manager-style (including manager-key): previous-game bans are shown "turned off" (full grayscale).
-    // The colored top stripe + tooltip still identify which team banned them.
-    const managerGrayFilter = !banned && !roleAtLimit && showBanTeamMarkers && wasBannedBefore
-      ? "grayscale(100%)"
-      : undefined;
-
-    const isRamattra = isRamattraHero(hero);
+    const marker =
+      !banned && showBanTeamMarkers && wasBannedBefore ? (
+        <span className="absolute left-1 top-1 z-20 flex items-center gap-1">
+          {prevBanInfo.bannedByTeamA && (
+            <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-team-a)]" />
+          )}
+          {prevBanInfo.bannedByTeamB && (
+            <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-team-b)]" />
+          )}
+        </span>
+      ) : banned && isRamattraHero(hero) && showRamattraOverlay ? (
+        <img
+          src="/NAOOORAMATTRA.gif"
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-20 h-full w-full object-cover opacity-85"
+        />
+      ) : null;
 
     return (
-      <div key={hero.id} className="relative">
-        <button
-          onClick={handleCardClick}
-          onMouseEnter={() => setHoveredHero(hero.id)}
-          onMouseLeave={() => setHoveredHero(null)}
-          className={clsx(
-            "relative rounded-xl overflow-hidden border-2 transition-all flex flex-col group w-full",
-            // Current game banned - GRAY tones
-            banned
-              ? "border-muted/50 cursor-not-allowed grayscale"
-              // Role locked (2 bans already reached for this role in this game)
-              : roleAtLimit
-              ? "border-muted/50 cursor-not-allowed grayscale"
-              // Previous game banned by my team (captain view) - RED tones
-              : isCaptain && myTeamBannedBefore
-              ? "border-danger/70 cursor-not-allowed"
-              // Previous game banned (manager view)
-              : showBanTeamMarkers && wasBannedBefore
-              ? "border-border/70 cursor-not-allowed"
-              : teamDone
-              ? "border-border cursor-not-allowed opacity-40"
-              : canSelect
-              ? "border-border hover:border-danger hover:ring-2 hover:ring-danger/30 cursor-pointer hover:scale-110 hover:z-10"
-              // Manager: available heroes stay fully lit. Captain (not their turn): keep dimmed.
-              : clsx("border-border cursor-default", !isManager && !isObsKeyAccess && "opacity-60")
-          )}
-        >
-          {!banned && showBanTeamMarkers && wasBannedBefore && (
-            <div className="absolute top-1 left-1 z-20 flex items-center gap-1 rounded-full border border-border/70 bg-surface/80 px-1.5 py-1">
-              {prevBannedByTeamAOnly && <span className="h-2 w-2 rounded-full bg-red-500" />}
-              {prevBannedByTeamBOnly && <span className="h-2 w-2 rounded-full bg-blue-500" />}
-              {prevBannedByBoth && (
-                <>
-                  <span className="h-2 w-2 rounded-full bg-red-500" />
-                  <span className="h-2 w-2 rounded-full bg-blue-500" />
-                </>
-              )}
-            </div>
-          )}
-          <div className="aspect-square bg-surface w-full relative">
-            {hero.imgPath ? (
-              <img
-                src={resolveHeroImageUrl(hero.imgPath)}
-                alt={hero.name}
-                className={clsx(
-                  "w-full h-full object-cover", 
-                  // Current game banned - grayscale
-                  banned && "grayscale opacity-50",
-                  // Role-locked heroes - grayscale for all viewers
-                  !banned && roleAtLimit && "grayscale opacity-45",
-                  // Previous game banned by my team (captain) - red tint
-                  !banned && !roleAtLimit && isCaptain && myTeamBannedBefore && "opacity-60",
-                  // Manager-style: previously-banned heroes look "turned off"
-                  !banned && !roleAtLimit && showBanTeamMarkers && wasBannedBefore && "opacity-40",
-                  canSelect && "group-hover:brightness-110"
-                )}
-                style={managerGrayFilter ? { filter: managerGrayFilter } : undefined}
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-surface-elevated">
-                <span className="text-sm font-bold text-muted">
-                  {hero.role.charAt(0)}{hero.id}
-                </span>
-              </div>
-            )}
-            {/* Red overlay for captain - previous game ban by their team */}
-            {!banned && !roleAtLimit && isCaptain && myTeamBannedBefore && (
-              <div className="absolute inset-0 bg-danger/30" />
-            )}
-          </div>
-          <div className={clsx(
-            "px-1 py-0.5 text-center",
-            !banned && (wasBannedBefore || roleAtLimit) ? "bg-surface-elevated" : "bg-background"
-          )}>
-            <span className={clsx(
-              "text-[10px] truncate block font-semibold leading-tight",
-              roleAtLimit ? "text-muted" : !banned && wasBannedBefore ? managerLabelTone : "text-foreground"
-            )}>
-              {hero.name}
-            </span>
-          </div>
-          {/* Current game banned overlay - GRAY */}
-          {banned && (
-            <div className="absolute inset-0 z-10 bg-black/60 flex items-center justify-center">
-              <span className="text-white font-semibold text-[10px] uppercase">Banned</span>
-            </div>
-          )}
-          {banned && isRamattra && showRamattraOverlay && (
-            <img
-              src="/NAOOORAMATTRA.gif"
-              alt=""
-              aria-hidden="true"
-              className="absolute inset-0 z-20 w-full h-full object-cover opacity-85 pointer-events-none"
-            />
-          )}
-          {/* Previous game banned overlay for captain - diagonal red lines (ban indicator) */}
-          {!banned && !roleAtLimit && isCaptain && myTeamBannedBefore && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="relative w-full h-full flex items-center justify-center">
-                <svg className="absolute w-6 h-6 text-danger" fill="currentColor" viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.8" />
-                  <path d="M8 8l8 8M16 8l-8 8" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-                </svg>
-              </div>
-            </div>
-          )}
-        </button>
-        {/* Tooltip for manager showing which team banned */}
-        {showBanTeamMarkers && wasBannedBefore && !banned && hoveredHero === hero.id && (
-          <div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-surface-elevated border border-border rounded text-[10px] whitespace-nowrap shadow-lg">
-            <span className={clsx("font-medium", managerLabelTone)}>Banned by: </span>
-            <span className="text-foreground">{prevBanInfo.teamNames.join(" & ")}</span>
-            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-surface-elevated" />
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderHeroSection = (title: string, heroList: Hero[], roleColor: string) => (
-    <div className="mb-1.5">
-      <div className="flex items-center gap-2 mb-1 border-b border-border pb-0.5">
-        <div className={clsx("w-1 h-3 rounded-full", roleColor)} />
-        <h4 className={clsx("font-bold text-foreground uppercase tracking-wider", isObsKeyAccess ? "text-xs" : "text-[10px]")}>{title}</h4>
-        <div className="flex-1 h-px bg-border" />
-        <span className={clsx("text-muted", isObsKeyAccess ? "text-xs" : "text-[10px]")}>{heroList.length}</span>
-      </div>
-      <div className={clsx(
-        "grid gap-1.5",
-        isObsKeyAccess
-          ? "grid-cols-5 sm:grid-cols-5 md:grid-cols-5 lg:grid-cols-5 xl:grid-cols-10 2xl:grid-cols-12"
-          : "grid-cols-7 sm:grid-cols-9 md:grid-cols-10 lg:grid-cols-12 xl:grid-cols-14 2xl:grid-cols-16"
-      )}>
-        {heroList.map((hero) => {
-          const banned = isHeroBanned(hero.id);
-          const myTeamBannedBefore = wasHeroBannedByMyTeamBefore(hero.id);
-          const canSelect = isCaptain && isMyTurn && !banned && !myTeamBannedBefore && canBanRole(hero.role);
-          return renderHeroCard(hero, canSelect, banned);
-        })}
-      </div>
-    </div>
-  );
-
-  // Render compact ban slot (square)
-  const renderBanSlot = (heroId: number | null, index: number, teamColor: "LEFT" | "RIGHT") => {
-    const slotSizeClass = isObsKeyAccess ? "w-32 h-36" : "w-24 h-28";
-    const colorClasses =
-      teamColor === "LEFT"
-        ? {
-            border: "border-red-500/70",
-            bg: "bg-red-500/10",
-            text: "text-red-300",
-            slotBg: "bg-red-500/10",
-          }
-        : {
-            border: "border-blue-500/70",
-            bg: "bg-blue-500/10",
-            text: "text-blue-300",
-            slotBg: "bg-blue-500/10",
-          };
-
-    if (heroId === null) {
-      return (
-        <div
-          key={`noban-${index}`}
-          className={clsx(
-            "rounded-xl border-2 flex items-center justify-center",
-            slotSizeClass,
-            colorClasses.border,
-            colorClasses.slotBg
-          )}
-        >
-          <span className={clsx(isObsKeyAccess ? "text-sm" : "text-[11px]", "font-bold uppercase", colorClasses.text)}>Skip</span>
-        </div>
-      );
-    }
-    
-    const hero = getHeroById(heroId);
-    return (
-      <div
-        key={heroId}
-        className={clsx("rounded-xl overflow-hidden border-2", slotSizeClass, colorClasses.border, colorClasses.bg)}
+      <BanTile
+        key={hero.id}
+        hero={hero}
+        state={state}
+        strikeSide={strikeSide}
+        marker={marker}
+        onClick={handleClick}
+        onMouseEnter={() => setHoveredHero(hero.id)}
+        onMouseLeave={() => setHoveredHero(null)}
       >
-        {hero?.imgPath ? (
-          <>
-            <img
-              src={resolveHeroImageUrl(hero.imgPath)}
-              alt={hero.name}
-              className={clsx("w-full object-contain grayscale", isObsKeyAccess ? "h-24" : "h-20")}
-            />
-            <div className={clsx("px-1 bg-background/80", isObsKeyAccess ? "py-2" : "py-1.5")}>
-              <p className={clsx(isObsKeyAccess ? "text-sm" : "text-[11px]", "font-semibold text-center truncate", colorClasses.text)}>
-                {hero.name}
-              </p>
-            </div>
-          </>
-        ) : (
-          <div className={clsx("w-full flex items-center justify-center", isObsKeyAccess ? "h-28" : "h-24")}>
-            <span className={clsx(isObsKeyAccess ? "text-base" : "text-sm", "font-bold", colorClasses.text)}>#{heroId}</span>
+        {showBanTeamMarkers && wasBannedBefore && !banned && hoveredHero === hero.id && (
+          <div className="absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-nowrap border border-border bg-surface-elevated px-2 py-1 text-[11px] shadow-lg">
+            <span className="text-muted">Banned by </span>
+            <span className="text-foreground">{prevBanInfo.teamNames.join(" & ")}</span>
           </div>
         )}
-      </div>
+      </BanTile>
     );
   };
 
-  // Render empty ban slot (square)
-  const renderEmptySlot = (slotNum: number) => (
-    <div
-      className={clsx(
-        "rounded-xl border-2 border-dashed border-border flex items-center justify-center bg-surface-elevated/30",
-        isObsKeyAccess ? "w-32 h-36" : "w-24 h-28"
-      )}
-    >
-      <span className={clsx(isObsKeyAccess ? "text-base" : "text-sm", "text-muted")}>{slotNum}</span>
+  const gridColumns = isObsKeyAccess
+    ? "grid-cols-5 xl:grid-cols-10 2xl:grid-cols-12"
+    : "grid-cols-7 sm:grid-cols-9 md:grid-cols-10 lg:grid-cols-12 xl:grid-cols-14 2xl:grid-cols-16";
+
+  const renderHeroSection = (title: string, heroList: Hero[], roleTone: string) => (
+    <div className="mb-2">
+      <div className={stageStyles.roleHead}>
+        <span className={clsx("h-2.5 w-1 rounded-full", roleTone)} />
+        <h4 className={stageStyles.phaseEyebrow}>{title}</h4>
+      </div>
+      <div className={clsx("grid gap-1.5", gridColumns)}>{heroList.map(renderHeroTile)}</div>
     </div>
   );
+
+  const renderRailSlots = (bans: (number | null)[], side: TeamSide, teamId?: number) => {
+    if (!teamId) return null;
+    const slots = [];
+    for (let index = 0; index < 2; index += 1) {
+      if (index < bans.length) {
+        const heroId = bans[index];
+        slots.push(
+          <BanSlot
+            key={`${teamId}-${index}-${heroId ?? "skip"}`}
+            hero={heroId === null ? null : getHeroById(heroId)}
+            heroId={heroId}
+            side={side}
+            index={index}
+            teamId={teamId}
+          />
+        );
+      } else {
+        slots.push(<EmptyBanSlot key={`${teamId}-empty-${index}`} slotNumber={index + 1} teamId={teamId} />);
+      }
+    }
+    return slots;
+  };
 
   return (
-    <div className="min-h-[85vh] flex flex-col">
-      {/* Warning Toast */}
+    <div className={stageStyles.banPhase}>
       {banWarning && (
-        <div className={clsx(toastPositionClass, "top-20 left-1/2 -translate-x-1/2 z-50 animate-fade-in")}>
-          <div className="bg-danger text-danger-foreground px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <span className="text-sm font-medium">{banWarning}</span>
+        <div className={clsx(toastPositionClass, "left-1/2 top-20 z-50 -translate-x-1/2 animate-fade-in")}>
+          <div className="flex items-center gap-2 border-l-2 border-danger bg-surface-inset px-4 py-2.5 shadow-xl">
+            <span className="text-sm text-danger">{banWarning}</span>
           </div>
         </div>
       )}
 
-      {/* Playing on Map Header */}
-      <div className="text-center mb-4">
-        {currentMap && (
-          <div
-            className={clsx(
-              "inline-flex items-center gap-4 bg-gradient-to-r from-primary/10 to-accent/10 border-2 border-primary/50 rounded-lg shadow-lg shadow-primary/20",
-              isObsKeyAccess ? "px-8 py-4" : "px-6 py-3"
-            )}
+      <DraftStage
+        broadcast={isObsKeyAccess}
+        left={
+          <TeamRail
+            team={teamA}
+            side="A"
+            isTurn={isTeamATurn}
+            status={isTeamATurn ? "Banning" : `${getTeamTotalBans(teamA?.id ?? -1)} of 2 used`}
           >
-            <span className={clsx("text-primary uppercase tracking-widest font-bold", isObsKeyAccess ? "text-sm" : "text-xs")}>
-              Playing On
-            </span>
-            <span className={clsx("font-black text-foreground", isObsKeyAccess ? "text-3xl" : "text-2xl")}>
-              {currentMap.description}
-            </span>
-            <Badge variant="primary" className={clsx(isObsKeyAccess ? "text-sm px-4 py-1.5" : "px-3 py-1")}>
-              {currentMap.type}
-            </Badge>
-          </div>
-        )}
-      </div>
+            {renderRailSlots(teamABans, "A", teamA?.id)}
+          </TeamRail>
+        }
+        right={
+          <TeamRail
+            team={teamB}
+            side="B"
+            isTurn={isTeamBTurn}
+            status={isTeamBTurn ? "Banning" : `${getTeamTotalBans(teamB?.id ?? -1)} of 2 used`}
+          >
+            {renderRailSlots(teamBBans, "B", teamB?.id)}
+          </TeamRail>
+        }
+      >
+        <div className={stageStyles.banCenter}>
+          <header className={stageStyles.banHeader}>
+            <div className={stageStyles.banHeaderMap}>
+              {currentMap && <MapTypeIcon mapType={currentMap.type} style={{ width: 26, height: 26 }} />}
+              <h2 className={stageStyles.banHeaderTitle}>
+                {currentMap?.description || "Hero bans"}
+              </h2>
+              <span className={stageStyles.phaseEyebrow}>Game {currentGameNumber}</span>
+            </div>
 
-      {/* Full Width Layout - Team A Bans | Hero Grid | Team B Bans */}
-      <div className={clsx(
-        "flex-1 grid",
-        isObsKeyAccess
-          ? "grid-cols-[220px_minmax(0,1fr)_220px] xl:grid-cols-[260px_minmax(0,1fr)_260px] gap-6"
-          : "grid-cols-[140px_minmax(0,1fr)_140px] xl:grid-cols-[180px_minmax(0,1fr)_180px] gap-4"
-      )}>
-        {/* LEFT - Team A: big logo on top, rectangle with name + bans below */}
-        <div className="flex flex-col gap-4 h-fit">
-          <div className={clsx(
-            "w-full aspect-square rounded-full overflow-hidden border-2 transition-all bg-surface-elevated",
-            isTeamATurn
-              ? "border-red-500 animate-turn-glow-red"
-              : "border-red-500/50"
-          )}>
-            {teamA?.logo ? (
-              <img src={resolveGenericBackendAsset(teamA.logo)} alt={teamA.name} className="w-full h-full rounded-full object-cover" />
-            ) : (
-              <div className="w-full h-full bg-red-500/20 flex items-center justify-center">
-                <span className={clsx("font-black text-red-300", isObsKeyAccess ? "text-6xl" : "text-5xl")}>
-                  {teamA?.name?.charAt(0) || "A"}
+            <div className={stageStyles.banHeaderControls}>
+              {lockedRoles.map((role) => (
+                <span key={role} className={stageStyles.roleLockedChip}>
+                  {getRoleLimitMessage(role)}
                 </span>
-              </div>
-            )}
-          </div>
-          <div className={clsx(
-            "rounded-xl p-3 transition-all border flex flex-col items-center gap-3",
-            isTeamATurn
-              ? "bg-red-500/20 border-red-500 animate-turn-glow-red"
-              : "bg-red-500/10 border-red-500/40"
-          )}>
-            <div className="flex flex-col items-center gap-1">
-              <span className={clsx("font-bold text-red-200 text-center leading-tight uppercase tracking-wide break-words", isObsKeyAccess ? "text-lg" : "text-base")}>
-                {teamA?.name}
-              </span>
-              {isTeamATurn && (
-                <Badge variant="danger" className={clsx("px-2 animate-pulse", isObsKeyAccess ? "text-sm" : "text-[10px]")}>Banning</Badge>
-              )}
-            </div>
-            <div className="flex flex-col items-center gap-2 w-full">
-              {teamABans.length === 0 ? (
-                <>
-                  {renderEmptySlot(1)}
-                  {renderEmptySlot(2)}
-                </>
-              ) : (
-                <>
-                  {teamABans.map((heroId, idx) => renderBanSlot(heroId, idx, "LEFT"))}
-                  {teamABans.length < 2 && renderEmptySlot(teamABans.length + 1)}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* CENTER - Hero Grid (Full Width) */}
-        <div className="flex flex-col">
-          {/* Controls Bar */}
-          <div className="flex items-center justify-between mb-3 px-2">
-            <div className="flex items-center gap-2">
-              <span className={clsx("font-bold text-foreground uppercase tracking-wide", isObsKeyAccess ? "text-base" : "text-sm")}>
-                Hero Bans
-              </span>
-              {isCaptain && isMyTurn && myTeamId && getTeamTotalBans(myTeamId) < 2 && (
-                <Badge variant="warning" className={clsx("animate-pulse-glow", isObsKeyAccess ? "text-sm" : "text-xs")}>Your Turn</Badge>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              {/* Role Tabs */}
+              ))}
               {(["ALL", "TANK", "DPS", "SUPPORT"] as const).map((role) => (
                 <Button
                   key={role}
@@ -2646,7 +2414,7 @@ function BanPhase({
                   onClick={() => setSelectedRole(role)}
                   size="sm"
                   className={clsx(
-                    isObsKeyAccess ? "text-sm px-4" : "text-xs px-3",
+                    isObsKeyAccess ? "px-4 text-sm" : "px-3 text-xs",
                     role !== "ALL" && isRoleLocked(role) && "text-danger"
                   )}
                 >
@@ -2654,129 +2422,48 @@ function BanPhase({
                 </Button>
               ))}
             </div>
-          </div>
+          </header>
 
-          {/* Status Messages */}
-          {lockedRoles.length > 0 && (
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              {lockedRoles.map((role) => (
-                <div
-                  key={role}
-                  className="rounded-lg border border-danger/60 bg-danger/15 px-3 py-1.5"
-                >
-                  <p className={clsx("font-bold uppercase tracking-wide text-danger", isObsKeyAccess ? "text-sm" : "text-xs")}>
-                    {getRoleLimitMessage(role)}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {isCaptain && myTeamId && getTeamTotalBans(myTeamId) >= 2 && (
-            <div className="mb-3 p-2 rounded-lg bg-success/10 border border-success/30 text-center">
-              <p className={clsx("text-success font-semibold", isObsKeyAccess ? "text-sm" : "text-xs")}>
-                Your team has completed both bans
-              </p>
-            </div>
-          )}
-          
-          {isCaptain && !isMyTurn && myTeamId && getTeamTotalBans(myTeamId) < 2 && (
-            <div className="mb-3 p-2 rounded-lg bg-surface-elevated border border-border text-center">
-              <p className={clsx("text-muted", isObsKeyAccess ? "text-sm" : "text-xs")}>
-                Waiting for {currentTeam?.name} to ban...
-              </p>
-            </div>
-          )}
-
-          {/* Hero Grid - compact so every hero fits on screen */}
-          <div className="flex-1 min-h-0">
+          <div className="flex-1">
             {selectedRole === "ALL" ? (
-              <div className="space-y-2">
-                {renderHeroSection("Tank", tankHeroes, "bg-yellow-500")}
-                {renderHeroSection("DPS", dpsHeroes, "bg-red-500")}
-                {renderHeroSection("Support", supportHeroes, "bg-green-500")}
-              </div>
+              <>
+                {renderHeroSection("Tank", tankHeroes, "bg-warning")}
+                {renderHeroSection("DPS", dpsHeroes, "bg-[color:var(--color-team-b)]")}
+                {renderHeroSection("Support", supportHeroes, "bg-accent")}
+              </>
             ) : (
-              <div className={clsx(
-                "grid gap-1.5",
-                isObsKeyAccess
-                  ? "grid-cols-6 sm:grid-cols-7 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 2xl:grid-cols-14"
-                  : "grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 xl:grid-cols-14 2xl:grid-cols-16"
-              )}>
-                {heroes.filter((h) => h.role === selectedRole).map((hero) => {
-                  const banned = isHeroBanned(hero.id);
-                  const myTeamBannedBefore = wasHeroBannedByMyTeamBefore(hero.id);
-                  const canSelect = isCaptain && isMyTurn && !banned && !myTeamBannedBefore && canBanRole(hero.role);
-                  return renderHeroCard(hero, canSelect, banned);
-                })}
+              <div className={clsx("grid gap-1.5", gridColumns)}>
+                {heroes.filter((h) => h.role === selectedRole).map(renderHeroTile)}
               </div>
             )}
           </div>
 
-          {/* Skip Ban Button */}
-          {isCaptain && isMyTurn && myTeamId && getTeamTotalBans(myTeamId) < 2 && (
-            <div className="mt-3 text-center">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onBanHero(null)}
-                disabled={actionLoading}
-                className={clsx("text-muted hover:text-foreground", isObsKeyAccess ? "text-sm" : "text-xs")}
-              >
-                Skip Ban
-              </Button>
-            </div>
-          )}
-        </div>
-
-        {/* RIGHT - Team B: big logo on top, rectangle with name + bans below */}
-        <div className="flex flex-col gap-4 h-fit">
-          <div className={clsx(
-            "w-full aspect-square rounded-full overflow-hidden border-2 transition-all bg-surface-elevated",
-            isTeamBTurn
-              ? "border-blue-500 animate-turn-glow-blue"
-              : "border-blue-500/50"
-          )}>
-            {teamB?.logo ? (
-              <img src={resolveGenericBackendAsset(teamB.logo)} alt={teamB.name} className="w-full h-full rounded-full object-cover" />
-            ) : (
-              <div className="w-full h-full bg-blue-500/20 flex items-center justify-center">
-                <span className={clsx("font-black text-blue-300", isObsKeyAccess ? "text-6xl" : "text-5xl")}>
-                  {teamB?.name?.charAt(0) || "B"}
-                </span>
-              </div>
+          <div className="mt-3 flex min-h-9 items-center justify-center gap-4" aria-live="polite">
+            {isCaptain && isMyTurn && myTeamId && getTeamTotalBans(myTeamId) < 2 && (
+              <>
+                <span className={stageStyles.phaseNote}>Pick a hero to ban.</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onBanHero(null)}
+                  disabled={actionLoading}
+                  className="text-muted hover:text-foreground"
+                >
+                  Skip ban
+                </Button>
+              </>
             )}
-          </div>
-          <div className={clsx(
-            "rounded-xl p-3 transition-all border flex flex-col items-center gap-3",
-            isTeamBTurn
-              ? "bg-blue-500/20 border-blue-500 animate-turn-glow-blue"
-              : "bg-blue-500/10 border-blue-500/40"
-          )}>
-            <div className="flex flex-col items-center gap-1">
-              <span className={clsx("font-bold text-blue-200 text-center leading-tight uppercase tracking-wide break-words", isObsKeyAccess ? "text-lg" : "text-base")}>
-                {teamB?.name}
+            {isCaptain && !isMyTurn && myTeamId && getTeamTotalBans(myTeamId) < 2 && (
+              <span className={stageStyles.phaseNote}>
+                Waiting for {currentTeam?.name || "the other captain"} to ban.
               </span>
-              {isTeamBTurn && (
-                <Badge variant="danger" className={clsx("px-2 animate-pulse", isObsKeyAccess ? "text-sm" : "text-[10px]")}>Banning</Badge>
-              )}
-            </div>
-            <div className="flex flex-col items-center gap-2 w-full">
-              {teamBBans.length === 0 ? (
-                <>
-                  {renderEmptySlot(1)}
-                  {renderEmptySlot(2)}
-                </>
-              ) : (
-                <>
-                  {teamBBans.map((heroId, idx) => renderBanSlot(heroId, idx, "RIGHT"))}
-                  {teamBBans.length < 2 && renderEmptySlot(teamBBans.length + 1)}
-                </>
-              )}
-            </div>
+            )}
+            {isCaptain && myTeamId && getTeamTotalBans(myTeamId) >= 2 && (
+              <span className={stageStyles.phaseNote}>Your team has used both bans.</span>
+            )}
           </div>
         </div>
-      </div>
+      </DraftStage>
     </div>
   );
 }

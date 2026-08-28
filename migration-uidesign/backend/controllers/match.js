@@ -472,7 +472,7 @@ const managerTogglePause = async (req, res) => {
           const draft = await prisma.draftTable.findUnique({
             where: { matchId },
           });
-          if (draft && draft.phaseStartedAt && ["MAPPICKING", "BAN"].includes(draft.phase)) {
+          if (draft && draft.phaseStartedAt && ["MAPTYPEPICKING", "MAPPICKING", "BAN"].includes(draft.phase)) {
             await prisma.draftTable.update({
               where: { id: draft.id },
               data: {

@@ -1,0 +1,1577 @@
+/* Overtime Productions landing — Nocturne-derived system retuned to the
+   league green. Scoped under .landing so tokens never leak into the app. */
+
+/* Los tokens de marca, en su propia clase. El header ya no vive solo dentro de
+   .landing —es el header de todo el sitio— y necesita estos valores sin heredar
+   el fondo ni la altura del contenedor. `composes` los mantiene en un solo sitio:
+   duplicarlos garantizaba que acabaran divergiendo. */
+.otpSurface {
+  --bg: #101715;
+  --surface: #1a2220;
+  --text: #e7ece9;
+  --accent: #34c77b;
+  /* RETIRADO. Era un tercer acento sin trabajo asignado: sobre el tablero verde
+     leía como color entreverado. Queda apuntando al acento para no romper los
+     dos sitios que lo llaman; recuperarlo es cambiar este único valor. */
+  --accent-2: var(--accent);
+  --divider: color-mix(in srgb, #e7ece9 16%, transparent);
+  --accent-300: #9ce7bf;
+  --accent-400: #5fd79a;
+  --accent-600: #1f9d5a;
+  --accent-700: #197a47;
+  --neutral-100: #f2f5f3;
+  --neutral-700: #4e5b55;
+  /* Tinta de papel, cálida. Antes era #232b28 (fría) y convivía con la cálida
+     #2a221a de la sección del Discord: el mismo .lightH2 se pintaba de dos
+     colores según dónde cayera. Un solo valor lo resuelve en todas partes. */
+  --neutral-900: #2a221a;
+  /* Canto duro, como el draft table: es lo que hace que esto se lea como equipo
+     de broadcast y no como app de consumo. Antes 4px y 8px convivían con el 2px
+     del arte nuevo — cuatro esquinas distintas en la misma pantalla. */
+  --radius-sm: 2px;
+  --radius-md: 2px;
+  --font-display: var(--font-otp-display), "League Gothic", "Arial Narrow", sans-serif;
+  --font-heading: var(--font-otp-heading), "Chakra Petch", system-ui, sans-serif;
+  --font-body: var(--font-otp-body), "Barlow", system-ui, sans-serif;
+}
+
+.landing {
+  composes: otpSurface;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  min-height: 100vh;
+}
+
+.landing a {
+  color: var(--accent);
+}
+
+.landing :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---------- header ---------- */
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--divider);
+}
+
+.headerInner {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 12px 28px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--text);
+  margin-right: auto;
+}
+
+.brandMark {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  font-family: var(--font-heading);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+}
+
+.brandWord {
+  font-family: var(--font-display);
+  font-size: 23px;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.brandWord b {
+  font-weight: 400;
+}
+
+.brandWord span {
+  font-weight: 400;
+  opacity: 0.55;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.navLink {
+  font-family: var(--font-heading);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text);
+  opacity: 0.7;
+  text-decoration: none;
+  transition: opacity 0.18s ease, color 0.18s ease;
+}
+
+.navLink:hover {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  text-decoration: none;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  padding: 8px 14px;
+  white-space: nowrap;
+  flex: none;
+  transition: background 0.18s ease;
+}
+
+.btn svg {
+  display: block;
+}
+
+.btnPrimary {
+  composes: btn;
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.btnPrimary:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.btnSecondary {
+  composes: btn;
+  border-color: var(--divider);
+}
+
+.btnSecondary:hover {
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+}
+
+.accountZone {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  padding-left: 14px;
+  border-left: 1px solid var(--divider);
+}
+
+.accountPlaceholder {
+  width: 34px;
+  height: 34px;
+}
+
+.iconButton {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: color-mix(in srgb, var(--text) 72%, transparent);
+  text-decoration: none;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.iconButton:hover {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+}
+
+.loginLink {
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text);
+  opacity: 0.75;
+  text-decoration: none;
+  margin-right: 4px;
+  transition: opacity 0.18s ease, color 0.18s ease;
+}
+
+.loginLink:hover {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.profileWrap {
+  position: relative;
+}
+
+.avatarButton {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 3px 10px 3px 4px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  color: var(--text);
+  font-family: var(--font-heading);
+  font-size: 13px;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.avatarButton:hover,
+.avatarButtonOpen {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.avatarImg,
+.avatarFallback {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.caret {
+  transition: transform 0.18s ease;
+}
+
+.caretOpen {
+  transform: rotate(180deg);
+}
+
+.profileMenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 230px;
+  padding: 6px;
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 1px var(--neutral-700), 0 14px 34px rgba(0, 0, 0, 0.6);
+  display: none;
+  flex-direction: column;
+}
+
+.profileMenuOpen {
+  display: flex;
+}
+
+.menuHeader {
+  padding: 10px 12px 12px;
+  border-bottom: 1px solid var(--divider);
+  margin-bottom: 6px;
+}
+
+.menuName {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.roleChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 7px;
+}
+
+.roleChip {
+  font-family: var(--font-heading);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+}
+
+.menuItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 9px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.menuItem:hover {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+
+.menuItemDanger:hover {
+  background: color-mix(in srgb, #d94a59 16%, transparent);
+  color: #f08a94;
+}
+
+.mobileToggle {
+  display: none;
+  margin-left: 4px;
+}
+
+.mobileNav {
+  display: none;
+}
+
+/* ---------- hero ---------- */
+
+.hero {
+  position: relative;
+  overflow: hidden;
+}
+
+.heroInner {
+  position: relative;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 88px 28px 72px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 40px 48px;
+}
+
+.heroCopy {
+  flex: 2 1 380px;
+  min-width: 0;
+}
+
+.heroRule {
+  width: 2px;
+  height: 46px;
+  background: var(--accent);
+  margin-bottom: 20px;
+}
+
+.eyebrow {
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 20px;
+}
+
+.h1 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(52px, 6.4vw, 132px);
+  line-height: 0.86;
+  letter-spacing: 0.005em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.heroSub {
+  max-width: 50ch;
+  font-size: 17px;
+  line-height: 1.55;
+  color: color-mix(in srgb, var(--text) 78%, transparent);
+  margin: 26px 0 0;
+  text-wrap: pretty;
+}
+
+.heroCtas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 18px;
+  margin-top: 34px;
+}
+
+.heroCtas .btn {
+  font-size: 14px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 14px 26px;
+}
+
+.hammondWrap {
+  flex: 1 1 320px;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+}
+
+.hammond {
+  width: min(596px, 100%);
+  height: auto;
+  object-fit: contain;
+}
+
+/* ---------- announcement ---------- */
+
+.announceSection {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 80px 28px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.announceCard {
+  display: grid;
+  grid-template-columns: 3px minmax(0, 1fr);
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 1px #2b352f;
+  overflow: hidden;
+  min-height: 200px;
+}
+
+.announceEdge {
+  background: var(--accent);
+}
+
+.announceBody {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+}
+
+.announceLabelRow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.liveDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: otp-dot 2.4s ease-in-out infinite;
+}
+
+.announceLabel {
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.announceMain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px 32px;
+  flex: 1;
+}
+
+.announceHeadline {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(30px, 3vw, 44px);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1;
+  margin: 0 0 10px;
+}
+
+.announceText {
+  margin: 0;
+  max-width: 62ch;
+  font-size: 16px;
+  line-height: 1.55;
+  color: color-mix(in srgb, var(--text) 78%, transparent);
+  text-wrap: pretty;
+}
+
+.announceEyebrowFallback {
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 50%, transparent);
+  margin: 0 0 8px;
+}
+
+.announceActions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: none;
+}
+
+.countdown {
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent-2);
+}
+
+.closedNotice {
+  font-family: var(--font-heading);
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 50%, transparent);
+}
+
+.placeholderBox {
+  flex: 1;
+  min-height: 420px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 12px;
+  border: 1px dashed color-mix(in srgb, var(--text) 22%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--text) 3%, transparent);
+  padding: 24px;
+  text-align: center;
+}
+
+.placeholderText {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 34px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 38%, transparent);
+}
+
+.placeholderHint {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 30%, transparent);
+}
+
+/* ---------- shared light section ---------- */
+
+.lightSection {
+  background: var(--neutral-100);
+  color: var(--neutral-900);
+}
+
+.lightEyebrow {
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent-700);
+  margin: 0 0 18px;
+}
+
+.lightH2 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(44px, 5.8vw, 82px);
+  line-height: 0.9;
+  letter-spacing: 0.005em;
+  text-transform: uppercase;
+  margin: 0 0 22px;
+  color: var(--neutral-900);
+}
+
+.lightParagraph {
+  font-size: 17px;
+  line-height: 1.6;
+  margin: 0 0 14px;
+  color: color-mix(in srgb, var(--neutral-900) 82%, transparent);
+  max-width: 54ch;
+  text-wrap: pretty;
+}
+
+/* ---------- GGL section ---------- */
+
+.gglSection {
+  composes: lightSection;
+  margin-top: 96px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  overflow: clip;
+}
+
+.gglCopy {
+  flex: 1 1 340px;
+  min-width: 0;
+  padding: 96px 48px 96px max(28px, calc((100% - 1440px) / 2 + 28px));
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.twitchLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-700);
+  text-decoration: none;
+}
+
+.twitchLink:hover {
+  color: var(--accent-600);
+}
+
+.gglImageWrap {
+  flex: 1 1 360px;
+  min-width: 0;
+  min-height: clamp(420px, 38.9vw, 560px);
+  align-self: stretch;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gglImage {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+  display: block;
+}
+
+@media (min-width: 1101px) {
+  .gglCopy {
+    flex-grow: 0.85;
+  }
+
+  .gglImageWrap {
+    flex-grow: 1.35;
+    position: relative;
+    justify-content: flex-end;
+  }
+
+  .gglImage {
+    flex: none;
+    position: absolute;
+    inset-block: 0;
+    right: clamp(-144px, -8.9vw, -96px);
+    width: auto;
+    max-width: none;
+  }
+}
+
+/* ---------- game nights ---------- */
+
+.gamesSection {
+  background: var(--bg);
+  overflow: clip;
+}
+
+.gamesInner {
+  --games-image-overlap: clamp(48px, 5.6vw, 80px);
+  display: flex;
+  flex-wrap: wrap-reverse;
+  align-items: stretch;
+}
+
+.gamesImageWrap {
+  flex: 1 1 360px;
+  min-width: 0;
+  min-height: clamp(420px, 38.9vw, 560px);
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gamesCopy {
+  flex: 1 1 340px;
+  min-width: 0;
+  padding: 80px max(28px, calc((100% - 1440px) / 2 + 28px)) 80px calc(var(--games-image-overlap) + 16px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.gamesImage {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 1672 / 941;
+  object-fit: cover;
+  display: block;
+}
+
+.gamesCopy .heroSub {
+  max-width: 54ch;
+}
+
+@media (min-width: 1101px) {
+  .gamesImageWrap {
+    flex-grow: 1.35;
+    position: relative;
+    justify-content: flex-start;
+  }
+
+  .gamesCopy {
+    flex-grow: 0.85;
+  }
+
+  .gamesImage {
+    flex: none;
+    position: absolute;
+    inset-block: 0;
+    right: calc(0px - var(--games-image-overlap));
+    width: auto;
+    max-width: none;
+  }
+}
+
+.amberEyebrow {
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent-2);
+  margin: 0 0 18px;
+}
+
+.gamesH2 {
+  composes: lightH2;
+  color: var(--text);
+}
+
+.discordLead {
+  margin-bottom: 30px;
+}
+
+/* ---------- Discord section ---------- */
+
+.discordSection {
+  composes: lightSection;
+}
+
+.discordInner {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 104px 28px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 56px;
+  align-items: center;
+}
+
+.discordCopy {
+  flex: 1 1 380px;
+  min-width: 0;
+}
+
+.discordJoin {
+  composes: btn;
+  font-size: 14px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 14px 26px;
+  color: var(--accent-700);
+  border-color: var(--accent-600);
+  white-space: nowrap;
+  flex: none;
+}
+
+.discordJoin:hover {
+  background: color-mix(in srgb, var(--accent-600) 12%, transparent);
+}
+
+.recruitsPanel {
+  flex: 1 1 380px;
+  min-width: 0;
+}
+
+.recruitsHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.recruitsLabel {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--neutral-900) 55%, transparent);
+}
+
+.recruitsCount {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent-700);
+}
+
+.recruitsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.recruitCard {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 12px;
+  border-radius: var(--radius-md);
+  background: #ffffff;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--neutral-900) 9%, transparent);
+  min-width: 0;
+  transition: box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.recruitCard:hover {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-700) 34%, transparent);
+  transform: translateY(-1px);
+}
+
+.recruitInitial {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent-700) 14%, transparent);
+  color: var(--accent-700);
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.recruitAvatar {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  flex: none;
+}
+
+.recruitName {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--neutral-900);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* ---------- footer ---------- */
+
+.footer {
+  background: var(--bg);
+  border-top: 1px solid var(--divider);
+}
+
+.footerTop {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 68px 28px 26px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 40px 48px;
+}
+
+.footerBrand {
+  flex: 2 1 280px;
+  max-width: 400px;
+}
+
+.footerBrandRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.footerTagline {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: color-mix(in srgb, var(--text) 58%, transparent);
+}
+
+.footerColumn {
+  flex: 1 1 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.footerHeading {
+  margin: 0 0 3px;
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 44%, transparent);
+}
+
+.footerLink {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14px;
+  color: var(--text);
+  opacity: 0.7;
+  text-decoration: none;
+  transition: opacity 0.18s ease, color 0.18s ease;
+}
+
+.footerLink:hover {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.footerBottom {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 28px 40px;
+}
+
+.footerDivider {
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--divider) 48px, var(--divider) calc(100% - 48px), transparent);
+  margin-bottom: 22px;
+}
+
+.footerCopyright {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 42%, transparent);
+}
+
+/* ---------- responsive ---------- */
+
+@media (max-width: 1100px) {
+  .heroInner {
+    padding-top: 64px;
+  }
+
+  .gglImageWrap {
+    min-height: 420px;
+  }
+
+  .gamesImageWrap {
+    min-height: 420px;
+  }
+}
+
+@media (max-width: 900px) {
+  .nav,
+  .actions {
+    display: none;
+  }
+
+  .mobileToggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 14px;
+    border: 1px solid var(--divider);
+    border-radius: var(--radius-md);
+    background: transparent;
+    cursor: pointer;
+    color: var(--text);
+    font-family: var(--font-heading);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .mobileNavOpen {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 28px 22px;
+    border-top: 1px solid var(--divider);
+  }
+
+  .mobileNavLink {
+    padding: 11px 0;
+    font-family: var(--font-heading);
+    font-size: 14px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text);
+    opacity: 0.8;
+    text-decoration: none;
+    border-bottom: 1px solid color-mix(in srgb, var(--text) 8%, transparent);
+  }
+
+  .mobileNavButtons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding-top: 16px;
+  }
+
+  .accountZone {
+    margin-left: auto;
+    padding-left: 0;
+    border-left: none;
+  }
+
+  .hammondWrap {
+    order: -1;
+  }
+
+  .hammond {
+    width: min(420px, 86%);
+  }
+
+  .gglCopy {
+    padding: 64px 28px;
+  }
+
+  .gglImageWrap {
+    min-height: 320px;
+  }
+
+  .gamesImageWrap,
+  .gamesCopy {
+    flex-basis: 100%;
+  }
+
+  .gamesImageWrap {
+    min-height: 320px;
+    overflow: hidden;
+  }
+
+  .gamesCopy {
+    padding: 64px 28px;
+  }
+
+  .discordInner {
+    padding: 72px 28px;
+    gap: 40px;
+  }
+}
+
+@media (max-width: 640px) {
+  .headerInner {
+    padding: 10px 18px;
+  }
+
+  .brandWord {
+    font-size: 19px;
+  }
+
+  .heroInner {
+    padding: 52px 18px 48px;
+  }
+
+  .announceSection {
+    padding: 56px 18px 0;
+  }
+
+  .placeholderBox {
+    min-height: 260px;
+  }
+
+  .placeholderText {
+    font-size: 24px;
+  }
+
+  .gglCopy {
+    padding: 52px 18px;
+  }
+
+  .gamesCopy {
+    padding: 52px 18px;
+  }
+
+  .discordInner {
+    padding: 56px 18px;
+  }
+
+  .footerTop {
+    padding: 52px 18px 20px;
+  }
+
+  .footerBottom {
+    padding: 0 18px 32px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing *,
+  .landing *::before,
+  .landing *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+@keyframes otp-breathe {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+
+  50% {
+    opacity: 0.85;
+  }
+}
+
+@keyframes otp-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.3;
+    transform: scale(0.78);
+  }
+}
+
+
+/* ============================================================================
+   ATMÓSFERA — capa de fondo por sección
+   ----------------------------------------------------------------------------
+   Cada sección recibe una lámina (<Atmosphere>) posicionada en absoluto detrás
+   de su contenido. Como la lámina está posicionada y los hermanos no, pinta por
+   encima de ellos por defecto: por eso cada contenedor de contenido necesita su
+   propio position:relative + z-index:1. No es decorativo, sin eso el fondo tapa
+   el texto.
+
+   El ciclo va arena -> amanecer -> día -> noche -> hogar. Empieza y termina en
+   luz artificial; el medio es luz natural.
+   ============================================================================ */
+
+.landing {
+  --ground-arena: #050807;
+  --ground-dawn: #0a0f0d;
+  --ground-day: #eef1ec;
+  --ground-night: #05080c;
+  --ground-hearth: #f6efe2;
+  /* Tinta cálida, solo para la sección del Discord: es lo que la separa de GGL,
+     que usa la tinta fría de --neutral-900 sobre papel frío. */
+  --ink-hearth: #2a221a;
+  --ink-hearth-soft: #5a4c3d;
+}
+
+/* ---- 01 arena · hero ---- */
+.hero {
+  background: var(--ground-arena);
+}
+.heroInner {
+  z-index: 1;
+}
+
+/* ---- 02 amanecer · anuncios ----
+   La sección pasa a ser contenedor a sangre completa y el ancho máximo se muda
+   al envoltorio interior, para que la luz cruce todo el viewport. Los 96px que
+   antes ponía el margin-top de .gglSection ahora son el padding inferior de
+   ésta, así que el ritmo vertical no cambia. */
+.announceSection {
+  position: relative;
+  overflow: hidden;
+  max-width: none;
+  margin: 0;
+  padding: 80px 0 96px;
+  display: block;
+  background: var(--ground-dawn);
+}
+.announceInner {
+  position: relative;
+  z-index: 1;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ---- 03 día · Overtime GGL ---- */
+.gglSection {
+  position: relative;
+  margin-top: 0;
+  background: var(--ground-day);
+}
+.gglCopy,
+.gglImageWrap {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---- 04 noche · Game Night ---- */
+.gamesSection {
+  position: relative;
+  background: var(--ground-night);
+}
+.gamesInner {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---- 05 hogar · Discord ----
+   Clara como GGL pero cálida y cerrada donde aquella es fría y abierta. Antes
+   las dos compartían literalmente el mismo fondo. */
+.discordSection {
+  position: relative;
+  background: var(--ground-hearth);
+}
+.discordInner {
+  position: relative;
+  z-index: 1;
+}
+/* La sección del Discord ya no necesita tinta propia: --neutral-900 es cálida
+   para todas las superficies de papel. Una sola tinta, un solo sitio. */
+
+
+/* ============================================================================
+   ZONA DE MARCA — el tablero
+   ----------------------------------------------------------------------------
+   Header, hero+anuncios y footer comparten el mismo arte. Hero y anuncios van
+   sobre UN SOLO lienzo (.brandZone), así que entre ellos no hay costura que
+   arreglar: es una superficie continua. Header y footer llevan su propia
+   instancia porque el header es sticky y debe seguir pegado fuera de la zona.
+   ============================================================================ */
+
+.brandZone {
+  position: relative;
+  /* Contexto de apilamiento propio: los z-index de aquí no se filtran al resto. */
+  isolation: isolate;
+}
+
+/* El lienzo está posicionado y sus hermanos no, así que pintaría por encima.
+   Cada bloque de contenido tiene que subirse explícitamente. */
+.hero,
+.announceSection {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+}
+
+/* ---- header ---- */
+.header {
+  /* El header vive fuera de .landing desde que es el header de todo el sitio, y
+     con ello dejó de heredar la voz y el blanco de la marca: renderizaba en
+     Geist y en el blanco de la app. Se aplican aquí explícitamente. */
+  font-family: var(--font-body);
+  color: var(--text);
+  background: transparent;
+  backdrop-filter: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.headerInner {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---- anuncios: sin caja ----
+   La estructura se apoya en el lienzo. Lo que separa un anuncio del siguiente
+   es una regla de un píxel, no un contenedor. */
+.announceInner {
+  gap: 30px;
+}
+
+.announceCard {
+  display: block;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+  min-height: 0;
+}
+
+.announceBody {
+  padding: 0;
+  gap: 14px;
+}
+
+.announceCard + .announceCard {
+  padding-top: 30px;
+  border-top: 1px solid color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+/* Sin anuncios en antena: una línea tranquila, no una caja de 420px. */
+.announceIdle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 26px 0 4px;
+  font-family: var(--font-heading);
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 50%, transparent);
+}
+
+/* ---- últimos registrados ----
+   Fichas cuadradas, no píldoras: el tablero es de celdas y estas son celdas. */
+.joinedRail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 18px;
+  padding-top: 28px;
+  border-top: 1px solid color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.joinedLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.joinedList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.joinedChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 11px 5px 5px;
+  border-radius: 2px;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.joinedAvatar,
+.joinedInitial {
+  width: 22px;
+  height: 22px;
+  border-radius: 2px;
+  flex: none;
+}
+
+.joinedAvatar {
+  display: block;
+  object-fit: cover;
+}
+
+.joinedInitial {
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+  color: var(--text);
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.joinedName {
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.joinedCount {
+  margin-left: auto;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--text) 55%, transparent);
+}
+
+/* ---- footer ---- */
+.footer {
+  position: relative;
+  isolation: isolate;
+  background: transparent;
+  border-top: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.footerTop,
+.footerBottom {
+  position: relative;
+  z-index: 1;
+}
+
+
+/* ============================================================================
+   HERO — protagonismo del título
+   ----------------------------------------------------------------------------
+   El hero tenía un <div class="hammondWrap"> vacío con flex: 1 1 320px como
+   segundo hijo: reservaba un tercio de la fila para nada y empujaba el título
+   a dos tercios del ancho. Eliminado el hueco, la copia ocupa la fila entera y
+   el título puede crecer de verdad.
+   ============================================================================ */
+
+.heroInner {
+  padding: clamp(104px, 13vh, 168px) 28px clamp(88px, 11vh, 132px);
+  gap: 0;
+}
+
+.heroCopy {
+  flex: 1 1 100%;
+}
+
+/* NO añadir aquí un halo sobre .hero. El hero va en z-index 1, por encima del
+   lienzo del tablero, así que cualquier fondo que se le ponga se pinta ENCIMA de
+   los cuadrados y se los lava. La luz de esta zona sale del propio BrandField
+   (variante "zone"), que es donde se sube. */
+
+.heroRule {
+  height: 64px;
+  box-shadow: 0 0 18px -2px var(--accent);
+  transform-origin: top;
+  animation: otp-rule-grow 620ms var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)) backwards;
+}
+
+.eyebrow {
+  font-size: 13px;
+  letter-spacing: 0.26em;
+}
+
+.h1 {
+  /* De 132px de techo a 200px. El límite inferior sube también, porque en móvil
+     era donde peor se leía la jerarquía. */
+  font-size: clamp(64px, 11.2vw, 200px);
+  line-height: 0.8;
+  letter-spacing: -0.005em;
+}
+
+.heroSub {
+  max-width: 54ch;
+  font-size: clamp(17px, 1.5vw, 20px);
+  margin-top: 30px;
+}
+
+.heroCtas {
+  margin-top: 42px;
+}
+
+/* ---- entrada escalonada ----
+   Una sola idea repetida con retardo: subir y aparecer. `backwards` mantiene el
+   fotograma inicial durante el retardo; deliberadamente NO se usa `both`, que
+   dejaría el elemento clavado e invisible si la animación nunca llegara a correr.
+   El bloque global de prefers-reduced-motion ya las reduce a 1ms. */
+@keyframes otp-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes otp-rule-grow {
+  from {
+    opacity: 0;
+    transform: scaleY(0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.eyebrow,
+.h1,
+.heroSub,
+.heroCtas {
+  animation: otp-rise 620ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.eyebrow {
+  animation-delay: 90ms;
+}
+.h1 {
+  animation-delay: 170ms;
+}
+.heroSub {
+  animation-delay: 280ms;
+}
+.heroCtas {
+  animation-delay: 370ms;
+}

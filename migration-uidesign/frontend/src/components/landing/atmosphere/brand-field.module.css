@@ -1,0 +1,42 @@
+/* EL TABLERO — lienzo de marca.
+   Va detrás del header, de la zona hero+anuncios y del footer. Tres instancias
+   del mismo arte, que es lo que lo convierte en marca en vez de en decoración. */
+
+.field {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: #050806;
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Velo de legibilidad. El tablero es oscuro de por sí, así que aquí basta con
+   apagar los bordes en vez de tapar media lámina como hacía la atmósfera. */
+.veil {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 90% at 50% 46%, rgba(5, 8, 6, 0) 42%, rgba(5, 8, 6, 0.72) 100%),
+    linear-gradient(0deg, rgba(5, 8, 6, 0.86) 0%, rgba(5, 8, 6, 0) 26%);
+}
+
+/* El header es una banda estrecha: la viñeta radial no cabe y solo ensucia.
+   Se queda con un borde inferior de luz, que además marca la separación. */
+.field[data-variant="bar"] .veil {
+  background: linear-gradient(0deg, rgba(5, 8, 6, 0.55) 0%, rgba(5, 8, 6, 0.1) 100%);
+}
+
+/* El footer cierra la página, así que oscurece hacia abajo en vez de por los lados. */
+.field[data-variant="footer"] .veil {
+  background: linear-gradient(180deg, rgba(5, 8, 6, 0.7) 0%, rgba(5, 8, 6, 0.12) 34%, rgba(5, 8, 6, 0.55) 100%);
+}

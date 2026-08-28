@@ -167,7 +167,9 @@ export default function CaptainDashboardPage() {
 
         if (result.draft && prevDraft && prevDraft.phase !== result.draft.phase) {
           const isMyTurn = result.draft.currentTurnTeamId === user?.teamId;
-          if (result.draft.phase === "MAPPICKING" && isMyTurn) {
+          if (result.draft.phase === "MAPTYPEPICKING" && isMyTurn) {
+            sendNotification("Choose the Next Mode", "As the previous game loser, choose the next map type.");
+          } else if (result.draft.phase === "MAPPICKING" && isMyTurn) {
             sendNotification("Your Turn to Pick!", "It's your turn to pick a map.");
           } else if (result.draft.phase === "BAN" && isMyTurn) {
             sendNotification("Your Turn to Ban!", "It's your turn to ban a hero.");
