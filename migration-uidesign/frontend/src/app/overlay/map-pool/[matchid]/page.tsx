@@ -33,5 +33,5 @@ export default function MapPoolOverlayPage() {
     };
   }, []);
 
-  return <MapPoolOverlay matchId={matchId} variant="clean" />;
+  return <MapPoolOverlay matchId={matchId} variant="classic" />;
 }

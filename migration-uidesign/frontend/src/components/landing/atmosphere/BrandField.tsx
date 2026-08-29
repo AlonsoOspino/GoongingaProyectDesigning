@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import styles from "./brand-field.module.css";
 import { getGrainTile, makeNoise } from "./field";
 
@@ -21,7 +21,7 @@ import { getGrainTile, makeNoise } from "./field";
  *    es lo que convierte un tablero vivo en un salvapantallas.
  */
 
-export type BrandVariant = "zone" | "bar" | "footer";
+export type BrandVariant = "zone" | "bar" | "footer" | "section";
 
 interface Tuning {
   /** Lado mínimo de celda en px. Manda el grano de la rejilla. */
@@ -51,9 +51,13 @@ const TUNING: Record<BrandVariant, Tuning> = {
   bar: { minCell: 16, module: 4, splitChance: 0.74, litRatio: 0.17, hotRatio: 0.34, ambient: 0.035, grain: 0.05, maxDepth: 14, decay: 0.9 },
   // El footer cierra: más apagado que el hero para no competir con él.
   footer: { minCell: 26, module: 8, splitChance: 0.78, litRatio: 0.095, hotRatio: 0.24, ambient: 0.03, grain: 0.05, maxDepth: 14, decay: 0.91 },
+  // Las secciones del cuerpo. Celda mayor que el hero porque cubren mucho alto y
+  // el tablero no debe competir con el texto que va encima; el brillo real lo
+  // decide `intensity`, no la tabla.
+  section: { minCell: 38, module: 8, splitChance: 0.8, litRatio: 0.13, hotRatio: 0.28, ambient: 0.05, grain: 0.042, maxDepth: 14, decay: 0.92 },
 };
 
-const SEED: Record<BrandVariant, number> = { zone: 20260823, bar: 4711, footer: 90210 };
+const SEED: Record<BrandVariant, number> = { zone: 20260823, bar: 4711, footer: 90210, section: 51877 };
 
 interface Cell {
   x: number;
@@ -71,12 +75,29 @@ const GREEN = "52, 199, 123";
 
 interface Props {
   variant?: BrandVariant;
+  /* Cuánto pesa el tablero aquí. Multiplica el brillo de la rejilla, no la
+     opacidad CSS del elemento: bajando `opacity` se apagaría también el suelo y
+     la sección se volvería translúcida sobre lo que tenga detrás. */
+  intensity?: number;
+  /* El suelo negro. Sólo lo pinta quien es el fondo de su propia caja (hero,
+     footer, header). Las secciones del cuerpo comparten el suelo de la página,
+     así que pintan la rejilla sobre transparente. */
+  ground?: boolean;
+  /* Desplaza la semilla para que dos tableros contiguos no salgan calcados. */
+  seedOffset?: number;
   className?: string;
 }
 
-export default function BrandField({ variant = "zone", className }: Props) {
+export default function BrandField({
+  variant = "zone",
+  intensity = 1,
+  ground = true,
+  seedOffset = 0,
+  className,
+}: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const sweepDelay = -(((SEED[variant] + seedOffset) % 11000) / 1000);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -105,12 +126,12 @@ export default function BrandField({ variant = "zone", className }: Props) {
     /* --- construcción de la rejilla --- */
 
     const buildCells = () => {
-      let s = SEED[variant] >>> 0;
+      let s = (SEED[variant] + seedOffset) >>> 0;
       const rnd = () => {
         s = (s * 1664525 + 1013904223) >>> 0;
         return s / 4294967296;
       };
-      const noise = makeNoise(SEED[variant] ^ 0x5f3d);
+      const noise = makeNoise((SEED[variant] + seedOffset) ^ 0x5f3d);
       const snap = (v: number) => Math.round(v / tune.module) * tune.module;
       const out: Cell[] = [];
 
@@ -173,8 +194,10 @@ export default function BrandField({ variant = "zone", className }: Props) {
       ctx.clearRect(0, 0, width, height);
 
       // Suelo y lavado verde ambiental, deliberadamente descentrado.
-      ctx.fillStyle = "#050806";
-      ctx.fillRect(0, 0, width, height);
+      if (ground) {
+        ctx.fillStyle = "#050806";
+        ctx.fillRect(0, 0, width, height);
+      }
 
       if (ambientGrad) {
         ctx.fillStyle = ambientGrad;
@@ -183,7 +206,7 @@ export default function BrandField({ variant = "zone", className }: Props) {
 
       // Líneas de pelo. El medio píxel hace que caigan nítidas en vez de grises.
       ctx.lineWidth = 1;
-      ctx.strokeStyle = `rgba(${GREEN}, 0.055)`;
+      ctx.strokeStyle = `rgba(${GREEN}, ${(0.055 * intensity).toFixed(4)})`;
       ctx.beginPath();
       for (const c of cells) {
         ctx.rect(Math.round(c.x) + 0.5, Math.round(c.y) + 0.5, Math.round(c.w), Math.round(c.h));
@@ -193,7 +216,7 @@ export default function BrandField({ variant = "zone", className }: Props) {
       for (const c of cells) {
         if (c.level <= 0) continue;
         const breath = still ? 0.72 : 0.5 + 0.5 * Math.sin((now / c.period) * Math.PI * 2 + c.phase);
-        const a = c.level * (0.42 + breath * 0.58);
+        const a = c.level * (0.42 + breath * 0.58) * intensity;
 
         ctx.fillStyle = `rgba(${GREEN}, ${(a * 0.14).toFixed(4)})`;
         ctx.fillRect(c.x, c.y, c.w, c.h);
@@ -215,14 +238,14 @@ export default function BrandField({ variant = "zone", className }: Props) {
           ctx.fillStyle = halo;
           ctx.fillRect(px - s * 5, py - s * 5, s * 11, s * 11);
 
-          ctx.fillStyle = `rgba(190, 255, 220, ${(0.35 + a * 0.6).toFixed(4)})`;
+          ctx.fillStyle = `rgba(190, 255, 220, ${((0.35 + a * 0.6) * intensity).toFixed(4)})`;
           ctx.fillRect(px, py, s, s);
         }
       }
 
       if (tune.grain > 0 && grainPattern) {
         ctx.save();
-        ctx.globalAlpha = tune.grain;
+        ctx.globalAlpha = tune.grain * intensity;
         ctx.fillStyle = grainPattern;
         ctx.fillRect(0, 0, width, height);
         ctx.restore();
@@ -267,8 +290,8 @@ export default function BrandField({ variant = "zone", className }: Props) {
       const gx = width * 0.28;
       const gy = height * 0.34;
       ambientGrad = ctx.createRadialGradient(gx, gy, 0, gx, gy, Math.max(width, height) * 0.72);
-      ambientGrad.addColorStop(0, `rgba(${GREEN}, ${tune.ambient})`);
-      ambientGrad.addColorStop(0.55, `rgba(${GREEN}, ${tune.ambient * 0.35})`);
+      ambientGrad.addColorStop(0, `rgba(${GREEN}, ${tune.ambient * intensity})`);
+      ambientGrad.addColorStop(0.55, `rgba(${GREEN}, ${tune.ambient * 0.35 * intensity})`);
       ambientGrad.addColorStop(1, "rgba(0,0,0,0)");
       grainPattern = tune.grain > 0 ? ctx.createPattern(getGrainTile(), "repeat") : null;
 
@@ -319,11 +342,18 @@ export default function BrandField({ variant = "zone", className }: Props) {
       window.clearTimeout(resizeTimer);
       stopLoop();
     };
-  }, [variant]);
+  }, [variant, intensity, ground, seedOffset]);
 
   return (
-    <div ref={hostRef} className={`${styles.field} ${className ?? ""}`} data-variant={variant} aria-hidden="true">
+    <div
+      ref={hostRef}
+      className={`${styles.field} ${className ?? ""}`}
+      data-variant={variant}
+      style={{ "--sweep-delay": `${sweepDelay}s` } as CSSProperties}
+      aria-hidden="true"
+    >
       <canvas ref={canvasRef} className={styles.canvas} />
+      <div className={styles.sweep} />
       <div className={styles.veil} />
     </div>
   );

@@ -1,0 +1,257 @@
+/*
+ * Manager-side control for the map pool overlay.
+ *
+ * A miniature of the broadcast graphic rather than a list of buttons: the
+ * manager is picking a shot, so the control should look like the shot. It
+ * borrows the lean and the green from the overlay but stays at dashboard
+ * density — smaller type, real focus rings, nothing that glows for its own
+ * sake.
+ */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-accent) 20%, transparent);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.headText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+/* The radio icon only pulses while a write is in flight, so a steady icon
+   means the overlay and this panel agree. */
+.livePulse {
+  animation: map-pool-control-pulse 900ms ease-in-out infinite;
+}
+
+@keyframes map-pool-control-pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.headNote {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.headActions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.ghostButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.ghostButton:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  color: var(--color-text-primary);
+}
+
+.ghostButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.error {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid color-mix(in srgb, var(--color-danger) 45%, transparent);
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  color: var(--color-danger);
+  font-size: 0.78rem;
+}
+
+.empty {
+  font-size: 0.82rem;
+  color: var(--color-muted);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+  transition:
+    opacity var(--duration-base) var(--ease-out),
+    filter var(--duration-base) var(--ease-out);
+}
+
+.column[data-state="dim"] {
+  opacity: 0.5;
+  filter: grayscale(0.5);
+}
+
+.columnHeader {
+  --lean: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding: 0.3rem 0.75rem 0.32rem 0.85rem;
+  clip-path: polygon(var(--lean) 0, 100% 0, calc(100% - var(--lean)) 100%, 0 100%);
+  border: 0;
+  background: var(--color-surface-3);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition:
+    background var(--duration-base) var(--ease-out),
+    color var(--duration-base) var(--ease-out);
+}
+
+.columnHeader:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.column[data-state="active"] .columnHeader {
+  background: var(--color-accent);
+  color: var(--color-text-inverse);
+}
+
+.columnHeader:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.columnTitle {
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.columnCount {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.66rem;
+  opacity: 0.75;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.tile {
+  --lean: 12px;
+  position: relative;
+  height: 3.4rem;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: polygon(var(--lean) 0, 100% 0, calc(100% - var(--lean)) 100%, 0 100%);
+  background: var(--color-surface-2);
+  cursor: pointer;
+  transition: height var(--duration-base) var(--ease-out);
+}
+
+.tile:disabled {
+  cursor: not-allowed;
+}
+
+.tile[data-hero="true"] {
+  height: 5.2rem;
+}
+
+.tile:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.tileImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(0.75) brightness(0.6);
+  transition: filter var(--duration-base) var(--ease-out);
+}
+
+.tile:hover .tileImage,
+.column[data-state="active"] .tileImage {
+  filter: saturate(1) brightness(0.85);
+}
+
+.tile[data-hero="true"] .tileImage {
+  filter: saturate(1.1) brightness(1);
+}
+
+/* The hero tile carries the same green edge the overlay gives it, so the
+   panel and the broadcast never disagree about what is featured. */
+.tile[data-hero="true"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(var(--lean) 0, 100% 0, calc(100% - var(--lean)) 100%, 0 100%);
+  box-shadow: inset 0 0 0 3px var(--color-accent);
+  pointer-events: none;
+}
+
+.tileLabel {
+  position: absolute;
+  left: calc(var(--lean) + 0.3rem);
+  right: 0.3rem;
+  bottom: 0.25rem;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-primary);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}

@@ -1093,6 +1093,10 @@ module.exports = {
   getRoundKey,
   isBracketMatchType,
   determineFirstPicker,
+  // Exposed for the developer sandbox autopilot, which has to ask the same
+  // questions the map-type and map screens ask before it can answer them.
+  getAvailableMapTypes,
+  getAvailableMaps,
   __testables: {
     resolveActingTeamId,
     parseAllAllowedMapIds,

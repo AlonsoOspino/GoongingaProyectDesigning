@@ -1,0 +1,95 @@
+/*
+ * Shared overlay language for the broadcast graphics.
+ *
+ * The reference art the league works from is purple; OTP is green, so the
+ * palette is translated rather than copied. Everything below is tokens and
+ * keyframes only — no classes — so the two overlay CSS modules can share a
+ * vocabulary without either one owning the other's layout.
+ */
+
+:root {
+  /* Ground. Green-black rather than neutral black so the brand reads even in
+     the empty parts of the frame. */
+  --otp-void: #040805;
+  --otp-deep: #070c09;
+  --otp-panel: #0c1610;
+  --otp-panel-lift: #102c20;
+
+  /* Structure */
+  --otp-line: #1b3527;
+  --otp-line-bright: #2c5c42;
+  --otp-brand: #1d5a3e;
+  --otp-bright: #347a57;
+
+  /* Signal. The existing palette tops out at #347a57, which is too dark to
+     read as neon on stream, so the overlays add a brighter tier. This is the
+     only colour allowed to glow. */
+  --otp-neon: #3ee08a;
+  --otp-neon-hot: #7dffbe;
+  --otp-neon-soft: rgba(62, 224, 138, 0.35);
+
+  /* Type */
+  --otp-text: #e9f3ec;
+  --otp-text-dim: #86a292;
+  --otp-text-faint: #4d6659;
+
+  /* Teams, reused from the app palette so the overlay and the draft agree. */
+  --otp-team-a: #4f7da3;
+  --otp-team-a-bright: #6bb6f5;
+  --otp-team-b: #9d4c53;
+  --otp-team-b-bright: #f5717a;
+
+  /* The lean shared by every card and plate. Cards are clipped, not skewed,
+     so the map art inside stays upright. */
+  --otp-lean: 30px;
+  --otp-lean-sm: 14px;
+
+  /* The three OTP voices, declared once so both overlays speak the same way.
+     League Gothic shouts, JetBrains Mono informs. */
+  --otp-font-display: var(--font-otp-display), var(--font-accent), "Arial Narrow", ui-sans-serif, sans-serif;
+  --otp-font-hud: var(--font-mono), ui-monospace, monospace;
+  --otp-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --otp-ease-strike: cubic-bezier(0.2, 0.9, 0.1, 1);
+}
+
+@keyframes otp-hero-pulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 16px rgba(62, 224, 138, 0.5))
+      drop-shadow(0 0 44px rgba(62, 224, 138, 0.22));
+  }
+  50% {
+    filter: drop-shadow(0 0 26px rgba(62, 224, 138, 0.75))
+      drop-shadow(0 0 66px rgba(62, 224, 138, 0.34));
+  }
+}
+
+@keyframes otp-scan {
+  from {
+    transform: translateY(-110%);
+  }
+  to {
+    transform: translateY(110%);
+  }
+}
+
+@keyframes otp-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes otp-pip {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}

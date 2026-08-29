@@ -1,5 +1,5 @@
 import { apiRequest } from "@/lib/api/client";
-import type { Match } from "@/lib/api/types";
+import type { MapType, Match } from "@/lib/api/types";
 
 export async function getMatches(options: { cache?: RequestCache } = {}) {
   return apiRequest<Match[]>("/match", { cache: options.cache });
@@ -87,5 +87,22 @@ export async function managerClearPauseRequest(token: string, matchId: number) {
   return apiRequest<Match>(`/match/manager/${matchId}/clear-pause-request`, {
     method: "POST",
     token,
+  });
+}
+
+export interface OverlayFocusPayload {
+  focusType: MapType | null;
+  focusMapId?: number | null;
+}
+
+export async function managerSetOverlayFocus(
+  token: string,
+  matchId: number,
+  payload: OverlayFocusPayload
+) {
+  return apiRequest<Match>(`/match/manager/${matchId}/overlay`, {
+    method: "PATCH",
+    token,
+    body: payload,
   });
 }

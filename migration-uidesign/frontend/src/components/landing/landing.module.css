@@ -5,39 +5,16 @@
    .landing —es el header de todo el sitio— y necesita estos valores sin heredar
    el fondo ni la altura del contenedor. `composes` los mantiene en un solo sitio:
    duplicarlos garantizaba que acabaran divergiendo. */
+/* Los tokens ya no viven aqui: los sirve story.module.css, que es de donde
+   tambien beben Season 9 y GGL History. Esta clase se queda como el nombre por
+   el que SiteHeader y el resto de la landing los piden. */
 .otpSurface {
-  --bg: #101715;
-  --surface: #1a2220;
-  --text: #e7ece9;
-  --accent: #34c77b;
-  /* RETIRADO. Era un tercer acento sin trabajo asignado: sobre el tablero verde
-     leía como color entreverado. Queda apuntando al acento para no romper los
-     dos sitios que lo llaman; recuperarlo es cambiar este único valor. */
-  --accent-2: var(--accent);
-  --divider: color-mix(in srgb, #e7ece9 16%, transparent);
-  --accent-300: #9ce7bf;
-  --accent-400: #5fd79a;
-  --accent-600: #1f9d5a;
-  --accent-700: #197a47;
-  --neutral-100: #f2f5f3;
-  --neutral-700: #4e5b55;
-  /* Tinta de papel, cálida. Antes era #232b28 (fría) y convivía con la cálida
-     #2a221a de la sección del Discord: el mismo .lightH2 se pintaba de dos
-     colores según dónde cayera. Un solo valor lo resuelve en todas partes. */
-  --neutral-900: #2a221a;
-  /* Canto duro, como el draft table: es lo que hace que esto se lea como equipo
-     de broadcast y no como app de consumo. Antes 4px y 8px convivían con el 2px
-     del arte nuevo — cuatro esquinas distintas en la misma pantalla. */
-  --radius-sm: 2px;
-  --radius-md: 2px;
-  --font-display: var(--font-otp-display), "League Gothic", "Arial Narrow", sans-serif;
-  --font-heading: var(--font-otp-heading), "Chakra Petch", system-ui, sans-serif;
-  --font-body: var(--font-otp-body), "Barlow", system-ui, sans-serif;
+  composes: surface from "../story/story.module.css";
 }
 
 .landing {
   composes: otpSurface;
-  background: var(--bg);
+  background: #050806;
   color: var(--text);
   font-family: var(--font-body);
   min-height: 100vh;
@@ -380,7 +357,7 @@
   position: relative;
   max-width: 1440px;
   margin: 0 auto;
-  padding: 88px 28px 72px;
+  padding: 104px 28px 88px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -401,18 +378,18 @@
 
 .eyebrow {
   font-family: var(--font-heading);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--accent);
-  margin: 0 0 20px;
+  margin: 0 0 22px;
 }
 
 .h1 {
   font-family: var(--font-display);
   font-weight: 400;
-  font-size: clamp(52px, 6.4vw, 132px);
+  font-size: clamp(58px, 7.2vw, 152px);
   line-height: 0.86;
   letter-spacing: 0.005em;
   text-transform: uppercase;
@@ -421,7 +398,7 @@
 
 .heroSub {
   max-width: 50ch;
-  font-size: 17px;
+  font-size: 19px;
   line-height: 1.55;
   color: color-mix(in srgb, var(--text) 78%, transparent);
   margin: 26px 0 0;
@@ -607,37 +584,40 @@
 
 /* ---------- shared light section ---------- */
 
+/* Antes: papel crema con tinta oscura. Ahora no pinta fondo — deja ver el
+   tablero de la pagina — y la tinta se invierte. Este es el unico sitio donde
+   se decide: .gglSection y .discordSection lo componen, asi que giran con el. */
 .lightSection {
-  background: var(--neutral-100);
-  color: var(--neutral-900);
+  background: transparent;
+  color: var(--text);
 }
 
 .lightEyebrow {
   font-family: var(--font-heading);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--accent-700);
-  margin: 0 0 18px;
+  color: var(--accent);
+  margin: 0 0 20px;
 }
 
 .lightH2 {
   font-family: var(--font-display);
   font-weight: 400;
-  font-size: clamp(44px, 5.8vw, 82px);
+  font-size: clamp(50px, 6.6vw, 96px);
   line-height: 0.9;
   letter-spacing: 0.005em;
   text-transform: uppercase;
   margin: 0 0 22px;
-  color: var(--neutral-900);
+  color: var(--text);
 }
 
 .lightParagraph {
-  font-size: 17px;
+  font-size: 19px;
   line-height: 1.6;
-  margin: 0 0 14px;
-  color: color-mix(in srgb, var(--neutral-900) 82%, transparent);
+  margin: 0 0 16px;
+  color: color-mix(in srgb, var(--text) 76%, transparent);
   max-width: 54ch;
   text-wrap: pretty;
 }
@@ -646,6 +626,7 @@
 
 .gglSection {
   composes: lightSection;
+  composes: chapterSection from "../story/story.module.css";
   margin-top: 96px;
   display: flex;
   flex-wrap: wrap;
@@ -656,7 +637,7 @@
 .gglCopy {
   flex: 1 1 340px;
   min-width: 0;
-  padding: 96px 48px 96px max(28px, calc((100% - 1440px) / 2 + 28px));
+  padding: 116px 56px 116px max(28px, calc((100% - 1440px) / 2 + 28px));
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -671,31 +652,273 @@
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--accent-700);
+  color: var(--accent);
   text-decoration: none;
 }
 
 .twitchLink:hover {
-  color: var(--accent-600);
+  color: var(--accent-300);
 }
 
-.gglImageWrap {
+/* ---- Escenario de figura ----
+   Los dos PNG de la landing son recortes sin fondo. Hasta ahora se colocaban con
+   desplazamiento negativo sobre un contenedor con `overflow: clip`, asi que el
+   personaje terminaba en un canto recto: eso es lo que delataba el montaje.
+
+   Aqui no se recorta nada. La figura entra entera y se disuelve solo por los
+   lados donde su propio alfa llega al borde del archivo. Medido, no supuesto:
+
+     ggl-lineup    izquierda 13.8%   abajo 64.2%   (derecha y arriba limpios)
+     game-nights   izquierda 90.2%   abajo 72.4%   derecha 32.9%
+
+   Por eso la mascara es direccional y no un radial: un radial simetrico comeria
+   caras y torsos para arreglar un canto que solo esta en dos lados. */
+
+.figureStage {
   flex: 1 1 360px;
   min-width: 0;
-  min-height: clamp(420px, 38.9vw, 560px);
+  min-height: clamp(480px, 44vw, 660px);
   align-self: stretch;
+  position: relative;
+  display: grid;
+  grid-template-areas: "art" "card";
+  grid-template-rows: 1fr auto;
   background: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
-.gglImage {
+/* El halo. Elipses, nunca una caja: se apagan a `transparent` mucho antes del
+   borde del contenedor, asi que no hay un solo canto recto que descubrir. Va
+   detras de la figura y le devuelve el volumen que el recorte plano no tiene.
+   Estatico a proposito: el canvas de Atmosphere ya aporta el movimiento de
+   fondo, y una segunda capa a la deriva competiria con el. */
+/* La caja de la figura. Lleva la relacion de aspecto EXACTA del archivo para que
+   `contain` no deje bandas: si las dejara, las celdas dibujadas encima no
+   caerian sobre la imagen sino sobre el hueco, y el engranaje se rompe. */
+.gridFigure {
+  grid-area: art;
+  position: relative;
+  z-index: 1;
+  display: grid;
+  align-self: center;
+  width: 100%;
+  height: auto;
+  min-width: 0;
+  padding: 0 var(--figure-inset, 0) var(--figure-inset, 0);
+  isolation: isolate;
+  transform-origin: 50% 68%;
+  will-change: transform, filter;
+}
+
+.figureAura {
+  grid-area: 1 / 1;
+  align-self: end;
+  justify-self: center;
+  width: 82%;
+  height: 48%;
+  margin-bottom: 3%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, color-mix(in srgb, var(--accent) 15%, transparent), transparent 70%);
+  filter: blur(30px);
+  opacity: 0.7;
+  z-index: -1;
+}
+
+/* GridFigure deriva esta máscara del alfa real del PNG. Los recortes sólo
+   existen donde un píxel opaco toca físicamente el borde del archivo. */
+.figureImg {
+  grid-area: 1 / 1;
   width: 100%;
   height: 100%;
-  aspect-ratio: 16 / 9;
   object-fit: contain;
   display: block;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  filter: saturate(0.96) contrast(1.04) drop-shadow(0 30px 34px rgba(0, 0, 0, 0.42));
+  transform-origin: 50% 64%;
+  transition: transform 800ms cubic-bezier(0.16, 1, 0.3, 1), filter 800ms ease;
+}
+
+/* Las celdas que se dibujan ENCIMA de la imagen. Mismo verde y mismo pelo que el
+   tablero del fondo: si no coincidieran, se leerian como un marco decorativo en
+   vez de como la misma rejilla pasando por delante. */
+.figureCells {
+  grid-area: 1 / 1;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.figureCutCell {
+  fill: color-mix(in srgb, #050806 88%, var(--accent) 12%);
+  stroke: color-mix(in srgb, var(--accent) 50%, transparent);
+  stroke-width: 0.045;
+  vector-effect: non-scaling-stroke;
+}
+
+.figureContourCell {
+  fill: transparent;
+  stroke: color-mix(in srgb, var(--accent-300) 58%, transparent);
+  stroke-width: 0.055;
+  vector-effect: non-scaling-stroke;
+}
+
+.gridFigure:hover .figureImg {
+  transform: scale(1.018);
+  filter: saturate(1.04) contrast(1.05) drop-shadow(0 34px 42px rgba(0, 0, 0, 0.48));
+}
+
+/* La figura cede un punto de su caja para dejarle sitio al halo: si ocupa el
+   100% del contenedor, la disolucion no tiene donde ocurrir. */
+.gglStage {
+  --figure-inset: 6%;
+}
+
+.gglBox {
+  aspect-ratio: 16 / 9;
+}
+
+.gglFigure {
+  object-position: 50% 52%;
+}
+
+
+
+/* ---- Card de archivo ----
+   Oscura sobre la banda crema a proposito. La seccion habla de una liga con
+   produccion propia y hasta ahora lo demostraba con key art de Blizzard, que
+   podria tener cualquier fan site. Un resultado real con sus escudos reales es
+   lo unico que solo tenemos nosotros.
+
+   Los datos salen del archivo estatico de Season 8, no de la API: un marcador
+   de agosto sigue siendo cierto en enero, y asi la card no puede quedarse vacia
+   fuera de temporada como le paso al bloque de anuncios. */
+
+.gglCardSlot {
+  grid-area: card;
+  justify-self: center;
+  /* Los 28px son la calle de la landing: apilada bajo la figura, la card se
+     alinea con el resto de la columna en vez de quedarse mas ancha que el copy. */
+  width: min(344px, calc(100% - 56px));
+  margin-top: 20px;
+  z-index: 2;
+}
+
+.archiveCard {
+  background: var(--bg);
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, transparent);
+  border-radius: var(--radius-md);
+  padding: 16px 18px 14px;
+  box-shadow: 0 18px 40px color-mix(in srgb, var(--neutral-900) 22%, transparent);
+}
+
+.archiveHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--divider);
+}
+
+.archiveKicker {
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.archiveFormat {
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 52%, transparent);
+}
+
+.archiveSides {
+  list-style: none;
+  margin: 0;
+  padding: 10px 0 0;
+  display: grid;
+  gap: 2px;
+}
+
+.archiveSide {
+  /* El color del equipo, el mismo que lleva en GGL History. */
+  --team: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 10px 9px 8px;
+  /* El campeon se marca con forma ademas de color: una barra a la izquierda que
+     se lee sin distinguir el tono. */
+  border-left: 2px solid color-mix(in srgb, var(--team) 40%, transparent);
+}
+
+.archiveSideWon {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--team) 20%, transparent), transparent 78%);
+  border-left-color: var(--team);
+}
+
+.archiveLogo {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  object-fit: contain;
+}
+
+.archiveTeam {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--text);
+  margin-right: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.archiveScore {
+  font-family: var(--font-display);
+  font-size: 30px;
+  line-height: 0.8;
+  color: color-mix(in srgb, var(--text) 56%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+.archiveSideWon .archiveScore {
+  color: var(--team);
+}
+
+.archiveFoot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid var(--divider);
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: color-mix(in srgb, var(--text) 58%, transparent);
+}
+
+.archiveMvp b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.archiveDate {
+  white-space: nowrap;
 }
 
 @media (min-width: 1101px) {
@@ -703,85 +926,74 @@
     flex-grow: 0.85;
   }
 
-  .gglImageWrap {
+  .gglStage {
     flex-grow: 1.35;
-    position: relative;
-    justify-content: flex-end;
+    grid-template-areas: "art";
+    grid-template-rows: 1fr;
   }
 
-  .gglImage {
-    flex: none;
-    position: absolute;
-    inset-block: 0;
-    right: clamp(-144px, -8.9vw, -96px);
-    width: auto;
-    max-width: none;
+  /* En escritorio la card se solapa sobre la figura en vez de ir debajo: asi la
+     mitad derecha es una composicion y no dos cosas apiladas. */
+  .gglCardSlot {
+    grid-area: art;
+    align-self: end;
+    justify-self: start;
+    margin: 0 0 clamp(20px, 3.4vw, 48px) clamp(-28px, -1.6vw, 0px);
+    width: clamp(300px, 24vw, 344px);
   }
 }
 
 /* ---------- game nights ---------- */
 
 .gamesSection {
+  composes: chapterSection chapterSectionMirror from "../story/story.module.css";
   background: var(--bg);
   overflow: clip;
 }
 
 .gamesInner {
-  --games-image-overlap: clamp(48px, 5.6vw, 80px);
   display: flex;
   flex-wrap: wrap-reverse;
   align-items: stretch;
 }
 
-.gamesImageWrap {
-  flex: 1 1 360px;
-  min-width: 0;
-  min-height: clamp(420px, 38.9vw, 560px);
-  align-self: stretch;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .gamesCopy {
   flex: 1 1 340px;
   min-width: 0;
-  padding: 80px max(28px, calc((100% - 1440px) / 2 + 28px)) 80px calc(var(--games-image-overlap) + 16px);
+  padding: 100px max(28px, calc((100% - 1440px) / 2 + 28px)) 100px 56px;
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
 
-.gamesImage {
-  width: 100%;
-  height: 100%;
-  aspect-ratio: 1672 / 941;
-  object-fit: cover;
-  display: block;
+/* `cover` recortaba la figura ADEMAS del desplazamiento negativo: dos cortes
+   apilados sobre el mismo PNG. Ahora entra entera y se disuelve por los tres
+   lados donde su alfa toca el borde. */
+.gamesStage {
+  --figure-inset: 6%;
 }
+
+.gamesBox {
+  aspect-ratio: 1672 / 941;
+}
+
+.gamesFigure {
+  object-position: 50% 50%;
+}
+
+
 
 .gamesCopy .heroSub {
   max-width: 54ch;
 }
 
 @media (min-width: 1101px) {
-  .gamesImageWrap {
+  .gamesStage {
     flex-grow: 1.35;
-    position: relative;
-    justify-content: flex-start;
   }
 
   .gamesCopy {
     flex-grow: 0.85;
-  }
-
-  .gamesImage {
-    flex: none;
-    position: absolute;
-    inset-block: 0;
-    right: calc(0px - var(--games-image-overlap));
-    width: auto;
-    max-width: none;
   }
 }
 
@@ -808,12 +1020,13 @@
 
 .discordSection {
   composes: lightSection;
+  composes: chapterSection chapterSectionCenter from "../story/story.module.css";
 }
 
 .discordInner {
   max-width: 1440px;
   margin: 0 auto;
-  padding: 104px 28px;
+  padding: 124px 28px;
   display: flex;
   flex-wrap: wrap;
   gap: 56px;
@@ -831,7 +1044,7 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
   padding: 14px 26px;
-  color: var(--accent-700);
+  color: var(--accent);
   border-color: var(--accent-600);
   white-space: nowrap;
   flex: none;
@@ -1027,11 +1240,11 @@
     padding-top: 64px;
   }
 
-  .gglImageWrap {
+  .gglStage {
     min-height: 420px;
   }
 
-  .gamesImageWrap {
+  .gamesStage {
     min-height: 420px;
   }
 }
@@ -1104,18 +1317,17 @@
     padding: 64px 28px;
   }
 
-  .gglImageWrap {
+  .gglStage {
     min-height: 320px;
   }
 
-  .gamesImageWrap,
+  .gamesStage,
   .gamesCopy {
     flex-basis: 100%;
   }
 
-  .gamesImageWrap {
+  .gamesStage {
     min-height: 320px;
-    overflow: hidden;
   }
 
   .gamesCopy {
@@ -1155,6 +1367,11 @@
 
   .gglCopy {
     padding: 52px 18px;
+  }
+
+  /* Debajo de 640 la calle de la landing baja a 18px. La card la sigue. */
+  .gglCardSlot {
+    width: min(344px, calc(100% - 36px));
   }
 
   .gamesCopy {
@@ -1222,20 +1439,26 @@
    ============================================================================ */
 
 .landing {
-  --ground-arena: #050807;
-  --ground-dawn: #0a0f0d;
-  --ground-day: #eef1ec;
-  --ground-night: #05080c;
-  --ground-hearth: #f6efe2;
-  /* Tinta cálida, solo para la sección del Discord: es lo que la separa de GGL,
-     que usa la tinta fría de --neutral-900 sobre papel frío. */
-  --ink-hearth: #2a221a;
-  --ink-hearth-soft: #5a4c3d;
+  /* Un unico suelo para toda la pagina, el mismo que pinta el tablero. Antes
+     habia cinco (dos de ellos crema) y ese salto era lo que hacia que cada
+     bloque pareciera de una web distinta.
+
+     Lo que ahora distingue una seccion de otra no es el color de fondo: es
+     cuanto pesa el tablero dentro de ella (--field-rest) y el pulso de sus
+     cantos. */
+  --ground-base: #050806;
+
+  /* Cuanto se ve la rejilla en el cuerpo de cada seccion. El hero y el footer
+     van a tablero pleno; el cuerpo respira mas bajo y alterna: ligera, un punto
+     mas, ligera otra vez. */
+  --rest-ggl: 0.2;
+  --rest-games: 0.32;
+  --rest-discord: 0.2;
 }
 
 /* ---- 01 arena · hero ---- */
 .hero {
-  background: var(--ground-arena);
+  background: transparent;
 }
 .heroInner {
   z-index: 1;
@@ -1253,7 +1476,7 @@
   margin: 0;
   padding: 80px 0 96px;
   display: block;
-  background: var(--ground-dawn);
+  background: transparent;
 }
 .announceInner {
   position: relative;
@@ -1270,10 +1493,10 @@
 .gglSection {
   position: relative;
   margin-top: 0;
-  background: var(--ground-day);
+  background: transparent;
 }
 .gglCopy,
-.gglImageWrap {
+.gglStage {
   position: relative;
   z-index: 1;
 }
@@ -1281,7 +1504,7 @@
 /* ---- 04 noche · Game Night ---- */
 .gamesSection {
   position: relative;
-  background: var(--ground-night);
+  background: transparent;
 }
 .gamesInner {
   position: relative;
@@ -1293,7 +1516,7 @@
    las dos compartían literalmente el mismo fondo. */
 .discordSection {
   position: relative;
-  background: var(--ground-hearth);
+  background: transparent;
 }
 .discordInner {
   position: relative;
@@ -1574,4 +1797,377 @@
 }
 .heroCtas {
   animation-delay: 370ms;
+}
+
+
+/* ---- El tablero por seccion ----
+   Cada clase solo dice cuanto descansa la rejilla en su seccion. El pulso de los
+   cantos y la mecanica de la mascara viven en brand-field.module.css, para que
+   ajustar el ritmo de la pagina sea tocar estos tres numeros y nada mas. */
+.fieldGgl {
+  --field-rest: var(--rest-ggl);
+}
+
+.fieldGames {
+  --field-rest: var(--rest-games);
+}
+
+.fieldDiscord {
+  --field-rest: var(--rest-discord);
+}
+
+
+/* ============================================================================
+   SIGNAL EDIT — scroll, seams and interaction
+   ============================================================================ */
+
+.landing {
+  overflow-x: clip;
+  position: relative;
+}
+
+.landing ::selection {
+  color: #031009;
+  background: var(--accent-300);
+}
+
+.heroLine {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+.scrollCue {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: max-content;
+  margin-top: clamp(54px, 8vh, 88px);
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 42%, transparent);
+}
+
+.scrollCue i {
+  position: relative;
+  display: block;
+  width: 72px;
+  height: 1px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--text) 14%, transparent);
+}
+
+.scrollCue i::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  transform: translateX(-100%);
+  animation: scroll-cue 2.8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+.btn,
+.btnPrimary,
+.btnSecondary,
+.discordJoin {
+  position: relative;
+  overflow: hidden;
+  transform: translateY(0);
+  transition:
+    color 220ms ease,
+    border-color 220ms ease,
+    background 220ms ease,
+    transform 350ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 350ms ease;
+}
+
+.btnPrimary:hover,
+.discordJoin:hover {
+  color: #031009;
+  border-color: var(--accent-300);
+  background: var(--accent-300);
+  box-shadow: 0 12px 30px rgba(31, 157, 90, 0.2);
+  transform: translateY(-2px);
+}
+
+.btnPrimary:active,
+.discordJoin:active {
+  transform: translateY(0);
+}
+
+.inlineTitleMedia {
+  position: relative;
+  display: inline-block;
+  width: 0.82em;
+  height: 0.48em;
+  margin-inline: 0.12em;
+  vertical-align: 0.06em;
+  overflow: hidden;
+  border: 1px solid var(--edge-strong);
+  background: color-mix(in srgb, var(--accent) 8%, #050806);
+  transform-origin: left center;
+}
+
+.inlineTitleMedia img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: 48% 45%;
+  filter: saturate(0.78) contrast(1.18) brightness(0.82);
+  transform: scale(2.7);
+}
+
+.archiveCard {
+  position: relative;
+  border-color: var(--edge-strong);
+  box-shadow: none;
+  transition:
+    border-color 300ms ease,
+    transform 600ms cubic-bezier(0.16, 1, 0.3, 1),
+    background 300ms ease;
+}
+
+.archiveCard:hover {
+  border-color: var(--accent-300);
+  background: color-mix(in srgb, var(--bg) 94%, var(--accent) 6%);
+  transform: translateY(-4px);
+}
+
+.gglCardSlot::before {
+  content: "";
+  position: absolute;
+  left: -28px;
+  top: 28px;
+  width: 28px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent));
+}
+
+.joinedRail {
+  display: grid;
+  grid-template-columns: auto auto minmax(140px, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+}
+
+.joinedList {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 0;
+}
+
+.joinedChip {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 2px;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, #050806);
+  background: #0a120e;
+  overflow: hidden;
+  box-shadow: -6px 0 14px rgba(0, 0, 0, 0.28);
+}
+
+.joinedChip + .joinedChip {
+  margin-left: -7px;
+}
+
+.joinedAvatar,
+.joinedInitial {
+  width: 100%;
+  height: 100%;
+}
+
+.joinedSpotlight {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  font-family: var(--font-ui);
+}
+
+.joinedSpotlight strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.joinedSpotlight span {
+  color: color-mix(in srgb, var(--text) 46%, transparent);
+  font-size: 11px;
+}
+
+.joinedControls {
+  display: flex;
+  gap: 5px;
+}
+
+.joinedControl {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--edge-soft);
+  border-radius: 2px;
+  cursor: pointer;
+  transition:
+    color 200ms ease,
+    background 200ms ease,
+    border-color 200ms ease;
+}
+
+.joinedControl:hover:not(:disabled),
+.joinedControl:focus-visible {
+  color: #031009;
+  border-color: var(--accent-300);
+  background: var(--accent-300);
+}
+
+.joinedControl:disabled {
+  cursor: default;
+  opacity: 0.28;
+}
+
+.joinedControlBack svg {
+  transform: rotate(180deg);
+}
+
+@media (min-width: 1101px) {
+  .gglSection,
+  .gamesInner {
+    min-height: max(730px, 88svh);
+  }
+
+  .discordInner {
+    min-height: 72svh;
+  }
+}
+
+@media (max-width: 900px) {
+  .scrollCue {
+    margin-top: 46px;
+  }
+
+  .gglCardSlot::before {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .headerInner {
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding: 9px 12px;
+  }
+
+  .brand {
+    gap: 7px;
+  }
+
+  .brandWord {
+    font-size: 17px;
+  }
+
+  .accountZone {
+    gap: 2px;
+    margin-left: 0;
+  }
+
+  .iconButton {
+    width: 30px;
+    height: 30px;
+  }
+
+  .loginLink {
+    font-size: 11px;
+  }
+
+  .mobileToggle {
+    padding-inline: 11px;
+  }
+
+  .heroInner {
+    padding-top: 82px;
+    padding-bottom: 72px;
+  }
+
+  .h1 {
+    font-size: clamp(58px, 16.8vw, 72px);
+  }
+
+  .scrollCue {
+    display: none;
+  }
+
+  .signalLabel {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .marquee {
+    height: 38px;
+  }
+
+  .joinedRail {
+    grid-template-columns: auto 1fr auto;
+  }
+
+  .joinedLabel {
+    grid-column: 1 / -1;
+  }
+
+  .joinedList {
+    grid-column: 1;
+  }
+
+  .joinedSpotlight {
+    grid-column: 2;
+  }
+
+  .joinedControls {
+    grid-column: 3;
+  }
+
+  .inlineTitleMedia {
+    width: 0.7em;
+    margin-inline: 0.08em;
+  }
+
+  .figureStage {
+    min-height: 300px;
+  }
+
+  .gridFigure {
+    padding-inline: 2%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scrollCue i::after {
+    animation: none;
+    transform: none;
+  }
+
+}
+
+@keyframes scroll-cue {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  55%,
+  100% {
+    transform: translateX(100%);
+  }
 }

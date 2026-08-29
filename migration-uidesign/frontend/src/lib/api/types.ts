@@ -163,6 +163,10 @@ export interface Match {
   mapTimerPausedAt?: string | null;
   pauseRequestedBy?: number | null;
   pauseRequestedAt?: string | null;
+  // Broadcast focus driven from the manager dashboard. Null focusType is the
+  // plain pool; a focused map only means anything alongside its type.
+  overlayFocusType?: MapType | null;
+  overlayFocusMapId?: number | null;
 }
 
 export interface DraftAction {

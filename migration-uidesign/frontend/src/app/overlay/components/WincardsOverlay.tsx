@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { clsx } from "clsx";
 import { getMaps, getMatchById, type AdminGameMap } from "@/lib/api/admin";
 import { getTeams } from "@/lib/api/team";
@@ -24,7 +24,10 @@ interface ColumnDefinition {
 type DraftPickState = Pick<DraftState, "actions">;
 type MatchWithDraft = Match & { draft?: DraftPickState | null };
 
-const POLL_INTERVAL_MS = 10000;
+// Between maps this overlay reports which captains have checked in, so the
+// poll has to keep up with a captain clicking ready rather than with a
+// scoreboard that changes twice an hour.
+const POLL_INTERVAL_MS = 2500;
 
 const isControl = (type: AdminGameMap["type"]) => type === "CONTROL";
 const isHybrid = (type: AdminGameMap["type"]) => type === "HYBRID";
@@ -151,6 +154,11 @@ export function WincardsOverlay({ matchId }: WincardsOverlayProps) {
   const [draft, setDraft] = useState<DraftPickState | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [failedLogos, setFailedLogos] = useState<ReadonlySet<string>>(() => new Set());
+
+  const markLogoFailed = useCallback((url: string) => {
+    setFailedLogos((current) => (current.has(url) ? current : new Set(current).add(url)));
+  }, []);
 
   useEffect(() => {
     if (!Number.isInteger(matchId) || matchId <= 0) {
@@ -161,18 +169,27 @@ export function WincardsOverlay({ matchId }: WincardsOverlayProps) {
 
     let cancelled = false;
 
-    const load = async () => {
+    // The map catalogue and the team list do not change during a broadcast, so
+    // they are fetched once. Only the match row is polled, which is what the
+    // ready pips and the winner badges are actually watching.
+    const loadStatic = async () => {
       try {
-        const [loadedMatch, loadedMaps, loadedTeams] = await Promise.all([
-          getMatchById(matchId),
-          getMaps(),
-          getTeams(),
-        ]);
+        const [loadedMaps, loadedTeams] = await Promise.all([getMaps(), getTeams()]);
+        if (cancelled) return;
+        setMaps(loadedMaps);
+        setTeams(loadedTeams);
+      } catch {
+        // The match poll reports the outage; a missing catalogue degrades to
+        // empty cards rather than a second error screen.
+      }
+    };
+
+    const loadMatch = async () => {
+      try {
+        const loadedMatch = await getMatchById(matchId);
 
         if (cancelled) return;
         setMatch(loadedMatch);
-        setMaps(loadedMaps);
-        setTeams(loadedTeams);
         setDraft((loadedMatch as MatchWithDraft).draft ?? null);
         setError(null);
       } catch (fetchError) {
@@ -186,9 +203,10 @@ export function WincardsOverlay({ matchId }: WincardsOverlayProps) {
     };
 
     setLoading(true);
-    void load();
+    void loadStatic();
+    void loadMatch();
     const pollId = window.setInterval(() => {
-      void load();
+      void loadMatch();
     }, POLL_INTERVAL_MS);
 
     return () => {
@@ -289,10 +307,33 @@ export function WincardsOverlay({ matchId }: WincardsOverlayProps) {
     return notDraftedOnGameOne[0] ?? null;
   }, [draft, maps, roundMaps, isBracket]);
 
-  if (loading) {
+  const weekText =
+    match?.semanas && Number.isFinite(match.semanas) && match.semanas > 0
+      ? String(match.semanas)
+      : "?";
+
+  // The strip that replaces the old standalone waiting screen. Between maps the
+  // manager has marked a winner and the captains have not checked in yet, so
+  // the cards stay on screen and this reports what everyone is waiting on.
+  const teamAReady = match?.teamAready === 1;
+  const teamBReady = match?.teamBready === 1;
+  const bothReady = teamAReady && teamBReady;
+  const completedGames = match?.gameNumber || 0;
+  const currentGame = completedGames + 1;
+  const isFinished = match?.status === "FINISHED";
+
+  const seriesLeader =
+    !match || match.mapWinsTeamA === match.mapWinsTeamB
+      ? null
+      : match.mapWinsTeamA > match.mapWinsTeamB
+        ? match.teamAId
+        : match.teamBId;
+
+  if (loading && !match) {
     return (
       <div className={styles.statusScreen}>
-        <div>
+        <div className={styles.statusInner}>
+          <p className={styles.statusKicker}>Overtime Productions</p>
           <p className={styles.statusTitle}>Loading Wincards</p>
           <p className={styles.statusHint}>Match {matchId}</p>
         </div>
@@ -303,7 +344,8 @@ export function WincardsOverlay({ matchId }: WincardsOverlayProps) {
   if (error || !match) {
     return (
       <div className={styles.statusScreen}>
-        <div>
+        <div className={styles.statusInner}>
+          <p className={styles.statusKicker}>Overtime Productions</p>
           <p className={styles.statusTitle}>Wincards Unavailable</p>
           <p className={styles.statusHint}>{error || `Match ${matchId} was not found.`}</p>
         </div>
@@ -311,88 +353,185 @@ export function WincardsOverlay({ matchId }: WincardsOverlayProps) {
     );
   }
 
+  const winSide = (winnerTeam: Team | undefined) =>
+    winnerTeam ? (winnerTeam.id === match.teamAId ? "a" : "b") : "none";
+
+  const teamInitial = (team: Team | null | undefined) =>
+    (team?.name || "?").charAt(0).toUpperCase();
+
+  /*
+   * Team logos are absolute URLs stored per team, so a host that is briefly
+   * unreachable would otherwise put a broken-image icon on the broadcast. A
+   * logo that fails to load falls back to the initial for the rest of the
+   * session rather than retrying on every poll.
+   */
+  const usableLogo = (team: Team | null | undefined) => {
+    const url = teamAssetUrl(team?.logo);
+    return url && !failedLogos.has(url) ? url : null;
+  };
+
+  const renderWinBadge = (winnerTeam: Team | undefined, gameNumber: number) => {
+    if (!winnerTeam) return null;
+    const side = winSide(winnerTeam);
+    const logoUrl = usableLogo(winnerTeam);
+
+    return (
+      <div className={styles.winBadge} data-side={side}>
+        <div className={styles.winBadgeRing}>
+          {logoUrl ? (
+            <img
+              className={styles.winBadgeLogo}
+              src={logoUrl}
+              alt={`${winnerTeam.name} won game ${gameNumber}`}
+              onError={() => markLogoFailed(logoUrl)}
+            />
+          ) : (
+            <span className={styles.winBadgeInitial}>{teamInitial(winnerTeam)}</span>
+          )}
+        </div>
+        <span className={styles.winBadgeCheck} aria-hidden>
+          ✓
+        </span>
+      </div>
+    );
+  };
+
+  const renderWinRibbon = (winnerTeam: Team | undefined) => {
+    if (!winnerTeam) return null;
+    const side = winSide(winnerTeam);
+
+    return (
+      <span className={styles.winRibbon} data-side={side}>
+        Map win · {winnerTeam.name}
+      </span>
+    );
+  };
+
+  const renderTeamMark = (team: Team | null, side: "a" | "b") => {
+    const logoUrl = usableLogo(team);
+
+    return (
+    <div className={styles.scoreTeam} data-side={side}>
+      <div className={styles.scoreLogoFrame}>
+        {logoUrl ? (
+          <img
+            className={styles.scoreLogo}
+            src={logoUrl}
+            alt=""
+            onError={() => markLogoFailed(logoUrl)}
+          />
+        ) : (
+          <span className={styles.scoreLogoFallback}>{teamInitial(team)}</span>
+        )}
+      </div>
+      <span className={styles.scoreTeamName}>{team?.name || (side === "a" ? "Team A" : "Team B")}</span>
+      {seriesLeader && team ? (
+        <span className={styles.scoreTag} data-lead={seriesLeader === team.id ? "true" : "false"}>
+          {seriesLeader === team.id ? (isFinished ? "Victory" : "Ahead") : isFinished ? "Defeat" : "Behind"}
+        </span>
+      ) : (
+        <span className={styles.scoreTag} data-lead="false">
+          {isFinished ? "Draw" : "Level"}
+        </span>
+      )}
+    </div>
+    );
+  };
+
   return (
     <div className={styles.root}>
-      <header className={styles.titleBar}>
-        <div className={styles.decorTop} aria-hidden />
+      <div className={styles.field} aria-hidden />
 
-        <div className={styles.scoreRow}>
-          <div className={styles.teamSide}>
-            <div className={styles.bannerFrame}>
-              {teamA?.bannerLeft ? (
-                <img className={styles.teamBanner} src={teamAssetUrl(teamA.bannerLeft)} alt="" />
-              ) : (
-                <div className={styles.assetFallback}>BANNER</div>
-              )}
+      <aside className={styles.rail}>
+        <span className={styles.kicker}>Overtime Productions</span>
+        <h1 className={styles.title}>
+          Week <span className={styles.titleNumber}>{weekText}</span>
+        </h1>
+        <div className={styles.rule} aria-hidden />
+
+        <div className={styles.resultBlock}>
+          <span className={styles.resultLabel}>Match result</span>
+          <div className={styles.scoreRow}>
+            {renderTeamMark(teamA, "a")}
+            <div className={styles.scoreValue}>
+              <span className={styles.scoreNumber} data-side="a">
+                {match.mapWinsTeamA}
+              </span>
+              <span className={styles.scoreDash} aria-hidden />
+              <span className={styles.scoreNumber} data-side="b">
+                {match.mapWinsTeamB}
+              </span>
             </div>
-          </div>
-
-          <div className={styles.scoreBlock}>
-            <span className={styles.scoreText}>{match.mapWinsTeamA}</span>
-            <span className={styles.vsText}>VS</span>
-            <span className={styles.scoreText}>{match.mapWinsTeamB}</span>
-          </div>
-
-          <div className={styles.teamSide}>
-            <div className={styles.bannerFrame}>
-              {teamB?.bannerRight ? (
-                <img className={styles.teamBanner} src={teamAssetUrl(teamB.bannerRight)} alt="" />
-              ) : (
-                <div className={styles.assetFallback}>BANNER</div>
-              )}
-            </div>
+            {renderTeamMark(teamB, "b")}
           </div>
         </div>
-      </header>
+
+        <div className={styles.waitStrip} data-ready={bothReady ? "true" : "false"}>
+          <span className={styles.waitLabel}>
+            {isFinished
+              ? "Series complete"
+              : bothReady
+                ? `Game ${currentGame} · captains ready`
+                : "Waiting for captains"}
+          </span>
+          {!isFinished && (
+            <div className={styles.pips}>
+              <span className={styles.pip} data-side="a" data-on={teamAReady ? "true" : "false"} />
+              <span className={styles.pip} data-side="b" data-on={teamBReady ? "true" : "false"} />
+            </div>
+          )}
+        </div>
+      </aside>
 
       <section
-        className={clsx(styles.grid, isBracket && styles.playoffGrid)}
+        className={clsx(styles.fan, isBracket && styles.bracketFan)}
         style={{ "--wincards-columns": columns.length } as React.CSSProperties}
       >
         {columns.map((column) => {
+          const gameNumber = Number(column.key);
+          const isPlayed = Number.isFinite(gameNumber) && gameNumber <= completedGames;
+          const isCurrent =
+            !isFinished && Number.isFinite(gameNumber) && gameNumber === currentGame;
+
           if (isBracket) {
-            const gameNumber = Number(column.key);
             const pickedMap = playoffMaps[column.key];
             const winnerTeamId = winnerByGame.get(gameNumber);
             const winnerTeam = winnerTeamId ? teamsById.get(winnerTeamId) : undefined;
 
             return (
-              <article key={column.key} className={clsx(styles.column, styles.playoffColumn)}>
-                <h2 className={styles.columnHeader}>{column.title}</h2>
-                <div className={styles.mapStack}>
-                  <div
-                    className={clsx(
-                      styles.mapTile,
-                      styles.playoffMapTile,
-                      !pickedMap && styles.playoffPendingTile
-                    )}
-                  >
-                    {pickedMap ? (
-                      <>
-                        <img
-                          className={styles.mapImage}
-                          src={resolveMapImageUrl(pickedMap.imgPath)}
-                          alt={pickedMap.description}
-                        />
-                        <span className={styles.mapLabel}>{pickedMap.description}</span>
-                      </>
-                    ) : (
-                      <div className={styles.playoffPendingInner}>
-                        <span className={styles.playoffGameLabel}>GAME {gameNumber}</span>
-                        <span className={styles.questionMark}>?</span>
-                        <span className={styles.incognitoText}>Map pick pending</span>
-                      </div>
-                    )}
+              <article
+                key={column.key}
+                className={styles.column}
+                data-state={isCurrent ? "current" : isPlayed ? "played" : "pending"}
+              >
+                <header className={styles.columnHeader}>
+                  <span className={styles.columnGame}>Game {gameNumber}</span>
+                  <span className={styles.columnTitle}>{column.title}</span>
+                </header>
 
-                    {winnerTeam?.logo ? (
-                      <div className={styles.winnerLogoWrap}>
-                        <img
-                          className={styles.winnerLogo}
-                          src={teamAssetUrl(winnerTeam.logo)}
-                          alt={`${winnerTeam.name} won game ${gameNumber}`}
-                        />
-                      </div>
-                    ) : null}
+                <div className={styles.stack}>
+                  <div className={styles.cardFrame} data-won={winSide(winnerTeam)}>
+                    <div className={styles.cardInner}>
+                      {pickedMap ? (
+                        <>
+                          <img
+                            className={styles.cardImage}
+                            src={resolveMapImageUrl(pickedMap.imgPath)}
+                            alt={pickedMap.description}
+                          />
+                          <div className={styles.cardShade} aria-hidden />
+                          <span className={styles.cardLabel}>{pickedMap.description}</span>
+                        </>
+                      ) : (
+                        <div className={styles.pendingInner}>
+                          <span className={styles.pendingMark}>?</span>
+                          <span className={styles.pendingText}>Map pick pending</span>
+                        </div>
+                      )}
+
+                      {renderWinBadge(winnerTeam, gameNumber)}
+                      {renderWinRibbon(winnerTeam)}
+                    </div>
                   </div>
                 </div>
               </article>
@@ -400,57 +539,70 @@ export function WincardsOverlay({ matchId }: WincardsOverlayProps) {
           }
 
           const columnMaps = roundMaps[column.key];
-          return (
-            <article key={column.key} className={styles.column}>
-              <h2 className={styles.columnHeader}>{column.title}</h2>
 
-              <div className={styles.mapStack}>
+          return (
+            <article
+              key={column.key}
+              className={styles.column}
+              data-state={isCurrent ? "current" : isPlayed ? "played" : "pending"}
+            >
+              <header className={styles.columnHeader}>
+                <span className={styles.columnGame}>Game {gameNumber}</span>
+                <span className={styles.columnTitle}>{column.title}</span>
+              </header>
+
+              <div className={styles.stack}>
                 {columnMaps.length > 0 ? (
                   columnMaps.map((map) => {
                     const winnerTeamId = winnerByMapId.get(map.id);
                     const winnerTeam = winnerTeamId ? teamsById.get(winnerTeamId) : undefined;
 
                     return (
-                      <div key={`${column.key}-${map.id}`} className={styles.mapTile}>
-                        <img
-                          className={styles.mapImage}
-                          src={resolveMapImageUrl(map.imgPath)}
-                          alt={map.description}
-                        />
-                        <span className={styles.mapLabel}>{map.description}</span>
-                        {winnerTeam?.logo ? (
-                          <div className={styles.winnerLogoWrap}>
-                            <img
-                              className={styles.winnerLogo}
-                              src={teamAssetUrl(winnerTeam.logo)}
-                              alt=""
-                            />
-                          </div>
-                        ) : null}
+                      <div
+                        key={`${column.key}-${map.id}`}
+                        className={styles.cardFrame}
+                        data-won={winSide(winnerTeam)}
+                      >
+                        <div className={styles.cardInner}>
+                          <img
+                            className={styles.cardImage}
+                            src={resolveMapImageUrl(map.imgPath)}
+                            alt={map.description}
+                          />
+                          <div className={styles.cardShade} aria-hidden />
+                          <span className={styles.cardLabel}>{map.description}</span>
+                          {renderWinBadge(winnerTeam, gameNumber)}
+                          {renderWinRibbon(winnerTeam)}
+                        </div>
                       </div>
                     );
                   })
                 ) : (
-                  <div className={styles.emptyState}>No maps</div>
+                  <div className={styles.emptyCard}>
+                    <span>No maps</span>
+                  </div>
                 )}
 
                 {column.includeIncognito ? (
-                  <div className={clsx(styles.mapTile, styles.incognitoTile)}>
-                    {incognitoRevealMap ? (
-                      <>
-                        <img
-                          className={styles.mapImage}
-                          src={resolveMapImageUrl(incognitoRevealMap.imgPath)}
-                          alt={incognitoRevealMap.description}
-                        />
-                        <span className={styles.mapLabel}>{incognitoRevealMap.description}</span>
-                      </>
-                    ) : (
-                      <div className={styles.incognitoInner}>
-                        <span className={styles.questionMark}>?</span>
-                        <span className={styles.incognitoText}>Pending Game 1 Pick</span>
-                      </div>
-                    )}
+                  <div className={styles.cardFrame} data-won="none">
+                    <div className={styles.cardInner}>
+                      {incognitoRevealMap ? (
+                        <>
+                          <img
+                            className={styles.cardImage}
+                            src={resolveMapImageUrl(incognitoRevealMap.imgPath)}
+                            alt={incognitoRevealMap.description}
+                          />
+                          <div className={styles.cardShade} aria-hidden />
+                          <span className={styles.cardLabel}>{incognitoRevealMap.description}</span>
+                        </>
+                      ) : (
+                        <div className={styles.pendingInner}>
+                          <span className={styles.pendingMark}>?</span>
+                          <span className={styles.pendingText}>Pending game 1 pick</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ) : null}
               </div>
@@ -458,6 +610,13 @@ export function WincardsOverlay({ matchId }: WincardsOverlayProps) {
           );
         })}
       </section>
+
+      <footer className={styles.footer}>
+        <span className={styles.footerTicks} aria-hidden />
+        <span className={styles.footerText}>
+          Best of {match.bestOf} · {completedGames} of {columns.length} played
+        </span>
+      </footer>
     </div>
   );
 }

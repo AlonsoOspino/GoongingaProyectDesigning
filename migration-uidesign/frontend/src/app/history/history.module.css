@@ -1,0 +1,1252 @@
+/* GGL HISTORY.
+ *
+ * Esta pagina era HTML semantico sin una sola clase. Luego fue una pagina de
+ * tablas en gris sobre verde, todas iguales. Ahora es lo que deberia haber sido
+ * desde el principio: un archivo que se recorre por temporadas.
+ *
+ * Dos criterios mandan aqui:
+ *
+ * 1. El color IDENTIFICA. Cada equipo lleva el suyo (palette.ts) en la tabla, en
+ *    su tarjeta, en el bracket y en la final. Se reconoce de un vistazo sin leer.
+ *    Nada se pinta "para que tenga color".
+ * 2. Los numeros se COMPARAN. Donde hay una columna de dieciocho cifras hay una
+ *    barra detras: leer dieciocho numeros es trabajo, ver dieciocho barras no. */
+
+.page {
+  composes: surface from "../../components/story/story.module.css";
+  position: relative;
+  min-height: 100vh;
+  isolation: isolate;
+  background: var(--ground-base);
+  color: var(--text);
+  font-family: var(--font-body);
+}
+
+/* El tablero va fijo: el archivo es largo y no tiene sentido renderizar un
+   lienzo de varios miles de pixeles. Doble clase para ganar especificidad sin
+   recurrir a !important. */
+.page .board {
+  position: fixed;
+  inset: 0;
+}
+
+.page a {
+  color: var(--accent);
+}
+
+.page :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---------- cabecera ---------- */
+
+.hero {
+  position: relative;
+  z-index: 1;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: clamp(56px, 7vw, 104px) 28px clamp(32px, 4vw, 48px);
+}
+
+.eyebrow {
+  margin: 0 0 20px;
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(58px, 9vw, 148px);
+  line-height: 0.84;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
+.standfirst {
+  max-width: 62ch;
+  margin: 24px 0 0;
+  font-size: 19px;
+  line-height: 1.6;
+  color: color-mix(in srgb, var(--text) 74%, transparent);
+  text-wrap: pretty;
+}
+
+/* ---------- selector de temporada ---------- */
+
+.picker {
+  position: relative;
+  z-index: 1;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: clamp(32px, 4vw, 56px) 28px clamp(96px, 10vw, 148px);
+}
+
+.pickerHeading {
+  margin: clamp(48px, 6vw, 84px) 0 20px;
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 54%, transparent);
+}
+
+/* Dos por fila: es la densidad que pidio el diseno y la que deja sitio a que la
+   tarjeta cuente algo — con tres por fila solo cabe el numero de temporada. */
+.seasonGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 16px;
+}
+
+.seasonCard {
+  --team: var(--accent);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--edge-soft);
+  border-left: 3px solid var(--team);
+  background:
+    linear-gradient(150deg, color-mix(in srgb, var(--team) 13%, transparent), transparent 58%),
+    color-mix(in srgb, var(--bg) 72%, transparent);
+  transition:
+    border-color 220ms ease,
+    transform 380ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.seasonCard:hover {
+  border-color: color-mix(in srgb, var(--team) 58%, transparent);
+  border-left-color: var(--team);
+  transform: translateY(-3px);
+}
+
+.seasonCardBody {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  padding: clamp(24px, 3vw, 38px);
+}
+
+/* La temporada en curso ocupa el ancho completo y va antes que el titulo de las
+   cerradas: es la unica jerarquia que hace falta para que se entienda cual es. */
+.seasonCardLive {
+  --team: var(--accent);
+  margin-bottom: 4px;
+}
+
+.seasonCardLive .seasonNumber {
+  font-size: clamp(56px, 8vw, 112px);
+}
+
+/* El hueco de la proxima temporada. Punteado y sin interaccion: se lee como
+   "esto llegara" y no como una tarjeta rota. */
+.seasonCardPending {
+  --team: color-mix(in srgb, var(--text) 22%, transparent);
+  border-style: dashed;
+  border-left-style: dashed;
+  background: none;
+  opacity: 0.5;
+}
+
+.seasonCardPending:hover {
+  transform: none;
+}
+
+.seasonStatus {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 52%, transparent);
+}
+
+.seasonStatusLive {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.liveDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 12px rgba(52, 199, 123, 0.85);
+}
+
+/* El pulso solo existe donde algo esta realmente en vivo. */
+@media (prefers-reduced-motion: no-preference) {
+  .liveDot {
+    animation: livePulse 2.1s ease-in-out infinite;
+  }
+}
+
+@keyframes livePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.42; }
+}
+
+.seasonNumber {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(44px, 5.4vw, 76px);
+  line-height: 0.84;
+  text-transform: uppercase;
+}
+
+.seasonBlurb {
+  max-width: 46ch;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: color-mix(in srgb, var(--text) 66%, transparent);
+}
+
+.seasonFacts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 14px 22px;
+  width: 100%;
+  margin: 4px 0 0;
+}
+
+.seasonFacts dt {
+  font-family: var(--font-heading);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 46%, transparent);
+}
+
+.seasonFacts dd {
+  margin: 5px 0 0;
+  font-family: var(--font-display);
+  font-size: 30px;
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+}
+
+.seasonChampion {
+  font-size: 19px !important;
+  line-height: 1.15 !important;
+  color: var(--team);
+}
+
+.seasonCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  margin-top: 6px;
+  padding: 0 22px;
+  border: 1px solid color-mix(in srgb, var(--team) 52%, transparent);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--team) 14%, transparent);
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text) !important;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background 200ms ease,
+    transform 200ms ease;
+}
+
+.seasonCta:hover {
+  background: color-mix(in srgb, var(--team) 26%, transparent);
+  transform: translateY(-2px);
+}
+
+/* ---------- rosters rotando ---------- */
+
+.rotator {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 0 2px;
+  border-top: 1px solid color-mix(in srgb, var(--text) 9%, transparent);
+}
+
+.rotatorList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rotatorTeam {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 9px 11px;
+  border-left: 2px solid var(--team);
+  background: color-mix(in srgb, var(--team) 12%, transparent);
+}
+
+.rotatorTeamIn {
+  animation: rotatorIn 460ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes rotatorIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.rotatorLogo {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  object-fit: contain;
+}
+
+.rotatorLogoEmpty {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  background: color-mix(in srgb, var(--team) 34%, transparent);
+}
+
+.rotatorName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.rotatorCount {
+  flex: none;
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 44%, transparent);
+}
+
+/* ---------- rail de pestanas ---------- */
+
+/* Sin composes de chapterSection a proposito: traeria position: relative con la
+   misma especificidad que el sticky de aqui, y cual gana lo decidiria el orden
+   en el bundle. */
+.tabRail {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  background: color-mix(in srgb, var(--ground-base) 92%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--edge-soft);
+}
+
+.tabRailInner {
+  position: relative;
+  z-index: 1;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding-inline: 28px;
+  display: flex;
+  align-items: stretch;
+  gap: 18px;
+}
+
+.backButton {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+  padding-right: 18px;
+  border: 0;
+  border-right: 1px solid var(--edge-soft);
+  background: none;
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 62%, transparent);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 180ms ease;
+}
+
+.backButton:hover {
+  color: var(--accent);
+}
+
+.tabList {
+  display: flex;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabList::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  position: relative;
+  flex: none;
+  min-height: 52px;
+  padding: 0 20px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 50%, transparent);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    color 180ms ease,
+    border-color 180ms ease,
+    background 180ms ease;
+}
+
+.tab:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.tabActive {
+  color: var(--accent-300);
+  border-bottom-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+}
+
+/* ---------- panel ---------- */
+
+.panel {
+  position: relative;
+  z-index: 1;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: clamp(44px, 5vw, 76px) 28px clamp(96px, 10vw, 148px);
+}
+
+.panelHead {
+  margin-bottom: clamp(28px, 3.4vw, 44px);
+}
+
+.h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(40px, 5vw, 72px);
+  line-height: 0.9;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
+.panelLead {
+  max-width: 60ch;
+  margin: 14px 0 0;
+  font-size: 17px;
+  line-height: 1.6;
+  color: color-mix(in srgb, var(--text) 66%, transparent);
+}
+
+/* ---------- tablas de datos ---------- */
+
+/* El envoltorio es quien hace scroll, no la pagina: una tabla de siete columnas
+   no cabe en 360px y sin esto el body entero se desplaza en horizontal. */
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--edge-soft);
+  background: color-mix(in srgb, var(--bg) 62%, transparent);
+}
+
+.table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.table caption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.table th,
+.table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid color-mix(in srgb, var(--text) 7%, transparent);
+}
+
+.table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: color-mix(in srgb, var(--bg) 96%, transparent);
+  font-family: var(--font-heading);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 54%, transparent);
+  border-bottom-color: var(--edge-soft);
+  white-space: nowrap;
+}
+
+/* La columna de la metrica activa se destaca en la cabecera: es la que ordena la
+   tabla, asi que conviene que se vea cual es. */
+.numLead {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.table thead .numLead {
+  color: var(--accent-300);
+}
+
+.table tbody tr:last-child th,
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Cada fila lleva el color de su equipo en el canto izquierdo. Es lo que
+   convierte una lista gris en algo que se recorre por equipo. */
+.table tbody tr {
+  --team: var(--accent);
+  transition: background 160ms ease;
+}
+
+.table tbody tr > *:first-child {
+  box-shadow: inset 3px 0 0 var(--team);
+}
+
+.table tbody tr:hover {
+  background: color-mix(in srgb, var(--team) 9%, transparent);
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.rank {
+  width: 1%;
+  font-family: var(--font-display);
+  font-size: 22px;
+  line-height: 1;
+  color: color-mix(in srgb, var(--text) 42%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Podio. El disco de color hace que los tres primeros se lean sin contar filas. */
+.rankMedal {
+  color: color-mix(in srgb, var(--medal) 58%, var(--text));
+}
+
+.teamCellInner {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  font-weight: 500;
+}
+
+.tinyLogo {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  object-fit: contain;
+}
+
+.playerCell {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  font-weight: 500;
+}
+
+.portrait {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  border: 1px solid color-mix(in srgb, var(--team, var(--accent)) 55%, transparent);
+}
+
+.portraitFallback {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--team, var(--accent)) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--team, var(--accent)) 45%, transparent);
+  color: var(--text);
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* El nombre del equipo en su color, no en gris: es el enlace visual entre la
+   fila de un jugador y la tabla de equipos. */
+.teamTag {
+  color: color-mix(in srgb, var(--team) 52%, var(--text));
+  font-weight: 500;
+}
+
+.roleTag {
+  display: inline-block;
+  padding: 4px 9px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--role) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--role) 32%, transparent);
+  font-family: var(--font-heading);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--role);
+}
+
+/* Barra detras de la cifra. Dieciocho numeros hay que leerlos; dieciocho barras
+   se comparan de un golpe. */
+.barCell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 132px;
+  padding: 6px 10px;
+}
+
+.bar {
+  position: absolute;
+  inset-block: 0;
+  right: 0;
+  width: var(--share);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--team) 22%, transparent));
+  border-right: 2px solid color-mix(in srgb, var(--team) 70%, transparent);
+}
+
+.barValue {
+  position: relative;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+/* Victorias contra derrotas en una sola barra. */
+.recordBar {
+  display: block;
+  width: 100px;
+  height: 7px;
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+  background-image: linear-gradient(90deg, var(--team) 0 var(--won), transparent var(--won));
+}
+
+.diffPos {
+  color: color-mix(in srgb, var(--accent) 46%, var(--text));
+  font-weight: 600;
+}
+
+.diffNeg {
+  color: color-mix(in srgb, var(--text) 44%, transparent);
+}
+
+/* ---------- filtros ---------- */
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 22px 44px;
+  margin-bottom: 26px;
+  padding: 0;
+  border: 0;
+}
+
+.filterGroup {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.filterLegend {
+  padding: 0;
+  margin-bottom: 10px;
+  font-family: var(--font-heading);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 48%, transparent);
+}
+
+.filterList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  --chip: var(--accent);
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--edge-soft);
+  border-radius: var(--radius-md);
+  background: none;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 62%, transparent);
+  cursor: pointer;
+  transition:
+    border-color 180ms ease,
+    color 180ms ease,
+    background 180ms ease;
+}
+
+.chip:hover {
+  border-color: color-mix(in srgb, var(--chip) 55%, transparent);
+  color: var(--text);
+}
+
+/* Los filtros de rol se pintan con el color de ese rol, asi que el filtro activo
+   y la columna Role dicen lo mismo. */
+.chipActive {
+  border-color: var(--chip);
+  background: color-mix(in srgb, var(--chip) 16%, transparent);
+  color: var(--chip);
+}
+
+/* El lider de la metrica activa: el unico dato fuera de tabla, porque responde a
+   la pregunta que trae el visitante. */
+.leader {
+  --team: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 0 0 22px;
+  padding: 18px 20px;
+  border: 1px solid color-mix(in srgb, var(--team) 45%, transparent);
+  border-left: 3px solid var(--team);
+  background:
+    linear-gradient(100deg, color-mix(in srgb, var(--team) 14%, transparent), transparent 62%),
+    color-mix(in srgb, var(--bg) 55%, transparent);
+}
+
+.leader .portrait,
+.leader .portraitFallback {
+  width: 46px;
+  height: 46px;
+  font-size: 17px;
+}
+
+.leaderLabel {
+  display: block;
+  font-family: var(--font-heading);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--team);
+}
+
+.leaderName {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--font-display);
+  font-size: 32px;
+  line-height: 0.9;
+}
+
+.leaderValue {
+  margin-left: auto;
+  font-family: var(--font-display);
+  font-size: 36px;
+  line-height: 0.9;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.leaderUnit {
+  display: block;
+  margin-top: 5px;
+  font-family: var(--font-heading);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: color-mix(in srgb, var(--text) 50%, transparent);
+}
+
+/* ---------- rosters ---------- */
+
+.teamGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+}
+
+.teamCard {
+  --team: var(--accent);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--edge-soft);
+  border-top: 3px solid var(--team);
+  background:
+    linear-gradient(165deg, color-mix(in srgb, var(--team) 11%, transparent), transparent 52%),
+    color-mix(in srgb, var(--bg) 62%, transparent);
+  transition:
+    border-color 200ms ease,
+    transform 320ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.teamCard:hover {
+  border-color: color-mix(in srgb, var(--team) 55%, transparent);
+  border-top-color: var(--team);
+  transform: translateY(-3px);
+}
+
+.teamCardHead {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 16px 18px;
+  border-bottom: 1px solid color-mix(in srgb, var(--text) 9%, transparent);
+}
+
+.teamLogo {
+  width: 42px;
+  height: 42px;
+  flex: none;
+  object-fit: contain;
+}
+
+.teamName {
+  margin: 0;
+  min-width: 0;
+  font-family: var(--font-heading);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.teamRecord {
+  margin-left: auto;
+  flex: none;
+  text-align: right;
+  font-family: var(--font-display);
+  font-size: 26px;
+  line-height: 0.9;
+  color: var(--team);
+  font-variant-numeric: tabular-nums;
+}
+
+.teamRecordLabel {
+  display: block;
+  font-family: var(--font-heading);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 46%, transparent);
+}
+
+.roster {
+  margin: 0;
+  padding: 12px 18px 16px;
+  list-style: none;
+  display: grid;
+  gap: 2px;
+}
+
+.rosterPlayer {
+  padding: 7px 0 7px 13px;
+  font-size: 14px;
+  color: color-mix(in srgb, var(--text) 78%, transparent);
+  border-left: 2px solid color-mix(in srgb, var(--team) 40%, transparent);
+}
+
+.rosterImage {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-top: 1px solid color-mix(in srgb, var(--team) 30%, transparent);
+}
+
+/* ---------- resultados ---------- */
+
+.round {
+  margin-bottom: 34px;
+}
+
+.roundName {
+  margin: 0 0 12px;
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.matchList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+/* Los dos colores de equipo entran por los cantos y se apagan hacia el centro:
+   el enfrentamiento se lee antes de leer los nombres. */
+.match {
+  --team-a: var(--accent);
+  --team-b: var(--accent);
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  padding: 15px 18px;
+  border: 1px solid var(--edge-soft);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--team-a) 16%, transparent), transparent 34%),
+    linear-gradient(-90deg, color-mix(in srgb, var(--team-b) 16%, transparent), transparent 34%),
+    color-mix(in srgb, var(--bg) 58%, transparent);
+}
+
+.matchSide {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.matchSideA {
+  border-left: 3px solid var(--team-a);
+  padding-left: 12px;
+}
+
+.matchSideB {
+  border-right: 3px solid var(--team-b);
+  padding-right: 12px;
+}
+
+/* El perdedor se apaga: dos senales (color y opacidad), no solo una. */
+.matchSideLost {
+  opacity: 0.46;
+}
+
+.matchSideRight {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.matchScore {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  font-family: var(--font-display);
+  font-size: 30px;
+  line-height: 0.9;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--text) 46%, transparent);
+  white-space: nowrap;
+}
+
+.matchScore i {
+  width: 10px;
+  height: 1px;
+  background: color-mix(in srgb, var(--text) 30%, transparent);
+}
+
+.matchScoreWinA {
+  color: var(--team-a);
+}
+
+.matchScoreWinB {
+  color: var(--team-b);
+}
+
+/* ---------- gran final ---------- */
+
+.finalCard {
+  border: 1px solid var(--edge-strong);
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+}
+
+.finalHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--edge-soft);
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 56%, transparent);
+}
+
+.finalKicker {
+  color: var(--accent);
+}
+
+.finalSides {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.finalSide {
+  --team: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 24px 22px;
+  border-left: 4px solid var(--team);
+  border-bottom: 1px solid color-mix(in srgb, var(--text) 7%, transparent);
+}
+
+.finalSideWon {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--team) 18%, transparent), transparent 64%);
+}
+
+.finalLogo {
+  width: 60px;
+  height: 60px;
+  flex: none;
+  object-fit: contain;
+}
+
+.finalTeam {
+  min-width: 0;
+  font-family: var(--font-display);
+  font-size: clamp(30px, 3.6vw, 48px);
+  line-height: 0.9;
+  text-transform: uppercase;
+}
+
+.finalCrown {
+  display: block;
+  margin-top: 8px;
+  font-family: var(--font-heading);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--team);
+}
+
+.finalScore {
+  margin-left: auto;
+  flex: none;
+  font-family: var(--font-display);
+  font-size: clamp(46px, 6vw, 78px);
+  line-height: 0.8;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--text) 44%, transparent);
+}
+
+.finalSideWon .finalScore {
+  color: var(--team);
+}
+
+.mvp {
+  --team: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 24px 22px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--team) 9%, transparent), transparent);
+}
+
+.mvpPortrait {
+  width: 112px;
+  height: 112px;
+  flex: none;
+  border: 2px solid var(--team);
+  object-fit: cover;
+}
+
+.mvpLabel {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--team);
+}
+
+.mvpName {
+  margin: 7px 0 4px;
+  font-family: var(--font-display);
+  font-size: clamp(32px, 4vw, 52px);
+  line-height: 0.9;
+  text-transform: uppercase;
+}
+
+.mvpTeam {
+  margin: 0;
+  font-size: 14px;
+  color: color-mix(in srgb, var(--text) 62%, transparent);
+}
+
+/* ---------- wrapped ---------- */
+
+.wrappedCard {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 28px;
+  padding: clamp(28px, 4vw, 52px);
+  border: 1px solid var(--edge-strong);
+  background:
+    linear-gradient(140deg, color-mix(in srgb, var(--accent) 12%, transparent), transparent 60%),
+    color-mix(in srgb, var(--bg) 60%, transparent);
+}
+
+.wrappedCopy {
+  flex: 1 1 340px;
+  min-width: 0;
+}
+
+.wrappedTitle {
+  margin: 0 0 12px;
+  font-family: var(--font-display);
+  font-size: clamp(34px, 4.4vw, 62px);
+  line-height: 0.9;
+  text-transform: uppercase;
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 26px;
+  flex: none;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-300) !important;
+  text-decoration: none;
+  transition:
+    background 180ms ease,
+    transform 180ms ease;
+}
+
+.cta:hover {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  transform: translateY(-2px);
+}
+
+/* ---------- responsive ---------- */
+
+@media (max-width: 720px) {
+  .hero,
+  .panel,
+  .picker,
+  .tabRailInner {
+    padding-inline: 18px;
+  }
+
+  .rotatorList {
+    grid-template-columns: 1fr;
+  }
+
+  .match {
+    grid-template-columns: 1fr auto;
+    row-gap: 10px;
+  }
+
+  /* En dos columnas el marcador central no tiene donde ir: pasa a la derecha de
+     cada equipo y el rival cae debajo. */
+  .matchScore {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+    align-self: center;
+  }
+
+  .matchSideRight {
+    grid-column: 1;
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .matchSideB {
+    border-right: 0;
+    border-left: 3px solid var(--team-b);
+    padding-right: 0;
+    padding-left: 12px;
+  }
+
+  .mvp,
+  .leader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .leaderValue {
+    margin-left: 0;
+    font-size: 30px;
+    text-align: left;
+  }
+}

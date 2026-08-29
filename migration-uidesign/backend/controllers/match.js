@@ -547,6 +547,82 @@ const generateVsImage = async (req, res) => {
   }
 };
 
+// Broadcast focus for the map pool overlay. The overlay runs as an OBS browser
+// source, a separate browser process, so nothing client-side can carry this —
+// it has to round-trip through the match row the overlay already polls.
+const OVERLAY_MAP_TYPES = ["CONTROL", "HYBRID", "PAYLOAD", "PUSH", "FLASHPOINT"];
+
+const normalizeOverlayFocus = (body) => {
+  const hasType = hasOwn(body, "focusType");
+  const hasMapId = hasOwn(body, "focusMapId");
+
+  if (!hasType && !hasMapId) {
+    throw new Error("Provide focusType or focusMapId.");
+  }
+
+  const rawType = hasType ? body.focusType : null;
+
+  // A null type is how the manager sends the overlay back to the plain pool,
+  // which also drops any hero card behind it.
+  if (rawType === null || rawType === undefined || rawType === "") {
+    if (hasMapId && body.focusMapId !== null && body.focusMapId !== undefined) {
+      throw new Error("focusType is required when focusMapId is set.");
+    }
+    return { overlayFocusType: null, overlayFocusMapId: null };
+  }
+
+  const overlayFocusType = String(rawType).trim().toUpperCase();
+  if (!OVERLAY_MAP_TYPES.includes(overlayFocusType)) {
+    throw new Error(`Invalid focusType: ${rawType}`);
+  }
+
+  const rawMapId = hasMapId ? body.focusMapId : null;
+  if (rawMapId === null || rawMapId === undefined) {
+    return { overlayFocusType, overlayFocusMapId: null };
+  }
+
+  // Number("") is 0 and Number(true) is 1, so reject anything that is not
+  // already a number before letting it near the column.
+  if (typeof rawMapId !== "number" || !Number.isInteger(rawMapId) || rawMapId <= 0) {
+    throw new Error(`Invalid focusMapId: ${rawMapId}`);
+  }
+
+  return { overlayFocusType, overlayFocusMapId: rawMapId };
+};
+
+// Deliberately not routed through managerUpdate: that path fires a Discord
+// schedule-change notification, and this endpoint is hit once per click.
+const managerSetOverlayFocus = async (req, res) => {
+  try {
+    const matchId = Number(req.params.id);
+    if (!Number.isInteger(matchId) || matchId <= 0) {
+      return res.status(400).json({ message: "Invalid match id." });
+    }
+
+    let focus;
+    try {
+      focus = normalizeOverlayFocus(req.body);
+    } catch (validationError) {
+      return res.status(400).json({ message: validationError.message });
+    }
+
+    const existing = await prisma.match.findUnique({ where: { id: matchId } });
+    if (!existing) {
+      return res.status(404).json({ message: "Match not found" });
+    }
+
+    const match = await prisma.match.update({
+      where: { id: matchId },
+      data: focus,
+    });
+
+    res.json(match);
+  } catch (err) {
+    console.error(`[managerSetOverlayFocus] Error for match ${req.params.id}:`, err);
+    res.status(400).json({ message: err.message });
+  }
+};
+
 module.exports = {
   getById,
   getAll,
@@ -567,5 +643,7 @@ module.exports = {
   managerTogglePause,
   managerClearPauseRequest,
   generateVsImage,
+  managerSetOverlayFocus,
+  __testables: { normalizeOverlayFocus },
 };
 

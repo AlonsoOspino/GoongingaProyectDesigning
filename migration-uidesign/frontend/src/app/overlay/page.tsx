@@ -30,6 +30,11 @@ export default function OverlayIndexPage() {
           Use your match id in one of these URLs:
         </p>
         <p style={{ fontSize: "1.15rem", marginBottom: "0.5rem" }}>
+          <Link href={`/overlay/map-pool/${SAMPLE_MATCH_ID}`} style={{ color: "#f4d8a8" }}>
+            /overlay/map-pool/[matchId]
+          </Link>
+        </p>
+        <p style={{ fontSize: "1.15rem", marginBottom: "0.5rem" }}>
           <Link href={`/overlay/map-pool-clean/${SAMPLE_MATCH_ID}`} style={{ color: "#f4d8a8" }}>
             /overlay/map-pool-clean/[matchId]
           </Link>

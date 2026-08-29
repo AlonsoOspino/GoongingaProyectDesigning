@@ -1,9 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import Atmosphere from "./atmosphere/Atmosphere";
+import { useEffect, useRef, useState } from "react";
+import SeasonArchiveCard from "./SeasonArchiveCard";
+import GridFigure, { type FigureEdge } from "./GridFigure";
 import BrandField from "./atmosphere/BrandField";
+import { useStoryMotion } from "@/components/story/useStoryMotion";
+import {
+  ChapterIndex,
+  RevealWords,
+  Story,
+  type Chapter,
+} from "@/components/story/StoryParts";
 import { getRecentNetworkMembers } from "@/lib/api/networkMember";
 import type { NetworkMember } from "@/lib/api/types";
 import { getActiveAnnouncements } from "@/lib/api/announcement";
@@ -17,6 +25,71 @@ import {
   TwitchIcon,
 } from "./brandAssets";
 
+const GGL_EDGES: FigureEdge[] = ["left", "right", "top", "bottom"];
+const GAME_NIGHT_EDGES: FigureEdge[] = ["left", "right", "top", "bottom"];
+
+const chapters: Chapter[] = [
+  { id: "ggl", label: "GGL" },
+  { id: "games", label: "Game night" },
+  { id: "discord", label: "Discord" },
+];
+
+function CommunityCarousel({ members }: { members: NetworkMember[] }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const current = members[activeIndex % members.length];
+  const visible = Array.from(
+    { length: Math.min(5, members.length) },
+    (_, index) => members[(activeIndex + index) % members.length],
+  );
+  const rotate = (direction: number) => {
+    setActiveIndex((index) => (index + direction + members.length) % members.length);
+  };
+
+  return (
+    <div className={styles.joinedRail} aria-label="Newest community members">
+      <p className={styles.joinedLabel}>
+        <span className={styles.liveDot} aria-hidden="true" />
+        Newest members
+      </p>
+      <ul className={styles.joinedList} aria-hidden="true">
+        {visible.map((member) => (
+          <li key={member.id} className={styles.joinedChip}>
+            {member.avatarUrl ? (
+              <img className={styles.joinedAvatar} src={member.avatarUrl} alt="" loading="lazy" decoding="async" />
+            ) : (
+              <span className={styles.joinedInitial}>{member.username.slice(0, 1).toUpperCase()}</span>
+            )}
+          </li>
+        ))}
+      </ul>
+      <p className={styles.joinedSpotlight} aria-live="polite">
+        <strong>{current.username}</strong>
+        <span>{members.length} just joined</span>
+      </p>
+      <div className={styles.joinedControls}>
+        <button
+          type="button"
+          className={`${styles.joinedControl} ${styles.joinedControlBack}`}
+          onClick={() => rotate(-1)}
+          disabled={members.length < 2}
+          aria-label="Previous member"
+        >
+          <ArrowIcon size={14} />
+        </button>
+        <button
+          type="button"
+          className={styles.joinedControl}
+          onClick={() => rotate(1)}
+          disabled={members.length < 2}
+          aria-label="Next member"
+        >
+          <ArrowIcon size={14} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 
 interface BuilderCard {
   id: number;
@@ -29,8 +102,11 @@ interface BuilderCard {
 }
 
 export function LandingPage() {
+  const landingRef = useRef<HTMLDivElement | null>(null);
   const [announcements, setAnnouncements] = useState<ActiveAnnouncements | null>(null);
   const [recentMembers, setRecentMembers] = useState<NetworkMember[] | null>(null);
+
+  useStoryMotion(landingRef);
 
 
 
@@ -123,22 +199,21 @@ export function LandingPage() {
   ];
 
   return (
-    <div className={styles.landing}>
+    <div ref={landingRef} className={styles.landing} data-landing-root>
 
       <main id="top">
         <div className={styles.brandZone}>
           <BrandField variant="zone" />
 
-        <section className={styles.hero}>
+        <section className={styles.hero} data-hero>
 
           <div className={styles.heroInner}>
-            <div className={styles.heroCopy}>
+            <div className={styles.heroCopy} data-hero-copy>
               <div className={styles.heroRule} aria-hidden="true" />
               <p className={styles.eyebrow}>ON AIR SINCE 2023</p>
               <h1 className={styles.h1}>
-                overtime
-                <br />
-                productions
+                <span className={styles.heroLine}>overtime</span>
+                <span className={styles.heroLine}>productions</span>
               </h1>
               <p className={styles.heroSub}>
                 A very active community that hosts streams &amp; events of many games like Overwatch,
@@ -148,6 +223,10 @@ export function LandingPage() {
                 <a href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer" className={styles.btnPrimary}>
                   Join the Discord <ArrowIcon />
                 </a>
+              </div>
+              <div className={styles.scrollCue} aria-hidden="true">
+                <span>Scroll to tune in</span>
+                <i />
               </div>
             </div>
           </div>
@@ -198,119 +277,103 @@ export function LandingPage() {
               </p>
             )}
 
-            {recentMembers && recentMembers.length > 0 ? (
-              <div className={styles.joinedRail}>
-                <p className={styles.joinedLabel}>
-                  <span className={styles.liveDot} aria-hidden="true" />
-                  Newest members
-                </p>
-                <ul className={styles.joinedList}>
-                  {recentMembers.map((member) => {
-                    const initial = member.username.slice(0, 1).toUpperCase();
-                    return (
-                      <li key={member.id} className={styles.joinedChip}>
-                        {member.avatarUrl ? (
-                          <img
-                            className={styles.joinedAvatar}
-                            src={member.avatarUrl}
-                            alt=""
-                            loading="lazy"
-                            decoding="async"
-                          />
-                        ) : (
-                          <span className={styles.joinedInitial} aria-hidden="true">
-                            {initial}
-                          </span>
-                        )}
-                        <span className={styles.joinedName}>{member.username}</span>
-                      </li>
-                    );
-                  })}
-                </ul>
-                <span className={styles.joinedCount}>{recentMembers.length} just joined</span>
-              </div>
-            ) : null}
+            {recentMembers && recentMembers.length > 0 ? <CommunityCarousel members={recentMembers} /> : null}
           </div>
         </section>
         </div>
 
-        <section className={styles.gglSection} id="about">
-          <Atmosphere hour="day" />
-          <div className={styles.gglCopy}>
+        <Story>
+          <ChapterIndex chapters={chapters} />
+
+        <section className={styles.gglSection} id="about" data-chapter="ggl">
+          <BrandField variant="section" className={styles.fieldGgl} intensity={0.9} ground={false} seedOffset={101} />
+          <div className={styles.gglCopy} data-motion-copy>
             <p className={styles.lightEyebrow}>OUR BIGGEST PROJECT!</p>
-            <h2 className={styles.lightH2}>OVERTIME GGL</h2>
-            <p className={styles.lightParagraph}>
+            <h2 className={styles.lightH2}>
+              OVERTIME
+              <span className={styles.inlineTitleMedia} data-inline-media aria-hidden="true">
+                <img src="/ggl-lineup.png" alt="" loading="lazy" decoding="async" />
+              </span>
+              GGL
+            </h2>
+            <RevealWords className={styles.lightParagraph}>
               Our biggest event brings the whole community together for a competitive Overwatch
               5v5 tournament. Teams play every week, with each match organized, cast, and streamed
               live by our staff.
-            </p>
-            <p className={styles.lightParagraph}>
+            </RevealWords>
+            <RevealWords className={styles.lightParagraph}>
               Eight seasons have already brought players and spectators together this way. Season
               9 is live now, with new matchups and stories unfolding every week.
-            </p>
+            </RevealWords>
             <a href={TWITCH_URL} target="_blank" rel="noopener noreferrer" className={styles.twitchLink}>
               <TwitchIcon /> Watch the stream
             </a>
           </div>
-          <div className={styles.gglImageWrap}>
-            <img
+          <div className={`${styles.figureStage} ${styles.gglStage}`}>
+            <GridFigure
               src="/ggl-lineup.png"
               alt="Goonginga League heroes artwork"
-              className={styles.gglImage}
               width={1920}
               height={1080}
-              loading="lazy"
-              decoding="async"
+              edges={GGL_EDGES}
+              cols={36}
+              className={styles.gglBox}
+              imgClassName={styles.gglFigure}
             />
+            <div className={styles.gglCardSlot}>
+              <SeasonArchiveCard />
+            </div>
           </div>
         </section>
 
-        <section className={styles.gamesSection}>
-          <Atmosphere hour="night" />
+        <section className={styles.gamesSection} data-chapter="games">
+          <BrandField variant="section" className={styles.fieldGames} intensity={0.9} ground={false} seedOffset={202} />
           <div className={styles.gamesInner}>
-            <div className={styles.gamesImageWrap}>
-              <img
+            <div className={`${styles.figureStage} ${styles.gamesStage}`}>
+              <GridFigure
                 src="/game-nights.png"
                 alt="Overwatch heroes posing for a group selfie"
-                className={styles.gamesImage}
                 width={1672}
                 height={941}
-                loading="lazy"
-                decoding="async"
+                edges={GAME_NIGHT_EDGES}
+                cols={36}
+                className={styles.gamesBox}
+                imgClassName={styles.gamesFigure}
               />
             </div>
-            <div className={styles.gamesCopy}>
+            <div className={styles.gamesCopy} data-motion-copy>
               <p className={styles.amberEyebrow}>Events</p>
-              <h2 className={styles.gamesH2}>Game-night events,     any game</h2>
-              <p className={styles.heroSub}>
+              <h2 className={styles.gamesH2}>Game-night events, any game</h2>
+              <RevealWords className={styles.heroSub}>
                 Outside the league we run events designed to start and finish in a single day — a
                 different game, format, or challenge each time. They are open to whoever signs up,
                 organized through the community, and streamed from the same production room.
-              </p>
-              <p className={styles.heroSub}>
+              </RevealWords>
+              <RevealWords className={styles.heroSub}>
                 These nights give us room to experiment, bring new players on stream, and play with
                 the community instead of simply broadcasting to it.
-              </p>
+              </RevealWords>
             </div>
           </div>
         </section>
 
-        <section className={styles.discordSection}>
-          <Atmosphere hour="hearth" />
+        <section className={styles.discordSection} data-chapter="discord">
+          <BrandField variant="section" className={styles.fieldDiscord} intensity={0.9} ground={false} seedOffset={303} />
           <div className={styles.discordInner}>
-            <div className={styles.discordCopy}>
+            <div className={styles.discordCopy} data-motion-copy>
               <p className={styles.lightEyebrow}>The Discord</p>
               <h2 className={styles.lightH2}>It all runs in the Discord</h2>
-              <p className={`${styles.lightParagraph} ${styles.discordLead}`}>
+              <RevealWords className={`${styles.lightParagraph} ${styles.discordLead}`}>
                 Sign-ups, drafts, event days and the league itself are organised in one server. If you
                 want in on Season 9, that is where to go.
-              </p>
+              </RevealWords>
               <a href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer" className={styles.discordJoin}>
                 <DiscordIcon size={18} /> Join the Discord
               </a>
             </div>
           </div>
         </section>
+        </Story>
       </main>
 
       <footer className={styles.footer}>

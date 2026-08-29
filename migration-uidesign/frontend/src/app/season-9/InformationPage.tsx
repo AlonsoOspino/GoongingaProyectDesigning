@@ -1,8 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import Atmosphere from "@/components/landing/atmosphere/Atmosphere";
+import { useRef } from "react";
+import BrandField from "@/components/landing/atmosphere/BrandField";
+import { ChapterIndex, RevealWords, Story, type Chapter } from "@/components/story/StoryParts";
+import { useStoryMotion } from "@/components/story/useStoryMotion";
+import PhaseRail, { type Phase } from "./PhaseRail";
+import ModeTabs from "./ModeTabs";
 import styles from "./information.module.css";
+
+const chapters: Chapter[] = [
+  { id: "schedule", label: "Calendar" },
+  { id: "teams", label: "Teams" },
+  { id: "maps", label: "Maps" },
+  { id: "draft", label: "Draft table" },
+];
 
 /* Destino del "Join now". Hoy apunta al alta de Network Member, que es por donde
    pasa el registro. Si la inscripción de temporada vive en un formulario aparte
@@ -32,7 +44,7 @@ function ArtSlot({ id, ratio, caption }: { id: string; ratio: string; caption: s
   );
 }
 
-const PHASES = [
+const PHASES: Phase[] = [
   {
     name: "Registration",
     when: "Before the season",
@@ -60,35 +72,19 @@ const PHASES = [
   },
 ];
 
-const MODES = [
-  { name: "Control", icon: "/icons/map-types/control.png" },
-  { name: "Hybrid", icon: "/icons/map-types/hybrid.png" },
-  { name: "Payload", icon: "/icons/map-types/payload.png" },
-  { name: "Push", icon: "/icons/map-types/push.png" },
-  { name: "Flashpoint", icon: "/icons/map-types/flashpoint.png" },
-];
-
-function Chevron() {
-  return (
-    <svg className={styles.chevron} viewBox="0 0 24 16" aria-hidden="true" focusable="false">
-      <path
-        d="M2 8h18M14 2l6 6-6 6"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 export default function InformationPage() {
+  const pageRef = useRef<HTMLDivElement | null>(null);
+  useStoryMotion(pageRef);
+
   return (
-    <div className={styles.page}>
-      {/* El último lienzo del ciclo: papel cálido de interior. Va fijo, así que
-          se comporta como el papel sobre el que está impreso el documento. */}
-      <Atmosphere hour="hearth" className={styles.paper} />
+    <div className={styles.page} ref={pageRef}>
+      {/* El mismo tablero que la landing, fijo detrás del documento. Antes esto
+          era papel crema y era la razón principal de que Season 9 no pareciera
+          parte del sitio. */}
+      <BrandField variant="section" className={styles.paper} intensity={0.85} seedOffset={707} />
+
+      <Story>
+        <ChapterIndex chapters={chapters} />
 
       <article className={styles.sheet}>
         <header className={styles.masthead}>
@@ -119,16 +115,16 @@ export default function InformationPage() {
         </ul>
 
         {/* ---------- 1 ---------- */}
-        <section className={styles.section} aria-labelledby="schedule">
+        <section className={styles.section} aria-labelledby="schedule" data-chapter="schedule">
           <p className={styles.kicker}>01 · Calendar</p>
           <h2 className={styles.h2} id="schedule">
             Main Schedule: one match per week
           </h2>
-          <p className={styles.lead}>
+          <RevealWords className={styles.lead}>
             The season is spread across many weeks, depending on how many teams get to participate.
             The roster has time to prepare, play, look at what went wrong, and come back for the
             next opponent.
-          </p>
+          </RevealWords>
 
           <ArtSlot
             id="otp-info-01-schedule"
@@ -136,31 +132,20 @@ export default function InformationPage() {
             caption="Season calendar — the week-by-week shape of a season."
           />
 
-          <ol className={styles.rail} aria-label="Season phases in order">
-            {PHASES.map((phase, i) => (
-              <li key={phase.name} className={styles.railStep}>
-                <div className={styles.railCard}>
-                  <span className={styles.railWhen}>{phase.when}</span>
-                  <h3 className={styles.railName}>{phase.name}</h3>
-                  <p className={styles.railText}>{phase.text}</p>
-                </div>
-                {i < PHASES.length - 1 ? <Chevron /> : null}
-              </li>
-            ))}
-          </ol>
+          <PhaseRail phases={PHASES} />
         </section>
 
         {/* ---------- 2 ---------- */}
-        <section className={styles.section} aria-labelledby="teams">
+        <section className={styles.section} aria-labelledby="teams" data-chapter="teams">
           <p className={styles.kicker}>02 · Before the first match</p>
           <h2 className={styles.h2} id="teams">
             How does the team building work?
           </h2>
-          <p className={styles.lead}>
+          <RevealWords className={styles.lead}>
             Captains pick from the players registered for the season. Before the draft, the admin
             team reviews ranks and the shape of the pool so the finished rosters land near the same
             average level.
-          </p>
+          </RevealWords>
           <p className={styles.body}>
             The picks stay with the captains. The structure only exists to stop one obviously
             stacked roster from deciding the season before week one.
@@ -174,25 +159,18 @@ export default function InformationPage() {
         </section>
 
         {/* ---------- 3 ---------- */}
-        <section className={styles.section} aria-labelledby="map-pool">
+        <section className={styles.section} aria-labelledby="map-pool" data-chapter="maps">
           <p className={styles.kicker}>03 · Maps</p>
           <h2 className={styles.h2} id="map-pool">
             The map pool
           </h2>
-          <p className={styles.lead}>
+          <RevealWords className={styles.lead}>
             The pool rotates through the regular season, so no roster gets to live on one map. In
             Playoffs and Finals the rotation is dropped: once a mode is called, every eligible map
             is on the table.
-          </p>
+          </RevealWords>
 
-          <ul className={styles.modes} aria-label="Game modes in the pool">
-            {MODES.map((mode) => (
-              <li key={mode.name} className={styles.mode}>
-                <img className={styles.modeIcon} src={mode.icon} alt="" loading="lazy" decoding="async" />
-                <span className={styles.modeName}>{mode.name}</span>
-              </li>
-            ))}
-          </ul>
+          <ModeTabs />
 
           <ArtSlot
             id="otp-info-03-map-pool"
@@ -202,16 +180,16 @@ export default function InformationPage() {
         </section>
 
         {/* ---------- 4 ---------- */}
-        <section className={styles.section} aria-labelledby="draft-table">
+        <section className={styles.section} aria-labelledby="draft-table" data-chapter="draft">
           <p className={styles.kicker}>04 · The table</p>
           <h2 className={styles.h2} id="draft-table">
             The draft table
           </h2>
-          <p className={styles.lead}>
+          <RevealWords className={styles.lead}>
             Captains and production work off one match state. A confirmed mode, map or ban lands in
             the same place for both, which is why the stream never has to be caught up by hand
             between games.
-          </p>
+          </RevealWords>
 
           <ArtSlot
             id="otp-info-04-draft-table"
@@ -314,6 +292,7 @@ export default function InformationPage() {
           </div>
         </section>
       </article>
+      </Story>
     </div>
   );
 }

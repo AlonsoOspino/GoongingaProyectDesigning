@@ -1,0 +1,381 @@
+/* EL SISTEMA NARRATIVO DE OTP.
+ *
+ * Todo esto vivia dentro de landing.module.css, y sus componentes eran funciones
+ * locales sin exportar dentro de LandingPage.tsx. Mientras solo lo usara la
+ * landing eso estaba bien; en cuanto Season 9 y GGL History necesitan el mismo
+ * lenguaje, dejarlo alli significaba tres copias divergiendo a la primera
+ * correccion.
+ *
+ * Aqui vive lo que de verdad comparten las tres rutas. Lo especifico de cada
+ * pagina se queda en su propio modulo. */
+
+/* ---- Tokens de marca ----
+   Fuente unica. landing.module.css los compone en lugar de repetirlos, asi que
+   cambiar el verde de OTP sigue siendo tocar una sola linea. */
+.surface {
+  --bg: #101715;
+  --surface: #1a2220;
+  --text: #e7ece9;
+  --accent: #34c77b;
+  --accent-2: var(--accent);
+  --divider: color-mix(in srgb, #e7ece9 16%, transparent);
+  --accent-300: #9ce7bf;
+  --accent-400: #5fd79a;
+  --accent-600: #1f9d5a;
+  --accent-700: #197a47;
+  --neutral-100: #f2f5f3;
+  --neutral-700: #4e5b55;
+  --neutral-900: #2a221a;
+  /* Canto duro, como el draft table: es lo que hace que esto se lea como equipo
+     de broadcast y no como app de consumo. */
+  --radius-sm: 2px;
+  --radius-md: 2px;
+  --font-display: var(--font-otp-display), "League Gothic", "Arial Narrow", sans-serif;
+  --font-heading: var(--font-otp-heading), "Chakra Petch", system-ui, sans-serif;
+  --font-body: var(--font-otp-body), "Barlow", system-ui, sans-serif;
+  --font-ui: var(--font-geist), system-ui, sans-serif;
+  --edge-soft: color-mix(in srgb, var(--accent) 18%, transparent);
+  --edge-strong: color-mix(in srgb, var(--accent) 46%, transparent);
+  /* El suelo que comparten todas las rutas, el mismo que pinta el tablero. */
+  --ground-base: #050806;
+}
+
+/* ---- Contenedor de capitulos ---- */
+
+.story {
+  position: relative;
+  isolation: isolate;
+}
+
+/* Indice vertical al costado. Lo ancla ScrollTrigger desde useStoryMotion; aqui
+   solo esta su aspecto. */
+.chapterIndex {
+  position: absolute;
+  top: 118px;
+  right: 10px;
+  z-index: 8;
+  width: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  color: var(--text);
+}
+
+.chapterIndexRule {
+  display: block;
+  width: 1px;
+  height: 48px;
+  background: linear-gradient(to bottom, var(--accent), transparent);
+}
+
+.chapterIndexItem {
+  writing-mode: vertical-rl;
+  font-family: var(--font-ui);
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 26%, transparent);
+  transition:
+    color 350ms ease,
+    transform 500ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.chapterIndexItemActive {
+  color: var(--accent-300);
+  transform: translateY(4px);
+}
+
+/* En pantallas estrechas se solaparia con el contenido, y el motion tampoco lo
+   ancla por debajo de 1200. */
+@media (max-width: 1199px) {
+  .chapterIndex {
+    display: none;
+  }
+}
+
+/* ---- Seccion-capitulo ----
+   --chapter-light lo anima el scroll: enciende el filo superior y un rescoldo
+   interior segun la seccion entra en cuadro. Es lo que hace que bajar por la
+   pagina se lea como progresion y no como una lista de bloques sueltos. */
+.chapterSection {
+  --chapter-light: 0;
+  position: relative;
+  isolation: isolate;
+  border-top: 1px solid color-mix(in srgb, var(--accent) 17%, transparent);
+}
+
+.chapterSection::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 0;
+  width: min(38vw, 560px);
+  height: 1px;
+  z-index: 3;
+  pointer-events: none;
+  opacity: calc(0.25 + var(--chapter-light) * 0.75);
+  background: linear-gradient(90deg, var(--accent-300), color-mix(in srgb, var(--accent) 38%, transparent), transparent);
+  box-shadow: 0 10px 26px rgba(52, 199, 123, calc(var(--chapter-light) * 0.12));
+}
+
+.chapterSection::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: calc(var(--chapter-light) * 0.72);
+  background: radial-gradient(ellipse 48% 68% at 76% 50%, rgba(52, 199, 123, 0.07), transparent 72%);
+}
+
+/* Alterna el lado del filo y del rescoldo. Dos capitulos seguidos encendiendo
+   por el mismo borde se leen como plantilla repetida. */
+.chapterSectionMirror::before {
+  left: auto;
+  right: 0;
+  transform: scaleX(-1);
+}
+
+.chapterSectionMirror::after {
+  background: radial-gradient(ellipse 48% 70% at 24% 52%, rgba(52, 199, 123, 0.075), transparent 72%);
+}
+
+.chapterSectionCenter::after {
+  background: radial-gradient(ellipse 54% 76% at 46% 52%, rgba(52, 199, 123, 0.055), transparent 74%);
+}
+
+/* ---- Cubierta de cifras ---- */
+
+.signalDeck {
+  position: relative;
+  z-index: 1;
+  border-top: 1px solid var(--edge-soft);
+  border-bottom: 1px solid var(--edge-soft);
+}
+
+.signalDeckInner {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-flow: dense;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding-inline: 28px;
+}
+
+.signalCell {
+  position: relative;
+  min-height: 132px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: 1fr auto;
+  align-items: end;
+  gap: 6px 18px;
+  padding: 24px 26px 22px;
+  color: var(--text) !important;
+  text-decoration: none;
+  border-left: 1px solid var(--edge-soft);
+  background: color-mix(in srgb, var(--accent) 2%, transparent);
+  overflow: hidden;
+  transition:
+    background 300ms ease,
+    border-color 300ms ease;
+}
+
+.signalCell:last-child {
+  border-right: 1px solid var(--edge-soft);
+}
+
+.signalCell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(108deg, transparent 35%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 65%);
+  transform: translateX(-120%);
+  transition: transform 700ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.signalCell:hover,
+.signalCell:focus-visible {
+  border-color: var(--edge-strong);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.signalCell:hover::before,
+.signalCell:focus-visible::before {
+  transform: translateX(120%);
+}
+
+.signalCell svg {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  color: var(--accent);
+  transition: transform 350ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.signalCell:hover svg {
+  transform: translateX(4px);
+}
+
+.signalValue {
+  align-self: end;
+  font-family: var(--font-display);
+  font-size: clamp(38px, 4vw, 58px);
+  line-height: 0.8;
+  letter-spacing: 0.01em;
+}
+
+.signalCellLive .signalValue {
+  color: var(--accent-300);
+  text-shadow: 0 14px 34px rgba(52, 199, 123, 0.18);
+}
+
+.signalLabel {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 54%, transparent);
+}
+
+/* Cuatro columnas en un movil son cuatro cifras ilegibles. */
+@media (max-width: 900px) {
+  .signalDeckInner {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .signalCell:nth-child(2n) {
+    border-right: 1px solid var(--edge-soft);
+  }
+
+  .signalCell:nth-child(n + 3) {
+    border-top: 1px solid var(--edge-soft);
+  }
+}
+
+/* ---- Cinta de titulares ---- */
+
+.marquee {
+  position: relative;
+  height: 42px;
+  overflow: hidden;
+  border-top: 1px solid color-mix(in srgb, var(--accent) 12%, transparent);
+  background: rgba(3, 8, 5, 0.66);
+}
+
+.marquee::before,
+.marquee::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  width: 64px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.marquee::before {
+  left: 0;
+  background: linear-gradient(90deg, #050806, transparent);
+}
+
+.marquee::after {
+  right: 0;
+  background: linear-gradient(-90deg, #050806, transparent);
+}
+
+.marqueeTrack {
+  display: flex;
+  width: max-content;
+  height: 100%;
+  will-change: transform;
+}
+
+.marqueeGroup {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: clamp(46px, 6vw, 96px);
+  padding-inline: clamp(24px, 3vw, 48px);
+}
+
+.marqueeItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 52%, transparent);
+  white-space: nowrap;
+}
+
+.marqueeItem i {
+  width: 4px;
+  height: 4px;
+  background: var(--accent);
+  box-shadow: 0 0 12px rgba(52, 199, 123, 0.7);
+}
+
+/* ---- Revelado por palabras ---- */
+
+.revealWord {
+  display: inline-block;
+  will-change: opacity;
+}
+
+/* En movil la cubierta deja de ser rejilla y pasa a ser lista: cuatro cifras en
+   una columna de 360px son cuatro cifras ilegibles. */
+@media (max-width: 640px) {
+  .signalDeckInner {
+    grid-template-columns: 1fr;
+    padding-inline: 18px;
+  }
+
+  .signalCell {
+    min-height: 82px;
+    grid-template-columns: auto 1fr auto;
+    grid-template-rows: 1fr;
+    align-items: center;
+    padding: 16px 18px;
+    border-right: 1px solid var(--edge-soft);
+    border-top: 1px solid var(--edge-soft);
+  }
+
+  .signalCell:first-child {
+    border-top: 0;
+  }
+
+  .signalCell svg {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .signalValue {
+    align-self: center;
+    min-width: 74px;
+    font-size: 39px;
+  }
+}
+
+/* El motion se apaga desde JS, pero estas dos piezas dejan rastro en el DOM: las
+   palabras se quedan a media luz si GSAP nunca corre, y la cinta se queda con su
+   segunda copia visible al lado de la primera. */
+@media (prefers-reduced-motion: reduce) {
+  .revealWord {
+    opacity: 1 !important;
+  }
+
+  .marqueeTrack {
+    transform: none !important;
+  }
+
+  .marqueeGroup:nth-child(2) {
+    display: none;
+  }
+}

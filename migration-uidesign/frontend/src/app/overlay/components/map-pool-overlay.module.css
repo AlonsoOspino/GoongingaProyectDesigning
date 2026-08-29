@@ -1,164 +1,482 @@
+/*
+ * Map pool overlay.
+ *
+ * Two states live in one route: the plain weekly pool, and one map type pulled
+ * forward when the manager focuses it from the dashboard. The focus arrives on
+ * the match row, so everything here is driven by data attributes rather than
+ * by a second component.
+ *
+ * Cards are clipped, never skewed. A skew would shear the map art; a clip-path
+ * leans the frame and leaves the photograph upright.
+ */
+
 .root {
+  position: relative;
   width: 100%;
   height: 100%;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 25.5% 1fr;
+  grid-template-rows: 1fr 4.25rem;
+  color: var(--otp-text);
   font-family: var(--font-overlay-body), "Trebuchet MS", sans-serif;
-  color: #f2c47b;
+  overflow: hidden;
 }
 
 .classic {
   background:
-    radial-gradient(circle at 10% 16%, rgba(224, 189, 127, 0.14) 0, rgba(224, 189, 127, 0.14) 6%, transparent 6.5%),
-    radial-gradient(circle at 31% 10%, rgba(224, 189, 127, 0.12) 0, rgba(224, 189, 127, 0.12) 7%, transparent 7.5%),
-    radial-gradient(circle at 52% 20%, rgba(224, 189, 127, 0.14) 0, rgba(224, 189, 127, 0.14) 5.5%, transparent 6%),
-    radial-gradient(circle at 76% 12%, rgba(224, 189, 127, 0.1) 0, rgba(224, 189, 127, 0.1) 7%, transparent 7.5%),
-    radial-gradient(circle at 92% 18%, rgba(224, 189, 127, 0.16) 0, rgba(224, 189, 127, 0.16) 5%, transparent 5.5%),
-    linear-gradient(140deg, #161616 0%, #111111 48%, #090909 100%);
+    radial-gradient(120% 90% at 8% 0%, rgba(29, 90, 62, 0.4) 0%, transparent 60%),
+    radial-gradient(90% 80% at 100% 100%, rgba(52, 122, 87, 0.22) 0%, transparent 62%),
+    linear-gradient(155deg, #0b1610 0%, var(--otp-deep) 45%, var(--otp-void) 100%);
 }
 
 .clean {
-  background: #0f0f0f;
+  background: var(--otp-deep);
 }
 
-.titleBar {
-  height: 13%;
-  min-height: 86px;
+/*
+ * Background HUD. Diagonal hairlines at the same lean as the cards, plus a
+ * vignette, so the empty half of the frame still belongs to the graphic.
+ */
+.field {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(
+      100deg,
+      rgba(62, 224, 138, 0.05) 0 1px,
+      transparent 1px 84px
+    ),
+    repeating-linear-gradient(
+      100deg,
+      rgba(62, 224, 138, 0.025) 0 1px,
+      transparent 1px 21px
+    );
+  mask-image: radial-gradient(120% 100% at 20% 40%, #000 0%, transparent 78%);
+}
+
+/* ------------------------------------------------------------------ rail */
+
+.rail {
+  position: relative;
+  z-index: 2;
+  grid-column: 1;
+  grid-row: 1;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   justify-content: center;
-  border-bottom: 4px solid #c99752;
+  gap: 1.1rem;
+  padding: 0 2rem 0 3.25rem;
+  min-width: 0;
 }
 
-.classic .titleBar {
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.13) 0 20%, transparent 20% 50%, rgba(255, 255, 255, 0.08) 50% 70%, transparent 70% 100%),
-    linear-gradient(180deg, #f5f0e4 0%, #ebe3d0 100%);
-}
-
-.clean .titleBar {
-  background: #1c1c1c;
-}
-
-.titleText {
-  font-family: var(--font-overlay-display), var(--font-overlay-body), sans-serif;
+.kicker {
+  font-family: var(--otp-font-hud);
+  font-size: 0.82rem;
+  letter-spacing: 0.42em;
   text-transform: uppercase;
-  font-size: clamp(3rem, 6vw, 4rem);
-  letter-spacing: 0.04em;
-  color: #c99752;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
-  line-height: 1;
+  color: var(--otp-neon);
 }
 
-.grid {
-  height: 87%;
+.title {
+  font-family: var(--otp-font-display);
+  /* The lean echoes the cards so the rail and the fan read as one object. */
+  transform: skewX(-6deg);
+  transform-origin: left bottom;
+  font-size: 6.5rem;
+  line-height: 0.86;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: var(--otp-text);
+  text-shadow: 0 0 38px rgba(62, 224, 138, 0.22);
+}
+
+.titleNumber {
+  color: var(--otp-neon);
+  text-shadow: 0 0 26px var(--otp-neon-soft);
+}
+
+.rule {
+  width: 74%;
+  height: 2px;
+  background: linear-gradient(90deg, var(--otp-neon) 0%, transparent 100%);
+  opacity: 0.65;
+}
+
+.railMeta {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  font-family: var(--otp-font-hud);
+  font-size: 0.8rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.metaLabel {
+  color: var(--otp-text-faint);
+}
+
+.metaValue {
+  color: var(--otp-text-dim);
+}
+
+/*
+ * The plate is the rail's half of the focus state: it names what the fan is
+ * showing so the shot still makes sense to a viewer who just tuned in.
+ */
+.focusPlate,
+.idlePlate {
+  --plate-lean: var(--otp-lean-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.85rem 1.5rem 0.9rem 1.35rem;
+  clip-path: polygon(var(--plate-lean) 0, 100% 0, calc(100% - var(--plate-lean)) 100%, 0 100%);
+  align-self: flex-start;
+  min-width: 62%;
+}
+
+.focusPlate {
+  background: linear-gradient(100deg, rgba(62, 224, 138, 0.2), rgba(29, 90, 62, 0.12));
+  border-left: 0;
+  animation: otp-rise 420ms var(--otp-ease) both;
+}
+
+.idlePlate {
+  background: linear-gradient(100deg, rgba(27, 53, 39, 0.55), rgba(12, 22, 16, 0.3));
+}
+
+.focusLabel {
+  font-family: var(--otp-font-hud);
+  font-size: 0.68rem;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--otp-text-faint);
+}
+
+.focusValue {
+  font-family: var(--otp-font-display);
+  font-size: 2.4rem;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--otp-neon-hot);
+}
+
+.idleValue {
+  font-family: var(--otp-font-display);
+  font-size: 2.4rem;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--otp-text-dim);
+}
+
+.focusMap {
+  font-family: var(--otp-font-hud);
+  font-size: 0.85rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--otp-text);
+}
+
+.railTicks {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+}
+
+.railTicks span {
+  width: 1.6rem;
+  height: 3px;
+  background: var(--otp-line-bright);
+}
+
+.railTicks span:first-child {
+  background: var(--otp-neon);
+}
+
+/* ------------------------------------------------------------------- fan */
+
+.fan {
+  position: relative;
+  z-index: 1;
+  grid-column: 2;
+  grid-row: 1;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 4px;
-  padding: 4px;
-  background: #000;
+  gap: 0.9rem;
+  padding: 2.25rem 3rem 1.5rem 1rem;
+  min-width: 0;
+  /* The whole point of the focus state. Chromium animates this, and OBS is
+     Chromium, so the columns slide rather than snap. */
+  transition: grid-template-columns 620ms var(--otp-ease);
 }
 
 .column {
-  min-width: 0;
-  min-height: 0;
-  border: 2px solid #000;
-  background: #68686d;
   display: flex;
   flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
+  min-height: 0;
+  transition:
+    opacity 500ms var(--otp-ease),
+    filter 500ms var(--otp-ease);
+}
+
+.column[data-state="dim"] {
+  opacity: 0.42;
+  filter: grayscale(0.55);
 }
 
 .columnHeader {
-  height: 14%;
-  min-height: 58px;
-  border-bottom: 3px solid #000;
-  background: #606065;
+  --plate-lean: var(--otp-lean-sm);
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-family: var(--font-overlay-display), var(--font-overlay-body), sans-serif;
-  font-size: clamp(2rem, 4vw, 2.9rem);
-  letter-spacing: 0.03em;
-  color: #e0b06a;
-  text-transform: uppercase;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 1rem 0.45rem 1.15rem;
+  clip-path: polygon(var(--plate-lean) 0, 100% 0, calc(100% - var(--plate-lean)) 100%, 0 100%);
+  background: linear-gradient(100deg, rgba(27, 53, 39, 0.9), rgba(12, 22, 16, 0.55));
+  transition: background 500ms var(--otp-ease);
 }
 
-.mapStack {
+.column[data-state="active"] .columnHeader {
+  background: linear-gradient(100deg, var(--otp-neon) 0%, rgba(52, 122, 87, 0.55) 100%);
+}
+
+.columnTitle {
+  font-family: var(--otp-font-display);
+  font-size: 1.5rem;
+  line-height: 1.1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--otp-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 500ms var(--otp-ease);
+}
+
+.column[data-state="active"] .columnTitle {
+  color: var(--otp-void);
+}
+
+.columnCount {
+  font-family: var(--otp-font-hud);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--otp-text-faint);
+  transition: color 500ms var(--otp-ease);
+}
+
+.column[data-state="active"] .columnCount {
+  color: rgba(4, 8, 5, 0.75);
+}
+
+.stack {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
+  gap: 0.55rem;
 }
 
-.mapTile {
+/* ----------------------------------------------------------------- cards */
+
+.cardFrame {
+  --lean: var(--otp-lean);
   position: relative;
   flex: 1 1 0;
   min-height: 0;
+  padding: 3px;
+  clip-path: polygon(var(--lean) 0, 100% 0, calc(100% - var(--lean)) 100%, 0 100%);
+  background: linear-gradient(160deg, var(--otp-line-bright) 0%, var(--otp-line) 100%);
+  transition:
+    flex-grow 620ms var(--otp-ease),
+    background 500ms var(--otp-ease),
+    opacity 500ms var(--otp-ease),
+    filter 500ms var(--otp-ease);
+}
+
+.column[data-state="active"] .cardFrame {
+  background: linear-gradient(160deg, var(--otp-neon) 0%, var(--otp-bright) 100%);
+  /* box-shadow is clipped away by clip-path; drop-shadow follows the shape. */
+  filter: drop-shadow(0 0 14px rgba(62, 224, 138, 0.42));
+}
+
+.cardFrame[data-hero="true"] {
+  --lean: calc(var(--otp-lean) + 8px);
+  flex-grow: 2.6;
+  background: linear-gradient(160deg, var(--otp-neon-hot) 0%, var(--otp-neon) 55%, var(--otp-bright) 100%);
+  padding: 4px;
+  animation: otp-hero-pulse 2.6s var(--ease-in-out, ease-in-out) infinite;
+}
+
+.cardFrame[data-muted="true"] {
+  flex-grow: 0.55;
+  opacity: 0.5;
+}
+
+.cardInner {
+  position: relative;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
-  border-top: 3px solid #000;
-  background: #48484d;
+  clip-path: polygon(var(--lean) 0, 100% 0, calc(100% - var(--lean)) 100%, 0 100%);
+  background: var(--otp-panel);
 }
 
-.mapTile:first-child {
-  border-top: 0;
-}
-
-.mapImage {
+.cardImage {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transform: scale(1);
+  filter: saturate(0.82) brightness(0.78);
+  transition:
+    transform 620ms var(--otp-ease),
+    filter 500ms var(--otp-ease);
 }
 
-.mapLabel {
+/* The zoom that goes with the expansion. */
+.column[data-state="active"] .cardImage {
+  transform: scale(1.12);
+  filter: saturate(1.12) brightness(1);
+}
+
+.cardFrame[data-hero="true"] .cardImage {
+  transform: scale(1.18);
+  filter: saturate(1.2) brightness(1.05);
+}
+
+.cardShade {
   position: absolute;
-  left: 8px;
-  bottom: 8px;
-  padding: 4px 8px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  background: rgba(0, 0, 0, 0.56);
-  color: #f4d8a8;
-  font-family: var(--font-overlay-display), var(--font-overlay-body), sans-serif;
-  font-size: 1.1rem;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(4, 8, 5, 0.92) 0%,
+    rgba(4, 8, 5, 0.35) 34%,
+    transparent 62%
+  );
 }
 
-.emptyState {
-  flex: 1;
+.cardLabel {
+  position: absolute;
+  left: calc(var(--lean) + 0.65rem);
+  right: 0.65rem;
+  bottom: 0.55rem;
+  font-family: var(--otp-font-hud);
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--otp-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition:
+    color 500ms var(--otp-ease),
+    font-size 500ms var(--otp-ease);
+}
+
+.column[data-state="active"] .cardLabel {
+  color: var(--otp-text);
+}
+
+.cardFrame[data-hero="true"] .cardLabel {
+  font-family: var(--otp-font-display);
+  font-size: 1.75rem;
+  letter-spacing: 0.06em;
+  color: var(--otp-neon-hot);
+}
+
+.emptyCard {
+  --lean: var(--otp-lean);
+  flex: 1 1 0;
   min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  text-align: center;
-  border-top: 3px solid #000;
-  background: #45454a;
-  color: #f0ca90;
-  font-family: var(--font-overlay-display), var(--font-overlay-body), sans-serif;
-  font-size: 1.6rem;
-  letter-spacing: 0.03em;
+  clip-path: polygon(var(--lean) 0, 100% 0, calc(100% - var(--lean)) 100%, 0 100%);
+  background: repeating-linear-gradient(
+    100deg,
+    rgba(27, 53, 39, 0.6) 0 8px,
+    rgba(12, 22, 16, 0.6) 8px 16px
+  );
+  font-family: var(--otp-font-hud);
+  font-size: 0.72rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--otp-text-faint);
 }
+
+/* ---------------------------------------------------------------- footer */
+
+.footer {
+  position: relative;
+  z-index: 2;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0 3rem 0 3.25rem;
+  border-top: 1px solid var(--otp-line);
+}
+
+.footerTicks {
+  width: 3.5rem;
+  height: 4px;
+  background: linear-gradient(90deg, var(--otp-neon) 0 34%, var(--otp-line-bright) 34% 100%);
+}
+
+.footerText {
+  font-family: var(--otp-font-hud);
+  font-size: 0.74rem;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--otp-text-faint);
+}
+
+/* ---------------------------------------------------------------- status */
 
 .statusScreen {
   width: 100%;
   height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #0e0e0e;
-  color: #f2c47b;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(155deg, #0b1610 0%, var(--otp-deep) 50%, var(--otp-void) 100%);
+  padding: 1.5rem;
+}
+
+.statusInner {
   text-align: center;
-  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.statusKicker {
+  font-family: var(--otp-font-hud);
+  font-size: 0.72rem;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: var(--otp-neon);
 }
 
 .statusTitle {
-  font-family: var(--font-overlay-display), var(--font-overlay-body), sans-serif;
-  font-size: 3rem;
+  font-family: var(--otp-font-display);
+  font-size: 3.25rem;
+  line-height: 1;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  color: var(--otp-text);
 }
 
 .statusHint {
-  margin-top: 10px;
-  font-size: 1.3rem;
-  color: #d6b17b;
+  font-family: var(--otp-font-hud);
+  font-size: 0.8rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--otp-text-faint);
 }

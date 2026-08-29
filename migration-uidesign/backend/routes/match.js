@@ -20,6 +20,7 @@ router.put("/manager/update/:id", authMiddleware, managerMiddleware, matchContro
 router.post("/manager/reset/:id", authMiddleware, managerOrAdminMiddleware, matchController.managerResetMatch);
 router.post("/manager/:id/toggle-pause", authMiddleware, managerMiddleware, matchController.managerTogglePause);
 router.post("/manager/:id/clear-pause-request", authMiddleware, managerMiddleware, matchController.managerClearPauseRequest);
+router.patch("/manager/:id/overlay", authMiddleware, managerMiddleware, matchController.managerSetOverlayFocus);
 // Image endpoint must come before generic /:id routes
 router.get("/:teamAId/:teamBId/vs-image", matchController.generateVsImage);
 

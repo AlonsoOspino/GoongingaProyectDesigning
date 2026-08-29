@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SandboxPanel } from "@/components/dev/SandboxPanel";
 
 export const metadata = {
   title: "Developer | GGL",
@@ -163,6 +164,15 @@ export default function DevPage() {
       </section>
 
       <main className="mx-auto max-w-7xl px-4 py-10 lg:px-8 lg:py-14">
+        <section className="mb-14">
+          <SectionTitle
+            kicker="Test Bench"
+            title="Sandbox Match"
+            copy="A real match with a real draft, in a season the public site cannot see. Stand-in captains play it through the same endpoints a real captain uses, so what you are watching is the production flow, not a mock."
+          />
+          <SandboxPanel />
+        </section>
+
         <section className="mb-14">
           <SectionTitle
             kicker="Main Flow"

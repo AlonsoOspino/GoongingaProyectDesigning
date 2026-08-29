@@ -1,0 +1,436 @@
+/* NEWS.
+ *
+ * El listado publico no estaba sin estilo por descuido: el propio
+ * components/news/news.module.css lo dice arriba del todo — "the public listing
+ * is intentionally unstyled while its replacement visual system is rebuilt".
+ * Ese sistema ya existe, asi que esto es cobrar esa deuda.
+ *
+ * Va en app/news/ y no en components/news/, que se queda sirviendo al editor y a
+ * la prosa del markdown. Aquel modulo usa los tokens Tailwind de la app; este
+ * usa los de OTP, que es de lo que iba el encargo. */
+
+.page {
+  composes: surface from "../../components/story/story.module.css";
+  position: relative;
+  min-height: 100vh;
+  isolation: isolate;
+  background: var(--ground-base);
+  color: var(--text);
+  font-family: var(--font-body);
+}
+
+.page .board {
+  position: fixed;
+  inset: 0;
+}
+
+.page :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---------- cabecera ---------- */
+
+.hero {
+  position: relative;
+  z-index: 1;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: clamp(56px, 7vw, 104px) 28px clamp(32px, 4vw, 52px);
+}
+
+.eyebrow {
+  margin: 0 0 20px;
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(58px, 9vw, 148px);
+  line-height: 0.84;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
+.standfirst {
+  max-width: 60ch;
+  margin: 24px 0 0;
+  font-size: 19px;
+  line-height: 1.6;
+  color: color-mix(in srgb, var(--text) 74%, transparent);
+  text-wrap: pretty;
+}
+
+/* ---------- listado ---------- */
+
+.list {
+  position: relative;
+  z-index: 1;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 28px clamp(96px, 10vw, 148px);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--edge-soft);
+  border-top: 3px solid color-mix(in srgb, var(--accent) 62%, transparent);
+  background: color-mix(in srgb, var(--bg) 62%, transparent);
+  transition:
+    border-color 200ms ease,
+    transform 320ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.card:hover {
+  border-color: color-mix(in srgb, var(--accent) 52%, transparent);
+  border-top-color: var(--accent);
+  transform: translateY(-3px);
+}
+
+/* La primera noticia ocupa dos columnas y saca la imagen a mayor tamano. Sin
+   esto, veinte tarjetas identicas no dicen cual es la ultima. */
+.cardLead {
+  grid-column: span 2;
+}
+
+@media (max-width: 780px) {
+  .cardLead {
+    grid-column: span 1;
+  }
+}
+
+.cardMediaWrap {
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid var(--edge-soft);
+}
+
+.cardMedia {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  display: block;
+  transition: transform 600ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.card:hover .cardMedia {
+  transform: scale(1.03);
+}
+
+.cardLead .cardMedia {
+  aspect-ratio: 21 / 9;
+}
+
+/* Sin imagen no se deja un hueco: se pinta el mismo tablero de la marca en
+   pequeno, para que la tarjeta siga siendo una tarjeta. */
+.cardMediaEmpty {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  display: block;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, transparent), transparent 58%),
+    repeating-linear-gradient(90deg, color-mix(in srgb, var(--accent) 7%, transparent) 0 1px, transparent 1px 44px),
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--accent) 7%, transparent) 0 1px, transparent 1px 44px),
+    color-mix(in srgb, var(--bg) 80%, transparent);
+}
+
+.cardLead .cardMediaEmpty {
+  aspect-ratio: 21 / 9;
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  padding: 18px 20px 22px;
+}
+
+.cardDate {
+  font-family: var(--font-heading);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 48%, transparent);
+}
+
+.cardTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(26px, 2.4vw, 36px);
+  line-height: 0.95;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+
+.cardLead .cardTitle {
+  font-size: clamp(34px, 3.6vw, 56px);
+}
+
+/* El enlace cubre la tarjeta entera: el objetivo tactil es la tarjeta, no las
+   dos palabras del pie. El texto sigue ahi para que se lea que es pulsable. */
+.cardLink {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  text-indent: -9999px;
+  overflow: hidden;
+}
+
+.cardMore {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: auto;
+  padding-top: 6px;
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.card:hover .cardMore svg {
+  transform: translateX(4px);
+}
+
+.cardMore svg {
+  transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ---------- estado vacio ---------- */
+
+/* El listado depende de la API. Antes, cuando no respondia, se veia un <h2> y un
+   parrafo sueltos que parecian una pagina rota. Esto es un estado, no un error. */
+.empty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 24px;
+  padding: clamp(36px, 5vw, 64px);
+  border: 1px dashed var(--edge-soft);
+  background: color-mix(in srgb, var(--bg) 46%, transparent);
+}
+
+.emptyCopy {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.emptyTitle {
+  margin: 0 0 10px;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(30px, 3.6vw, 48px);
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+
+.emptyText {
+  margin: 0;
+  max-width: 52ch;
+  font-size: 16px;
+  line-height: 1.6;
+  color: color-mix(in srgb, var(--text) 62%, transparent);
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 26px;
+  flex: none;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-300) !important;
+  text-decoration: none;
+  transition:
+    background 180ms ease,
+    transform 180ms ease;
+}
+
+.cta:hover {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  transform: translateY(-2px);
+}
+
+/* ---------- lector de articulo ---------- */
+
+.article {
+  position: relative;
+  z-index: 1;
+  max-width: 820px;
+  margin: 0 auto;
+  padding: clamp(28px, 4vw, 48px) 28px clamp(96px, 10vw, 140px);
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: clamp(28px, 3.4vw, 44px);
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 58%, transparent) !important;
+  text-decoration: none;
+  transition: color 180ms ease;
+}
+
+.backLink:hover {
+  color: var(--accent) !important;
+}
+
+.articleHero {
+  position: relative;
+  margin-bottom: clamp(28px, 3.4vw, 44px);
+  border: 1px solid var(--edge-soft);
+  overflow: hidden;
+}
+
+.articleHeroImage {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  display: block;
+}
+
+.articleHead {
+  margin-bottom: clamp(28px, 3.4vw, 44px);
+  padding-bottom: clamp(22px, 2.6vw, 32px);
+  border-bottom: 1px solid var(--edge-soft);
+}
+
+.articleEyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 18px;
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.articleEyebrow i {
+  width: 6px;
+  height: 6px;
+  background: var(--accent);
+  box-shadow: 0 0 10px rgba(52, 199, 123, 0.8);
+}
+
+.articleTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(40px, 6vw, 84px);
+  line-height: 0.88;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+
+.articleMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  margin: 22px 0 0;
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 52%, transparent);
+}
+
+.articleMeta i {
+  width: 3px;
+  height: 3px;
+  background: color-mix(in srgb, var(--text) 34%, transparent);
+}
+
+/* La prosa la sigue pintando components/news/news.module.css (.markdownBody),
+   que corre sobre los tokens globales de la app — tambien oscuros, asi que no
+   desentona. Aqui solo se le da la tipografia de OTP y el ancho de lectura.
+   Doble clase para ganar a las reglas de aquel modulo sin !important. */
+.prose.prose {
+  font-family: var(--font-body);
+  font-size: 18px;
+  line-height: 1.7;
+  color: color-mix(in srgb, var(--text) 86%, transparent);
+}
+
+.prose.prose h1,
+.prose.prose h2,
+.prose.prose h3,
+.prose.prose h4 {
+  font-family: var(--font-heading);
+  color: var(--text);
+}
+
+.prose.prose a {
+  color: var(--accent);
+}
+
+.articleFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: clamp(40px, 5vw, 68px);
+  padding-top: 24px;
+  border-top: 1px solid var(--edge-soft);
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 46%, transparent);
+}
+
+/* ---------- responsive ---------- */
+
+@media (max-width: 720px) {
+  .hero,
+  .list,
+  .article {
+    padding-inline: 18px;
+  }
+
+  .empty {
+    padding: 28px 20px;
+  }
+}

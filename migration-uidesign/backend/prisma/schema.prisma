@@ -370,6 +370,8 @@ model Match {
   pauseRequestedAt   DateTime?
   pauseRequestedBy   Int?
   discordMessageId   String?
+  overlayFocusType   MapType?
+  overlayFocusMapId  Int?
   draft              DraftTable?
   teamA              Team                     @relation("TeamA", fields: [teamAId], references: [id])
   teamB              Team                     @relation("TeamB", fields: [teamBId], references: [id])

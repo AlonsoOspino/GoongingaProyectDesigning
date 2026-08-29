@@ -1,441 +1,660 @@
+/*
+ * Match cards.
+ *
+ * Same card language as the map pool overlay, one card per game instead of one
+ * per pooled map, carrying the winning team's logo. This is what sits on screen
+ * between maps, so the rail also reports which captains have checked in — the
+ * waiting state and the result live in one graphic rather than two.
+ */
+
 .root {
+  position: relative;
   width: 100%;
   height: 100%;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 27% 1fr;
+  grid-template-rows: 1fr 4.25rem;
+  color: var(--otp-text);
   font-family: var(--font-overlay-body), "Trebuchet MS", sans-serif;
-  color: #f2c47b;
-  background:
-    radial-gradient(circle at 20% 8%, rgba(243, 206, 143, 0.2), transparent 46%),
-    radial-gradient(circle at 86% 14%, rgba(255, 255, 255, 0.16), transparent 42%),
-    linear-gradient(160deg, #141414 0%, #0f0f0f 45%, #080808 100%);
-}
-
-.titleBar {
-  position: relative;
-  height: 17%;
-  min-height: 116px;
-  border-bottom: 4px solid #c99752;
-  background:
-    linear-gradient(140deg, rgba(16, 16, 16, 0.66), rgba(13, 13, 13, 0.8)),
-    linear-gradient(180deg, #f4efdf 0%, #e8dcc2 100%);
   overflow: hidden;
+  background:
+    radial-gradient(120% 90% at 6% 0%, rgba(29, 90, 62, 0.42) 0%, transparent 60%),
+    radial-gradient(90% 80% at 100% 100%, rgba(52, 122, 87, 0.2) 0%, transparent 62%),
+    linear-gradient(155deg, #0b1610 0%, var(--otp-deep) 45%, var(--otp-void) 100%);
 }
 
-.decorTop {
+.field {
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(155deg, rgba(255, 255, 255, 0.44) 0 10%, transparent 10% 16%, rgba(255, 255, 255, 0.36) 16% 24%, transparent 24% 31%, rgba(255, 255, 255, 0.24) 31% 37%, transparent 37% 100%),
-    linear-gradient(20deg, rgba(214, 166, 92, 0.34) 0 9%, transparent 9% 22%, rgba(214, 166, 92, 0.44) 22% 31%, transparent 31% 100%);
-  mix-blend-mode: screen;
+  z-index: 0;
   pointer-events: none;
+  background-image:
+    repeating-linear-gradient(100deg, rgba(62, 224, 138, 0.05) 0 1px, transparent 1px 84px),
+    repeating-linear-gradient(100deg, rgba(62, 224, 138, 0.025) 0 1px, transparent 1px 21px);
+  mask-image: radial-gradient(120% 100% at 20% 40%, #000 0%, transparent 78%);
+}
+
+/* ------------------------------------------------------------------ rail */
+
+.rail {
+  position: relative;
+  z-index: 2;
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.1rem;
+  padding: 0 1.75rem 0 3.25rem;
+  min-width: 0;
+}
+
+.kicker {
+  font-family: var(--otp-font-hud);
+  font-size: 0.8rem;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: var(--otp-neon);
+}
+
+.title {
+  font-family: var(--otp-font-display);
+  transform: skewX(-6deg);
+  transform-origin: left bottom;
+  font-size: 5.5rem;
+  line-height: 0.86;
+  text-transform: uppercase;
+  color: var(--otp-text);
+  text-shadow: 0 0 38px rgba(62, 224, 138, 0.22);
+}
+
+.titleNumber {
+  color: var(--otp-neon);
+  text-shadow: 0 0 26px var(--otp-neon-soft);
+}
+
+.rule {
+  width: 74%;
+  height: 2px;
+  background: linear-gradient(90deg, var(--otp-neon) 0%, transparent 100%);
+  opacity: 0.65;
+}
+
+/* ------------------------------------------------------------- the result */
+
+.resultBlock {
+  --plate-lean: var(--otp-lean-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 1rem 1.5rem 1.1rem 1.4rem;
+  clip-path: polygon(var(--plate-lean) 0, 100% 0, calc(100% - var(--plate-lean)) 100%, 0 100%);
+  background: linear-gradient(100deg, rgba(27, 53, 39, 0.75), rgba(12, 22, 16, 0.4));
+}
+
+.resultLabel {
+  font-family: var(--otp-font-hud);
+  font-size: 0.66rem;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--otp-text-faint);
 }
 
 .scoreRow {
-  position: relative;
-  z-index: 1;
-  height: 100%;
-  padding: 8px 16px;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
-  gap: 12px;
   align-items: center;
+  gap: 0.75rem;
 }
 
-.teamSide {
-  min-width: 0;
+.scoreTeam {
   display: flex;
+  flex-direction: column;
   align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
 }
 
-.bannerFrame {
-  border: 2px solid #0b0b0b;
-  background: rgba(24, 24, 24, 0.78);
-  box-shadow: inset 0 0 0 1px rgba(224, 176, 106, 0.42);
-  overflow: hidden;
+.scoreLogoFrame {
+  --lean: 8px;
+  width: 3.1rem;
+  height: 3.1rem;
+  display: grid;
+  place-items: center;
+  padding: 2px;
+  clip-path: polygon(var(--lean) 0, 100% 0, calc(100% - var(--lean)) 100%, 0 100%);
+  background: linear-gradient(160deg, var(--otp-line-bright), var(--otp-line));
 }
 
-.bannerFrame {
-  width: 100%;
-  height: auto;
-  max-height: 86px;
-  aspect-ratio: 1197 / 154;
+.scoreTeam[data-side="a"] .scoreLogoFrame {
+  background: linear-gradient(160deg, var(--otp-team-a-bright), var(--otp-team-a));
 }
 
-.teamBanner {
+.scoreTeam[data-side="b"] .scoreLogoFrame {
+  background: linear-gradient(160deg, var(--otp-team-b-bright), var(--otp-team-b));
+}
+
+.scoreLogo {
   width: 100%;
   height: 100%;
-  display: block;
+  object-fit: contain;
+  background: var(--otp-panel);
+  padding: 4px;
 }
 
-.teamBanner {
-  object-fit: cover;
-}
-
-.assetFallback {
+.scoreLogoFallback {
   width: 100%;
   height: 100%;
   display: grid;
   place-items: center;
-  font-family: var(--font-overlay-display), var(--font-overlay-body), sans-serif;
-  letter-spacing: 0.06em;
-  color: #dfbb80;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.26), rgba(0, 0, 0, 0.54));
+  background: var(--otp-panel);
+  font-family: var(--otp-font-display);
+  font-size: 1.5rem;
+  color: var(--otp-text-dim);
 }
 
-.scoreBlock {
-  padding: 10px 20px;
+.scoreTeamName {
+  font-family: var(--otp-font-display);
+  font-size: 1.15rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--otp-text);
+  text-align: center;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scoreTag {
+  font-family: var(--otp-font-hud);
+  font-size: 0.58rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--otp-text-faint);
+}
+
+.scoreTag[data-lead="true"] {
+  color: var(--otp-neon);
+}
+
+.scoreValue {
   display: flex;
   align-items: center;
-  gap: 14px;
-  border: 2px solid #0d0d0d;
-  background: rgba(11, 11, 11, 0.78);
-  box-shadow: inset 0 0 0 1px rgba(230, 190, 130, 0.28);
+  gap: 0.45rem;
 }
 
-.scoreText {
-  font-family: var(--font-overlay-display), var(--font-overlay-body), sans-serif;
-  font-size: clamp(2.6rem, 4.3vw, 3.8rem);
+.scoreNumber {
+  font-family: var(--otp-font-display);
+  font-size: 3.4rem;
   line-height: 1;
-  color: #f3ca8d;
-  text-shadow: 0 0 12px rgba(239, 189, 101, 0.32);
+  font-variant-numeric: tabular-nums;
 }
 
-.vsText {
-  font-family: var(--font-overlay-display), var(--font-overlay-body), sans-serif;
-  font-size: clamp(1.4rem, 2.2vw, 2rem);
-  letter-spacing: 0.08em;
-  color: #ffe3b4;
+.scoreNumber[data-side="a"] {
+  color: var(--otp-team-a-bright);
 }
 
-.grid {
-  /* --wincards-columns is injected inline: 5 for best of 5, 7 for the Grand Final. */
-  --wincards-columns: 5;
-  flex: 1;
-  min-height: 0;
+.scoreNumber[data-side="b"] {
+  color: var(--otp-team-b-bright);
+}
+
+.scoreDash {
+  width: 0.75rem;
+  height: 3px;
+  background: var(--otp-text-faint);
+}
+
+/* --------------------------------------------------- waiting for captains */
+
+.waitStrip {
+  --plate-lean: var(--otp-lean-sm);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.6rem 1.4rem 0.65rem 1.35rem;
+  clip-path: polygon(var(--plate-lean) 0, 100% 0, calc(100% - var(--plate-lean)) 100%, 0 100%);
+  background: linear-gradient(100deg, rgba(27, 53, 39, 0.6), rgba(12, 22, 16, 0.28));
+  transition: background 400ms var(--otp-ease);
+}
+
+.waitStrip[data-ready="true"] {
+  background: linear-gradient(100deg, rgba(62, 224, 138, 0.24), rgba(29, 90, 62, 0.14));
+}
+
+.waitLabel {
+  font-family: var(--otp-font-hud);
+  font-size: 0.7rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--otp-text-dim);
+}
+
+.waitStrip[data-ready="true"] .waitLabel {
+  color: var(--otp-neon-hot);
+}
+
+.pips {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.pip {
+  width: 1.5rem;
+  height: 5px;
+  background: var(--otp-line-bright);
+  transition: background 300ms var(--otp-ease);
+}
+
+/* An unchecked captain blinks, so the strip reads as a live wait rather than
+   a static caption. */
+.pip[data-on="false"] {
+  animation: otp-pip 1.6s var(--otp-ease) infinite;
+}
+
+.pip[data-side="a"][data-on="true"] {
+  background: var(--otp-team-a-bright);
+}
+
+.pip[data-side="b"][data-on="true"] {
+  background: var(--otp-team-b-bright);
+}
+
+/* ------------------------------------------------------------------- fan */
+
+.fan {
+  position: relative;
+  z-index: 1;
+  grid-column: 2;
+  grid-row: 1;
   display: grid;
-  grid-template-columns: repeat(var(--wincards-columns), minmax(0, 1fr));
-  gap: 4px;
-  padding: 4px;
-  background: #000;
+  grid-template-columns: repeat(var(--wincards-columns, 5), minmax(0, 1fr));
+  gap: 0.75rem;
+  padding: 2.25rem 3rem 1.5rem 1rem;
+  min-width: 0;
 }
 
-.playoffGrid {
-  gap: 12px;
-  padding: 12px;
-  background:
-    linear-gradient(90deg, rgba(20, 184, 166, 0.08), transparent 24%, rgba(115, 201, 217, 0.06) 54%, transparent 78%),
-    #05090a;
+.bracketFan {
+  gap: 0.9rem;
 }
 
 .column {
-  min-width: 0;
-  min-height: 0;
-  border: 2px solid #000;
-  background: #68686d;
   display: flex;
   flex-direction: column;
+  gap: 0.55rem;
+  min-width: 0;
+  min-height: 0;
+  transition:
+    opacity 450ms var(--otp-ease),
+    filter 450ms var(--otp-ease);
 }
 
-.playoffColumn {
-  position: relative;
-  border-color: #11191c;
-  background: #10181b;
-  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.28);
-}
-
-.playoffColumn:not(:last-child)::after {
-  position: absolute;
-  z-index: 5;
-  top: 25px;
-  right: -18px;
-  width: 24px;
-  content: "\2192";
-  color: #f6d08f;
-  font-family: var(--font-overlay-display), var(--font-overlay-body), sans-serif;
-  font-size: 1.7rem;
-  line-height: 1;
-  text-align: center;
-  text-shadow: 0 0 12px rgba(246, 208, 143, 0.55);
-}
-
-/*
- * Best of 7 (Grand Final): 7 columns in the same width, so the gaps, the
- * connector arrows and the type labels all need to tighten up to stay legible.
- */
-.grid[style*="--wincards-columns: 7"] {
-  gap: 3px;
-  padding: 3px;
-}
-
-.playoffGrid[style*="--wincards-columns: 7"] {
-  gap: 8px;
-  padding: 8px;
-}
-
-.grid[style*="--wincards-columns: 7"] .columnHeader {
-  font-size: clamp(0.85rem, 1.35vw, 1.3rem);
-  letter-spacing: 0;
-  padding: 0 4px;
-}
-
-.grid[style*="--wincards-columns: 7"] .playoffColumn:not(:last-child)::after {
-  right: -13px;
-  width: 18px;
-  font-size: 1.15rem;
-}
-
-.grid[style*="--wincards-columns: 7"] .playoffMapTile .mapLabel {
-  right: 6px;
-  left: 6px;
-  bottom: 6px;
-  padding: 5px 6px;
-  font-size: 0.9rem;
+/* A game nobody has reached yet stays in the frame but recedes. */
+.column[data-state="pending"] {
+  opacity: 0.5;
+  filter: grayscale(0.5);
 }
 
 .columnHeader {
-  height: 14%;
-  min-height: 58px;
-  border-bottom: 3px solid #000;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0)),
-    linear-gradient(165deg, #606065, #4f4f55);
+  --plate-lean: var(--otp-lean-sm);
   display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 0 8px;
-  font-family: var(--font-overlay-display), var(--font-overlay-body), sans-serif;
-  font-size: clamp(1.4rem, 2.4vw, 2rem);
-  letter-spacing: 0.03em;
-  color: #f0c27f;
-  text-transform: uppercase;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.35rem 0.9rem 0.4rem 1.05rem;
+  clip-path: polygon(var(--plate-lean) 0, 100% 0, calc(100% - var(--plate-lean)) 100%, 0 100%);
+  background: linear-gradient(100deg, rgba(27, 53, 39, 0.9), rgba(12, 22, 16, 0.5));
+  transition: background 450ms var(--otp-ease);
 }
 
-.mapStack {
+.column[data-state="current"] .columnHeader {
+  background: linear-gradient(100deg, var(--otp-neon) 0%, rgba(52, 122, 87, 0.5) 100%);
+}
+
+.columnGame {
+  font-family: var(--otp-font-hud);
+  font-size: 0.56rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--otp-text-faint);
+  transition: color 450ms var(--otp-ease);
+}
+
+.column[data-state="current"] .columnGame {
+  color: rgba(4, 8, 5, 0.7);
+}
+
+.columnTitle {
+  font-family: var(--otp-font-display);
+  font-size: 1.25rem;
+  line-height: 1.1;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--otp-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 450ms var(--otp-ease);
+}
+
+.column[data-state="current"] .columnTitle {
+  color: var(--otp-void);
+}
+
+.stack {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
+  gap: 0.5rem;
 }
 
-.mapTile {
+/* ----------------------------------------------------------------- cards */
+
+.cardFrame {
+  --lean: var(--otp-lean);
   position: relative;
   flex: 1 1 0;
   min-height: 0;
-  overflow: hidden;
-  border-top: 3px solid #000;
-  background: #48484d;
+  padding: 3px;
+  clip-path: polygon(var(--lean) 0, 100% 0, calc(100% - var(--lean)) 100%, 0 100%);
+  background: linear-gradient(160deg, var(--otp-line-bright) 0%, var(--otp-line) 100%);
+  transition:
+    background 450ms var(--otp-ease),
+    filter 450ms var(--otp-ease);
 }
 
-.mapTile:first-child {
-  border-top: 0;
+/* The current game is the hero card. */
+.column[data-state="current"] .cardFrame {
+  background: linear-gradient(160deg, var(--otp-neon-hot) 0%, var(--otp-neon) 55%, var(--otp-bright) 100%);
+  padding: 4px;
+  animation: otp-hero-pulse 2.6s ease-in-out infinite;
 }
 
-.playoffMapTile {
-  border-top: 0;
-  background:
-    linear-gradient(155deg, rgba(255, 255, 255, 0.07), transparent 32%),
-    linear-gradient(25deg, rgba(201, 151, 82, 0.14), transparent 42%),
-    #172126;
+/* A decided map is framed in the winner colour, which is the fastest read on
+   a broadcast: the frame answers who won before the badge does. It also wins
+   over the current-game hero frame, because a played card is never current. */
+.cardFrame[data-won="a"] {
+  background: linear-gradient(160deg, var(--otp-team-a-bright) 0%, var(--otp-team-a) 100%);
+  filter: drop-shadow(0 0 12px rgba(107, 182, 245, 0.32));
 }
 
-.playoffMapTile::after {
-  position: absolute;
-  inset: 0;
-  content: "";
-  pointer-events: none;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.04), transparent 48%, rgba(0, 0, 0, 0.45));
+.cardFrame[data-won="b"] {
+  background: linear-gradient(160deg, var(--otp-team-b-bright) 0%, var(--otp-team-b) 100%);
+  filter: drop-shadow(0 0 12px rgba(245, 113, 122, 0.32));
 }
 
-.playoffMapTile .mapImage {
-  filter: saturate(1.08) contrast(1.04);
-}
-
-.playoffMapTile .mapLabel {
-  z-index: 2;
-  right: 10px;
-  left: 10px;
-  bottom: 10px;
-  padding: 8px 10px;
-  font-size: 1.2rem;
-  text-align: center;
-}
-
-.playoffMapTile .winnerLogoWrap {
-  z-index: 3;
-  width: min(66%, 260px);
-}
-
-.playoffPendingTile {
-  background:
-    radial-gradient(circle at 50% 43%, rgba(242, 196, 123, 0.17), transparent 22%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 28px),
-    linear-gradient(45deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 28px),
-    linear-gradient(160deg, #172126, #0e1518);
-  background-size: auto, 28px 28px, 28px 28px, auto;
-}
-
-.playoffPendingInner {
+.cardInner {
   position: relative;
-  z-index: 1;
   width: 100%;
   height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  gap: 12px;
-  text-align: center;
+  overflow: hidden;
+  clip-path: polygon(var(--lean) 0, 100% 0, calc(100% - var(--lean)) 100%, 0 100%);
+  background: var(--otp-panel);
 }
 
-.playoffGameLabel {
-  padding: 6px 10px;
-  border: 1px solid rgba(242, 196, 123, 0.32);
-  color: #f2c47b;
-  background: rgba(0, 0, 0, 0.24);
-  font-family: var(--font-overlay-display), var(--font-overlay-body), sans-serif;
-  font-size: 0.95rem;
-  letter-spacing: 0.08em;
-}
-
-.mapImage {
+.cardImage {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  filter: saturate(0.85) brightness(0.76);
+  transition: filter 450ms var(--otp-ease);
 }
 
-.mapLabel {
+.column[data-state="current"] .cardImage {
+  filter: saturate(1.15) brightness(1.02);
+}
+
+.column[data-state="played"] .cardImage {
+  filter: saturate(0.95) brightness(0.88);
+}
+
+.cardShade {
   position: absolute;
-  left: 8px;
-  bottom: 8px;
-  padding: 4px 8px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  background: rgba(0, 0, 0, 0.56);
-  color: #f4d8a8;
-  font-family: var(--font-overlay-display), var(--font-overlay-body), sans-serif;
-  font-size: 1rem;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(4, 8, 5, 0.94) 0%,
+    rgba(4, 8, 5, 0.35) 36%,
+    transparent 64%
+  );
 }
 
-.winnerLogoWrap {
+.cardLabel {
+  position: absolute;
+  left: calc(var(--lean) + 0.5rem);
+  right: 0.5rem;
+  bottom: 0.5rem;
+  font-family: var(--otp-font-hud);
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--otp-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.column[data-state="current"] .cardLabel {
+  color: var(--otp-text);
+}
+
+/* ------------------------------------------------------------ win marks */
+
+.winBadge {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: min(56%, 140px);
-  aspect-ratio: 1 / 1;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
+  transform: translate(-50%, -58%);
   display: grid;
   place-items: center;
-  pointer-events: none;
-  animation: winnerPop 680ms ease-out, winnerGlow 1800ms ease-in-out infinite alternate;
+  animation: otp-rise 380ms var(--otp-ease-strike) both;
 }
 
-.winnerLogo {
+.winBadgeRing {
+  width: 4.6rem;
+  height: 4.6rem;
+  display: grid;
+  place-items: center;
+  padding: 3px;
+  /* A hexagon rather than a circle, so the badge belongs to the same angular
+     family as the cards. */
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  background: var(--otp-line-bright);
+}
+
+.winBadge[data-side="a"] .winBadgeRing {
+  background: linear-gradient(160deg, var(--otp-team-a-bright), var(--otp-team-a));
+  filter: drop-shadow(0 0 16px rgba(107, 182, 245, 0.5));
+}
+
+.winBadge[data-side="b"] .winBadgeRing {
+  background: linear-gradient(160deg, var(--otp-team-b-bright), var(--otp-team-b));
+  filter: drop-shadow(0 0 16px rgba(245, 113, 122, 0.5));
+}
+
+.winBadgeLogo {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  border-radius: 50%;
-  border: 3px solid rgba(255, 228, 168, 0.88);
-  box-shadow:
-    0 0 26px rgba(243, 203, 126, 0.62),
-    0 0 54px rgba(243, 203, 126, 0.4),
-    inset 0 0 0 1px rgba(0, 0, 0, 0.24);
+  object-fit: contain;
+  padding: 0.5rem;
+  background: rgba(4, 8, 5, 0.9);
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
 }
 
-.incognitoTile {
-  background:
-    radial-gradient(circle at 22% 20%, rgba(255, 255, 255, 0.12), transparent 42%),
-    linear-gradient(150deg, #1c1c1f 0%, #232327 48%, #141418 100%);
-}
-
-.incognitoInner {
+.winBadgeInitial {
   width: 100%;
   height: 100%;
   display: grid;
   place-items: center;
-  gap: 2px;
+  background: rgba(4, 8, 5, 0.9);
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  font-family: var(--otp-font-display);
+  font-size: 1.9rem;
+  color: var(--otp-text);
 }
 
-.questionMark {
-  font-family: var(--font-overlay-display), var(--font-overlay-body), sans-serif;
-  font-size: clamp(3rem, 4.8vw, 5rem);
-  line-height: 1;
-  color: #ffe8bd;
-  text-shadow: 0 0 16px rgba(251, 216, 150, 0.5);
+.winBadgeCheck {
+  position: absolute;
+  bottom: -0.55rem;
+  width: 1.55rem;
+  height: 1.55rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--otp-void);
+  background: var(--otp-neon);
+  box-shadow: 0 0 0 3px rgba(4, 8, 5, 0.9);
 }
 
-.incognitoText {
-  font-family: var(--font-overlay-body), sans-serif;
-  font-size: clamp(0.76rem, 1vw, 0.92rem);
-  letter-spacing: 0.06em;
+.winRibbon {
+  position: absolute;
+  left: calc(var(--lean) + 0.35rem);
+  right: 0.35rem;
+  bottom: 2rem;
+  padding: 0.25rem 0.5rem;
+  text-align: center;
+  font-family: var(--otp-font-hud);
+  font-size: 0.58rem;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: #e9c98e;
+  color: var(--otp-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.emptyState {
-  flex: 1;
+.winRibbon[data-side="a"] {
+  background: linear-gradient(100deg, var(--otp-team-a) 0%, rgba(79, 125, 163, 0.35) 100%);
+}
+
+.winRibbon[data-side="b"] {
+  background: linear-gradient(100deg, var(--otp-team-b) 0%, rgba(157, 76, 83, 0.35) 100%);
+}
+
+/* --------------------------------------------------------------- pending */
+
+.pendingInner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  background: repeating-linear-gradient(
+    100deg,
+    rgba(27, 53, 39, 0.55) 0 10px,
+    rgba(12, 22, 16, 0.55) 10px 20px
+  );
+}
+
+.pendingMark {
+  font-family: var(--otp-font-display);
+  font-size: 3.4rem;
+  line-height: 1;
+  color: var(--otp-text-faint);
+}
+
+.pendingText {
+  font-family: var(--otp-font-hud);
+  font-size: 0.56rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--otp-text-faint);
+  text-align: center;
+  padding: 0 0.5rem;
+}
+
+.emptyCard {
+  --lean: var(--otp-lean);
+  flex: 1 1 0;
   min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  text-align: center;
-  border-top: 3px solid #000;
-  background: #45454a;
-  color: #f0ca90;
-  font-family: var(--font-overlay-display), var(--font-overlay-body), sans-serif;
-  font-size: 1.4rem;
-  letter-spacing: 0.03em;
+  clip-path: polygon(var(--lean) 0, 100% 0, calc(100% - var(--lean)) 100%, 0 100%);
+  background: repeating-linear-gradient(
+    100deg,
+    rgba(27, 53, 39, 0.6) 0 8px,
+    rgba(12, 22, 16, 0.6) 8px 16px
+  );
+  font-family: var(--otp-font-hud);
+  font-size: 0.66rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--otp-text-faint);
 }
+
+/* ---------------------------------------------------------------- footer */
+
+.footer {
+  position: relative;
+  z-index: 2;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0 3rem 0 3.25rem;
+  border-top: 1px solid var(--otp-line);
+}
+
+.footerTicks {
+  width: 3.5rem;
+  height: 4px;
+  background: linear-gradient(90deg, var(--otp-neon) 0 34%, var(--otp-line-bright) 34% 100%);
+}
+
+.footerText {
+  font-family: var(--otp-font-hud);
+  font-size: 0.72rem;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--otp-text-faint);
+}
+
+/* ---------------------------------------------------------------- status */
 
 .statusScreen {
   width: 100%;
   height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #0e0e0e;
-  color: #f2c47b;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(155deg, #0b1610 0%, var(--otp-deep) 50%, var(--otp-void) 100%);
+  padding: 1.5rem;
+}
+
+.statusInner {
   text-align: center;
-  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.statusKicker {
+  font-family: var(--otp-font-hud);
+  font-size: 0.72rem;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: var(--otp-neon);
 }
 
 .statusTitle {
-  font-family: var(--font-overlay-display), var(--font-overlay-body), sans-serif;
-  font-size: 3rem;
+  font-family: var(--otp-font-display);
+  font-size: 3.25rem;
+  line-height: 1;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  color: var(--otp-text);
 }
 
 .statusHint {
-  margin-top: 10px;
-  font-size: 1.3rem;
-  color: #d6b17b;
-}
-
-@keyframes winnerPop {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.6);
-  }
-  55% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.08);
-  }
-  100% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-}
-
-@keyframes winnerGlow {
-  0% {
-    filter: brightness(1);
-  }
-  100% {
-    filter: brightness(1.18);
-  }
+  font-family: var(--otp-font-hud);
+  font-size: 0.8rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--otp-text-faint);
 }

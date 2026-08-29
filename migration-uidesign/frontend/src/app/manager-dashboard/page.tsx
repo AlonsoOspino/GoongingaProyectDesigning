@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { MapTimer } from "@/components/match/MapTimer";
 import { PauseRequestNotification } from "@/components/match/PauseRequestNotification";
+import { MapPoolControl } from "@/components/manager/MapPoolControl";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
 import { Input } from "@/components/ui/Input";
 import {
@@ -476,6 +477,13 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
                                 <Button variant="secondary">View Draft</Button>
                               </Link>
                             </div>
+
+                            {/* Between the draft opening and the first map
+                                type pick, the manager drives what the map
+                                pool overlay is showing. */}
+                            {draft?.phase === "STARTING" && token && (
+                              <MapPoolControl match={match} token={token} />
+                            )}
 
                             {/* Map Timer */}
                             {hasMapStarted && (

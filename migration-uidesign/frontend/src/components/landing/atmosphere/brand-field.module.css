@@ -19,6 +19,28 @@
   height: 100%;
 }
 
+.sweep {
+  position: absolute;
+  top: -28%;
+  bottom: -28%;
+  left: -34%;
+  width: 20%;
+  opacity: 0.2;
+  pointer-events: none;
+  transform: translate3d(-20vw, 0, 0) skewX(-10deg);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(52, 199, 123, 0.025) 34%,
+    rgba(156, 231, 191, 0.13) 50%,
+    rgba(52, 199, 123, 0.025) 66%,
+    transparent
+  );
+  mix-blend-mode: screen;
+  animation: field-sweep 16s cubic-bezier(0.45, 0, 0.55, 1) var(--sweep-delay, 0s) infinite;
+  will-change: transform;
+}
+
 /* Velo de legibilidad. El tablero es oscuro de por sí, así que aquí basta con
    apagar los bordes en vez de tapar media lámina como hacía la atmósfera. */
 .veil {
@@ -39,4 +61,73 @@
 /* El footer cierra la página, así que oscurece hacia abajo en vez de por los lados. */
 .field[data-variant="footer"] .veil {
   background: linear-gradient(180deg, rgba(5, 8, 6, 0.7) 0%, rgba(5, 8, 6, 0.12) 34%, rgba(5, 8, 6, 0.55) 100%);
+}
+
+
+/* ---- EL TABLERO COMO FONDO DE SECCION ----
+
+   Antes cada seccion del cuerpo traia su propia lamina pictorica (Atmosphere),
+   y dos de ellas eran crema. El resultado era que cada bloque parecia de una web
+   distinta. Ahora todas corren sobre este mismo tablero y lo unico que cambia
+   entre ellas es cuanto pesa.
+
+   La seccion no pinta suelo: lo comparte con la pagina. Si lo pintara, cada
+   bloque volveria a ser una caja opaca sobre otra. */
+.field[data-variant="section"] {
+  background: transparent;
+}
+
+/* EL PULSO DE BORDE.
+   La rejilla descansa baja dentro de la seccion y sube de golpe en los dos
+   cantos: eso es lo que "colorea" la union entre secciones sin necesidad de
+   dibujar una linea. Va en mascara y no en `opacity` porque opacity apagaria
+   tambien el velo y el suelo.
+
+   --field-rest  cuanto se ve la rejilla en el cuerpo de la seccion
+   --field-edge  cuanto sube justo en el canto
+   --field-lip   en que distancia hace la subida (pequena = mas subita) */
+.field[data-variant="section"] .canvas {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.08) 0,
+    rgba(0, 0, 0, var(--field-rest, 0.24)) 18%,
+    rgba(0, 0, 0, var(--field-rest, 0.24)) 82%,
+    rgba(0, 0, 0, 0.08) 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.08) 0,
+    rgba(0, 0, 0, var(--field-rest, 0.24)) 18%,
+    rgba(0, 0, 0, var(--field-rest, 0.24)) 82%,
+    rgba(0, 0, 0, 0.08) 100%
+  );
+}
+
+/* Sin velo: la legibilidad la da la intensidad baja de la rejilla, y un velo
+   aqui solo pintaria negro sobre negro. */
+.field[data-variant="section"] .veil {
+  background: none;
+}
+
+.field[data-variant="bar"] .sweep,
+.field[data-variant="footer"] .sweep {
+  opacity: 0.11;
+}
+
+@keyframes field-sweep {
+  0%,
+  38% {
+    transform: translate3d(-20vw, 0, 0) skewX(-10deg);
+  }
+
+  72%,
+  100% {
+    transform: translate3d(160vw, 0, 0) skewX(-10deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sweep {
+    display: none;
+  }
 }
