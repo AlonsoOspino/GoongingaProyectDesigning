@@ -367,7 +367,25 @@
 
 .heroTileStruck .heroTilePortrait img {
   filter: grayscale(1);
-  opacity: 0.34;
+}
+
+/*
+ * Dimming the portrait image left the tile bright below it: the portrait is a
+ * 1:1 crop and the tile is taller, so the darkening stopped short of the
+ * bottom edge. The scrim covers the whole tile instead.
+ */
+.heroTileStruck::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: rgba(5, 7, 6, 0.66);
+}
+
+/* The mark has to sit on top of that scrim, not under it. */
+.heroTileStruck .strike {
+  z-index: 1;
 }
 
 .strike {
@@ -653,5 +671,155 @@
 @media (prefers-reduced-motion: reduce) {
   .heroTileSelectable:hover {
     transform: none;
+  }
+}
+
+/* ---------- MODE AND MAP PICKING ----------
+   Both were laid out but not staged. The mode plates in particular spread into
+   a long thin band — auto-fit at 148px lets five of them eat the full width
+   while staying barely taller than a button — and neither phase acknowledged
+   the moment a captain was actually choosing. */
+
+/* Portrait, and capped so five modes cannot stretch across the whole stage. */
+.plateRow {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 176px));
+  justify-content: center;
+  gap: 1rem;
+}
+
+.plate {
+  min-height: clamp(13.5rem, 27vh, 18rem);
+  justify-content: center;
+  gap: 1rem;
+  overflow: hidden;
+  /* Dealt onto the table rather than appearing. */
+  animation: plate-deal 460ms var(--ease-strike) both;
+  animation-delay: calc(var(--plate-index, 0) * 70ms);
+}
+
+@keyframes plate-deal {
+  from {
+    opacity: 0;
+    transform: translateY(26px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/*
+ * A light passes across the plate under the cursor. It is a pseudo-element on a
+ * transform, so it costs nothing to run on the broadcast machine.
+ */
+.plateSelectable::before {
+  content: "";
+  position: absolute;
+  inset: -40% -120%;
+  background: linear-gradient(
+    100deg,
+    transparent 42%,
+    color-mix(in srgb, var(--team-bright, var(--color-accent)) 26%, transparent) 50%,
+    transparent 58%
+  );
+  transform: translateX(-100%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.plateSelectable:hover::before,
+.plateSelectable:focus-visible::before {
+  opacity: 1;
+  animation: plate-sheen 720ms var(--ease-out);
+}
+
+@keyframes plate-sheen {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.plateSelectable:hover,
+.plateSelectable:focus-visible {
+  transform: translateY(-6px) scale(1.02);
+  box-shadow: 0 18px 40px -22px var(--team-bright, var(--color-accent));
+}
+
+.plateSelectable:hover .plateIcon,
+.plateSelectable:focus-visible .plateIcon {
+  transform: scale(1.08);
+}
+
+.plateIcon {
+  transition:
+    color var(--duration-base) var(--ease-out),
+    transform var(--duration-base) var(--ease-strike);
+}
+
+/* The mode that won. It holds while the others clear out. */
+.plateChosen {
+  animation: plate-lock 620ms var(--ease-strike) both;
+  border-color: var(--team-bright, var(--color-accent));
+  box-shadow: 0 0 0 1px var(--team-bright, var(--color-accent)),
+    0 0 42px -8px var(--team-bright, var(--color-accent));
+}
+
+@keyframes plate-lock {
+  0% {
+    transform: scale(1);
+  }
+  38% {
+    transform: scale(1.07);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ---------- map picking ---------- */
+
+/*
+ * Same treatment one level down: the maps deal in, and the one under the cursor
+ * lifts and brightens instead of only shifting a pixel.
+ */
+.mapChoice {
+  animation: plate-deal 420ms var(--ease-strike) both;
+  animation-delay: calc(min(var(--map-index, 0), 12) * 45ms);
+}
+
+.mapChoiceReady {
+  transition:
+    transform var(--duration-base) var(--ease-strike),
+    border-color var(--duration-base) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-out);
+}
+
+.mapChoiceReady:hover,
+.mapChoiceReady:focus-visible {
+  transform: translateY(-6px) scale(1.03);
+  box-shadow: 0 20px 44px -24px var(--color-accent);
+  z-index: 1;
+}
+
+.mapChoiceReady img {
+  transition: transform var(--duration-slow) var(--ease-out), filter var(--duration-base) var(--ease-out);
+}
+
+.mapChoiceReady:hover img,
+.mapChoiceReady:focus-visible img {
+  transform: scale(1.06);
+  filter: saturate(1.15) brightness(1.06);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plate,
+  .mapChoice {
+    animation: none;
+  }
+
+  .plateSelectable:hover::before,
+  .plateSelectable:focus-visible::before {
+    animation: none;
+    opacity: 0;
   }
 }

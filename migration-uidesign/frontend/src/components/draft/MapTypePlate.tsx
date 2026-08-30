@@ -48,6 +48,7 @@ export function MapTypePlate({
   selectable,
   chosen,
   dismissed,
+  index = 0,
   onSelect,
 }: {
   mapType: MapType;
@@ -58,6 +59,8 @@ export function MapTypePlate({
   selectable: boolean;
   chosen?: boolean;
   dismissed?: boolean;
+  /** Position in the row, so the plates deal in one after another. */
+  index?: number;
   onSelect: (mapType: MapType) => void;
 }) {
   return (
@@ -65,7 +68,7 @@ export function MapTypePlate({
       type="button"
       onClick={() => selectable && onSelect(mapType)}
       disabled={!selectable}
-      style={teamVars(side)}
+      style={{ ...teamVars(side), ["--plate-index" as string]: index }}
       className={clsx(
         styles.plate,
         selectable && styles.plateSelectable,

@@ -1802,9 +1802,10 @@ function MapTypePickingPhase({
 
         {availableMapTypes.length > 0 ? (
           <div className={stageStyles.plateRow}>
-            {availableMapTypes.map((mapType) => (
+            {availableMapTypes.map((mapType, plateIndex) => (
               <MapTypePlate
                 key={mapType}
+                index={plateIndex}
                 mapType={mapType}
                 mapCount={mapCounts[mapType] ?? 0}
                 side={choosingSide}
@@ -1952,7 +1953,7 @@ function MapPickingPhase({
                   : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
               )}
             >
-              {availableMaps.map((map) => {
+              {availableMaps.map((map, mapIndex) => {
                 const picked = isMapPicked(map.id);
                 const canSelect = isCaptain && isMyTurn && !picked && !actionLoading;
 
@@ -1962,12 +1963,15 @@ function MapPickingPhase({
                     type="button"
                     onClick={() => canSelect && onPickMap(map.id)}
                     disabled={!canSelect}
+                    style={{ ["--map-index" as string]: mapIndex }}
                     className={clsx(
+                      stageStyles.mapChoice,
+                      canSelect && stageStyles.mapChoiceReady,
                       "group relative overflow-hidden border transition-transform duration-200",
                       picked
                         ? "cursor-not-allowed border-border-subtle opacity-30 grayscale"
                         : canSelect
-                        ? "cursor-pointer border-border hover:-translate-y-1 hover:border-accent"
+                        ? "cursor-pointer border-border hover:border-accent"
                         : "cursor-default border-border-subtle opacity-60"
                     )}
                   >

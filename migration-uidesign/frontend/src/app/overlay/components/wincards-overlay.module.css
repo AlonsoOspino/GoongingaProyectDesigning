@@ -357,8 +357,11 @@
   display: flex;
   flex-direction: column;
   gap: 0;
+  /* Padding, not a border: clip-path eats borders. The band colour showing
+     through on every side is what gives each column its outline. */
+  padding: 3px;
   clip-path: polygon(var(--lean) 0, 100% 0, calc(100% - var(--lean)) 100%, 0 100%);
-  background: var(--otp-line);
+  background: var(--otp-line-bright);
   transition: background 450ms var(--otp-ease);
 }
 
@@ -374,8 +377,14 @@
   position: relative;
   flex: 1 1 0;
   min-height: 0;
-  padding: 0 0 2px;
+  /* Only a divider between tiles now; the outline is the band's padding. */
+  padding: 0 0 3px;
   background: transparent;
+}
+
+/* The band already frames the bottom; a divider there would double it. */
+.cardFrame:last-child {
+  padding-bottom: 0;
 }
 
 

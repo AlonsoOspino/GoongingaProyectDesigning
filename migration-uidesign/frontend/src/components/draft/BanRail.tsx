@@ -3,7 +3,6 @@
 import { resolveHeroImageUrl } from "@/lib/assetUrls";
 import type { Hero } from "@/lib/api";
 import type { TeamSide } from "./DraftStage";
-import { BrushStrike } from "./BrushStrike";
 import styles from "./draft-stage.module.css";
 
 /**
@@ -41,7 +40,6 @@ export function BanSlot({
           ) : (
             <span className={styles.banSlotSkip}>#{heroId}</span>
           )}
-          <BrushStrike className={styles.banSlotMark} />
         </span>
       )}
       <span className={styles.banSlotName}>
