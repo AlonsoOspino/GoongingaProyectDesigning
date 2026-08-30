@@ -95,6 +95,13 @@ function PlayerFace({ player }: { player: Player }) {
 }
 
 function RostersPanel() {
+  /*
+   * A roster whose image has not been restored yet would otherwise render a
+   * broken-image icon, since every team now points at a local path whether the
+   * file is there or not. Falling back to the name list keeps the card useful.
+   */
+  const [missingArt, setMissingArt] = useState<ReadonlySet<number>>(() => new Set());
+
   return (
     <>
       <div className={styles.panelHead}>
@@ -107,7 +114,10 @@ function RostersPanel() {
 
       <div className={styles.teamGrid}>
         {archive.teams.map((team) => {
-          const rosterImage = team.rosterImage?.startsWith("/history/") ? team.rosterImage : null;
+          const rosterImage =
+            team.rosterImage?.startsWith("/history/") && !missingArt.has(team.id)
+              ? team.rosterImage
+              : null;
           return (
             <article
               key={team.id}
@@ -123,25 +133,36 @@ function RostersPanel() {
                 </p>
               </div>
 
-              <ul className={styles.roster}>
-                {team.players.map((player) => (
-                  <li key={player.legacyUserId} className={styles.rosterPlayer}>
-                    {player.name}
-                  </li>
-                ))}
-              </ul>
-
+              {/*
+                The roster image is the card. It carries the players, their
+                heroes and the team's own art direction in one picture, which
+                the name list never could. The list stays only as the fallback
+                for a team whose image is missing.
+              */}
               {rosterImage ? (
                 <img
                   className={styles.rosterImage}
                   src={rosterImage}
-                  alt={`${team.name} Season 8 roster`}
+                  alt={`${team.name} Season 8 roster: ${team.players.map((player) => player.name).join(", ")}`}
                   width={1200}
                   height={675}
                   loading="lazy"
                   decoding="async"
+                  onError={() =>
+                    setMissingArt((current) =>
+                      current.has(team.id) ? current : new Set(current).add(team.id)
+                    )
+                  }
                 />
-              ) : null}
+              ) : (
+                <ul className={styles.roster}>
+                  {team.players.map((player) => (
+                    <li key={player.legacyUserId} className={styles.rosterPlayer}>
+                      {player.name}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </article>
           );
         })}
@@ -265,7 +286,13 @@ function PlayersPanel() {
               return (
                 <tr
                   key={player.legacyUserId}
-                  style={{ "--team": teamColor(teamIdByName.get(player.team) ?? 0) } as React.CSSProperties}
+                  style={
+                    {
+                      "--team": teamColor(teamIdByName.get(player.team) ?? 0),
+                      // Feeds the staggered entrance; the CSS caps the delay.
+                      "--row": index,
+                    } as React.CSSProperties
+                  }
                 >
                   <td
                     className={styles.rank}

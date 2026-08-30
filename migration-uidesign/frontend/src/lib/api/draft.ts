@@ -109,3 +109,22 @@ export async function getDraftShareInfo(token: string, matchId: number) {
     token,
   });
 }
+
+/**
+ * Every draft table with its phase, in one request.
+ *
+ * The dashboard needs to know which matches are sitting in STARTING, including
+ * ones whose match row is still SCHEDULED because map picking has not opened
+ * yet. Asking per match would be one request per row on every poll.
+ */
+export interface DraftPhaseRow {
+  id: number;
+  matchId: number;
+  phase: string;
+  currentTurnTeamId: number | null;
+  selectedMapType: MapType | null;
+}
+
+export async function getDraftPhases() {
+  return apiRequest<DraftPhaseRow[]>("/draftTable");
+}

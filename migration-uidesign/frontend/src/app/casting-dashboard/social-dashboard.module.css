@@ -5,15 +5,10 @@
 .dashboardHeader > div { padding-top: 40px; }
 .kicker { color: var(--color-accent); font-size: .7rem; font-weight: 850; text-transform: uppercase; }
 .titleRow { display: flex; align-items: end; justify-content: space-between; gap: 30px; margin-top: 8px; }
-.titleRow h1,.sectionHeading h2,.controlHeader h2 { font-family: var(--font-display); font-weight: 400; letter-spacing: 0; line-height: .9; text-transform: uppercase; }
+.titleRow h1,.sectionHeading h2,.controlHeader h2 { font-family: var(--font-otp-display), "Arial Narrow", sans-serif; font-weight: 400; letter-spacing: 0; line-height: .9; text-transform: uppercase; }
 .titleRow h1 { font-size: 4rem; }
 .titleRow p,.sectionHeading p,.controlHeader p { margin-top: 8px; color: var(--color-text-secondary); font-size: .9rem; }
 .operator { border: 1px solid var(--color-border); padding: 8px 11px; color: var(--color-text-secondary); font-size: .72rem; font-weight: 800; text-transform: uppercase; }
-.workspaceTabs { display: flex; gap: 5px; margin-top: 34px; overflow-x: auto; }
-.workspaceTabs button { position: relative; display: inline-flex; min-width: max-content; min-height: 52px; align-items: center; gap: 9px; border: 0; background: transparent; padding: 0 18px; color: var(--color-text-secondary); font: inherit; font-size: .8rem; font-weight: 800; cursor: pointer; }
-.workspaceTabs button::after { position: absolute; right: 18px; bottom: 0; left: 18px; height: 3px; background: transparent; content: ""; }
-.workspaceTabs button:hover,.workspaceTabs .workspaceActive { color: white; background: rgba(255,255,255,.04); }
-.workspaceTabs .workspaceActive::after { background: var(--color-accent); }
 .workspaceBody { padding: 40px 0 70px; }
 .announcementControl { border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); box-shadow: 0 16px 42px rgba(16,26,35,.07); }
 .controlHeader { display: flex; align-items: start; justify-content: space-between; gap: 30px; padding: 28px 30px; border-bottom: 1px solid var(--color-border-subtle); }
@@ -78,3 +73,12 @@
   .publishArea { align-items: stretch; flex-direction: column; }
   .lastUpdated { margin-inline: 18px; }
 }
+
+/* ---- work areas ----
+   El dashboard perdió sus pestañas al irse minigames y stream, así que las dos
+   tareas que quedan se separan nombrándolas en vez de apilándolas sin más. */
+.areaHead { display: flex; align-items: baseline; gap: 14px; margin-bottom: 18px; }
+.areaIndex { font-family: var(--font-mono), ui-monospace, monospace; font-size: .7rem; letter-spacing: .18em; color: var(--color-accent); }
+.areaTitle { margin: 0; font-family: var(--font-otp-display), "Arial Narrow", sans-serif; font-size: 1.9rem; line-height: .95; text-transform: uppercase; color: var(--color-text-primary); }
+.areaNote { margin: 4px 0 0; color: var(--color-text-muted); font-size: .85rem; }
+.areaBlock { margin-top: 56px; padding-top: 40px; border-top: 1px solid var(--color-border-subtle); }

@@ -22,6 +22,7 @@ import {
   getMembers,
   createDraft,
   getDraftByMatchId,
+  getDraftPhases,
   updateManagerMatch,
   getAllPlayerStats,
   managerTogglePause,
@@ -32,6 +33,7 @@ import {
   type Member,
 } from "@/lib/api";
 import { formatDateEST, formatDateTimeEST } from "@/lib/dateUtils";
+import styles from "./manager-dashboard.module.css";
 import type { PlayerStat } from "@/lib/api/types";
 
 type TabValue = "scheduled" | "active" | "stats";
@@ -48,6 +50,10 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
   const [teams, setTeams] = useState<Team[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [drafts, setDrafts] = useState<Record<number, DraftState | null>>({});
+  // Phase per match, for every draft that exists. A match sitting in STARTING
+  // before its first map still has status SCHEDULED, so the ACTIVE-only draft
+  // fetch below never sees it.
+  const [draftPhases, setDraftPhases] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [dataError, setDataError] = useState<string | null>(null);
   const [creatingDraft, setCreatingDraft] = useState<number | null>(null);
@@ -116,11 +122,16 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
   async function loadData(silent = false) {
     try {
       if (!silent) setLoading(true);
-      const [matchesData, teamsData, membersData] = await Promise.all([
+      const [matchesData, teamsData, membersData, draftPhaseRows] = await Promise.all([
         getMatches(),
         getTeams(),
         getMembers(),
+        getDraftPhases().catch(() => []),
       ]);
+
+      setDraftPhases(
+        Object.fromEntries(draftPhaseRows.map((row) => [row.matchId, row.phase]))
+      );
 
       for (const match of matchesData) {
         const prevMatch = prevMatchesRef.current.find((m) => m.id === match.id);
@@ -186,17 +197,35 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
     }
   }, [activeTab, token]);
 
+  /*
+   * The casting dashboard renders this page inside an iframe. A plain
+   * router.push there navigates the frame, so the draft table appeared
+   * squeezed into the dashboard instead of opening. Break out to the top
+   * window when embedded, which is what clicking the button plainly means.
+   */
+  const openDraftTable = useCallback(
+    (matchId: number) => {
+      const path = `/draft-table/${matchId}`;
+      if (embedded && typeof window !== "undefined" && window.top && window.top !== window.self) {
+        window.top.location.assign(path);
+        return;
+      }
+      router.push(path);
+    },
+    [embedded, router]
+  );
+
   async function handleCreateDraft(matchId: number) {
     if (!token) return;
     setCreatingDraft(matchId);
     try {
       await createDraft(token, matchId);
-      router.push(`/draft-table/${matchId}`);
+      openDraftTable(matchId);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       // If draft already exists, redirect to it instead of showing error
       if (errorMsg.includes("already exists")) {
-        router.push(`/draft-table/${matchId}`);
+        openDraftTable(matchId);
       } else {
         console.error("Failed to create draft:", err);
         alert("Failed to create draft table. Make sure both teams are ready.");
@@ -289,58 +318,54 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
   return (
     <main className={embedded ? "manager-workspace py-4" : "min-h-screen bg-background py-8"}>
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">{embedded ? "League operations" : "Manager Dashboard"}</h1>
-            <p className="text-muted mt-1">Manage matches, create draft tables, and register results</p>
+        <header className={styles.header}>
+          <div className={styles.headerText}>
+            <span className={styles.kicker}>Overtime Productions</span>
+            <h1 className={styles.title}>{embedded ? "League operations" : "Manager Dashboard"}</h1>
+            <p className={styles.subtitle}>Manage matches, create draft tables, and register results</p>
           </div>
-          <div className="flex items-center gap-3">
-            <Link
-              href={nextMatch ? `/assets-edition?matchId=${nextMatch.id}` : "/assets-edition"}
-              className="inline-flex items-center justify-center rounded-md bg-surface-elevated text-foreground hover:bg-border active:bg-border/90 px-3 py-1.5 text-sm font-medium transition-colors"
-            >
-              Edit assets
-            </Link>
+          <div className={styles.headerAside}>
             {notificationsSupported && notificationPermission === "default" ? <Button size="sm" variant="secondary" onClick={() => void Notification.requestPermission().then(setNotificationPermission)}>Enable alerts</Button> : null}
-            <div className={`w-2 h-2 rounded-full ${dataError ? "bg-danger" : "bg-success animate-pulse"}`} aria-hidden="true" />
-            <span className="text-xs text-muted">{dataError ? "Updates interrupted" : "Live updates"}</span>
+            <span className={`${styles.livePill} ${dataError ? styles.livePillDown : ""}`}>
+              <span className={styles.liveDot} aria-hidden="true" />
+              {dataError ? "Updates interrupted" : "Live updates"}
+            </span>
           </div>
-        </div>
+        </header>
 
         {dataError ? <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border border-danger/50 bg-danger/10 p-4" role="alert"><span>Could not refresh league operations: {dataError}</span><Button size="sm" variant="secondary" onClick={() => void loadData()}>Try again</Button></div> : null}
 
-        {/* Overview cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        {/* A match in progress is the state that needs someone watching, so it
+            is the only counter that carries the accent. */}
+        <div className={styles.counters}>
           {[
-            { label: "Scheduled", count: scheduledMatches.length, color: "text-foreground" },
-            { label: "Active", count: activeMatches.length, color: "text-accent" },
-          ].map(({ label, count, color }) => (
-            <Card key={label} variant="featured">
-              <CardContent className="p-6">
-                <p className="text-sm text-muted">{label}</p>
-                <p className={`text-3xl font-bold ${color}`}>{count}</p>
-              </CardContent>
-            </Card>
+            { label: "Scheduled", count: scheduledMatches.length, accent: false },
+            { label: "Active", count: activeMatches.length, accent: activeMatches.length > 0 },
+          ].map(({ label, count, accent }) => (
+            <div key={label} className={`${styles.counter} ${accent ? styles.counterAccent : ""}`}>
+              <span className={styles.counterLabel}>{label}</span>
+              <span className={styles.counterValue}>{count}</span>
+            </div>
           ))}
         </div>
 
         {/* Next match highlight */}
         {nextMatch && (
-          <div className="mb-6 p-4 rounded-xl border-2 border-primary bg-primary/5">
-            <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className={styles.nextBand}>
+            <div>
               <div>
-                <p className="text-xs text-primary uppercase tracking-wide font-semibold mb-1">Next Match</p>
-                <p className="text-xl font-bold text-foreground">
-                  {getTeamName(nextMatch.teamAId)} <span className="text-muted">vs</span> {getTeamName(nextMatch.teamBId)}
+                <p className={styles.nextLabel}>Next Match</p>
+                <p className={styles.nextTeams}>
+                  {getTeamName(nextMatch.teamAId)} <span className={styles.nextVersus}>vs</span> {getTeamName(nextMatch.teamBId)}
                 </p>
-                <p className="text-sm text-muted mt-1">
+                <p className={styles.nextMeta}>
                   Week {nextMatch.semanas} &middot; BO{nextMatch.bestOf} &middot;{" "}
                   {nextMatch.startDate
                     ? formatDateTimeEST(nextMatch.startDate)
                     : "No date set"}
                 </p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className={styles.nextActions}>
                 <Badge variant={nextMatch.teamAready ? "success" : "default"}>
                   {getTeamName(nextMatch.teamAId).slice(0, 8)}: {nextMatch.teamAready ? "✓" : "—"}
                 </Badge>
@@ -434,6 +459,13 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
                                     </Button>
                                   </div>
                                 </div>
+
+                                {/* Before the first map the match row is still
+                                    SCHEDULED, so this is where the map pool
+                                    control has to live for the pre-show. */}
+                                {draftPhases[match.id] === "STARTING" && token && (
+                                  <MapPoolControl match={match} token={token} />
+                                )}
                               </div>
                             );
                           })}
@@ -473,7 +505,7 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
                                   {draft && <Badge variant="secondary">{draft.phase}</Badge>}
                                 </div>
                               </div>
-                              <Link href={`/draft-table/${match.id}`}>
+                              <Link href={`/draft-table/${match.id}`} target={embedded ? "_top" : undefined}>
                                 <Button variant="secondary">View Draft</Button>
                               </Link>
                             </div>
@@ -481,7 +513,7 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
                             {/* Between the draft opening and the first map
                                 type pick, the manager drives what the map
                                 pool overlay is showing. */}
-                            {draft?.phase === "STARTING" && token && (
+                            {draftPhases[match.id] === "STARTING" && token && (
                               <MapPoolControl match={match} token={token} />
                             )}
 

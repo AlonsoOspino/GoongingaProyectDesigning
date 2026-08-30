@@ -1,177 +1,106 @@
 /*
  * Captain check-in.
  *
- * This used to be a standalone light-themed card that shared nothing with the
- * rest of the draft. It is now just the middle column of the draft stage: the
- * team rails on either side already carry logos, names and ready state, so
- * everything here is about what happens next rather than who is playing.
+ * The middle column of the draft stage, and deliberately almost empty. The team
+ * rails on either side already carry the crest, the name and whether that
+ * captain has checked in, so everything this used to add — a ready counter, the
+ * run order for the game, a paragraph explaining who picks first — was saying
+ * again what was already on screen, or what the next screen says anyway.
+ *
+ * What is left: the state of the lobby, and the one control that moves it on.
  */
 
 .checkIn {
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
+  gap: 2rem;
   align-items: center;
-  padding: 1.5rem 0.5rem 0;
+  padding: 2rem 0.5rem 0;
   animation: var(--animate-phase-in);
 }
 
-.meter {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  color: var(--color-text-secondary);
-  font-size: 0.9375rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-}
-
-.meterCount {
-  color: var(--color-accent);
-  font-family: var(--font-mono);
-  font-size: 1.75rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
-}
-
-.meterCountReady {
-  color: var(--color-success);
-}
-
 /*
- * The order this game will actually run in. It is a real sequence — mode, then
- * map, then bans — so showing it as steps tells captains what is coming
- * instead of decorating the screen with numbers.
+ * The whole message. White while the lobby is still waiting on somebody, green
+ * the moment both captains are in — the same two states the rails use, so the
+ * screen reads as one thing rather than three indicators to cross-check.
  */
-.runOrder {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.runStep {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--color-muted);
-  font-size: 0.8125rem;
-  font-weight: 600;
+.standby {
+  margin: 0;
+  font-family: var(--font-otp-display), var(--font-accent), "Arial Narrow", sans-serif;
+  font-size: clamp(2rem, 4.5vw, 3.4rem);
+  line-height: 0.95;
   text-transform: uppercase;
-  letter-spacing: 0.18em;
+  text-align: center;
+  color: #ffffff;
+  transition: color var(--duration-base) var(--ease-out);
 }
 
-.runStepNext {
-  color: var(--color-foreground);
-}
-
-.runStepMark {
-  width: 6px;
-  height: 6px;
-  border: 1px solid var(--color-border-strong);
-  border-radius: 50%;
-}
-
-.runStepNext .runStepMark {
-  border-color: var(--color-accent);
-  background: var(--color-accent);
-}
-
-.runArrow {
-  color: var(--color-border-strong);
-  font-size: 0.75rem;
-}
-
-.notice {
-  display: flex;
-  max-width: 52ch;
-  flex-direction: column;
-  gap: 0.375rem;
-  border-left: 2px solid var(--color-accent);
-  padding: 0.625rem 0 0.625rem 0.875rem;
-}
-
-.noticeLabel {
+.standby[data-ready="true"] {
   color: var(--color-accent);
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.24em;
+  text-shadow: 0 0 42px color-mix(in srgb, var(--color-accent) 35%, transparent);
 }
 
-.noticeBody {
-  color: var(--color-text-secondary);
-  font-size: 0.875rem;
-  line-height: 1.5;
+/* A slow breath while waiting, so a still screen still looks live on stream. */
+.standby[data-ready="false"] {
+  animation: waiting-breathe 2.6s var(--ease-in-out) infinite;
+}
+
+@keyframes waiting-breathe {
+  0%,
+  100% {
+    opacity: 0.68;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .standby[data-ready="false"] {
+    animation: none;
+    opacity: 0.9;
+  }
 }
 
 .actions {
   display: flex;
   flex-wrap: wrap;
+  gap: 0.75rem;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
 }
 
-.lockedMessage {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  text-align: center;
-}
-
-.lockedMessage strong {
-  color: var(--color-success);
-  font-size: 1.125rem;
-  font-weight: 700;
+.lockedNote {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  color: var(--color-accent);
 }
 
-.lockedMessage span,
-.overrideNote,
-.viewerMessage {
-  color: var(--color-muted);
-  font-size: 0.8125rem;
+/*
+ * Destructive, so it stays a quiet piece of text rather than a button competing
+ * with the one that actually starts the game. The confirmation dialog behind it
+ * is what protects the match.
+ */
+.resetLink {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-text-faint, var(--color-muted));
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out);
 }
 
-.overrideNote {
-  width: 100%;
-  text-align: center;
-}
-
-.dangerZone {
-  display: flex;
-  width: 100%;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.875rem;
-  border-top: 1px solid color-mix(in srgb, var(--color-danger) 28%, transparent);
-  padding-top: 1.125rem;
-  margin-top: 0.5rem;
-}
-
-.dangerZone strong {
-  display: block;
+.resetLink:hover:not(:disabled) {
   color: var(--color-danger);
-  font-size: 1rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
 }
 
-.dangerZone span {
-  color: var(--color-muted);
-  font-size: 0.78125rem;
-}
-
-@media (max-width: 720px) {
-  .dangerZone {
-    align-items: flex-start;
-    flex-direction: column;
-  }
+.resetLink:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }

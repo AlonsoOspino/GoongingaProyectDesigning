@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import SeasonArchiveCard from "./SeasonArchiveCard";
+import LeagueNow from "./LeagueNow";
+import LatestNews from "./LatestNews";
 import GridFigure, { type FigureEdge } from "./GridFigure";
 import BrandField from "./atmosphere/BrandField";
 import { useStoryMotion } from "@/components/story/useStoryMotion";
@@ -146,7 +148,7 @@ export function LandingPage() {
 
   /*
     The landing renders the free-form announcement voices (form + custom).
-    Tournament and minigame announcements keep their dedicated surfaces.
+    Tournament announcements keep their dedicated surface.
   */
   const builderCards: BuilderCard[] =
     announcements?.enabled && announcements.announcements.length > 0
@@ -234,6 +236,7 @@ export function LandingPage() {
 
         <section className={styles.announceSection} id="announcements" aria-label="Announcements">
           <div className={styles.announceInner}>
+            <div className={styles.announceStream}>
             {builderCards.length > 0 ? (
               builderCards.slice(0, 2).map((card) => {
                 const expired = card.countdownAt
@@ -276,11 +279,15 @@ export function LandingPage() {
                 Nothing on air right now.
               </p>
             )}
+            </div>
 
             {recentMembers && recentMembers.length > 0 ? <CommunityCarousel members={recentMembers} /> : null}
           </div>
         </section>
         </div>
+
+        <LeagueNow />
+        <LatestNews />
 
         <Story>
           <ChapterIndex chapters={chapters} />
@@ -289,13 +296,7 @@ export function LandingPage() {
           <BrandField variant="section" className={styles.fieldGgl} intensity={0.9} ground={false} seedOffset={101} />
           <div className={styles.gglCopy} data-motion-copy>
             <p className={styles.lightEyebrow}>OUR BIGGEST PROJECT!</p>
-            <h2 className={styles.lightH2}>
-              OVERTIME
-              <span className={styles.inlineTitleMedia} data-inline-media aria-hidden="true">
-                <img src="/ggl-lineup.png" alt="" loading="lazy" decoding="async" />
-              </span>
-              GGL
-            </h2>
+            <h2 className={styles.lightH2}>OVERTIME GGL</h2>
             <RevealWords className={styles.lightParagraph}>
               Our biggest event brings the whole community together for a competitive Overwatch
               5v5 tournament. Teams play every week, with each match organized, cast, and streamed

@@ -5,6 +5,9 @@ import gsap from "gsap";
 import { resolveHeroImageUrl } from "@/lib/assetUrls";
 import { teamVars, type TeamSide } from "./DraftStage";
 import { BRUSH_REVEAL_LENGTH, BrushStrike } from "./BrushStrike";
+
+/** How much longer the ban plays than it used to. 1.5 = 50% slower. */
+const BAN_SLOWDOWN = 1.5;
 import styles from "./draft-stage.module.css";
 
 export type BanCeremonyRequest = {
@@ -64,12 +67,15 @@ export function BanCeremony({
       const revealPaths = [strokeOneRef.current, strokeTwoRef.current].filter(Boolean);
       gsap.set(revealPaths, { strokeDashoffset: 0 });
       if (imageRef.current) gsap.set(imageRef.current, { filter: "grayscale(1) brightness(0.65)" });
-      const hold = window.setTimeout(finish, 1400);
+      const hold = window.setTimeout(finish, 1400 * BAN_SLOWDOWN);
       return () => window.clearTimeout(hold);
     }
 
     const context = gsap.context(() => {
+      // Half again as long. Scaling the timeline keeps every beat in the same
+      // relative place instead of drifting the choreography apart.
       const timeline = gsap.timeline({ onComplete: finish });
+      timeline.timeScale(1 / BAN_SLOWDOWN);
 
       timeline
         .fromTo(scrim, { opacity: 0 }, { opacity: 1, duration: 0.18, ease: "power2.out" })

@@ -18,7 +18,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 // The announcement voice, and nothing else. Exposed as `--font-accent` rather
 // than `--font-display` on purpose: `--font-display` is read by the overlays,
-// minigames and announcement studio, and this face is only meant to appear in
+// and the announcement studio, and this face is only meant to appear in
 // three places on the draft table.
 const bebasNeue = Bebas_Neue({
   subsets: ["latin"],

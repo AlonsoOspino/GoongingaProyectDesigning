@@ -2171,3 +2171,59 @@
     transform: translateX(100%);
   }
 }
+
+/* ---- newest members as a right-hand rail ----
+   El bloque vivía debajo de los anuncios, en la misma columna, así que leía
+   como un pie de sección en vez de como una señal viva. Ahora la sección de
+   anuncios es de dos columnas: el flujo de anuncios a la izquierda y la
+   comunidad a la derecha, donde se ve sin empujar nada hacia abajo. */
+.announceInner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 32px;
+}
+
+.announceStream {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  min-width: 0;
+}
+
+@media (min-width: 1000px) {
+  .announceInner {
+    grid-template-columns: minmax(0, 1fr) 296px;
+    gap: 48px;
+  }
+}
+
+/* De barra horizontal a panel vertical. Los mismos elementos, apilados. */
+@media (min-width: 1000px) {
+  .joinedRail {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 22px 22px 20px;
+    border-top: 0;
+    border-left: 2px solid color-mix(in srgb, var(--accent) 42%, transparent);
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
+  }
+
+  .joinedList {
+    flex-wrap: wrap;
+    gap: 0;
+  }
+
+  .joinedSpotlight {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    text-align: left;
+  }
+
+  .joinedControls {
+    margin-top: 2px;
+  }
+}

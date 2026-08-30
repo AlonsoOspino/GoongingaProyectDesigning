@@ -15,12 +15,14 @@ export function RouteAwareShell({ children }: { children: ReactNode }) {
   const isWrappedRoute = pathname.startsWith("/wrapped") || pathname.startsWith("/history/season-8/wrapped");
   const isDraftTableRoute = pathname.startsWith("/draft-table");
   const isDraftTableDevRoute = pathname === "/draft-table-dev";
-  const isMinigamesRoute = pathname.startsWith("/minigames");
+  // Registration is a full-bleed page with its own way back, so the site
+  // header would both duplicate that and push it past 100vh.
+  const isLoginRoute = pathname === "/login";
   const isEmbeddedManager = pathname === "/manager-dashboard" && searchParams?.get("embedded") === "1";
   const hasDraftAccessKey = isDraftTableRoute && Boolean(searchParams?.get("key"));
   const isKeyViewerMode = hasDraftAccessKey && user?.role !== "MANAGER";
 
-  if (isOverlayRoute || isWrappedRoute || isDraftTableDevRoute || isMinigamesRoute || isEmbeddedManager || hasDraftAccessKey || isKeyViewerMode) {
+  if (isOverlayRoute || isWrappedRoute || isDraftTableDevRoute || isLoginRoute || isEmbeddedManager || hasDraftAccessKey || isKeyViewerMode) {
     return <>{children}</>;
   }
 

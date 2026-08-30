@@ -1,58 +1,36 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ExternalLink, Gamepad2, Images, LayoutDashboard, RadioTower, Trophy } from "lucide-react";
 import { AnnouncementStudio } from "@/announcements/AnnouncementStudio";
 import { ManagerDashboardFrame } from "@/components/dashboard/ManagerDashboardFrame";
 import { readNetworkSessionUser, type NetworkSessionUser } from "@/features/networkSession/storage";
-import { JeopardyDashboard } from "@/minigames/JeopardyDashboard";
 import styles from "./social-dashboard.module.css";
 
-type Workspace = "league" | "minigames" | "stream";
-
-const workspaces = [
-  { id: "league" as const, label: "GGL", icon: Trophy },
-  { id: "minigames" as const, label: "Minigames", icon: Gamepad2 },
-  { id: "stream" as const, label: "Stream management", icon: RadioTower },
-];
-
-const streamTools = [
-  { href: "/assets-edition", title: "Overlay assets", copy: "Configure match graphics and the shared leaderboard layout.", icon: Images },
-  { href: "/overlay", title: "Overlay routes", copy: "Open the available match, roster, map pool and results outputs.", icon: LayoutDashboard },
-];
-
-function ToolLinks({ items }: { items: typeof streamTools }) {
-  return (
-    <div className={styles.toolGrid}>
-      {items.map(({ href, title, copy, icon: Icon }) => (
-        <Link href={href} key={href} className={styles.toolLink}>
-          <Icon size={24} />
-          <span><strong>{title}</strong><small>{copy}</small></span>
-          <ExternalLink size={17} />
-        </Link>
-      ))}
-    </div>
-  );
-}
-
+/*
+ * Production control for the league.
+ *
+ * This used to be three workspaces. Minigames moved to their own site, and the
+ * stream tools were links to an overlay-asset editor that is gone and to
+ * overlay URLs that OBS now pulls over its websocket. One surface is left, so
+ * the tab bar went with them.
+ *
+ * Access narrowed with it: casters only ever had the minigames workspace here,
+ * so the page is now for the people who run league operations.
+ */
 export default function CastingDashboardPage() {
   const router = useRouter();
-  const [activeWorkspace, setActiveWorkspace] = useState<Workspace>("league");
   const [user, setUser] = useState<NetworkSessionUser | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const current = readNetworkSessionUser();
-    const allowed = current?.roles.some((role) => role === "CASTER" || role === "SOCIAL_MEDIA" || role === "ADMIN");
+    const allowed = current?.roles.some((role) => role === "SOCIAL_MEDIA" || role === "ADMIN");
     if (!current || !allowed) {
       router.replace("/login");
       setReady(true);
       return;
     }
-    const hasProductionAccess = current.roles.some((role) => role === "SOCIAL_MEDIA" || role === "ADMIN");
-    setActiveWorkspace(hasProductionAccess ? "league" : "minigames");
     setUser(current);
     setReady(true);
   }, [router]);
@@ -61,52 +39,47 @@ export default function CastingDashboardPage() {
     return <main className={styles.loading}>Loading dashboard...</main>;
   }
 
-  const canManageProduction = user.roles.some((role) => role === "SOCIAL_MEDIA" || role === "ADMIN");
-  const visibleWorkspaces = canManageProduction ? workspaces : workspaces.filter((workspace) => workspace.id === "minigames");
-  const dashboardTitle = "Casting Dashboard";
-  const dashboardCopy = canManageProduction
-    ? "League operations, minigames and stream outputs."
-    : "Open an existing Jeopardy game and control questions, scores and stream order.";
-
   return (
     <main className={styles.dashboard}>
       <header className={styles.dashboardHeader}>
         <div className="ow-container">
-          <span className={styles.kicker}>Game and production control</span>
+          <span className={styles.kicker}>Production control</span>
           <div className={styles.titleRow}>
-            <div><h1>{dashboardTitle}</h1><p>{dashboardCopy}</p></div>
+            <div>
+              <h1>Casting Dashboard</h1>
+              <p>Publish announcements and run league operations.</p>
+            </div>
             <span className={styles.operator}>{user.username}</span>
           </div>
-          <nav className={styles.workspaceTabs} aria-label="Dashboard areas">
-            {visibleWorkspaces.map(({ id, label, icon: Icon }) => (
-              <button type="button" key={id} onClick={() => setActiveWorkspace(id)} className={activeWorkspace === id ? styles.workspaceActive : ""}>
-                <Icon size={18} /> {label}
-              </button>
-            ))}
-          </nav>
         </div>
       </header>
 
+      {/* Two jobs, named. Before this they were stacked with nothing to say
+          where one ended and the next began. */}
       <div className={styles.workspaceBody}>
-        {activeWorkspace === "league" ? (
-          <>
-            <div className="ow-container"><AnnouncementStudio /></div>
-            <ManagerDashboardFrame />
-          </>
-        ) : null}
+        <section className="ow-container">
+          <div className={styles.areaHead}>
+            <span className={styles.areaIndex}>01</span>
+            <div>
+              <h2 className={styles.areaTitle}>Announcements</h2>
+              <p className={styles.areaNote}>What the homepage is telling the community right now.</p>
+            </div>
+          </div>
+          <AnnouncementStudio />
+        </section>
 
-        {activeWorkspace === "minigames" ? (
-          <section className="ow-container">
-            <JeopardyDashboard canAdminister={canManageProduction} />
-          </section>
-        ) : null}
-
-        {activeWorkspace === "stream" ? (
-          <section className="ow-container">
-            <div className={styles.sectionHeading}><span className={styles.kicker}>Stream management</span><h2>Broadcast tools</h2><p>Manage visual assets and open the outputs used in OBS.</p></div>
-            <ToolLinks items={streamTools} />
-          </section>
-        ) : null}
+        <section className={styles.areaBlock}>
+          <div className="ow-container">
+            <div className={styles.areaHead}>
+              <span className={styles.areaIndex}>02</span>
+              <div>
+                <h2 className={styles.areaTitle}>League operations</h2>
+                <p className={styles.areaNote}>Matches, draft tables and results.</p>
+              </div>
+            </div>
+          </div>
+          <ManagerDashboardFrame />
+        </section>
       </div>
     </main>
   );

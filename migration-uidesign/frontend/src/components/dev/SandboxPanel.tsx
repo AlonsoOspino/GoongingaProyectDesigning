@@ -32,6 +32,13 @@ export function SandboxPanel() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [bestOf, setBestOf] = useState(5);
+  /*
+   * Starting the captains immediately is right for watching a series play out,
+   * and wrong for testing anything that only exists in STARTING: the first tick
+   * moves the draft on within three seconds. So it is a choice, not a default
+   * you have to race.
+   */
+  const [startCaptains, setStartCaptains] = useState(true);
   const pollRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -176,7 +183,10 @@ export function SandboxPanel() {
           disabled={busy !== null}
           onClick={() =>
             void run("create", async () => {
-              const created = await createSandboxMatch(token!, { bestOf });
+              const created = await createSandboxMatch(token!, {
+                bestOf,
+                autopilot: startCaptains,
+              });
               return created.status;
             })
           }
@@ -184,6 +194,16 @@ export function SandboxPanel() {
         >
           {busy === "create" ? "Creating..." : "New test match"}
         </button>
+
+        <label className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-zinc-400">
+          <input
+            type="checkbox"
+            checked={startCaptains}
+            onChange={(event) => setStartCaptains(event.target.checked)}
+            className="h-3.5 w-3.5 accent-[var(--color-accent)]"
+          />
+          Start captains
+        </label>
 
         <button
           type="button"

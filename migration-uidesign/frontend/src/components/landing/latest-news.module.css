@@ -1,0 +1,182 @@
+/*
+ * Latest news.
+ *
+ * Recency on the landing: the most recent thing the league published, with the
+ * newest article given the width and the artwork. Colour comes from real
+ * article art rather than decoration, so the section is only ever as bright as
+ * the content behind it.
+ */
+
+.section {
+  position: relative;
+  z-index: 1;
+  padding: 24px 0 96px;
+  background: transparent;
+}
+
+.inner {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 28px;
+}
+
+/* ----------------------------------------------------------------- head */
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 28px;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--accent, #3ee08a);
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent, #3ee08a);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent, #3ee08a) 22%, transparent);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-otp-display), var(--font-accent), "Arial Narrow", sans-serif;
+  font-size: clamp(2.4rem, 5vw, 3.6rem);
+  line-height: 0.92;
+  text-transform: uppercase;
+  color: var(--color-text-primary, #f3f4ef);
+}
+
+/* ----------------------------------------------------------------- news */
+
+.newsGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+/* The newest article gets the width and the artwork; the rest stay compact so
+   the section does not turn into three equal, weightless cards. */
+@media (min-width: 900px) {
+  .newsGrid {
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    grid-auto-rows: minmax(0, auto);
+  }
+
+  .newsCard[data-lead="true"] {
+    grid-row: span 2;
+    flex-direction: column;
+  }
+
+  .newsCard[data-lead="true"] .newsArt {
+    width: 100%;
+    height: 15rem;
+  }
+
+  .newsCard[data-lead="true"] .newsTitle {
+    font-size: 1.6rem;
+  }
+}
+
+.newsCard {
+  display: flex;
+  gap: 16px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--accent, #3ee08a) 5%, transparent);
+  border-left: 2px solid color-mix(in srgb, var(--accent, #3ee08a) 32%, transparent);
+  color: inherit;
+  text-decoration: none;
+  transition:
+    background 200ms ease,
+    border-color 200ms ease,
+    transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.newsCard:hover {
+  background: color-mix(in srgb, var(--accent, #3ee08a) 12%, transparent);
+  border-left-color: var(--accent, #3ee08a);
+  transform: translateY(-2px);
+}
+
+.newsArt {
+  flex-shrink: 0;
+  width: 7.5rem;
+  align-self: stretch;
+  overflow: hidden;
+  background: #0c1610;
+}
+
+.newsArt img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* No artwork is common, so the empty state is a texture rather than a gap. */
+.newsArt[data-empty="true"] {
+  background:
+    repeating-linear-gradient(
+      100deg,
+      color-mix(in srgb, var(--accent, #3ee08a) 12%, transparent) 0 2px,
+      transparent 2px 12px
+    ),
+    #0c1610;
+}
+
+.newsBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px 20px 20px;
+  min-width: 0;
+}
+
+.newsDate {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent, #3ee08a);
+}
+
+.newsTitle {
+  font-family: var(--font-otp-display), var(--font-accent), "Arial Narrow", sans-serif;
+  font-size: 1.25rem;
+  line-height: 1.02;
+  font-weight: 400;
+  text-transform: uppercase;
+  color: var(--color-text-primary, #f3f4ef);
+}
+
+.newsExcerpt {
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: color-mix(in srgb, var(--color-text-primary, #f3f4ef) 68%, transparent);
+}
+
+.allNews {
+  display: inline-block;
+  margin-top: 24px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--accent, #3ee08a);
+  border-bottom: 1px solid transparent;
+  transition: border-color 160ms ease;
+}
+
+.allNews:hover {
+  border-bottom-color: var(--accent, #3ee08a);
+}

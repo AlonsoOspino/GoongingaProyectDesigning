@@ -71,10 +71,11 @@ export default function AdminDashboardPage() {
   return (
     <main className="ow-section">
       <div className="ow-container">
-        <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+        <div className="mb-8 flex flex-col justify-between gap-4 border-b border-border-subtle pb-5 md:flex-row md:items-end">
           <div>
-            <h1 className="font-display text-6xl uppercase">Network Members</h1>
-            <p className="mt-2 text-sm text-muted">Discord accounts and Network roles. Access is managed only from this role list.</p>
+            <p className="font-mono text-[0.66rem] uppercase tracking-[0.3em] text-accent">Administration</p>
+            <h1 className="font-otp mt-1 text-6xl uppercase leading-[0.9]">Network Members</h1>
+            <p className="mt-2 max-w-xl text-sm text-muted">Discord accounts and Network roles. Access is managed only from this role list.</p>
           </div>
           <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row md:items-center">
             {canManageRoster && (

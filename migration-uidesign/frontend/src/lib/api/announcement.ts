@@ -25,3 +25,21 @@ export function getAnnouncementSettings(token: string) {
 export function updateAnnouncementSettings(token: string, enabled: boolean) {
   return apiRequest<AnnouncementSettings>("/announcements/settings", { method: "PATCH", token, body: { enabled } });
 }
+
+/**
+ * Upload an image for a custom announcement.
+ *
+ * Returns the public URL the announcement stores. The studio used to require
+ * hosting the file somewhere else and pasting a link.
+ */
+export async function uploadAnnouncementImage(token: string, file: File, name?: string) {
+  const form = new FormData();
+  form.append("image", file);
+  if (name) form.append("name", name);
+
+  return apiRequest<{ url: string }>("/announcements/image", {
+    method: "POST",
+    token,
+    formData: form,
+  });
+}

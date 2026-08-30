@@ -101,6 +101,9 @@ export function AnnouncementStudio() {
   );
   function startNew(type: AnnouncementType) {
     const selected = getAnnouncementTemplate(type);
+    // Only authorable types reach the picker, so this is a guard rather than a
+    // branch anybody should be able to hit.
+    if (!selected) return;
     setDraft({
       id: null,
       name: selected.label,
@@ -239,7 +242,7 @@ export function AnnouncementStudio() {
       </p>
     );
   if (draft && template) {
-    const { Editor } = template;
+    const { Editor, View: Preview } = template;
     return (
       <section className={styles.studio}>
         <button
@@ -255,6 +258,7 @@ export function AnnouncementStudio() {
             <p>{template.description}</p>
           </div>
         </div>
+        <div className={styles.workbench}>
         <div className={styles.editor}>
           <label className={styles.field}>
             <span>Internal name</span>
@@ -287,6 +291,26 @@ export function AnnouncementStudio() {
           >
             {draft.published ? "Published" : "Draft"}
           </button>
+        </div>
+
+        {/* The same component the landing renders, fed the draft as you type.
+            Live data (a match, for instance) only arrives once the server
+            resolves it, so the preview shows the empty state for those. */}
+        <aside className={styles.preview}>
+          <div className={styles.previewHead}>
+            <span className={styles.previewLabel}>Live preview</span>
+            <span className={styles.previewHint}>Updates as you type</span>
+          </div>
+          <div className={styles.previewStage}>
+            <Preview
+              content={draft.content}
+              payload={null}
+              countdownAt={toIso(draft.countdownAt)}
+              now={Date.now()}
+              standalone
+            />
+          </div>
+        </aside>
         </div>
         <div className={styles.footer}>
           <button
@@ -337,17 +361,24 @@ export function AnnouncementStudio() {
           </button>
         </div>
       </div>
-      <div className={styles.actions}>
-        {announcementTemplates.map(({ type, label, icon: Icon }) => (
+      {/* The picker is the first decision, so it gets to look like one:
+          each template says what it is for rather than just naming itself. */}
+      <div className={styles.picker}>
+        {announcementTemplates.map(({ type, label, description, icon: Icon }) => (
           <button
             type="button"
             key={type}
-            className={styles.secondary}
+            className={styles.templateCard}
             onClick={() => startNew(type)}
           >
-            <Plus size={15} />
-            <Icon size={15} />
-            {label}
+            <span className={styles.templateIcon}>
+              <Icon size={18} />
+            </span>
+            <span className={styles.templateText}>
+              <strong>{label}</strong>
+              <small>{description}</small>
+            </span>
+            <Plus size={15} className={styles.templatePlus} />
           </button>
         ))}
       </div>
@@ -366,7 +397,7 @@ export function AnnouncementStudio() {
               >
                 <strong>{item.name}</strong>
                 <small>
-                  {meta.label} · {item.published ? "Published" : "Draft"}
+                  {meta?.label ?? item.type} · {item.published ? "Published" : "Draft"}
                 </small>
               </button>
               <div className={styles.rowActions}>

@@ -45,6 +45,7 @@ import { BanCeremony, type BanCeremonyRequest } from "@/components/draft/BanCere
 import { MapTypeIcon, MapTypePlate, MAP_TYPE_LABEL } from "@/components/draft/MapTypePlate";
 import stageStyles from "@/components/draft/draft-stage.module.css";
 import waitingStyles from "@/components/draft/waiting-room.module.css";
+import playing from "@/components/draft/playing-stage.module.css";
 import { isBracketMatch, getRequiredWins, getSeriesLength } from "@/lib/match-format";
 import { useDraftTableDevData } from "@/app/draft-table-dev/DraftTableDevContext";
 import {
@@ -1640,18 +1641,9 @@ function StartingPhase({
 }) {
   const teamAReady = match.teamAready === 1;
   const teamBReady = match.teamBready === 1;
-  const readyCount = Number(teamAReady) + Number(teamBReady);
-  const bothReady = readyCount === 2;
+  const bothReady = teamAReady && teamBReady;
   const isFirstGame = match.gameNumber === 0;
-  const gameNumber = match.gameNumber + 1;
   const canUndoResult = isManager && match.status !== "FINISHED" && (match.mapResults?.length || 0) > 0;
-  // Anything already committed on this match is worth warning about before a reset.
-  const hasProgress =
-    (match.mapResults?.length || 0) > 0 || match.gameNumber > 0 || teamAReady || teamBReady;
-
-  // Game one always opens on Control, so there is no mode step to run.
-  const runOrder = isFirstGame ? ["Control map", "Bans"] : ["Map type", "Map", "Bans"];
-  const firstPickerName = firstPickerTeam?.name;
 
   return (
     <DraftStage
@@ -1674,65 +1666,16 @@ function StartingPhase({
       }
     >
       <div className={waitingStyles.checkIn}>
-        <header className={stageStyles.phaseHead}>
-          <span className={stageStyles.phaseEyebrow}>
-            {isFirstGame ? "Captain check-in" : "Game " + gameNumber}
-          </span>
-          <h2 className={stageStyles.phaseTitle}>
-            {isFirstGame ? "The lobby is open" : "Set up the next map"}
-          </h2>
-          <p className={stageStyles.phaseNote}>
-            {bothReady
-              ? "Both captains are locked in. The manager opens the next step."
-              : "Captains confirm their team, then the manager opens the next step."}
-          </p>
-        </header>
-
-        <div className={waitingStyles.meter}>
-          <span className={clsx(waitingStyles.meterCount, bothReady && waitingStyles.meterCountReady)}>
-            {readyCount}
-          </span>
-          <span>of 2 captains ready · best of {getSeriesLength(match)}</span>
-        </div>
-
-        <div className={waitingStyles.runOrder}>
-          {runOrder.map((step, index) => (
-            <div key={step} className="flex items-center gap-2">
-              {index > 0 && <span className={waitingStyles.runArrow}>&rarr;</span>}
-              <span className={clsx(waitingStyles.runStep, index === 0 && waitingStyles.runStepNext)}>
-                <span className={waitingStyles.runStepMark} />
-                {step}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        <div className={waitingStyles.notice}>
-          <span className={waitingStyles.noticeLabel}>
-            {isFirstGame ? "Control opener" : "Next mode"}
-          </span>
-          <p className={waitingStyles.noticeBody}>
-            {isFirstGame
-              ? "Game one is Control. " +
-                (firstPickerName || "The first captain") +
-                " picks the map and bans first."
-              : (firstPickerName || "The previous game's loser") +
-                " chooses the map type, then the map, and bans first."}
-          </p>
-          {canYieldFirstPick && (
-            <div className="pt-1">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={onYieldFirstPick}
-                disabled={actionLoading}
-              >
-                Yield first choice
-              </Button>
-            </div>
-          )}
-        </div>
+        {/*
+          Stripped to the point. The rails already carry each team's crest, name
+          and check-in state, so the middle only has to say what the lobby is
+          waiting on and offer the one control that moves it forward. The meter,
+          the run order and the mode explainer all repeated what the rails and
+          the next screen already say.
+        */}
+        <p className={waitingStyles.standby} data-ready={bothReady ? "true" : "false"}>
+          {bothReady ? "Both captains ready" : "Waiting for captains"}
+        </p>
 
         <div className={waitingStyles.actions}>
           {isCaptain && !amIReady && (
@@ -1741,13 +1684,7 @@ function StartingPhase({
             </Button>
           )}
           {isCaptain && amIReady && (
-            <div className={waitingStyles.lockedMessage}>
-              <strong>You are locked in</strong>
-              <span>
-                Waiting for the manager to open{" "}
-                {isFirstGame ? "Control map picking" : "map type picking"}.
-              </span>
-            </div>
+            <span className={waitingStyles.lockedNote}>You are locked in</span>
           )}
           {isManager && (
             <>
@@ -1763,38 +1700,30 @@ function StartingPhase({
                   ? "Open Control map picking"
                   : "Open map type picking"}
               </Button>
-              {!bothReady && (
-                <span className={waitingStyles.overrideNote}>
-                  Manager override available · captains are not both ready
-                </span>
-              )}
             </>
           )}
-          {!isCaptain && !isManager && (
-            <p className={waitingStyles.viewerMessage}>Waiting for both captains to check in.</p>
-          )}
-        </div>
-
-        {canResetMatch && (
-          <div className={waitingStyles.dangerZone}>
-            <div>
-              <strong>Reset match</strong>
-              <span>
-                {hasProgress
-                  ? "Clears the draft, score, timers and uploaded stats, and rolls back the standings."
-                  : "Nothing to roll back yet · this match is already at its initial state."}
-              </span>
-            </div>
+          {canYieldFirstPick && (
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={onRequestResetMatch}
+              onClick={onYieldFirstPick}
               disabled={actionLoading}
             >
-              Reset to schedule
+              Yield first choice
             </Button>
-          </div>
+          )}
+        </div>
+
+        {canResetMatch && (
+          <button
+            type="button"
+            className={waitingStyles.resetLink}
+            onClick={onRequestResetMatch}
+            disabled={actionLoading}
+          >
+            Reset match to schedule
+          </button>
         )}
       </div>
     </DraftStage>
@@ -2496,158 +2425,121 @@ function PlayingPhase({
   const teamBBans = teamB ? getBannedHeroesByTeam(teamB.id) : [];
 
   const renderBanSlot = (heroId: number | null | undefined, index: number, side: "A" | "B") => {
-    const borderClass = side === "A" ? "border-[color:var(--color-team-a)]/55" : "border-[color:var(--color-team-b)]/55";
-    const accentClass = side === "A" ? "text-[color:var(--color-team-a)]" : "text-[color:var(--color-team-b)]";
-
-    if (heroId === null) {
+    // undefined is a ban that has not happened yet; null is a turn the captain
+    // deliberately passed on. They are different states and read differently.
+    if (heroId === undefined) {
       return (
-        <div
-          key={`no-ban-${side}-${index}`}
-          className={clsx("min-w-0 overflow-hidden rounded-lg border bg-surface-elevated/70", borderClass)}
-        >
-          <div className={clsx("flex aspect-[4/3] items-center justify-center text-xs font-black uppercase", accentClass)}>
-            No Ban
-          </div>
-          <p className="truncate border-t border-border px-2 py-1.5 text-center text-[10px] font-semibold uppercase text-muted">
-            Slot {index + 1}
-          </p>
+        <div key={`pending-${side}-${index}`} className={playing.banSlot} data-filled="false">
+          <div className={playing.banEmpty}>Ban {index + 1}</div>
         </div>
       );
     }
 
-    if (heroId === undefined) {
+    if (heroId === null) {
       return (
-        <div
-          key={`empty-ban-${side}-${index}`}
-          className="min-w-0 overflow-hidden rounded-lg border border-border bg-surface-elevated/40"
-        >
-          <div className="flex aspect-[4/3] items-center justify-center text-2xl font-black text-muted/50">?</div>
-          <p className="truncate border-t border-border px-2 py-1.5 text-center text-[10px] font-semibold uppercase text-muted">
-            Ban {index + 1}
-          </p>
+        <div key={`skip-${side}-${index}`} className={playing.banSlot} data-filled="false">
+          <div className={playing.banEmpty}>No ban</div>
         </div>
       );
     }
 
     const hero = getHeroById(heroId);
+
     return (
-      <div
-        key={`ban-${side}-${heroId}-${index}`}
-        className={clsx("min-w-0 overflow-hidden rounded-lg border bg-danger/10", borderClass)}
-      >
-        <div className="relative aspect-[4/3] bg-surface-elevated">
-          {hero?.imgPath ? (
-            <img
-              src={resolveHeroImageUrl(hero.imgPath)}
-              alt={hero.name}
-              className="h-full w-full object-cover grayscale"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-lg font-black text-danger">#{heroId}</div>
-          )}
-          <div className="absolute inset-0 bg-danger/10" />
-          <span className="absolute right-1.5 top-1.5 rounded bg-danger px-1.5 py-0.5 text-[9px] font-black uppercase text-white">
-            Banned
-          </span>
-        </div>
-        <p className="truncate border-t border-danger/30 px-2 py-1.5 text-center text-xs font-bold uppercase text-danger">
-          {hero?.name || `Hero ${heroId}`}
-        </p>
+      <div key={`ban-${side}-${index}`} className={playing.banSlot} data-filled="true">
+        {hero?.imgPath ? (
+          <img src={resolveHeroImageUrl(hero.imgPath)} alt={hero.name || `Hero ${heroId}`} />
+        ) : (
+          <div className={playing.banEmpty}>#{heroId}</div>
+        )}
+        <span className={playing.banStrike} aria-hidden />
+        <span className={playing.banName}>{hero?.name || `Hero ${heroId}`}</span>
       </div>
     );
   };
 
-  const renderTeamBans = (team: Team | undefined, bans: (number | null)[], side: "A" | "B") => {
-    const borderClass = side === "A" ? "border-[color:var(--color-team-a)]/50" : "border-[color:var(--color-team-b)]/50";
-    const accentClass = side === "A" ? "text-[color:var(--color-team-a)]" : "text-[color:var(--color-team-b)]";
-    const slots = [bans[0], bans[1]];
-
-    return (
-      <section className={clsx("rounded-lg border bg-surface-elevated/45 p-3", borderClass)}>
-        <div className="mb-3 flex min-w-0 items-center gap-2">
-          <div className={clsx("grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full border bg-surface-elevated", borderClass)}>
-            {team?.logo ? (
-              <img src={resolveGenericBackendAsset(team.logo)} alt="" className="h-full w-full rounded-full object-cover" />
-            ) : (
-              <span className={clsx("text-sm font-black", accentClass)}>{team?.name?.charAt(0) || side}</span>
-            )}
-          </div>
-          <div className="min-w-0">
-            <p className={clsx("truncate text-sm font-black uppercase", accentClass)}>{team?.name || `Team ${side}`}</p>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Bans this game</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {slots.map((heroId, index) => renderBanSlot(heroId, index, side))}
-        </div>
-      </section>
-    );
-  };
+  const renderTeamBans = (team: Team | undefined, bans: (number | null)[], side: "A" | "B") => (
+    <div
+      className={clsx(
+        playing.bans,
+        side === "A" ? playing.bansTeamA : playing.bansTeamB,
+        side === "B" && playing.bansRight
+      )}
+    >
+      <div className={playing.bansHead}>
+        <span className={playing.crest}>
+          {team?.logo ? (
+            <img src={resolveGenericBackendAsset(team.logo)} alt="" />
+          ) : (
+            <>{team?.name?.charAt(0) || side}</>
+          )}
+        </span>
+        <span className={playing.bansLabel}>
+          <span className={playing.bansTeamName}>{team?.name || `Team ${side}`}</span>
+          <span className={playing.bansNote}>Bans this game</span>
+        </span>
+      </div>
+      <div className={playing.banRow}>
+        {[bans[0], bans[1]].map((heroId, index) => renderBanSlot(heroId, index, side))}
+      </div>
+    </div>
+  );
 
   return (
-    <div className="min-h-[80vh] flex flex-col items-center justify-center gap-8">
-      {/* Game is Playing Display */}
-      <Card variant="featured" className={clsx("w-full", isObsKeyAccess ? "max-w-4xl" : "max-w-2xl")}>
-        <CardContent className="p-8">
-          <div className="text-center mb-8">
-            <p className={clsx("text-muted mb-2 uppercase tracking-wide", isObsKeyAccess ? "text-base" : "text-sm")}>
-              Now Playing
-            </p>
-            <h1 className={clsx("font-black mb-4", isObsKeyAccess ? "text-5xl md:text-6xl" : "text-4xl md:text-5xl")}>
-              <span className="text-[color:var(--color-team-a)]">{teamA?.name}</span>
-              <span className="text-muted mx-4">vs</span>
-              <span className="text-[color:var(--color-team-b)]">{teamB?.name}</span>
-            </h1>
+    <div className={playing.stage} data-broadcast={isObsKeyAccess ? "true" : "false"}>
+      {currentMap?.imgPath ? (
+        <img
+          className={playing.art}
+          src={resolveMapImageUrl(currentMap.imgPath)}
+          alt=""
+          aria-hidden
+        />
+      ) : (
+        <div className={playing.artFallback} aria-hidden>
+          {currentMap?.description?.charAt(0) || "?"}
+        </div>
+      )}
+      <div className={playing.scrim} aria-hidden />
+
+      <header className={playing.top}>
+        <span className={playing.kicker}>
+          <span className={playing.liveDot} aria-hidden />
+          Now playing
+        </span>
+        <h1 className={playing.matchup}>
+          <span className={playing.teamA}>{teamA?.name}</span>
+          <span className={playing.versus}>vs</span>
+          <span className={playing.teamB}>{teamB?.name}</span>
+        </h1>
+      </header>
+
+      <div className={playing.bottom}>
+        {renderTeamBans(teamA, teamABans, "A")}
+
+        {currentMap ? (
+          <div className={playing.caption}>
+            <span className={playing.mapName}>{currentMap.description}</span>
+            <span className={playing.mapType}>{currentMap.type}</span>
           </div>
+        ) : null}
 
-          {/* Map Display */}
-          {currentMap && (
-            <div className="mb-8">
-              <div className="rounded-xl overflow-hidden border-2 border-primary/50 shadow-lg">
-                <MapImage
-                  src={currentMap.imgPath ? resolveMapImageUrl(currentMap.imgPath) : null}
-                  alt={currentMap.description}
-                  fallbackInitial={currentMap.description.charAt(0)}
-                  className={clsx("w-full", isObsKeyAccess ? "h-80" : "h-64")}
-                />
-              </div>
-              <p className={clsx("text-center mt-4 font-semibold", isObsKeyAccess ? "text-xl" : "text-lg")}>
-                {currentMap.description}
-              </p>
-              <p className={clsx("text-center text-muted mt-1", isObsKeyAccess ? "text-base" : "text-sm")}>
-                Map Type: {currentMap.type}
-              </p>
-            </div>
-          )}
+        {renderTeamBans(teamB, teamBBans, "B")}
+      </div>
 
-          <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {renderTeamBans(teamA, teamABans, "A")}
-            {renderTeamBans(teamB, teamBBans, "B")}
-          </div>
-
-          {/* Game Ended Button - Only Manager Can End Game */}
-          {isManager && (
-            <div className="flex justify-center">
-              <Button
-                size="lg"
-                className={clsx("bg-success hover:bg-success/90", isObsKeyAccess ? "px-10 text-lg" : "px-8")}
-                onClick={onEndGame}
-                disabled={actionLoading}
-              >
-                {actionLoading ? "Processing..." : "Game Ended"}
-              </Button>
-            </div>
-          )}
-
-          {!isManager && (
-            <div className="text-center text-muted">
-              <p className={clsx(isObsKeyAccess ? "text-base" : "text-sm")}>
-                Waiting for manager to mark game as ended...
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <div className={playing.action}>
+        {isManager ? (
+          <Button
+            size="lg"
+            className={clsx("bg-success hover:bg-success/90", isObsKeyAccess ? "px-10 text-lg" : "px-8")}
+            onClick={onEndGame}
+            disabled={actionLoading}
+          >
+            {actionLoading ? "Processing..." : "Game Ended"}
+          </Button>
+        ) : (
+          <p className={playing.waiting}>Waiting for the manager to mark this game as ended</p>
+        )}
+      </div>
     </div>
   );
 }

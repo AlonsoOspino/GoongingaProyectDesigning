@@ -1,22 +1,454 @@
-.studio { display: grid; gap: 20px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 24px; background: var(--color-surface-1); color: var(--color-text-primary); }
-.header,.footer,.actions,.rowActions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
-.header h2 { font-family: var(--font-display); font-size: var(--text-display-m); font-weight: 400; text-transform: uppercase; }
-.header p,.hint,.message { color: var(--color-text-muted); font-size: var(--text-body-s); }
-.list,.fields,.editor { display: grid; gap: 12px; }
-.row { display: flex; align-items: center; gap: 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 14px; background: var(--color-surface-0); }
-.rowLive { border-color: var(--color-brand-bright); }
-.rowMeta { display: grid; flex: 1; min-width: 0; gap: 4px; border: 0; background: transparent; color: var(--color-text-primary); text-align: left; cursor: pointer; }
-.rowMeta strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rowMeta small { color: var(--color-text-muted); }
-.field { display: grid; gap: 7px; }
-.field > span { color: var(--color-text-secondary); font-size: var(--text-label); font-weight: 800; text-transform: uppercase; }
-.field input,.field textarea { width: 100%; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 10px 12px; background: var(--color-surface-inset); color: var(--color-text-primary); font: inherit; }
-.field textarea { min-height: 110px; resize: vertical; }
-.primary,.secondary,.danger,.toggle,.iconButton { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 0 14px; background: var(--color-surface-2); color: var(--color-text-primary); font: inherit; font-size: var(--text-body-s); font-weight: 800; text-decoration: none; cursor: pointer; }
-.primary,.toggleOn { border-color: var(--color-brand-bright); background: var(--color-brand-bright); color: var(--color-text-inverse); }
-.primary:hover,.toggleOn:hover { border-color: var(--color-brand-hover); background: var(--color-brand-hover); }
-.danger { color: var(--color-danger); }
-.iconButton { width: 44px; padding: 0; }
-.primary:disabled,.secondary:disabled,.danger:disabled,.toggle:disabled,.iconButton:disabled { opacity: .5; cursor: not-allowed; }
-.error { color: var(--color-danger); font-size: var(--text-body-s); }
-@media (max-width: 760px) { .studio { padding: 16px; } .row { align-items: stretch; flex-direction: column; } .rowMeta { width: 100%; } .rowActions { width: 100%; justify-content: flex-start; } }
+/*
+ * Announcement studio.
+ *
+ * The studio worked but barely existed visually: a grey panel of identical
+ * buttons with no sense of sequence, and no way to see what you were making
+ * until you published it. This gives it the three things it was missing —
+ * a picker that explains the choices, a workbench with the copy on one side and
+ * a live preview on the other, and a list where published state is legible.
+ */
+
+.studio {
+  display: grid;
+  gap: 1.25rem;
+  padding: 1.5rem;
+  border-left: 2px solid var(--color-accent);
+  background: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--color-accent) 7%, var(--color-surface-1)),
+    var(--color-surface-1) 60%
+  );
+  color: var(--color-text-primary);
+}
+
+/* ---------------------------------------------------------------- header */
+
+.header,
+.footer,
+.actions,
+.rowActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.header {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.header h2 {
+  margin: 0;
+  font-family: var(--font-otp-display), var(--font-accent), "Arial Narrow", sans-serif;
+  font-size: clamp(1.9rem, 4vw, 2.6rem);
+  line-height: 0.94;
+  font-weight: 400;
+  text-transform: uppercase;
+}
+
+.header p,
+.hint,
+.message {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-body-s);
+}
+
+/* ---------------------------------------------------------------- picker */
+
+.picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.6rem;
+}
+
+.templateCard {
+  --lean: 10px;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.85rem 1rem;
+  border: 0;
+  clip-path: polygon(var(--lean) 0, 100% 0, calc(100% - var(--lean)) 100%, 0 100%);
+  background: var(--color-surface-2);
+  color: var(--color-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.templateCard:hover {
+  background: color-mix(in srgb, var(--color-accent) 18%, var(--color-surface-2));
+  transform: translateY(-1px);
+}
+
+.templateCard:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.templateIcon {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--color-accent) 20%, transparent);
+  color: var(--color-accent);
+}
+
+.templateText {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.templateText strong {
+  font-size: var(--text-body-s);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.templateText small {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.templatePlus {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+
+/* ------------------------------------------------------------- workbench */
+
+.workbench {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (min-width: 1080px) {
+  .workbench {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 22rem);
+    gap: 1.75rem;
+  }
+}
+
+.list,
+.fields,
+.editor {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+/* --------------------------------------------------------------- preview */
+
+.preview {
+  position: sticky;
+  top: 1.5rem;
+  display: grid;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.previewHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.previewLabel {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.previewHint {
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+}
+
+/* Dark inset so the preview reads as the site, not as another form panel. */
+.previewStage {
+  padding: 1.25rem;
+  overflow: hidden;
+  background: var(--color-surface-inset);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.previewStage > * {
+  max-width: 100%;
+}
+
+/* ----------------------------------------------------------------- rows */
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.9rem 1rem;
+  border-left: 2px solid var(--color-border);
+  background: var(--color-surface-0);
+}
+
+/* Published rows are the ones actually on the site, so they carry the accent. */
+.rowLive {
+  border-left-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 7%, var(--color-surface-0));
+}
+
+.rowMeta {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 0.25rem;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.rowMeta strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowMeta small {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ---------------------------------------------------------------- fields */
+
+.field {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.field > span,
+.fieldLabel {
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.64rem;
+  letter-spacing: 0.18em;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.field input,
+.field textarea,
+.field select,
+.imageUrlInput {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  padding: 0.6rem 0.75rem;
+  background: var(--color-surface-inset);
+  color: var(--color-text-primary);
+  font: inherit;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.field input:focus,
+.field textarea:focus,
+.imageUrlInput:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.field textarea {
+  min-height: 7rem;
+  resize: vertical;
+}
+
+/* ----------------------------------------------------------- image field */
+
+.imageField {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.imageRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+}
+
+.imagePreview {
+  --lean: 10px;
+  width: 7.5rem;
+  height: 5rem;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  clip-path: polygon(var(--lean) 0, 100% 0, calc(100% - var(--lean)) 100%, 0 100%);
+  background: var(--color-surface-inset);
+  color: var(--color-text-muted);
+}
+
+.imagePreview[data-empty="true"] {
+  background: repeating-linear-gradient(
+    100deg,
+    var(--color-surface-inset) 0 8px,
+    var(--color-surface-2) 8px 16px
+  );
+}
+
+.imagePreview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.imageActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 12rem;
+}
+
+.imageActions .imageUrlInput {
+  flex-basis: 100%;
+  font-size: 0.8rem;
+}
+
+.fileInput {
+  display: none;
+}
+
+.fieldError {
+  margin: 0;
+  color: var(--color-danger);
+  font-size: 0.78rem;
+}
+
+.spin {
+  animation: studio-spin 900ms linear infinite;
+}
+
+@keyframes studio-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* --------------------------------------------------------------- buttons */
+
+.primary,
+.secondary,
+.danger,
+.toggle,
+.iconButton {
+  display: inline-flex;
+  min-height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid var(--color-border);
+  padding: 0 0.9rem;
+  background: var(--color-surface-2);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--text-body-s);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+
+.secondary:hover:not(:disabled),
+.toggle:hover:not(:disabled),
+.iconButton:hover:not(:disabled) {
+  border-color: var(--color-accent);
+}
+
+.primary,
+.toggleOn {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-text-inverse);
+}
+
+.primary:hover:not(:disabled),
+.toggleOn:hover:not(:disabled) {
+  border-color: var(--color-accent-hover);
+  background: var(--color-accent-hover);
+}
+
+.danger {
+  color: var(--color-danger);
+}
+
+.danger:hover:not(:disabled) {
+  border-color: var(--color-danger);
+}
+
+.iconButton {
+  width: 2.5rem;
+  padding: 0;
+}
+
+.primary:disabled,
+.secondary:disabled,
+.danger:disabled,
+.toggle:disabled,
+.iconButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.error {
+  color: var(--color-danger);
+  font-size: var(--text-body-s);
+}
+
+.footer {
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+@media (max-width: 760px) {
+  .studio {
+    padding: 1rem;
+  }
+
+  .row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .rowMeta,
+  .rowActions {
+    width: 100%;
+  }
+
+  .rowActions {
+    justify-content: flex-start;
+  }
+
+  .preview {
+    position: static;
+  }
+}

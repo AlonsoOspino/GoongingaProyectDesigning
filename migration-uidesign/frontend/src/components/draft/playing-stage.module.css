@@ -1,0 +1,396 @@
+/*
+ * The map, playing.
+ *
+ * This phase used to be a bordered card holding a thumbnail of the map, its
+ * name, its type and two ban panels — a box of facts about the map rather than
+ * the map itself. The art is the best thing on screen and it was the smallest
+ * element in the frame.
+ *
+ * Now the map is the stage. Everything else is furniture placed on it: the
+ * matchup across the top, each team's bans in the bottom corners, and the map's
+ * own name where a location caption belongs. Scrims carry the legibility so the
+ * art never needs a panel drawn over it.
+ */
+
+.stage {
+  position: relative;
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  min-height: min(78vh, 46rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--color-surface-inset);
+}
+
+.art {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.artFallback {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(150deg, var(--color-surface-2), var(--color-surface-inset));
+  font-family: var(--font-otp-display), var(--font-accent), sans-serif;
+  font-size: 8rem;
+  color: var(--color-border-strong);
+}
+
+/*
+ * Two scrims, not one. A single overlay would flatten the whole picture; these
+ * darken only the bands where type actually sits, so the middle of the map
+ * stays at full strength.
+ */
+.scrim {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(to bottom, rgba(5, 7, 6, 0.88) 0%, rgba(5, 7, 6, 0.45) 16%, transparent 34%),
+    linear-gradient(to top, rgba(5, 7, 6, 0.94) 0%, rgba(5, 7, 6, 0.6) 22%, transparent 46%);
+}
+
+/* A thin live edge, so the stage reads as an output rather than a picture. */
+.stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px rgba(62, 224, 138, 0.22);
+}
+
+/* ------------------------------------------------------------------- top */
+
+.top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 2rem 1.5rem 0;
+  text-align: center;
+}
+
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.liveDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  animation: playing-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes playing-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    box-shadow: 0 0 0 0 rgba(62, 224, 138, 0.45);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 0 5px rgba(62, 224, 138, 0);
+  }
+}
+
+.matchup {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.5rem 1rem;
+  font-family: var(--font-otp-display), var(--font-accent), "Arial Narrow", sans-serif;
+  font-size: clamp(2.1rem, 4.6vw, 3.6rem);
+  line-height: 0.94;
+  text-transform: uppercase;
+  text-shadow: 0 2px 22px rgba(0, 0, 0, 0.75);
+}
+
+.stage[data-broadcast="true"] .matchup {
+  font-size: clamp(2.8rem, 5.2vw, 4.6rem);
+}
+
+.teamA {
+  color: var(--color-team-a-bright);
+}
+
+.teamB {
+  color: var(--color-team-b-bright);
+}
+
+.versus {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.9rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(243, 244, 239, 0.7);
+}
+
+/* ---------------------------------------------------------------- bottom */
+
+.bottom {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: end;
+  gap: 1.25rem;
+  padding: 0 1.5rem 1.75rem;
+}
+
+@media (min-width: 820px) {
+  .bottom {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+}
+
+/* The map names itself, the way a location caption would. */
+.caption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  order: -1;
+  text-align: center;
+}
+
+@media (min-width: 820px) {
+  .caption {
+    order: 0;
+  }
+}
+
+.mapName {
+  font-family: var(--font-otp-display), var(--font-accent), "Arial Narrow", sans-serif;
+  font-size: clamp(1.9rem, 3.4vw, 3rem);
+  line-height: 0.95;
+  text-transform: uppercase;
+  color: var(--color-text-primary);
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.8);
+}
+
+.mapType {
+  --lean: 8px;
+  padding: 0.2rem 0.85rem;
+  clip-path: polygon(var(--lean) 0, 100% 0, calc(100% - var(--lean)) 100%, 0 100%);
+  background: color-mix(in srgb, var(--color-accent) 82%, transparent);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--color-text-inverse);
+}
+
+/* ------------------------------------------------------------------ bans */
+
+.bans {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.bansRight {
+  align-items: flex-end;
+}
+
+.bansHead {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.bansRight .bansHead {
+  flex-direction: row-reverse;
+}
+
+.crest {
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: rgba(5, 7, 6, 0.7);
+  font-family: var(--font-otp-display), var(--font-accent), sans-serif;
+  font-size: 0.95rem;
+}
+
+.crest img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.bansTeamA .crest {
+  box-shadow: 0 0 0 2px var(--color-team-a);
+  color: var(--color-team-a-bright);
+}
+
+.bansTeamB .crest {
+  box-shadow: 0 0 0 2px var(--color-team-b);
+  color: var(--color-team-b-bright);
+}
+
+.bansLabel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.bansRight .bansLabel {
+  align-items: flex-end;
+}
+
+.bansTeamName {
+  font-family: var(--font-otp-display), var(--font-accent), sans-serif;
+  font-size: 1.05rem;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.8);
+}
+
+.bansTeamA .bansTeamName {
+  color: var(--color-team-a-bright);
+}
+
+.bansTeamB .bansTeamName {
+  color: var(--color-team-b-bright);
+}
+
+.bansNote {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.56rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(243, 244, 239, 0.55);
+}
+
+.banRow {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.banSlot {
+  --lean: 9px;
+  position: relative;
+  width: 4.5rem;
+  height: 5.25rem;
+  overflow: hidden;
+  clip-path: polygon(var(--lean) 0, 100% 0, calc(100% - var(--lean)) 100%, 0 100%);
+  background: rgba(5, 7, 6, 0.72);
+}
+
+.stage[data-broadcast="true"] .banSlot {
+  width: 5.5rem;
+  height: 6.5rem;
+}
+
+.banSlot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Banned: drained of colour and dimmed, so they read as removed rather than
+     as a roster. */
+  filter: grayscale(1) brightness(0.55);
+}
+
+.banEmpty {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  background: repeating-linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0.05) 0 6px,
+    transparent 6px 12px
+  );
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.55rem;
+  letter-spacing: 0.16em;
+  color: rgba(243, 244, 239, 0.35);
+}
+
+.banStrike {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    transparent 62%,
+    rgba(5, 7, 6, 0.9) 100%
+  );
+}
+
+.banName {
+  position: absolute;
+  left: 0.3rem;
+  right: 0.3rem;
+  bottom: 0.25rem;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.5rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: center;
+  color: rgba(243, 244, 239, 0.82);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* A single diagonal, the universal mark for "not available". */
+.banSlot[data-filled="true"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom right,
+    transparent calc(50% - 1px),
+    var(--color-danger) calc(50% - 1px),
+    var(--color-danger) calc(50% + 1px),
+    transparent calc(50% + 1px)
+  );
+  opacity: 0.75;
+}
+
+/* ---------------------------------------------------------------- action */
+
+.action {
+  display: flex;
+  justify-content: center;
+  padding: 0 1.5rem 1.75rem;
+}
+
+.waiting {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(243, 244, 239, 0.6);
+  text-align: center;
+}

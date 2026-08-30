@@ -1,3 +1,5 @@
+const path = require("path");
+const { saveUploadedImage } = require("../utils/contentImageUpload");
 const prisma = require("../config/prisma");
 const { getTemplate, normalizeCountdown } = require("../announcements/registry");
 
@@ -176,4 +178,34 @@ async function updateSettings(req, res) {
   }
 }
 
-module.exports = { getActive, list, create, update, remove, reorder, getSettings, updateSettings };
+
+/*
+ * Image upload for custom announcements.
+ *
+ * The studio used to ask for a URL, which meant hosting the image somewhere
+ * else first. Files land in the same media volume every other upload uses, so
+ * they survive redeploys and are served by the existing /uploads route.
+ */
+const uploadImage = async (req, res) => {
+  try {
+    const mediaDirectory = path.resolve(
+      process.env.MEDIA_DIR || path.join(__dirname, "..", "uploads"),
+      "announcements"
+    );
+    const baseUrl = process.env.PUBLIC_API_BASE_URL || `${req.protocol}://${req.get("host")}`;
+
+    const url = await saveUploadedImage({
+      file: req.file,
+      displayName: req.body?.name || "announcement",
+      filePrefix: "announcement",
+      targetDirectory: mediaDirectory,
+      publicPrefix: `${baseUrl.replace(/\/$/, "")}/uploads/announcements`,
+    });
+
+    return res.status(201).json({ url });
+  } catch (error) {
+    return res.status(400).json({ message: error?.message || "Could not upload the image." });
+  }
+};
+
+module.exports = { getActive, list, create, update, remove, reorder, getSettings, updateSettings, uploadImage };

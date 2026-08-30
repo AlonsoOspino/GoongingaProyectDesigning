@@ -3,6 +3,7 @@ import { ArrowRight, Megaphone } from "lucide-react";
 import type { EditorProps, ViewProps } from "@/announcements/templateTypes";
 import type { CustomContent } from "@/announcements/types";
 import { AnnouncementCountdown } from "@/announcements/AnnouncementCountdown";
+import { ImageField } from "@/announcements/ImageField";
 import styles from "@/announcements/announcements.module.css";
 import studio from "@/announcements/studio.module.css";
 export function CustomEditor({ content, onChange }: EditorProps) {
@@ -36,13 +37,11 @@ export function CustomEditor({ content, onChange }: EditorProps) {
           onChange={(event) => set({ body: event.target.value })}
         />
       </label>
-      <label className={studio.field}>
-        <span>Image URL</span>
-        <input
-          value={value.imageUrl}
-          onChange={(event) => set({ imageUrl: event.target.value })}
-        />
-      </label>
+      <ImageField
+        value={value.imageUrl}
+        name={value.headline}
+        onChange={(imageUrl) => set({ imageUrl })}
+      />
       <label className={studio.field}>
         <span>Button label</span>
         <input

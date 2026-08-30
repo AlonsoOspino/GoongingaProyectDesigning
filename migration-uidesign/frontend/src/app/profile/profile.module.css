@@ -1,0 +1,181 @@
+/*
+ * Member profile.
+ *
+ * This was a single line of JSX with three inputs and no sense of whose page it
+ * was. The identity now leads — avatar, name, the roles Discord gave you — and
+ * the editable fields sit underneath as a clearly separate job.
+ */
+
+.page {
+  min-height: 100vh;
+  padding: 3rem 0 5rem;
+  background:
+    radial-gradient(90% 60% at 12% 0%, rgba(29, 90, 62, 0.32) 0%, transparent 62%),
+    linear-gradient(180deg, var(--color-surface-0) 0%, var(--color-background) 100%);
+}
+
+.container {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* -------------------------------------------------------------- identity */
+
+.identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.5rem;
+  padding-bottom: 1.75rem;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.avatarFrame {
+  --lean: 12px;
+  width: 6.5rem;
+  height: 6.5rem;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  padding: 3px;
+  clip-path: polygon(var(--lean) 0, 100% 0, calc(100% - var(--lean)) 100%, 0 100%);
+  background: linear-gradient(160deg, var(--color-brand-bright), var(--color-brand));
+}
+
+.avatarImage,
+.avatarFallback {
+  width: 100%;
+  height: 100%;
+  clip-path: polygon(var(--lean) 0, 100% 0, calc(100% - var(--lean)) 100%, 0 100%);
+  background: var(--color-surface-1);
+}
+
+.avatarImage {
+  object-fit: cover;
+}
+
+.avatarFallback {
+  display: grid;
+  place-items: center;
+  font-family: var(--font-otp-display), var(--font-accent), sans-serif;
+  font-size: 2.75rem;
+  color: var(--color-text-secondary);
+}
+
+.identityText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.name {
+  margin: 0;
+  font-family: var(--font-otp-display), var(--font-accent), "Arial Narrow", sans-serif;
+  font-size: clamp(2.5rem, 6vw, 3.75rem);
+  line-height: 0.9;
+  text-transform: uppercase;
+  color: var(--color-text-primary);
+}
+
+.roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.25rem;
+}
+
+.roleChip {
+  --lean: 6px;
+  padding: 0.25rem 0.7rem;
+  clip-path: polygon(var(--lean) 0, 100% 0, calc(100% - var(--lean)) 100%, 0 100%);
+  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+/* The role that actually decides what you can do gets to look different. */
+.roleChipPrimary {
+  background: var(--color-accent);
+  color: var(--color-text-inverse);
+}
+
+/* ----------------------------------------------------------------- panel */
+
+.panel {
+  margin-top: 2rem;
+  padding: 1.75rem;
+  border-left: 2px solid var(--color-border-strong);
+  background: var(--color-surface-1);
+}
+
+.panelHead {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.panelTitle {
+  margin: 0;
+  font-family: var(--font-otp-heading), var(--font-sans), sans-serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--color-text-primary);
+}
+
+.panelNote {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.fields {
+  display: grid;
+  gap: 1.1rem;
+}
+
+@media (min-width: 720px) {
+  .fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fieldWide {
+    grid-column: 1 / -1;
+  }
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.message {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}
+
+.messageError {
+  color: var(--color-danger);
+}

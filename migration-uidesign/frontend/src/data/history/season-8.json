@@ -117,7 +117,7 @@
       "id": 8,
       "name": "Albert Whiskers",
       "logo": "/history/season-8/teams/logos/albert-whiskers-fd7e6e14.webp",
-      "rosterImage": "https://niza9dx5qw6upf2o.public.blob.vercel-storage.com/roster-1781035491773.png",
+      "rosterImage": "/history/season-8/teams/rosters/albert-whiskers.png",
       "record": {
         "wins": 6,
         "losses": 2,
@@ -162,7 +162,7 @@
       "id": 2,
       "name": "Feral Kittens",
       "logo": "/history/season-8/teams/logos/feral-kittens-52cd6a90.webp",
-      "rosterImage": "https://niza9dx5qw6upf2o.public.blob.vercel-storage.com/roster-1778546521419.png",
+      "rosterImage": "/history/season-8/teams/rosters/feral-kittens.png",
       "record": {
         "wins": 0,
         "losses": 8,
@@ -207,7 +207,7 @@
       "id": 9,
       "name": "Gamin 4 Goonginga",
       "logo": "/history/season-8/teams/logos/gamin-4-goonginga-74383fa8.webp",
-      "rosterImage": "/history/season-8/teams/rosters/gamin-4-goonginga-dd75eacd.png",
+      "rosterImage": "/history/season-8/teams/rosters/gamin-4-goonginga.png",
       "record": {
         "wins": 5,
         "losses": 3,
@@ -252,7 +252,7 @@
       "id": 6,
       "name": "Jailbreak",
       "logo": "/history/season-8/teams/logos/jailbreak-8b13e27f.webp",
-      "rosterImage": "https://niza9dx5qw6upf2o.public.blob.vercel-storage.com/roster-1778370418897.png",
+      "rosterImage": "/history/season-8/teams/rosters/jailbreak.png",
       "record": {
         "wins": 5,
         "losses": 3,
@@ -297,7 +297,7 @@
       "id": 1,
       "name": "No Tank?",
       "logo": "/history/season-8/teams/logos/no-tank-be2f5469.webp",
-      "rosterImage": "https://niza9dx5qw6upf2o.public.blob.vercel-storage.com/roster-1778458694555.png",
+      "rosterImage": "/history/season-8/teams/rosters/no-tank.png",
       "record": {
         "wins": 7,
         "losses": 1,
@@ -342,7 +342,7 @@
       "id": 5,
       "name": "Platinum Philosophers",
       "logo": "/history/season-8/teams/logos/platinum-philosophers-2e055802.webp",
-      "rosterImage": "https://niza9dx5qw6upf2o.public.blob.vercel-storage.com/roster-1778457624646.png",
+      "rosterImage": "/history/season-8/teams/rosters/platinum-philosophers.png",
       "record": {
         "wins": 2,
         "losses": 6,
@@ -387,7 +387,7 @@
       "id": 7,
       "name": "RUSH HOUR",
       "logo": "/history/season-8/teams/logos/rush-hour-41f9384f.webp",
-      "rosterImage": "https://niza9dx5qw6upf2o.public.blob.vercel-storage.com/roster-1778627945574.png",
+      "rosterImage": "/history/season-8/teams/rosters/rush-hour.png",
       "record": {
         "wins": 3,
         "losses": 5,
@@ -432,7 +432,7 @@
       "id": 3,
       "name": "Storm",
       "logo": "/history/season-8/teams/logos/storm-b8f9dc04.webp",
-      "rosterImage": "/history/season-8/teams/rosters/storm-a3dd57c1.png",
+      "rosterImage": "/history/season-8/teams/rosters/storm.png",
       "record": {
         "wins": 4,
         "losses": 4,
@@ -477,7 +477,7 @@
       "id": 4,
       "name": "TRIPLE T",
       "logo": "/history/season-8/teams/logos/triple-t-2909a033.webp",
-      "rosterImage": "https://niza9dx5qw6upf2o.public.blob.vercel-storage.com/roster-1778457072261.png",
+      "rosterImage": "/history/season-8/teams/rosters/triple-t.png",
       "record": {
         "wins": 4,
         "losses": 4,

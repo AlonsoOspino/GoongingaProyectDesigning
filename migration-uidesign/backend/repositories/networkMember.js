@@ -51,9 +51,20 @@ async function upsertFromDiscord({ discordUserId, username, avatarUrl, joinedAt 
   });
 }
 
+/*
+ * Stand-in players created to test Family Feud are real NetworkMember rows,
+ * so without this they show up as brand new community members — usually with
+ * no avatar, which is where the odd icons in the landing rail came from. They
+ * are identified by the prefix the Feud controller stamps on discordUserId.
+ */
+const FEUD_GUEST_PREFIX = "FEUD_GUEST:";
+
 function findRecent(limit = 5) {
   return prisma.networkMember.findMany({
-    where: { status: "ACTIVE" },
+    where: {
+      status: "ACTIVE",
+      NOT: { discordUserId: { startsWith: FEUD_GUEST_PREFIX } },
+    },
     select: {
       ...discordMemberSelect,
       createdAt: true,

@@ -1250,3 +1250,95 @@
     text-align: left;
   }
 }
+
+/* ---------- VIDA ----------
+   Tres cosas mataban esta pagina, y ninguna era la falta de colores.
+
+   1. La voz. Los titulos usaban --font-display, que es Geist: un sans de
+      interfaz. A 72px y en mayusculas no impone, solo ocupa. Ahora usan la
+      voz de display de OTP, igual que el resto del sitio.
+   2. Las barras. Mezcladas al 22% eran invisibles, asi que la tabla eran
+      dieciocho numeros sueltos otra vez.
+   3. El movimiento. Nada respondia a nada: cambiabas de metrica y la tabla
+      simplemente aparecia distinta. */
+
+.h2 {
+  font-family: var(--font-otp-display), var(--font-accent), "Arial Narrow", sans-serif;
+}
+
+/* La barra ahora es el elemento principal de su columna, y crece al cambiar de
+   metrica en vez de saltar. */
+.bar {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--team) 30%, transparent) 55%,
+    color-mix(in srgb, var(--team) 62%, transparent)
+  );
+  border-right: 3px solid var(--team);
+  box-shadow: 0 0 18px -6px var(--team);
+  transition: width 620ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Las filas entran escalonadas. El retardo se corta a los diez primeros para
+   que la ultima no espere casi dos segundos. */
+.table tbody tr {
+  animation: history-row-in 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(min(var(--row, 0), 10) * 32ms);
+}
+
+@keyframes history-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* El color del equipo entra en la fila entera al pasar por encima: la tabla
+   deja de ser una rejilla y pasa a ser nueve identidades. */
+.table tbody tr:hover td,
+.table tbody tr:hover th {
+  background: color-mix(in srgb, var(--team) 9%, transparent);
+}
+
+.rankMedal {
+  text-shadow: 0 0 16px color-mix(in srgb, var(--medal) 55%, transparent);
+}
+
+/* La tarjeta del lider tenia el mismo peso que una fila cualquiera. */
+.leader {
+  border-left-width: 4px;
+  box-shadow: 0 0 44px -20px var(--team);
+  animation: history-leader-in 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes history-leader-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* El chip activo se nota; antes habia que compararlo con los demas. */
+.chipActive {
+  box-shadow: 0 0 20px -8px var(--chip, var(--accent));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .table tbody tr,
+  .leader {
+    animation: none;
+  }
+
+  .bar {
+    transition: none;
+  }
+}

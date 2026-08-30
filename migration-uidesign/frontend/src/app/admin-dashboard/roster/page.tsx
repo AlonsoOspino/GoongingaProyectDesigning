@@ -143,7 +143,7 @@ export default function SeasonRosterPage() {
               <ArrowLeft size={16} />
               Network Members
             </Link>
-            <h1 className="font-display text-6xl uppercase">Season Roster</h1>
+            <h1 className="font-otp text-6xl uppercase leading-[0.9]">Season Roster</h1>
             <p className="mt-2 max-w-2xl text-sm text-muted">
               Assign the temporary teams and captain permissions used by the active GGL season.
             </p>

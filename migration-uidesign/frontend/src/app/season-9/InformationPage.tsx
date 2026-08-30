@@ -171,12 +171,6 @@ export default function InformationPage() {
           </RevealWords>
 
           <ModeTabs />
-
-          <ArtSlot
-            id="otp-info-03-map-pool"
-            ratio="16 / 7"
-            caption="Map pool — the rotation across a regular season."
-          />
         </section>
 
         {/* ---------- 4 ---------- */}

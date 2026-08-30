@@ -46,7 +46,11 @@ export function AnnouncementRenderer({
   return (
     <div className={styles.announcementList}>
       {announcements.map((announcement, index) => {
-        const { View } = getAnnouncementTemplate(announcement.type);
+        const template = getAnnouncementTemplate(announcement.type);
+        // A row published before minigames moved to their own site has no
+        // template here any more. Skip it rather than taking the page down.
+        if (!template) return null;
+        const { View } = template;
         return (
           <View
             key={announcement.id}

@@ -63,6 +63,10 @@
      title (two selectors — the ban phase sets it smaller), and the kicker plus
      hero name in the ban ceremony. Bebas is caps-only, so anything set in it
      must read as a headline. Do not reach for it anywhere else. */
+  /* The OTP display voice as a Tailwind utility (font-otp). --font-display is
+     Geist, a UI sans: fine for interface text, wrong for the big uppercase
+     headings the dashboards were using it for. */
+  --font-otp: var(--font-otp-display), "Arial Narrow", ui-sans-serif, sans-serif;
   --font-accent: var(--font-bebas-neue), "Arial Narrow", ui-sans-serif, sans-serif;
 
   --radius-sm: 2px;

@@ -3,14 +3,21 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, CheckCircle2, MessageCircle, ShieldCheck } from "lucide-react";
+import { ArrowLeft, CheckCircle2, MessageCircle, ShieldCheck, TriangleAlert } from "lucide-react";
 import { getDiscordLoginUrl } from "@/lib/api/networkMember";
 import { saveNetworkToken } from "@/features/networkSession/storage";
+import styles from "./login.module.css";
 
 const LOGIN_NEXT_KEY = "goonginga.network.login.next";
 function rememberedNextPath() { try { return window.sessionStorage.getItem(LOGIN_NEXT_KEY); } catch { return null; } }
 function rememberNextPath(path: string) { try { window.sessionStorage.setItem(LOGIN_NEXT_KEY, path); } catch { /* OAuth still works without redirect memory. */ } }
 function forgetNextPath() { try { window.sessionStorage.removeItem(LOGIN_NEXT_KEY); } catch { /* Nothing to clear. */ } }
+
+const STEPS = [
+  "Authorize with the Discord account you use in the server.",
+  "We read your username, avatar and server roles. Nothing else.",
+  "Your profile and dashboards unlock straight away.",
+];
 
 export default function LoginPage() {
   const router = useRouter();
@@ -46,24 +53,85 @@ export default function LoginPage() {
   }, [nextPath, router]);
 
   return (
-    <div className="login-page">
-      <div className="login-stage">
-        <div className="login-art" aria-hidden="true" />
-        <div className="login-content">
-          <div className="login-copy">
-            <Link href="/" className="login-back"><ArrowLeft size={17} /> Back</Link>
-            <div className="login-heading"><h1 className="display-title">Register for Overtime Productions</h1></div>
-            <p>Use Discord to create or access your Overtime Productions profile.</p>
+    <div className={styles.page}>
+      <div className={styles.field} aria-hidden />
 
-            {message && <div className="login-notice flex items-center gap-2"><CheckCircle2 size={17} className="text-[#72d39d]" />{message}</div>}
-            {error && <div className="login-notice !border-danger text-[#ffd5d5]">{error}</div>}
+      <div className={styles.art}>
+        <img
+          className={styles.artImage}
+          src="/ramattra-login-cropped.webp"
+          alt=""
+          aria-hidden
+        />
+        <div className={styles.artVeil} aria-hidden />
+        <div className={styles.artMark}>
+          <span className={styles.artMarkLabel}>Overtime Productions</span>
+          <span className={styles.artMarkText}>Registration</span>
+        </div>
+      </div>
 
-            <button type="button" className="discord-action" onClick={() => { rememberNextPath(nextPath); window.location.assign(getDiscordLoginUrl()); }}>
-              <MessageCircle size={22} /> Continue with Discord
-            </button>
-            <div className="login-notice flex items-start gap-2"><ShieldCheck size={17} className="mt-0.5 shrink-0 text-[#9ce5f3]" /><span>You must be a member of the GGL Discord server. No separate password is stored by Overtime Productions.</span></div>
-            <p className="login-server-link">Not in the server? <a href="https://discord.gg/QMukTWr32f">Join GGL on Discord</a></p>
+      <div className={styles.content}>
+        <div className={styles.copy}>
+          <Link href="/" className={styles.back}>
+            <ArrowLeft size={15} /> Back to the league
+          </Link>
+
+          <span className={styles.kicker}>Member registration</span>
+
+          <h1 className={styles.title}>
+            Join <span className={styles.titleAccent}>Overtime</span> Productions
+          </h1>
+
+          <p className={styles.lede}>
+            One Discord sign-in creates your profile, links you to your team and opens whichever
+            dashboards your roles allow.
+          </p>
+
+          {message && (
+            <div className={`${styles.notice} ${styles.noticeGood}`}>
+              <CheckCircle2 size={17} className={styles.noticeIcon} />
+              <span>{message}</span>
+            </div>
+          )}
+
+          {error && (
+            <div className={`${styles.notice} ${styles.noticeBad}`}>
+              <TriangleAlert size={17} className={styles.noticeIcon} />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <div className={styles.steps}>
+            {STEPS.map((step, index) => (
+              <p key={step} className={styles.step}>
+                <span className={styles.stepNumber}>{String(index + 1).padStart(2, "0")}</span>
+                <span>{step}</span>
+              </p>
+            ))}
           </div>
+
+          <button
+            type="button"
+            className={styles.action}
+            onClick={() => {
+              rememberNextPath(nextPath);
+              window.location.assign(getDiscordLoginUrl());
+            }}
+          >
+            <MessageCircle size={20} /> Continue with Discord
+          </button>
+
+          <div className={styles.notice}>
+            <ShieldCheck size={17} className={styles.noticeIcon} />
+            <span>
+              You must already be a member of the GGL Discord server. Overtime Productions never
+              stores a separate password.
+            </span>
+          </div>
+
+          <p className={styles.serverLink}>
+            Not in the server yet? <a href="https://discord.gg/QMukTWr32f">Join GGL on Discord</a>
+          </p>
         </div>
       </div>
     </div>

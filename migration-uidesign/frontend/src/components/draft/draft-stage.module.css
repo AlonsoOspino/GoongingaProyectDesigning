@@ -162,13 +162,16 @@
   letter-spacing: 0.01em;
 }
 
+/* Two states, two colours, no reading required: green once a captain is in,
+   plain white while the lobby is still waiting on them. */
 .railStatus {
   composes: label;
-  color: var(--team-bright);
+  color: var(--color-accent);
 }
 
 .railStatusIdle {
-  color: var(--color-muted);
+  color: #ffffff;
+  opacity: 0.82;
 }
 
 .railBody {
@@ -382,8 +385,23 @@
   shape-rendering: geometricPrecision;
 }
 
-.brushStrikePaint {
-  fill: currentColor;
+/* The solid body of the paint. Never filtered, so it cannot develop holes. */
+.brushStrikeCore {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 10.5;
+  stroke-linecap: round;
+}
+
+/* The frayed outline sitting just behind the core: this is the only part the
+   displacement filter touches, which is what makes the edge read as bristles
+   rather than as a drawn line. */
+.brushStrikeEdge {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 13.5;
+  stroke-linecap: round;
+  opacity: 0.92;
 }
 
 .spentSlashStroke {
