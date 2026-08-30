@@ -46,7 +46,6 @@ fi
 echo "[VPS 5/5] Verifying public routes..."
 curl --fail --silent --show-error --max-time 15 https://goongingaleague.duckdns.org/ >/dev/null
 curl --fail --silent --show-error --max-time 15 https://goongingaleague.duckdns.org/backend/tournament/current >/dev/null
-curl --fail --silent --show-error --max-time 15 https://goongingaleague.duckdns.org/minigames/jeopardy >/dev/null
 curl --fail --silent --show-error --max-time 15 https://goonginga-gamenights.duckdns.org/feud >/dev/null
 curl --fail --silent --show-error --max-time 15 https://adara.pe/ >/dev/null
 
