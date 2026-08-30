@@ -413,6 +413,14 @@
   stroke-linejoin: round;
 }
 
+/* Individual hairs. Round caps here on purpose: a bristle that ran out of
+   paint tapers off, it does not stop on a square edge. */
+.brushHair {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+}
+
 .spentSlashStroke {
   fill: none;
   stroke: var(--color-muted);
