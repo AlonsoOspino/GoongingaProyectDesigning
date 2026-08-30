@@ -12,21 +12,24 @@ type BrushStrikeProps = {
   secondRevealRef?: Ref<SVGPathElement>;
 };
 
-/**
+/*
  * A painted X.
  *
- * The previous version carved dry-brush gaps out of the silhouette with
- * evenodd sub-paths, which read as random holes punched in the middle of the
- * mark rather than as paint. This builds the same idea the other way round:
+ * Two problems with the previous attempts, both fixed here.
  *
- *   - a solid core stroke, drawn straight, so the body of the paint can never
- *     have a hole in it;
- *   - a slightly wider stroke behind it, run through a turbulence displacement
- *     filter, which frays only the outline into the uneven edge a loaded brush
- *     leaves.
+ * The look. A single even stroke reads as a marker, not a brush. A real one is
+ * thin where the bristles land and lift and fat through the middle of the drag,
+ * so each diagonal is three concentric strokes: the full length thin, then
+ * shorter and wider, then shorter and widest. Overlapped they form a lens that
+ * tapers at both ends, and the turbulence filter frays the outline into
+ * bristles. No holes are carved anywhere — the body is solid by construction.
  *
- * Everything else about the mark stays: authored geometry, no raster
- * dependency, and one reveal mask per half so the caller keeps the timing.
+ * The bug. The filter used to sit inside the masked group, so every frame of
+ * the reveal re-rendered the displacement and the ends of the strokes flickered
+ * and jumped. The filter now wraps the finished mark and the mask wipes that
+ * stable result. The reveal stroke also uses butt caps: a round cap on a
+ * zero-length dash paints a disc, which is what put a blob of paint on screen
+ * before the animation had started.
  */
 export function BrushStrike({
   className,
@@ -37,12 +40,40 @@ export function BrushStrike({
   const instanceId = useId().replace(/:/g, "");
   const firstMaskId = `brush-strike-a-${instanceId}`;
   const secondMaskId = `brush-strike-b-${instanceId}`;
-  const edgeFilterId = `brush-edge-${instanceId}`;
+  const bristleFilterId = `brush-bristles-${instanceId}`;
   const initialOffset = animated ? BRUSH_REVEAL_LENGTH : 0;
 
-  // The two diagonals. Gentle curves rather than straight rules: a brush drags.
-  const firstStroke = "M 8 10 C 32 32, 64 62, 92 90";
-  const secondStroke = "M 92 9 C 68 31, 36 62, 9 91";
+  // Slightly bowed, because a dragged brush does not travel in a straight line.
+  const firstStroke = "M 9 11 C 33 33, 63 61, 91 89";
+  const secondStroke = "M 91 10 C 67 32, 37 62, 10 90";
+
+  /*
+   * Concentric passes. Each is centred on the same path and drawn shorter than
+   * the last using the dash pattern, which is what produces the taper without
+   * needing hand-authored outline geometry.
+   */
+  const passes = [
+    { width: 6.5, span: 100, opacity: 0.92 },
+    { width: 11, span: 82, opacity: 0.97 },
+    { width: 14, span: 56, opacity: 1 },
+  ];
+
+  const paintedStroke = (d: string, key: string) => (
+    <g key={key}>
+      {passes.map((pass, index) => (
+        <path
+          key={index}
+          className={styles.brushStrokePass}
+          d={d}
+          strokeWidth={pass.width}
+          opacity={pass.opacity}
+          pathLength={BRUSH_REVEAL_LENGTH}
+          strokeDasharray={`${pass.span} ${BRUSH_REVEAL_LENGTH}`}
+          strokeDashoffset={-(BRUSH_REVEAL_LENGTH - pass.span) / 2}
+        />
+      ))}
+    </g>
+  );
 
   const revealPath = (d: string, ref?: Ref<SVGPathElement>) => (
     <path
@@ -50,19 +81,13 @@ export function BrushStrike({
       d={d}
       fill="none"
       stroke="#fff"
-      strokeWidth="30"
-      strokeLinecap="round"
+      strokeWidth="34"
+      // Butt, never round: a round cap on an empty dash renders as a dot.
+      strokeLinecap="butt"
       pathLength={BRUSH_REVEAL_LENGTH}
       strokeDasharray={BRUSH_REVEAL_LENGTH}
       strokeDashoffset={initialOffset}
     />
-  );
-
-  const paintedStroke = (d: string) => (
-    <>
-      <path className={styles.brushStrikeEdge} d={d} filter={`url(#${edgeFilterId})`} />
-      <path className={styles.brushStrikeCore} d={d} />
-    </>
   );
 
   return (
@@ -75,36 +100,48 @@ export function BrushStrike({
     >
       <defs>
         {/*
-          Low frequency on purpose. Higher values shred the outline into noise;
-          this keeps recognisable bristle-scale irregularity.
+          userSpaceOnUse so the bristle scale is fixed in viewBox units. With the
+          default bounding-box units it changed with every tile size, and this
+          SVG is stretched by preserveAspectRatio="none".
         */}
-        <filter id={edgeFilterId} x="-25%" y="-25%" width="150%" height="150%">
+        <filter
+          id={bristleFilterId}
+          filterUnits="userSpaceOnUse"
+          x="-12"
+          y="-12"
+          width="124"
+          height="124"
+        >
           <feTurbulence
             type="fractalNoise"
-            baseFrequency="0.055 0.11"
-            numOctaves="2"
-            seed="11"
+            baseFrequency="0.09 0.16"
+            numOctaves="3"
+            seed="17"
             result="bristles"
           />
           <feDisplacementMap
             in="SourceGraphic"
             in2="bristles"
-            scale="4.5"
+            scale="6"
             xChannelSelector="R"
             yChannelSelector="G"
           />
         </filter>
 
-        <mask id={firstMaskId} maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
+        <mask id={firstMaskId} maskUnits="userSpaceOnUse" x="-12" y="-12" width="124" height="124">
           {revealPath(firstStroke, firstRevealRef)}
         </mask>
-        <mask id={secondMaskId} maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
+        <mask id={secondMaskId} maskUnits="userSpaceOnUse" x="-12" y="-12" width="124" height="124">
           {revealPath(secondStroke, secondRevealRef)}
         </mask>
       </defs>
 
-      <g mask={`url(#${firstMaskId})`}>{paintedStroke(firstStroke)}</g>
-      <g mask={`url(#${secondMaskId})`}>{paintedStroke(secondStroke)}</g>
+      {/* Filter outside the masks: the bristles are computed once and the
+          reveal simply wipes a finished mark. */}
+      <g filter={`url(#${bristleFilterId})`}>
+        <g mask={`url(#${firstMaskId})`}>{paintedStroke(firstStroke, "a")}</g>
+        <g mask={`url(#${secondMaskId})`}>{paintedStroke(secondStroke, "b")}</g>
+      </g>
     </svg>
   );
 }
