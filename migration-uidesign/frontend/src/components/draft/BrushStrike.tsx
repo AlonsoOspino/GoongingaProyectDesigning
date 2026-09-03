@@ -5,6 +5,15 @@ import styles from "./draft-stage.module.css";
 
 export const BRUSH_REVEAL_LENGTH = 100;
 
+/*
+ * Cross-drag scale for the whole mark. This is the one dial for how thick the X
+ * reads: it narrows how far the hairs splay from the centreline and how fat the
+ * spine is. The bristle character (each hair's own width, span and start) and
+ * the turbulence relief are untouched, so the texture and the frayed edge stay
+ * exactly as they were — the mark just gets slimmer. 1 = the original width.
+ */
+const WIDTH_SCALE = 0.6;
+
 type BrushStrikeProps = {
   className?: string;
   animated?: boolean;
@@ -119,7 +128,7 @@ export function BrushStrike({
             key={`body-${index}`}
             className={styles.brushStrokePass}
             d={stroke.d}
-            strokeWidth={pass.width}
+            strokeWidth={pass.width * WIDTH_SCALE}
             opacity={pass.opacity}
             pathLength={BRUSH_REVEAL_LENGTH}
             strokeDasharray={`${pass.span} ${BRUSH_REVEAL_LENGTH}`}
@@ -132,7 +141,7 @@ export function BrushStrike({
             key={`hair-${index}`}
             className={styles.brushHair}
             d={stroke.d}
-            transform={`translate(${(nx * hair.offset).toFixed(2)} ${(ny * hair.offset).toFixed(2)})`}
+            transform={`translate(${(nx * hair.offset * WIDTH_SCALE).toFixed(2)} ${(ny * hair.offset * WIDTH_SCALE).toFixed(2)})`}
             strokeWidth={hair.width}
             opacity={hair.opacity}
             pathLength={BRUSH_REVEAL_LENGTH}

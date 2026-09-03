@@ -238,6 +238,11 @@
   filter: grayscale(0.55);
 }
 
+/* Dimmed columns recede: drop the glow so only the focused band lifts. */
+.column[data-state="dim"] .stack {
+  filter: none;
+}
+
 .columnHeader {
   --plate-lean: var(--otp-lean-sm);
   display: flex;
@@ -292,16 +297,46 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  /* Padding, not a border: clip-path eats borders. The band colour showing
-     through on every side is what gives each column its outline. */
-  padding: 3px;
-  clip-path: polygon(var(--lean) 0, 100% 0, calc(100% - var(--lean)) 100%, 0 100%);
-  background: var(--otp-line-bright);
-  transition: background 500ms var(--otp-ease);
+  /* Padding, not a border: clip-path eats borders. The gradient showing
+     through the padding is the frame — bright at the top-left, falling to
+     shadow at the bottom-right, so the column reads as raised rather than
+     drawn. The glow lifts it off the background. */
+  padding: 4px;
+  /* Not a flat parallelogram: the top and bottom edges peak toward the
+     centre, so between columns the frames meet in a point — the notched
+     relief the reference art has. The slanted side edges stay straight so
+     neighbouring bands still interlock. */
+  --notch: 20px;
+  clip-path: polygon(
+    var(--lean) 0,
+    50% var(--notch),
+    100% 0,
+    calc(100% - var(--lean)) 100%,
+    50% calc(100% - var(--notch)),
+    0 100%
+  );
+  background: linear-gradient(
+    150deg,
+    color-mix(in srgb, #fff 18%, var(--otp-neon) 82%) 0%,
+    var(--otp-bright) 42%,
+    var(--otp-brand) 100%
+  );
+  filter: drop-shadow(0 3px 10px rgba(0, 0, 0, 0.55))
+    drop-shadow(0 0 9px rgba(62, 224, 138, 0.22));
+  transition:
+    background 500ms var(--otp-ease),
+    filter 500ms var(--otp-ease);
 }
 
 .column[data-state="active"] .stack {
-  background: var(--otp-neon);
+  background: linear-gradient(
+    150deg,
+    var(--otp-neon-hot) 0%,
+    var(--otp-neon) 46%,
+    var(--otp-bright) 100%
+  );
+  filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.6))
+    drop-shadow(0 0 22px rgba(62, 224, 138, 0.6));
 }
 
 /* ----------------------------------------------------------------- cards */
@@ -325,11 +360,6 @@
   padding-bottom: 0;
 }
 
-/* box-shadow is clipped away by the band's clip-path; drop-shadow follows
-   the shape, so the glow belongs to the band rather than to each tile. */
-.column[data-state="active"] .stack {
-  filter: drop-shadow(0 0 16px rgba(62, 224, 138, 0.42));
-}
 
 .cardFrame[data-hero="true"] {
   flex-grow: 2.6;

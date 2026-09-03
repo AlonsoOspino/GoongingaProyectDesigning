@@ -122,7 +122,19 @@
   display: grid;
   place-items: center;
   padding: 2px;
-  clip-path: polygon(var(--lean) 0, 100% 0, calc(100% - var(--lean)) 100%, 0 100%);
+  /* Not a flat parallelogram: the top and bottom edges peak toward the
+     centre, so between columns the frames meet in a point — the notched
+     relief the reference art has. The slanted side edges stay straight so
+     neighbouring bands still interlock. */
+  --notch: 20px;
+  clip-path: polygon(
+    var(--lean) 0,
+    50% var(--notch),
+    100% 0,
+    calc(100% - var(--lean)) 100%,
+    50% calc(100% - var(--notch)),
+    0 100%
+  );
   background: linear-gradient(160deg, var(--otp-line-bright), var(--otp-line));
 }
 
@@ -357,17 +369,44 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  /* Padding, not a border: clip-path eats borders. The band colour showing
-     through on every side is what gives each column its outline. */
-  padding: 3px;
-  clip-path: polygon(var(--lean) 0, 100% 0, calc(100% - var(--lean)) 100%, 0 100%);
-  background: var(--otp-line-bright);
-  transition: background 450ms var(--otp-ease);
+  /* Beveled neon frame: bright at the top-left, into shadow at the
+     bottom-right, with a glow — the raised look the reference art has. */
+  padding: 4px;
+  /* Not a flat parallelogram: the top and bottom edges peak toward the
+     centre, so between columns the frames meet in a point — the notched
+     relief the reference art has. The slanted side edges stay straight so
+     neighbouring bands still interlock. */
+  --notch: 20px;
+  clip-path: polygon(
+    var(--lean) 0,
+    50% var(--notch),
+    100% 0,
+    calc(100% - var(--lean)) 100%,
+    50% calc(100% - var(--notch)),
+    0 100%
+  );
+  background: linear-gradient(
+    150deg,
+    color-mix(in srgb, #fff 18%, var(--otp-neon) 82%) 0%,
+    var(--otp-bright) 42%,
+    var(--otp-brand) 100%
+  );
+  filter: drop-shadow(0 3px 10px rgba(0, 0, 0, 0.55))
+    drop-shadow(0 0 9px rgba(62, 224, 138, 0.22));
+  transition:
+    background 450ms var(--otp-ease),
+    filter 450ms var(--otp-ease);
 }
 
 .column[data-state="current"] .stack {
-  background: var(--otp-neon);
-  filter: drop-shadow(0 0 16px rgba(62, 224, 138, 0.4));
+  background: linear-gradient(
+    150deg,
+    var(--otp-neon-hot) 0%,
+    var(--otp-neon) 46%,
+    var(--otp-bright) 100%
+  );
+  filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.6))
+    drop-shadow(0 0 22px rgba(62, 224, 138, 0.6));
   animation: otp-hero-pulse 2.6s ease-in-out infinite;
 }
 
