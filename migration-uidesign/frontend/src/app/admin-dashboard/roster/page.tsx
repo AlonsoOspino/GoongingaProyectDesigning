@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Crown, Trash2, UserPlus, UsersRound } from "lucide-react";
+import { Crown, Trash2, UserPlus, UsersRound } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
@@ -135,15 +134,12 @@ export default function SeasonRosterPage() {
   };
 
   return (
-    <main className="ow-section">
-      <div className="ow-container">
+    <main>
+      <div>
         <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <Link href="/admin-dashboard" className="mb-4 inline-flex items-center gap-2 text-sm text-muted hover:text-text-primary">
-              <ArrowLeft size={16} />
-              Network Members
-            </Link>
-            <h1 className="font-otp text-6xl uppercase leading-[0.9]">Season Roster</h1>
+            <p className="font-mono text-[0.66rem] uppercase tracking-[0.3em] text-accent">Administration</p>
+            <h1 className="mt-1 font-otp text-6xl uppercase leading-[0.9]">Season Roster</h1>
             <p className="mt-2 max-w-2xl text-sm text-muted">
               Assign the temporary teams and captain permissions used by the active GGL season.
             </p>

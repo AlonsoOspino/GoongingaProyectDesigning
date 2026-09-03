@@ -288,17 +288,13 @@ export default function AddOverwatchContentPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background py-8">
-      <div className="container mx-auto px-4 max-w-6xl">
-        <div className="mb-8 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Add Overwatch content</h1>
-            <p className="text-muted mt-1">Create new maps and heroes with their images.</p>
-          </div>
-          <Button variant="ghost" onClick={() => router.push("/admin-dashboard")}>
-            Back to Admin Dashboard
-          </Button>
-        </div>
+    <main>
+      <div>
+        <header className="mb-8 border-b border-border-subtle pb-5">
+          <p className="font-mono text-[0.66rem] uppercase tracking-[0.3em] text-accent">Administration</p>
+          <h1 className="mt-1 font-otp text-6xl uppercase leading-[0.9]">Overwatch Content</h1>
+          <p className="mt-2 max-w-xl text-sm text-muted">Create maps and heroes with their images.</p>
+        </header>
 
         {notification && (
           <div
