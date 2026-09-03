@@ -289,11 +289,16 @@ model Announcement {
 
 /// Interruptor global para ocultar o mostrar la colección publicada.
 model AnnouncementMode {
-  id          Int      @id @default(1)
-  enabled     Boolean  @default(true)
-  updatedById Int?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                   Int      @id @default(1)
+  enabled              Boolean  @default(true)
+  // Which face the homepage shows: TOURNAMENT drives an automatic block from
+  // the live tournament state; CUSTOM shows the picked announcement below.
+  mode                 String   @default("TOURNAMENT")
+  // In CUSTOM mode, the single announcement chosen to be live.
+  activeAnnouncementId Int?
+  updatedById          Int?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 }
 
 /// Participación competitiva de un miembro de la red en una temporada.

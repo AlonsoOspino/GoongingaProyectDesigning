@@ -51,9 +51,18 @@ function readName(value) {
 async function getActive(_req, res) {
   try {
     const state = await getState();
-    if (!state.enabled) return res.json({ enabled: false, announcements: [] });
+    const mode = state.mode === "CUSTOM" ? "CUSTOM" : "TOURNAMENT";
+    if (!state.enabled) return res.json({ enabled: false, mode, announcements: [] });
+
+    // Tournament mode is computed on the client from the live tournament state,
+    // so it carries no announcement rows.
+    if (mode === "TOURNAMENT") return res.json({ enabled: true, mode, announcements: [] });
+
+    // Custom mode shows the one chosen announcement, if it is still published.
     const announcements = await prisma.announcement.findMany({
-      where: { published: true },
+      where: state.activeAnnouncementId
+        ? { id: state.activeAnnouncementId, published: true }
+        : { published: true },
       orderBy: [{ order: "asc" }, { id: "asc" }],
     });
     const payloads = await Promise.all(announcements.map(async (announcement) => {
@@ -66,6 +75,7 @@ async function getActive(_req, res) {
     }));
     return res.json({
       enabled: true,
+      mode,
       announcements: announcements.map((announcement, index) => serializePublic(announcement, payloads[index])),
     });
   } catch (error) {
@@ -158,7 +168,7 @@ async function reorder(req, res) {
 async function getSettings(_req, res) {
   try {
     const state = await getState();
-    return res.json({ enabled: state.enabled, updatedAt: state.updatedAt });
+    return res.json({ enabled: state.enabled, mode: state.mode || "TOURNAMENT", activeAnnouncementId: state.activeAnnouncementId ?? null, updatedAt: state.updatedAt });
   } catch (error) {
     return res.status(500).json({ message: error?.message || "Could not load announcement settings." });
   }
@@ -166,13 +176,25 @@ async function getSettings(_req, res) {
 
 async function updateSettings(req, res) {
   try {
-    if (typeof req.body?.enabled !== "boolean") return res.status(400).json({ message: "Enabled must be true or false." });
     const state = await getState();
-    const updated = await prisma.announcementMode.update({
-      where: { id: state.id },
-      data: { enabled: req.body.enabled, updatedById: req.networkMember.id },
-    });
-    return res.json({ enabled: updated.enabled, updatedAt: updated.updatedAt });
+    const data = { updatedById: req.networkMember.id };
+
+    if (req.body?.enabled !== undefined) {
+      if (typeof req.body.enabled !== "boolean") return res.status(400).json({ message: "Enabled must be true or false." });
+      data.enabled = req.body.enabled;
+    }
+    if (req.body?.mode !== undefined) {
+      const mode = String(req.body.mode).toUpperCase();
+      if (mode !== "TOURNAMENT" && mode !== "CUSTOM") return res.status(400).json({ message: "mode must be TOURNAMENT or CUSTOM." });
+      data.mode = mode;
+    }
+    if (req.body?.activeAnnouncementId !== undefined) {
+      const raw = req.body.activeAnnouncementId;
+      data.activeAnnouncementId = raw === null ? null : Number(raw);
+    }
+
+    const updated = await prisma.announcementMode.update({ where: { id: state.id }, data });
+    return res.json({ enabled: updated.enabled, mode: updated.mode, activeAnnouncementId: updated.activeAnnouncementId ?? null, updatedAt: updated.updatedAt });
   } catch (error) {
     return res.status(400).json({ message: error?.message || "Could not update announcement settings." });
   }

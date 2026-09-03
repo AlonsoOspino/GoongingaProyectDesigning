@@ -22,8 +22,11 @@ export function reorderAnnouncements(token: string, ids: number[]) {
 export function getAnnouncementSettings(token: string) {
   return apiRequest<AnnouncementSettings>("/announcements/settings", { token, cache: "no-store" });
 }
-export function updateAnnouncementSettings(token: string, enabled: boolean) {
-  return apiRequest<AnnouncementSettings>("/announcements/settings", { method: "PATCH", token, body: { enabled } });
+export function updateAnnouncementSettings(
+  token: string,
+  patch: { enabled?: boolean; mode?: "TOURNAMENT" | "CUSTOM"; activeAnnouncementId?: number | null }
+) {
+  return apiRequest<AnnouncementSettings>("/announcements/settings", { method: "PATCH", token, body: patch });
 }
 
 /**

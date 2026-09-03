@@ -219,7 +219,7 @@ export function LandingPage() {
         <section className={styles.announceSection} id="announcements" aria-label="Announcements">
           <div className={styles.announceInner}>
             <div className={styles.announceStream}>
-            {builderCards.length > 0 ? (
+            {announcements?.mode === "CUSTOM" && builderCards.length > 0 ? (
               builderCards.slice(0, 2).map((card) => {
                 const expired = card.countdownAt
                   ? new Date(card.countdownAt).getTime() <= Date.now()

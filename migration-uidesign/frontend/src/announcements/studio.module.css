@@ -452,3 +452,138 @@
     position: static;
   }
 }
+
+/* ---------- TWO MODES ----------
+   The whole studio is now a choice between two big cards. */
+
+.modeCards {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+}
+
+@media (min-width: 720px) {
+  .modeCards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.modeCard {
+  --lean: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-height: 12rem;
+  padding: 1.5rem 1.5rem 1.35rem;
+  border: 0;
+  clip-path: polygon(var(--lean) 0, 100% 0, calc(100% - var(--lean)) 100%, 0 100%);
+  background: var(--color-surface-2);
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background var(--duration-base) var(--ease-out),
+    transform var(--duration-base) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-out);
+}
+
+.modeCard:hover {
+  transform: translateY(-2px);
+  background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface-2));
+}
+
+.modeCard:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+/* The active mode is unmistakable: full accent frame and a lifted state. */
+.modeCard[data-active="true"] {
+  background: color-mix(in srgb, var(--color-accent) 16%, var(--color-surface-2));
+  box-shadow: inset 0 0 0 2px var(--color-accent), 0 0 40px -16px var(--color-accent);
+}
+
+.modeIcon {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  background: color-mix(in srgb, var(--color-accent) 20%, transparent);
+  color: var(--color-accent);
+}
+
+.modeName {
+  font-family: var(--font-otp-display), var(--font-accent), "Arial Narrow", sans-serif;
+  font-size: 1.6rem;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.modeCopy {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.modeState {
+  margin-top: auto;
+  align-self: flex-start;
+  padding: 0.3rem 0.8rem;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+.modeCard[data-active="true"] .modeState {
+  color: var(--color-text-inverse);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+/* ---------- personalized panel ---------- */
+
+.customPanel {
+  display: grid;
+  gap: 0.9rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.customHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.customHead h3 {
+  margin: 0;
+  font-family: var(--font-otp-display), var(--font-accent), sans-serif;
+  font-size: 1.4rem;
+  text-transform: uppercase;
+  color: var(--color-text-primary);
+}
+
+/* The live-selector: a radio, but built from the row so one click sets live. */
+.livePick {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.livePick[aria-pressed="true"] {
+  color: var(--color-accent);
+}
+
+.livePick:hover {
+  color: var(--color-accent);
+}
