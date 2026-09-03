@@ -1,0 +1,61 @@
+/*
+ * Who we are.
+ *
+ * A quiet, wide statement — the room before the trophy cabinet. Constrained
+ * measure so the paragraph reads as one held breath rather than a wall, and an
+ * oversized quote mark so it feels spoken.
+ */
+
+.section {
+  position: relative;
+  z-index: 1;
+  padding: 40px 0 92px;
+  background: transparent;
+}
+
+.inner {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 28px;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--accent, #3ee08a);
+}
+
+.mark {
+  width: 1.9rem;
+  height: 2px;
+  background: var(--accent, #3ee08a);
+}
+
+.title {
+  margin: 0 0 22px;
+  font-family: var(--font-otp-display), var(--font-accent), "Arial Narrow", sans-serif;
+  font-size: clamp(2.6rem, 6vw, 4.5rem);
+  line-height: 0.9;
+  text-transform: uppercase;
+  color: var(--color-text-primary, #f3f4ef);
+}
+
+.body {
+  max-width: 46rem;
+  margin: 0;
+  /* Larger than body copy: this is the one paragraph meant to be read slowly. */
+  font-size: clamp(1.05rem, 1.9vw, 1.4rem);
+  line-height: 1.6;
+  color: color-mix(in srgb, var(--color-text-primary, #f3f4ef) 82%, transparent);
+}
+
+/* The year is the anchor of the story, so it is allowed to glow a little. */
+.body::first-line {
+  color: var(--color-text-primary, #f3f4ef);
+}

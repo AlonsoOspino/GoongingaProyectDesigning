@@ -110,8 +110,17 @@ export default function AdminDashboardPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map((member) => (
-              <TableRow key={member.id}>
+            {filtered.map((member, index) => (
+              <TableRow
+                key={member.id}
+                style={{
+                  animationName: "fade-in",
+                  animationDuration: "var(--duration-base)",
+                  animationTimingFunction: "var(--ease-out)",
+                  animationFillMode: "backwards",
+                  animationDelay: `${Math.min(index, 12) * 35}ms`,
+                }}
+              >
                 <TableCell>
                   <div className="flex items-center gap-2.5">
                     <Avatar src={member.avatarUrl || undefined} fallback={member.username} />

@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import SeasonArchiveCard from "./SeasonArchiveCard";
-import LeagueNow from "./LeagueNow";
-import LatestNews from "./LatestNews";
+import WhoWeAre from "./WhoWeAre";
+import TournamentMode from "./TournamentMode";
 import GridFigure, { type FigureEdge } from "./GridFigure";
 import BrandField from "./atmosphere/BrandField";
 import { useStoryMotion } from "@/components/story/useStoryMotion";
@@ -37,15 +37,8 @@ const chapters: Chapter[] = [
 ];
 
 function CommunityCarousel({ members }: { members: NetworkMember[] }) {
-  const [activeIndex, setActiveIndex] = useState(0);
-  const current = members[activeIndex % members.length];
-  const visible = Array.from(
-    { length: Math.min(5, members.length) },
-    (_, index) => members[(activeIndex + index) % members.length],
-  );
-  const rotate = (direction: number) => {
-    setActiveIndex((index) => (index + direction + members.length) % members.length);
-  };
+  // Mapped vertically, one per row, big enough to actually see who joined.
+  const visible = members.slice(0, 6);
 
   return (
     <div className={styles.joinedRail} aria-label="Newest community members">
@@ -53,41 +46,30 @@ function CommunityCarousel({ members }: { members: NetworkMember[] }) {
         <span className={styles.liveDot} aria-hidden="true" />
         Newest members
       </p>
-      <ul className={styles.joinedList} aria-hidden="true">
-        {visible.map((member) => (
-          <li key={member.id} className={styles.joinedChip}>
+      <ul className={styles.memberList}>
+        {visible.map((member, index) => (
+          <li
+            key={member.id}
+            className={styles.memberRow}
+            style={{ animationDelay: `${index * 70}ms` }}
+          >
             {member.avatarUrl ? (
-              <img className={styles.joinedAvatar} src={member.avatarUrl} alt="" loading="lazy" decoding="async" />
+              <img
+                className={styles.memberAvatar}
+                src={member.avatarUrl}
+                alt=""
+                loading="lazy"
+                decoding="async"
+              />
             ) : (
-              <span className={styles.joinedInitial}>{member.username.slice(0, 1).toUpperCase()}</span>
+              <span className={styles.memberAvatar} data-fallback="true">
+                {member.username.slice(0, 1).toUpperCase()}
+              </span>
             )}
+            <span className={styles.memberName}>{member.username}</span>
           </li>
         ))}
       </ul>
-      <p className={styles.joinedSpotlight} aria-live="polite">
-        <strong>{current.username}</strong>
-        <span>{members.length} just joined</span>
-      </p>
-      <div className={styles.joinedControls}>
-        <button
-          type="button"
-          className={`${styles.joinedControl} ${styles.joinedControlBack}`}
-          onClick={() => rotate(-1)}
-          disabled={members.length < 2}
-          aria-label="Previous member"
-        >
-          <ArrowIcon size={14} />
-        </button>
-        <button
-          type="button"
-          className={styles.joinedControl}
-          onClick={() => rotate(1)}
-          disabled={members.length < 2}
-          aria-label="Next member"
-        >
-          <ArrowIcon size={14} />
-        </button>
-      </div>
     </div>
   );
 }
@@ -274,10 +256,9 @@ export function LandingPage() {
                 );
               })
             ) : (
-              <p className={styles.announceIdle}>
-                <span className={styles.liveDot} aria-hidden="true" />
-                Nothing on air right now.
-              </p>
+              // Tournament mode (the default) draws its own block from the live
+              // season; a custom mode with nothing chosen falls through to it too.
+              <TournamentMode />
             )}
             </div>
 
@@ -286,8 +267,8 @@ export function LandingPage() {
         </section>
         </div>
 
-        <LeagueNow />
-        <LatestNews />
+
+        <WhoWeAre />
 
         <Story>
           <ChapterIndex chapters={chapters} />
@@ -303,8 +284,8 @@ export function LandingPage() {
               live by our staff.
             </RevealWords>
             <RevealWords className={styles.lightParagraph}>
-              Eight seasons have already brought players and spectators together this way. Season
-              9 is live now, with new matchups and stories unfolding every week.
+              Eight seasons have already brought players and spectators together this way, and
+              Season 9 is on the way — new teams, new matchups, new stories.
             </RevealWords>
             <a href={TWITCH_URL} target="_blank" rel="noopener noreferrer" className={styles.twitchLink}>
               <TwitchIcon /> Watch the stream

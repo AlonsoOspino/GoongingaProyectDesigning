@@ -1,0 +1,242 @@
+/*
+ * Automatic tournament announcement.
+ *
+ * One big block that changes with the season. It has to hold the eye on the
+ * landing, so the type is large, the countdown reads at a glance, and the grand
+ * final gets a heavier, brighter treatment than a regular week.
+ */
+
+.section {
+  position: relative;
+  z-index: 1;
+  padding: 8px 0 4px;
+}
+
+.inner {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 32px 28px;
+  border-left: 3px solid var(--accent, #3ee08a);
+  background: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--accent, #3ee08a) 12%, transparent),
+    transparent 68%
+  );
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--accent, #3ee08a);
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent, #3ee08a);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent, #3ee08a) 22%, transparent);
+}
+
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text-primary, #f3f4ef) 66%, transparent);
+}
+
+.kicker[data-live="true"] {
+  color: var(--accent, #3ee08a);
+}
+
+.liveDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent, #3ee08a);
+  animation: tm-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes tm-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent, #3ee08a) 45%, transparent);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+
+.headline {
+  margin: 0;
+  font-family: var(--font-otp-display), var(--font-accent), "Arial Narrow", sans-serif;
+  font-size: clamp(2.6rem, 6.5vw, 5rem);
+  line-height: 0.88;
+  text-transform: uppercase;
+  color: var(--color-text-primary, #f3f4ef);
+}
+
+.subhead {
+  margin: 6px 0 0;
+  font-family: var(--font-otp-display), var(--font-accent), "Arial Narrow", sans-serif;
+  font-size: clamp(2rem, 5vw, 3.6rem);
+  line-height: 0.9;
+  text-transform: uppercase;
+  color: var(--accent, #3ee08a);
+  text-shadow: 0 0 44px color-mix(in srgb, var(--accent, #3ee08a) 26%, transparent);
+}
+
+.note {
+  margin: 14px 0 0;
+  max-width: 34rem;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: color-mix(in srgb, var(--color-text-primary, #f3f4ef) 72%, transparent);
+}
+
+/* ------------------------------------------------------------------ matchup */
+
+.matchup {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  margin: 0 0 6px;
+  font-family: var(--font-otp-display), var(--font-accent), "Arial Narrow", sans-serif;
+  font-size: clamp(2.2rem, 5vw, 4rem);
+  line-height: 0.92;
+  text-transform: uppercase;
+}
+
+.teamA {
+  color: var(--color-team-a-bright, #6bb6f5);
+}
+
+.teamB {
+  color: var(--color-team-b-bright, #f5717a);
+}
+
+.versus {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.95rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text-primary, #f3f4ef) 55%, transparent);
+}
+
+.score {
+  margin: 6px 0 0;
+  font-family: var(--font-otp-display), var(--font-accent), sans-serif;
+  font-size: clamp(2.4rem, 5vw, 3.6rem);
+  line-height: 1;
+  color: var(--color-text-primary, #f3f4ef);
+  font-variant-numeric: tabular-nums;
+}
+
+.score span {
+  color: color-mix(in srgb, var(--color-text-primary, #f3f4ef) 45%, transparent);
+  padding: 0 0.4rem;
+}
+
+/* ------------------------------------------------------------------ clock */
+
+.clock {
+  display: flex;
+  gap: 10px;
+  margin: 18px 0 4px;
+}
+
+.clockUnit {
+  --lean: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 4.5rem;
+  padding: 12px 14px 10px;
+  clip-path: polygon(var(--lean) 0, 100% 0, calc(100% - var(--lean)) 100%, 0 100%);
+  background: color-mix(in srgb, var(--accent, #3ee08a) 10%, rgba(5, 7, 6, 0.5));
+  border-bottom: 2px solid color-mix(in srgb, var(--accent, #3ee08a) 55%, transparent);
+}
+
+.clockValue {
+  font-family: var(--font-otp-display), var(--font-accent), sans-serif;
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1;
+  color: var(--color-text-primary, #f3f4ef);
+  font-variant-numeric: tabular-nums;
+}
+
+.clockLabel {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text-primary, #f3f4ef) 55%, transparent);
+}
+
+.link {
+  display: inline-block;
+  margin-top: 18px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--accent, #3ee08a);
+  border-bottom: 1px solid transparent;
+  transition: border-color 160ms ease;
+}
+
+.link:hover {
+  border-bottom-color: var(--accent, #3ee08a);
+}
+
+/* ------------------------------------------------------------------ finals */
+
+/*
+ * The grand final is the loudest night of the season, so it gets the full
+ * frame, a stronger glow and bigger type.
+ */
+.section[data-finals="true"] .inner {
+  border-left-width: 5px;
+  border-top: 1px solid color-mix(in srgb, var(--accent, #3ee08a) 40%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--accent, #3ee08a) 40%, transparent);
+  background: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--accent, #3ee08a) 20%, transparent),
+    transparent 74%
+  );
+  box-shadow: 0 0 60px -24px var(--accent, #3ee08a);
+}
+
+.section[data-finals="true"] .eyebrow {
+  font-size: 13px;
+  letter-spacing: 0.34em;
+}
+
+.section[data-finals="true"] .matchup {
+  font-size: clamp(2.8rem, 6.5vw, 5.4rem);
+}
+
+.section[data-finals="true"] .headline {
+  font-size: clamp(3rem, 8vw, 6rem);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .liveDot {
+    animation: none;
+  }
+}

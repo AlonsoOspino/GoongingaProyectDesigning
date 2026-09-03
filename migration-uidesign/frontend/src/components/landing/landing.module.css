@@ -2227,3 +2227,98 @@
     margin-top: 2px;
   }
 }
+
+/* ---- newest members: vertical list ----
+   Was a horizontal strip of tiny avatar chips with a rotating spotlight. Now it
+   is a plain vertical list — one member per row, a large avatar and the name in
+   full — which is what "map them vertically and bigger" asked for. */
+.memberList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.memberRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.memberAvatar {
+  width: 52px;
+  height: 52px;
+  flex: none;
+  border-radius: 50%;
+  object-fit: cover;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent);
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent);
+  overflow: hidden;
+}
+
+.memberName {
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 0.2s ease;
+}
+
+/* Dinamismo: cada fila entra escalonada (el delay lo pone el componente por
+   índice) y responde al hover. El avatar respira con un anillo de acento. */
+.memberRow {
+  animation: otp-member-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition: transform 0.22s ease;
+  cursor: default;
+}
+
+.memberRow:hover {
+  transform: translateX(4px);
+}
+
+.memberRow .memberAvatar {
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+
+.memberRow:hover .memberAvatar {
+  transform: scale(1.07);
+  box-shadow: 0 0 0 2px var(--accent), 0 0 18px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.memberRow:hover .memberName {
+  color: var(--accent);
+}
+
+@keyframes otp-member-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .memberRow {
+    animation: none;
+  }
+  .memberRow:hover {
+    transform: none;
+  }
+}

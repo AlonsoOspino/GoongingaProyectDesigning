@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "@/features/session/SessionProvider";
+import { getCurrentNetworkMember } from "@/lib/api/networkMember";
+import { readNetworkSessionToken } from "@/features/networkSession/storage";
 import {
   adminDeleteHero,
   adminDeleteMap,
@@ -40,7 +41,8 @@ const HERO_ROLE_OPTIONS: Array<{ value: AdminHero["role"]; label: string }> = [
 
 export default function AddOverwatchContentPage() {
   const router = useRouter();
-  const { user, token, isAuthenticated, isHydrated } = useSession();
+  const [token, setToken] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
 
   const mapFileInputRef = useRef<HTMLInputElement>(null);
   const heroFileInputRef = useRef<HTMLInputElement>(null);
@@ -67,40 +69,42 @@ export default function AddOverwatchContentPage() {
     gift: null as File | null,
   });
 
+  // Overwatch Content authenticates with the Network (Discord) session like the
+  // rest of the admin dashboard. It used to read the legacy useSession(), which a
+  // network-only ADMIN never satisfies — that was the bounce back to /login.
   useEffect(() => {
-    if (isHydrated && (!isAuthenticated || user?.role !== "ADMIN")) {
-      router.push("/login");
-    }
-  }, [isHydrated, isAuthenticated, user, router]);
-
-  useEffect(() => {
-    if (!isHydrated || !isAuthenticated || user?.role !== "ADMIN") {
+    const sessionToken = readNetworkSessionToken();
+    if (!sessionToken) {
+      router.replace("/login?next=/admin-dashboard/overwatch-content");
       return;
     }
+    setToken(sessionToken);
 
     let cancelled = false;
-
-    async function loadContent() {
-      try {
+    getCurrentNetworkMember(sessionToken)
+      .then(async (me) => {
+        if (!me.roles.includes("ADMIN")) {
+          router.replace("/admin-dashboard");
+          return;
+        }
+        if (cancelled) return;
+        setReady(true);
         const [nextMaps, nextHeroes] = await Promise.all([getMaps(), getHeroes()]);
         if (!cancelled) {
           setMaps(nextMaps);
           setHeroes(nextHeroes);
         }
-      } catch (error) {
+      })
+      .catch((error) => {
         if (!cancelled) {
-          const message = error instanceof Error ? error.message : "Failed to load Overwatch content.";
-          showNotif("error", message);
+          showNotif("error", error instanceof Error ? error.message : "Failed to load Overwatch content.");
         }
-      }
-    }
-
-    loadContent();
+      });
 
     return () => {
       cancelled = true;
     };
-  }, [isHydrated, isAuthenticated, user]);
+  }, [router]);
 
   const showNotif = (type: "success" | "error", message: string) => {
     setNotification({ type, message });
@@ -275,16 +279,12 @@ export default function AddOverwatchContentPage() {
     }
   }
 
-  if (!isHydrated) {
+  if (!ready) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-pulse text-muted">Loading...</div>
       </div>
     );
-  }
-
-  if (!isAuthenticated || user?.role !== "ADMIN") {
-    return null;
   }
 
   return (
