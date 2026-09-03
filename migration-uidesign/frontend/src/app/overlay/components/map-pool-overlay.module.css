@@ -302,18 +302,20 @@
      shadow at the bottom-right, so the column reads as raised rather than
      drawn. The glow lifts it off the background. */
   padding: 4px;
-  /* Not a flat parallelogram: the top and bottom edges peak toward the
-     centre, so between columns the frames meet in a point — the notched
-     relief the reference art has. The slanted side edges stay straight so
-     neighbouring bands still interlock. */
-  --notch: 20px;
+  /* The slanted side edges kink once at mid-height — a small horizontal jog to
+     the right — instead of running as straight diagonals. That is the "quiebre"
+     the reference art has: between two columns the shared edge reads as a ">"
+     pointing into the next band. Both sides jog by the same amount, so the
+     -lean interlock still lands exactly (one column's outward kink is the next
+     one's inward notch). Top and bottom stay flat. */
+  --kink: 18px;
   clip-path: polygon(
     var(--lean) 0,
-    50% var(--notch),
     100% 0,
+    calc(100% - var(--lean) / 2 + var(--kink)) 50%,
     calc(100% - var(--lean)) 100%,
-    50% calc(100% - var(--notch)),
-    0 100%
+    0 100%,
+    calc(var(--lean) / 2 + var(--kink)) 50%
   );
   background: linear-gradient(
     150deg,
@@ -361,19 +363,24 @@
 }
 
 
+/*
+ * Focusing a map type keeps every map in that type at full size — a picked map
+ * is only highlighted, never the sole big one. The ring and label below are the
+ * highlight; the size stays equal so "los mapas del map type" all read large.
+ */
 .cardFrame[data-hero="true"] {
-  flex-grow: 2.6;
   padding: 0 0 3px;
 }
 
-.column[data-state="active"] .stack:has(.cardFrame[data-hero="true"]) {
-  background: var(--otp-neon-hot);
-  animation: otp-hero-pulse 2.6s ease-in-out infinite;
+.cardFrame[data-hero="true"] .cardInner {
+  box-shadow:
+    inset 0 0 0 2px var(--otp-neon-hot),
+    inset 0 0 22px rgba(62, 224, 138, 0.5);
 }
 
 .cardFrame[data-muted="true"] {
-  flex-grow: 0.55;
-  opacity: 0.5;
+  /* Still full size — only a touch dimmer so the highlighted pick stands out. */
+  opacity: 0.9;
 }
 
 .cardInner {
@@ -442,8 +449,8 @@
 
 .cardFrame[data-hero="true"] .cardLabel {
   font-family: var(--otp-font-display);
-  font-size: 1.75rem;
-  letter-spacing: 0.06em;
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
   color: var(--otp-neon-hot);
 }
 

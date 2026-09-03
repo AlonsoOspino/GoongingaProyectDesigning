@@ -122,18 +122,16 @@
   display: grid;
   place-items: center;
   padding: 2px;
-  /* Not a flat parallelogram: the top and bottom edges peak toward the
-     centre, so between columns the frames meet in a point — the notched
-     relief the reference art has. The slanted side edges stay straight so
-     neighbouring bands still interlock. */
-  --notch: 20px;
+  /* Kinked side edges to match the bands (see .stack), scaled to this small
+     frame's lean so the logo still clears the cut. */
+  --kink: 6px;
   clip-path: polygon(
     var(--lean) 0,
-    50% var(--notch),
     100% 0,
+    calc(100% - var(--lean) / 2 + var(--kink)) 50%,
     calc(100% - var(--lean)) 100%,
-    50% calc(100% - var(--notch)),
-    0 100%
+    0 100%,
+    calc(var(--lean) / 2 + var(--kink)) 50%
   );
   background: linear-gradient(160deg, var(--otp-line-bright), var(--otp-line));
 }
@@ -372,18 +370,18 @@
   /* Beveled neon frame: bright at the top-left, into shadow at the
      bottom-right, with a glow — the raised look the reference art has. */
   padding: 4px;
-  /* Not a flat parallelogram: the top and bottom edges peak toward the
-     centre, so between columns the frames meet in a point — the notched
-     relief the reference art has. The slanted side edges stay straight so
-     neighbouring bands still interlock. */
-  --notch: 20px;
+  /* The slanted side edges kink once at mid-height — a small jog to the right,
+     the "quiebre" the reference art has, matching the map pool overlay. Both
+     sides jog the same amount, so the -lean interlock still lands exactly.
+     Top and bottom stay flat. */
+  --kink: 18px;
   clip-path: polygon(
     var(--lean) 0,
-    50% var(--notch),
     100% 0,
+    calc(100% - var(--lean) / 2 + var(--kink)) 50%,
     calc(100% - var(--lean)) 100%,
-    50% calc(100% - var(--notch)),
-    0 100%
+    0 100%,
+    calc(var(--lean) / 2 + var(--kink)) 50%
   );
   background: linear-gradient(
     150deg,
