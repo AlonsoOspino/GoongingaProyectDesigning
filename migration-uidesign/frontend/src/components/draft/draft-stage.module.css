@@ -764,24 +764,49 @@
     transform var(--duration-base) var(--ease-strike);
 }
 
-/* The mode that won. It holds while the others clear out. */
+/* The mode that won. It slams to lock while the others clear out. */
 .plateChosen {
-  animation: plate-lock 620ms var(--ease-strike) both;
+  /* Let the shock ring escape the plate's clip. */
+  overflow: visible;
+  animation: plate-lock 560ms var(--ease-strike) both;
   border-color: var(--team-bright, var(--color-accent));
   box-shadow: 0 0 0 1px var(--team-bright, var(--color-accent)),
-    0 0 42px -8px var(--team-bright, var(--color-accent));
+    0 0 52px -6px var(--team-bright, var(--color-accent));
+}
+
+/* A shock ring bursts out of the plate at the moment of the lock. */
+.plateChosen::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  border: 2px solid var(--team-bright, var(--color-accent));
+  pointer-events: none;
+  animation: plate-shock 620ms var(--ease-out) both;
+}
+
+/* The mode glyph ignites to the team color as it locks. */
+.plateChosen .plateIcon {
+  color: var(--team-bright, var(--color-accent));
+  animation: plate-ignite 560ms var(--ease-strike) both;
 }
 
 @keyframes plate-lock {
-  0% {
-    transform: scale(1);
-  }
-  38% {
-    transform: scale(1.07);
-  }
-  100% {
-    transform: scale(1);
-  }
+  0% { transform: scale(1); }
+  26% { transform: scale(1.16); }
+  55% { transform: scale(0.97); }
+  100% { transform: scale(1.04); }
+}
+
+@keyframes plate-shock {
+  0% { opacity: 0.9; transform: scale(0.82); }
+  100% { opacity: 0; transform: scale(1.5); }
+}
+
+@keyframes plate-ignite {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.4) rotate(-4deg); }
+  100% { transform: scale(1.12); }
 }
 
 /* ---------- map picking ---------- */
@@ -819,10 +844,94 @@
   filter: saturate(1.15) brightness(1.06);
 }
 
+/* The modes that lost are swept off the table, not just faded. */
+.plateDismissed {
+  animation: plate-sweep 440ms cubic-bezier(0.6, 0, 0.9, 0.3) both;
+  pointer-events: none;
+}
+
+@keyframes plate-sweep {
+  to {
+    opacity: 0;
+    transform: translateY(34px) scale(0.9) rotate(3deg);
+    filter: grayscale(0.7);
+  }
+}
+
+/* ---------- map locked: the verdict ---------- */
+
+/* The chosen map slams into its frame instead of fading in. */
+.lockReveal {
+  animation: map-slam 600ms var(--ease-strike) both;
+}
+
+@keyframes map-slam {
+  0% { opacity: 0; transform: scale(1.14); }
+  60% { opacity: 1; }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.lockFlash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+  animation: map-flash 380ms var(--ease-out) both;
+}
+
+@keyframes map-flash {
+  0% { opacity: 0.65; }
+  100% { opacity: 0; }
+}
+
+/* Targeting-lock brackets snap into the four corners. */
+.lockBracket {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  border: 3px solid var(--color-accent);
+  box-shadow: 0 0 12px -2px var(--color-accent);
+  pointer-events: none;
+  opacity: 0;
+  animation: map-bracket 440ms var(--ease-strike) 0.18s both;
+}
+
+.lockBracketTL { top: 12px; left: 12px; border-right: 0; border-bottom: 0; --bx: -18px; --by: -18px; }
+.lockBracketTR { top: 12px; right: 12px; border-left: 0; border-bottom: 0; --bx: 18px; --by: -18px; }
+.lockBracketBL { bottom: 12px; left: 12px; border-right: 0; border-top: 0; --bx: -18px; --by: 18px; }
+.lockBracketBR { bottom: 12px; right: 12px; border-left: 0; border-top: 0; --bx: 18px; --by: 18px; }
+
+@keyframes map-bracket {
+  0% { opacity: 0; transform: translate(var(--bx), var(--by)) scale(1.25); }
+  55% { opacity: 1; }
+  100% { opacity: 1; transform: translate(0, 0) scale(1); }
+}
+
+.lockCapUp {
+  animation: map-cap-up 420ms var(--ease-strike) 0.2s both;
+}
+
+@keyframes map-cap-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .plate,
-  .mapChoice {
+  .mapChoice,
+  .plateChosen,
+  .plateChosen .plateIcon,
+  .plateDismissed,
+  .lockReveal,
+  .lockBracket,
+  .lockCapUp {
     animation: none;
+  }
+
+  .plateChosen::after,
+  .lockFlash {
+    display: none;
   }
 
   .plateSelectable:hover::before,

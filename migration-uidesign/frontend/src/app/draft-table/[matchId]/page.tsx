@@ -1900,6 +1900,7 @@ function MapPickingPhase({
             <div
               className={clsx(
                 "relative w-full overflow-hidden border border-border",
+                stageStyles.lockReveal,
                 isObsKeyAccess ? "max-w-3xl" : "max-w-xl"
               )}
             >
@@ -1910,7 +1911,12 @@ function MapPickingPhase({
                 className="aspect-video w-full"
               />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-              <div className="absolute bottom-0 left-0 right-0 flex items-center gap-3 p-4">
+              <span className={stageStyles.lockFlash} aria-hidden />
+              <span className={clsx(stageStyles.lockBracket, stageStyles.lockBracketTL)} aria-hidden />
+              <span className={clsx(stageStyles.lockBracket, stageStyles.lockBracketTR)} aria-hidden />
+              <span className={clsx(stageStyles.lockBracket, stageStyles.lockBracketBL)} aria-hidden />
+              <span className={clsx(stageStyles.lockBracket, stageStyles.lockBracketBR)} aria-hidden />
+              <div className={clsx("absolute bottom-0 left-0 right-0 flex items-center gap-3 p-4", stageStyles.lockCapUp)}>
                 <MapTypeIcon mapType={currentMap.type} style={{ width: 32, height: 32 }} />
                 <span className={stageStyles.phaseTitle}>{currentMap.description}</span>
               </div>
