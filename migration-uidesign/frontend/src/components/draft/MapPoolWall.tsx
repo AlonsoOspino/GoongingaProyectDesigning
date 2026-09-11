@@ -96,6 +96,7 @@ export function MapPoolWall({
       style={teamVars(side)}
       data-focused={focusedType ? "true" : "false"}
     >
+      <span className={styles.wallSweep} aria-hidden />
       <div className={styles.wallTypeBar} role="group" aria-label="Map modes">
         {mapTypes.map((mapType, index) => {
           const count = mapTypeCounts[mapType] ?? 0;
@@ -156,12 +157,12 @@ export function MapPoolWall({
           const justPicked = pickedMapId === map.id;
 
           const content = (
-            <>
+            <div className={styles.wallTileInner}>
               <MapImage
                 src={map.imgPath ? resolveMapImageUrl(map.imgPath) : null}
                 alt={map.description}
                 fallbackInitial={map.description.charAt(0)}
-                className="aspect-video w-full"
+                className={clsx("aspect-video w-full", styles.wallTileImg)}
               />
               <span className={styles.wallTileScrim} aria-hidden />
               <span className={styles.wallTileLabel}>
@@ -169,7 +170,7 @@ export function MapPoolWall({
                 <span className={styles.wallTileName}>{map.description}</span>
               </span>
               {played && <span className={styles.wallTilePlayedTag}>Played</span>}
-            </>
+            </div>
           );
 
           const className = clsx(

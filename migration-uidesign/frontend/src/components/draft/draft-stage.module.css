@@ -951,11 +951,36 @@
  */
 
 .wall {
+  /* Shared leaning-parallelogram silhouette with a chevron notch mid-edge:
+   * this is the "línea quebrada" that every tile and the neon rim follow. */
+  --tile-clip: polygon(11% 0%, 100% 0%, 92% 50%, 89% 100%, 0% 100%, 8% 50%);
+  position: relative;
   display: flex;
   width: 100%;
   flex-direction: column;
   gap: 1.125rem;
-  animation: var(--animate-phase-in);
+  animation: wall-in 520ms var(--ease-strike) both;
+}
+
+.wallBroadcast {
+  gap: 1.5rem;
+}
+
+/* Diagonal neon wipe that fires once as the wall mounts, so entering a map
+ * phase reads as a hard cut rather than a soft fade. */
+.wallSweep {
+  pointer-events: none;
+  position: absolute;
+  inset: -8% -4%;
+  z-index: 3;
+  background: linear-gradient(
+    115deg,
+    transparent 42%,
+    color-mix(in srgb, var(--team-bright, var(--color-accent)) 55%, transparent) 50%,
+    transparent 58%
+  );
+  transform: translateX(-120%) skewX(-12deg);
+  animation: wall-sweep 720ms var(--ease-out) both;
 }
 
 .wallTypeBar {
@@ -972,14 +997,15 @@
   padding: 0.625rem 1rem 0.625rem 0.75rem;
   border: 1.5px solid var(--color-border);
   background: var(--color-surface);
-  /* Angular esports cut on the trailing corner. */
-  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%);
+  /* Double chevron notch echoes the tile silhouette while staying readable. */
+  clip-path: polygon(0 0, 100% 0, calc(100% - 11px) 50%, 100% 100%, 0 100%, 11px 50%);
   cursor: default;
   animation: chip-deal 380ms var(--ease-strike) both;
   animation-delay: calc(var(--chip-index) * 45ms);
   transition: border-color var(--duration-base) var(--ease-out),
     background-color var(--duration-base) var(--ease-out),
     opacity var(--duration-base) var(--ease-out),
+    filter var(--duration-base) var(--ease-out),
     transform var(--duration-base) var(--ease-strike);
 }
 
@@ -1028,8 +1054,8 @@
   border-color: var(--team-bright, var(--color-accent));
   background: var(--color-surface-elevated);
   transform: translateY(-2px);
-  box-shadow: 0 0 0 1px var(--team-bright, var(--color-accent)),
-    0 16px 34px -22px var(--team-bright, var(--color-accent));
+  /* drop-shadow (not box-shadow) so the glow hugs the notched silhouette. */
+  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--team-bright, var(--color-accent)) 55%, transparent));
 }
 
 .wallChipActive .wallChipIcon {
@@ -1047,35 +1073,59 @@
 
 /* ---- Grid ---- */
 
+/* Accordion row rather than a rigid grid: focusing a mode lets its tiles grow
+ * while the rest collapse into slivers, the way the reference splits one lit
+ * panel against thin dimmed ones. flex-wrap keeps large pools from overflowing. */
 .wallGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
   width: 100%;
 }
 
 .wallGridBroadcast {
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
   gap: 1rem;
 }
 
 .wallTile {
   --tile-index: 0;
+  --rim: var(--color-border-subtle);
+  position: relative;
+  display: block;
+  flex: 1 1 150px;
+  min-width: 118px;
+  max-width: 240px;
+  padding: 2px;
+  border: 0;
+  appearance: none;
+  background: var(--rim);
+  /* The tile IS the neon rim; the inner element sits 2px inside it. Both share
+   * --tile-clip so the rim traces the broken silhouette evenly. */
+  clip-path: var(--tile-clip);
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.45));
+  animation: tile-deal 460ms var(--ease-strike) both;
+  animation-delay: calc(var(--tile-index) * 34ms);
+  transition: flex-grow var(--duration-slow) var(--ease-strike),
+    min-width var(--duration-slow) var(--ease-strike),
+    max-width var(--duration-slow) var(--ease-strike),
+    opacity var(--duration-slow) var(--ease-out),
+    filter var(--duration-base) var(--ease-out),
+    background-color var(--duration-base) var(--ease-out),
+    transform var(--duration-base) var(--ease-strike);
+}
+
+.wallTileInner {
   position: relative;
   display: block;
   width: 100%;
   overflow: hidden;
-  border: 1.5px solid var(--color-border-subtle);
   background: var(--color-surface);
-  /* Match the chip cut so the whole wall reads as one system. */
-  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
-  animation: plate-deal 420ms var(--ease-strike) both;
-  animation-delay: calc(var(--tile-index) * 28ms);
-  transition: transform var(--duration-base) var(--ease-strike),
-    opacity var(--duration-slow) var(--ease-out),
-    filter var(--duration-slow) var(--ease-out),
-    border-color var(--duration-base) var(--ease-out),
-    box-shadow var(--duration-base) var(--ease-out);
+  clip-path: var(--tile-clip);
+}
+
+.wallTileImg {
+  transition: transform var(--duration-slow) var(--ease-out),
+    filter var(--duration-slow) var(--ease-out);
 }
 
 .wallTile img {
@@ -1097,7 +1147,8 @@
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  padding: 0.55rem 0.6rem;
+  /* Extra inline padding keeps the label clear of the leaning/notched edges. */
+  padding: 0.55rem 1.1rem 0.5rem 0.85rem;
 }
 
 .wallTileType {
@@ -1117,25 +1168,32 @@
   white-space: nowrap;
 }
 
-/* Focused mode: pull forward, saturate, tint the border to the team tone. */
+/* Focused mode: grow to claim the row, light the neon rim in the team tone. */
 .wallTileFocus {
-  border-color: var(--team-bright, var(--color-accent));
-  box-shadow: 0 18px 40px -24px var(--team-bright, var(--color-accent));
+  --rim: var(--team-bright, var(--color-accent));
+  flex-grow: 2.4;
+  min-width: 176px;
+  max-width: 300px;
+  filter: drop-shadow(0 0 16px color-mix(in srgb, var(--team-bright, var(--color-accent)) 60%, transparent))
+    drop-shadow(0 10px 22px rgba(0, 0, 0, 0.5));
 }
 
 .wallTileFocus .wallTileType {
   color: var(--team-bright, var(--color-accent));
 }
 
-/* Everything outside the focused mode falls back so the eye stays on the pick. */
+/* Everything outside the focused mode collapses to a dim sliver. */
 .wallTileRecede {
-  opacity: 0.26;
-  filter: grayscale(0.85);
-  transform: scale(0.965);
+  flex-grow: 0.18;
+  min-width: 56px;
+  max-width: 84px;
+  opacity: 0.55;
+  filter: grayscale(0.8) brightness(0.68);
 }
 
-.wallTileRecede .wallTileName {
-  color: var(--color-text-secondary);
+.wallTileRecede .wallTileName,
+.wallTileRecede .wallTileScrim {
+  opacity: 0;
 }
 
 .wallTilePickable {
@@ -1144,8 +1202,10 @@
 
 .wallTilePickable:hover,
 .wallTilePickable:focus-visible {
+  --rim: var(--team-bright, var(--color-accent));
   transform: translateY(-4px);
-  box-shadow: 0 22px 46px -22px var(--team-bright, var(--color-accent));
+  filter: drop-shadow(0 0 20px color-mix(in srgb, var(--team-bright, var(--color-accent)) 70%, transparent))
+    drop-shadow(0 14px 26px rgba(0, 0, 0, 0.55));
 }
 
 .wallTilePickable:hover img,
@@ -1173,10 +1233,10 @@
 }
 
 .wallTilePicked {
+  --rim: var(--team-bright, var(--color-accent));
   animation: map-slam 600ms var(--ease-strike) both;
-  border-color: var(--team-bright, var(--color-accent));
-  box-shadow: 0 0 0 1px var(--team-bright, var(--color-accent)),
-    0 0 48px -6px var(--team-bright, var(--color-accent));
+  filter: drop-shadow(0 0 28px var(--team-bright, var(--color-accent)))
+    drop-shadow(0 0 12px var(--team-bright, var(--color-accent)));
   z-index: 1;
 }
 
@@ -1257,6 +1317,22 @@
   100% { transform: translateY(-2px); }
 }
 
+@keyframes wall-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes wall-sweep {
+  from { transform: translateX(-120%) skewX(-12deg); opacity: 0; }
+  20% { opacity: 1; }
+  to { transform: translateX(120%) skewX(-12deg); opacity: 0; }
+}
+
+@keyframes tile-deal {
+  from { opacity: 0; transform: translateY(16px) skewX(-6deg) scale(0.94); }
+  to { opacity: 1; transform: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .wall,
   .wallChip,
@@ -1264,6 +1340,10 @@
   .wallChipLocked,
   .wallTilePicked {
     animation: none;
+  }
+
+  .wallSweep {
+    display: none;
   }
 
   .wallTileRecede,
