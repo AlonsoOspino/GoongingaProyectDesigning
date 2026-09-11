@@ -42,7 +42,8 @@ import { DraftStage, TeamRail, teamVars, type TeamSide } from "@/components/draf
 import { BanTile, type HeroTileState } from "@/components/draft/BanTile";
 import { BanSlot, EmptyBanSlot } from "@/components/draft/BanRail";
 import { BanCeremony, type BanCeremonyRequest } from "@/components/draft/BanCeremony";
-import { MapTypeIcon, MapTypePlate, MAP_TYPE_LABEL } from "@/components/draft/MapTypePlate";
+import { MapTypeIcon, MAP_TYPE_LABEL } from "@/components/draft/MapTypePlate";
+import { MapPoolWall } from "@/components/draft/MapPoolWall";
 import stageStyles from "@/components/draft/draft-stage.module.css";
 import waitingStyles from "@/components/draft/waiting-room.module.css";
 import playing from "@/components/draft/playing-stage.module.css";
@@ -1801,21 +1802,17 @@ function MapTypePickingPhase({
         </header>
 
         {availableMapTypes.length > 0 ? (
-          <div className={stageStyles.plateRow}>
-            {availableMapTypes.map((mapType, plateIndex) => (
-              <MapTypePlate
-                key={mapType}
-                index={plateIndex}
-                mapType={mapType}
-                mapCount={mapCounts[mapType] ?? 0}
-                side={choosingSide}
-                selectable={canChoose && !chosen}
-                chosen={chosen === mapType}
-                dismissed={Boolean(chosen) && chosen !== mapType}
-                onSelect={handleSelect}
-              />
-            ))}
-          </div>
+          <MapPoolWall
+            mode="type"
+            allMaps={draftState.allMaps || []}
+            mapTypes={availableMapTypes}
+            mapTypeCounts={mapCounts}
+            side={choosingSide}
+            broadcast={isObsKeyAccess}
+            canLockType={canChoose || chosen !== null}
+            committedType={chosen}
+            onLockType={handleSelect}
+          />
         ) : (
           <div className="max-w-xl border-l-2 border-warning bg-warning/10 px-4 py-3 text-sm text-warning">
             No eligible map types have an unused map in this match pool. Ask a manager to review the pool
@@ -1826,7 +1823,7 @@ function MapTypePickingPhase({
         <p className={stageStyles.phaseNote} aria-live="polite">
           {isCaptain
             ? isMyTurn
-              ? "Pick a mode to reveal its maps."
+              ? "Focus a mode to light up its maps, then lock it in."
               : "Waiting for " + (currentTeam?.name || "the other captain") + "."
             : "Waiting for " + (currentTeam?.name || "the active captain") + " to choose the mode."}
         </p>
@@ -1869,6 +1866,15 @@ function MapPickingPhase({
   const isMapLocked = Boolean(currentMap);
   const selectedMapType = draftState.selectedMapType;
   const gameNumber = (draftState.match.gameNumber || 0) + 1;
+  const choosingSide: TeamSide = isTeamBTurn ? "B" : "A";
+
+  // Held between the pick click and the next poll so the chosen tile slams in
+  // immediately instead of waiting a polling cycle for currentMapId.
+  const [pickedId, setPickedId] = useState<number | null>(null);
+  const handlePick = (mapId: number) => {
+    setPickedId(mapId);
+    onPickMap(mapId);
+  };
 
   return (
     <DraftStage
@@ -1951,54 +1957,20 @@ function MapPickingPhase({
               )}
             </header>
 
-            <div
-              className={clsx(
-                "grid w-full gap-3",
-                isObsKeyAccess
-                  ? "grid-cols-3 gap-6"
-                  : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
-              )}
-            >
-              {availableMaps.map((map, mapIndex) => {
-                const picked = isMapPicked(map.id);
-                const canSelect = isCaptain && isMyTurn && !picked && !actionLoading;
-
-                return (
-                  <button
-                    key={map.id}
-                    type="button"
-                    onClick={() => canSelect && onPickMap(map.id)}
-                    disabled={!canSelect}
-                    style={{ ["--map-index" as string]: mapIndex }}
-                    className={clsx(
-                      stageStyles.mapChoice,
-                      canSelect && stageStyles.mapChoiceReady,
-                      "group relative overflow-hidden border transition-transform duration-200",
-                      picked
-                        ? "cursor-not-allowed border-border-subtle opacity-30 grayscale"
-                        : canSelect
-                        ? "cursor-pointer border-border hover:border-accent"
-                        : "cursor-default border-border-subtle opacity-60"
-                    )}
-                  >
-                    <MapImage
-                      src={map.imgPath ? resolveMapImageUrl(map.imgPath) : null}
-                      alt={map.description}
-                      fallbackInitial={map.description.charAt(0)}
-                      className="aspect-video w-full"
-                    />
-                    <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent px-2 pb-1.5 pt-6">
-                      <p className={stageStyles.banSlotName}>{map.description}</p>
-                    </div>
-                    {picked && (
-                      <span className="absolute inset-0 grid place-items-center bg-background/70 font-mono text-[11px] uppercase tracking-widest text-muted">
-                        Played
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+            <MapPoolWall
+              mode="map"
+              allMaps={draftState.allMaps || []}
+              mapTypes={selectedMapType ? [selectedMapType] : []}
+              mapTypeCounts={draftState.availableMapTypeCounts || {}}
+              side={choosingSide}
+              broadcast={isObsKeyAccess}
+              selectedMapType={selectedMapType}
+              availableMaps={availableMaps}
+              canPickMap={isCaptain && isMyTurn && !actionLoading}
+              isMapPicked={isMapPicked}
+              onPickMap={handlePick}
+              pickedMapId={pickedId}
+            />
 
             <p className={stageStyles.phaseNote} aria-live="polite">
               {isCaptain

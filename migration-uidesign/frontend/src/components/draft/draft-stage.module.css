@@ -940,3 +940,336 @@
     opacity: 0;
   }
 }
+
+/* ==================== Map pool wall ==================== */
+/*
+ * One surface for both map phases. The mode bar drives a focus state that the
+ * grid answers to: focused-mode tiles light up, everything else recedes. The
+ * same markup renders in the type phase (browse + lock a mode) and the map
+ * phase (pick a map inside the locked mode), so the board never snaps between
+ * two different layouts.
+ */
+
+.wall {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 1.125rem;
+  animation: var(--animate-phase-in);
+}
+
+.wallTypeBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+}
+
+.wallChip {
+  --chip-index: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.625rem 1rem 0.625rem 0.75rem;
+  border: 1.5px solid var(--color-border);
+  background: var(--color-surface);
+  /* Angular esports cut on the trailing corner. */
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%);
+  cursor: default;
+  animation: chip-deal 380ms var(--ease-strike) both;
+  animation-delay: calc(var(--chip-index) * 45ms);
+  transition: border-color var(--duration-base) var(--ease-out),
+    background-color var(--duration-base) var(--ease-out),
+    opacity var(--duration-base) var(--ease-out),
+    transform var(--duration-base) var(--ease-strike);
+}
+
+.wallChipInteractive {
+  cursor: pointer;
+}
+
+.wallChipInteractive:hover,
+.wallChipInteractive:focus-visible {
+  border-color: color-mix(in srgb, var(--team-bright, var(--color-accent)) 60%, var(--color-border));
+  background: var(--color-surface-elevated);
+  transform: translateY(-2px);
+}
+
+.wallChipIcon {
+  width: 26px;
+  height: 26px;
+  color: var(--color-text-secondary);
+  transition: color var(--duration-base) var(--ease-out);
+}
+
+.wallChipText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  line-height: 1;
+}
+
+.wallChipName {
+  color: var(--color-foreground);
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.wallChipCount {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.wallChipActive {
+  border-color: var(--team-bright, var(--color-accent));
+  background: var(--color-surface-elevated);
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 1px var(--team-bright, var(--color-accent)),
+    0 16px 34px -22px var(--team-bright, var(--color-accent));
+}
+
+.wallChipActive .wallChipIcon {
+  color: var(--team-bright, var(--color-accent));
+}
+
+.wallChipDim {
+  opacity: 0.42;
+  filter: grayscale(0.5);
+}
+
+.wallChipLocked {
+  animation: chip-lock 520ms var(--ease-strike) both;
+}
+
+/* ---- Grid ---- */
+
+.wallGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.wallGridBroadcast {
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 1rem;
+}
+
+.wallTile {
+  --tile-index: 0;
+  position: relative;
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  border: 1.5px solid var(--color-border-subtle);
+  background: var(--color-surface);
+  /* Match the chip cut so the whole wall reads as one system. */
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
+  animation: plate-deal 420ms var(--ease-strike) both;
+  animation-delay: calc(var(--tile-index) * 28ms);
+  transition: transform var(--duration-base) var(--ease-strike),
+    opacity var(--duration-slow) var(--ease-out),
+    filter var(--duration-slow) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-out);
+}
+
+.wallTile img {
+  transition: transform var(--duration-slow) var(--ease-out),
+    filter var(--duration-slow) var(--ease-out);
+}
+
+.wallTileScrim {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.92) 0%, rgba(0, 0, 0, 0) 62%);
+}
+
+.wallTileLabel {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.6rem;
+}
+
+.wallTileType {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  color: var(--color-text-secondary);
+}
+
+.wallTileName {
+  overflow: hidden;
+  color: var(--color-foreground);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Focused mode: pull forward, saturate, tint the border to the team tone. */
+.wallTileFocus {
+  border-color: var(--team-bright, var(--color-accent));
+  box-shadow: 0 18px 40px -24px var(--team-bright, var(--color-accent));
+}
+
+.wallTileFocus .wallTileType {
+  color: var(--team-bright, var(--color-accent));
+}
+
+/* Everything outside the focused mode falls back so the eye stays on the pick. */
+.wallTileRecede {
+  opacity: 0.26;
+  filter: grayscale(0.85);
+  transform: scale(0.965);
+}
+
+.wallTileRecede .wallTileName {
+  color: var(--color-text-secondary);
+}
+
+.wallTilePickable {
+  cursor: pointer;
+}
+
+.wallTilePickable:hover,
+.wallTilePickable:focus-visible {
+  transform: translateY(-4px);
+  box-shadow: 0 22px 46px -22px var(--team-bright, var(--color-accent));
+}
+
+.wallTilePickable:hover img,
+.wallTilePickable:focus-visible img {
+  transform: scale(1.06);
+}
+
+.wallTilePlayed {
+  opacity: 0.28;
+  filter: grayscale(1);
+}
+
+.wallTilePlayedTag {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0.2rem 0.45rem;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.wallTilePicked {
+  animation: map-slam 600ms var(--ease-strike) both;
+  border-color: var(--team-bright, var(--color-accent));
+  box-shadow: 0 0 0 1px var(--team-bright, var(--color-accent)),
+    0 0 48px -6px var(--team-bright, var(--color-accent));
+  z-index: 1;
+}
+
+/* ---- Lock bar ---- */
+
+.wallLockBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border-subtle);
+  border-left: 3px solid var(--team-bright, var(--color-accent));
+  background: var(--color-surface);
+}
+
+.wallLockLabel {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
+.wallLockLabel strong {
+  color: var(--color-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.wallLockCount {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.wallLockHint {
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+}
+
+.wallLockButton {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.6rem 1.5rem;
+  border: none;
+  background: var(--team-bright, var(--color-accent));
+  color: var(--color-background);
+  font-family: var(--font-accent, inherit);
+  font-size: 0.95rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
+  transition: transform var(--duration-fast) var(--ease-strike),
+    filter var(--duration-fast) var(--ease-out);
+}
+
+.wallLockButton:hover:not(:disabled),
+.wallLockButton:focus-visible:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+}
+
+.wallLockButton:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+@keyframes chip-deal {
+  from { opacity: 0; transform: translateY(10px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes chip-lock {
+  0% { transform: none; }
+  40% { transform: translateY(-4px) scale(1.04); }
+  100% { transform: translateY(-2px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wall,
+  .wallChip,
+  .wallTile,
+  .wallChipLocked,
+  .wallTilePicked {
+    animation: none;
+  }
+
+  .wallTileRecede,
+  .wallTileFocus,
+  .wallTilePickable:hover,
+  .wallTilePickable:focus-visible {
+    transform: none;
+  }
+}
