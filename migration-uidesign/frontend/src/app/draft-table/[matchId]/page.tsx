@@ -414,19 +414,28 @@ export default function DraftTablePage() {
   }
 
   async function handlePickMapType(mapType: MapType) {
-    if (updateDemoState((state, data) => pickDraftTableDevMapType(state, data, mapType))) return;
+    if (isDevDemo && devData && draftState) {
+      try {
+        setDraftState(pickDraftTableDevMapType(draftState, devData, mapType));
+        setActionError(null);
+        return true;
+      } catch (err) {
+        showActionError(getRequestErrorMessage(err, "The local demo action could not be completed."));
+        return false;
+      }
+    }
     if (!token) {
       showActionError(SESSION_EXPIRED_MESSAGE);
-      return;
+      return false;
     }
     if (!draftId) {
       showActionError("Draft no disponible todavia. Recarga la pagina e intenta otra vez.");
-      return;
+      return false;
     }
     if (!isMyTurn) {
       showActionError("No es tu turno de escoger el tipo de mapa.");
       await fetchDraftState();
-      return;
+      return false;
     }
 
     setActionLoading(true);
@@ -437,6 +446,7 @@ export default function DraftTablePage() {
       });
       setDraftState(updated);
       setActionError(null);
+      return true;
     } catch (err) {
       handleRequestFailure(
         "Failed to pick map type:",
@@ -444,6 +454,7 @@ export default function DraftTablePage() {
         "No se pudo escoger el tipo de mapa."
       );
       await fetchDraftState();
+      return false;
     } finally {
       setActionLoading(false);
     }
@@ -494,28 +505,39 @@ export default function DraftTablePage() {
   }
 
   async function handlePickMap(mapId: number) {
-    if (updateDemoState((state, data) => pickDraftTableDevMap(state, data, mapId))) return;
+    if (isDevDemo && devData && draftState) {
+      try {
+        setDraftState(pickDraftTableDevMap(draftState, devData, mapId));
+        setActionError(null);
+        return true;
+      } catch (err) {
+        showActionError(getRequestErrorMessage(err, "The local demo action could not be completed."));
+        return false;
+      }
+    }
     if (!token) {
       showActionError(SESSION_EXPIRED_MESSAGE);
-      return;
+      return false;
     }
     if (!draftId) {
       showActionError("Draft no disponible todavia. Recarga la pagina e intenta otra vez.");
-      return;
+      return false;
     }
     if (!isMyTurn) {
       showActionError("No es tu turno de escoger mapa.");
       await fetchDraftState();
-      return;
+      return false;
     }
     setActionLoading(true);
     try {
       const updated = await pickMap(token, draftId, { mapId, teamId: myTeamId ?? undefined });
       setDraftState(updated);
       setActionError(null);
+      return true;
     } catch (err) {
       handleRequestFailure("Failed to pick map:", err, "No se pudo escoger el mapa.");
       await fetchDraftState();
+      return false;
     } finally {
       setActionLoading(false);
     }
@@ -1040,12 +1062,12 @@ export default function DraftTablePage() {
                 isObsKeyAccess ? `${KEY_CONTENT_MAX_WIDTH} px-6` : "max-w-7xl px-4"
               )}
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-6">
-                  <div className="flex items-center gap-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-center gap-3 sm:gap-6">
+                  <div className="flex min-w-0 items-center gap-2 sm:gap-3">
                     <span
                       className={clsx(
-                        "font-semibold text-[color:var(--color-team-a)]",
+                        "max-w-24 truncate font-semibold text-[color:var(--color-team-a)] sm:max-w-none",
                         isObsKeyAccess ? "text-2xl" : "text-lg"
                       )}
                     >
@@ -1060,7 +1082,7 @@ export default function DraftTablePage() {
                     </span>
                     <span
                       className={clsx(
-                        "font-semibold text-[color:var(--color-team-b)]",
+                        "max-w-24 truncate font-semibold text-[color:var(--color-team-b)] sm:max-w-none",
                         isObsKeyAccess ? "text-2xl" : "text-lg"
                       )}
                     >
@@ -1071,7 +1093,7 @@ export default function DraftTablePage() {
                     Game {currentGameNumber}
                   </Badge>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center justify-between gap-4 sm:justify-end">
                   {/* Ready Status for Manager */}
                   {isManager && currentPhase === "STARTING" && (
                     <div className={clsx("flex items-center gap-2", isObsKeyAccess ? "text-sm" : "text-xs")}>
@@ -1132,8 +1154,9 @@ export default function DraftTablePage() {
             </div>
           )}
 
-          {/* Phase Content — crossfaded so phase swaps read as broadcast transitions. */}
-        <PhaseTransition phaseKey={currentPhase}>
+          {/* The map verdict is a real subphase, so it shares the broadcast
+              transition without replaying on ordinary timer/poll updates. */}
+        <PhaseTransition phaseKey={isMapSelectionLocked ? "MAPPICKING:LOCKED" : currentPhase}>
         {currentPhase === "STARTING" && (() => {
           // The Grand Final wraps the same starting phase in the presentation
           // stage. Build the phase once so both paths stay in sync.
@@ -1748,7 +1771,7 @@ function MapTypePickingPhase({
   isMyTurn: boolean;
   draftState: DraftState;
   teams: Team[];
-  onPickMapType: (mapType: MapType) => void;
+  onPickMapType: (mapType: MapType) => Promise<boolean>;
   actionLoading: boolean;
   isObsKeyAccess: boolean;
 }) {
@@ -1768,8 +1791,11 @@ function MapTypePickingPhase({
   const [chosen, setChosen] = useState<MapType | null>(null);
 
   const handleSelect = (mapType: MapType) => {
+    if (chosen) return;
     setChosen(mapType);
-    onPickMapType(mapType);
+    void onPickMapType(mapType).then((accepted) => {
+      if (!accepted) setChosen(null);
+    });
   };
 
   return (
@@ -1856,7 +1882,7 @@ function MapPickingPhase({
   isMyTurn: boolean;
   draftState: DraftState;
   teams: Team[];
-  onPickMap: (mapId: number) => void;
+  onPickMap: (mapId: number) => Promise<boolean>;
   onStartBan: () => void;
   isMapPicked: (mapId: number) => boolean;
   actionLoading: boolean;
@@ -1872,6 +1898,15 @@ function MapPickingPhase({
   const isMapLocked = Boolean(currentMap);
   const selectedMapType = draftState.selectedMapType;
   const gameNumber = (draftState.match.gameNumber || 0) + 1;
+  const [pendingMapId, setPendingMapId] = useState<number | null>(null);
+
+  const handleSelectMap = (mapId: number) => {
+    if (pendingMapId !== null) return;
+    setPendingMapId(mapId);
+    void onPickMap(mapId).then((accepted) => {
+      if (!accepted) setPendingMapId(null);
+    });
+  };
 
   return (
     <DraftStage
@@ -1964,14 +1999,16 @@ function MapPickingPhase({
             >
               {availableMaps.map((map, mapIndex) => {
                 const picked = isMapPicked(map.id);
-                const canSelect = isCaptain && isMyTurn && !picked && !actionLoading;
+                const canSelect = isCaptain && isMyTurn && !picked && !actionLoading && pendingMapId === null;
 
                 return (
                   <button
                     key={map.id}
                     type="button"
-                    onClick={() => canSelect && onPickMap(map.id)}
+                    onClick={() => canSelect && handleSelectMap(map.id)}
                     disabled={!canSelect}
+                    aria-busy={pendingMapId === map.id}
+                    data-pending={pendingMapId === map.id ? "true" : "false"}
                     style={{ ["--map-index" as string]: mapIndex }}
                     className={clsx(
                       stageStyles.mapChoice,
@@ -1979,6 +2016,8 @@ function MapPickingPhase({
                       "group relative overflow-hidden border transition-transform duration-200",
                       picked
                         ? "cursor-not-allowed border-border-subtle opacity-30 grayscale"
+                        : pendingMapId === map.id
+                        ? "cursor-progress border-accent"
                         : canSelect
                         ? "cursor-pointer border-border hover:border-accent"
                         : "cursor-default border-border-subtle opacity-60"

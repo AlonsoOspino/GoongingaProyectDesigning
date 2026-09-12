@@ -239,7 +239,7 @@ export function MapPoolOverlay({ matchId, variant = "classic" }: MapPoolOverlayP
           <div className={styles.focusPlate} key={focusedColumn.key}>
             <span className={styles.focusLabel}>Now showing</span>
             <span className={styles.focusValue}>{focusedColumn.title}</span>
-            {heroMap ? <span className={styles.focusMap}>{heroMap.description}</span> : null}
+            {heroMap ? <span key={heroMap.id} className={styles.focusMap}>{heroMap.description}</span> : null}
           </div>
         ) : (
           <div className={styles.idlePlate}>

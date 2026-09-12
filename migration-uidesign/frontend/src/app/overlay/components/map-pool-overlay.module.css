@@ -142,7 +142,7 @@
 .focusPlate {
   background: linear-gradient(100deg, rgba(62, 224, 138, 0.2), rgba(29, 90, 62, 0.12));
   border-left: 0;
-  animation: otp-rise 420ms var(--otp-ease) both;
+  animation: otp-rise 360ms var(--otp-ease) backwards;
 }
 
 .idlePlate {
@@ -181,6 +181,7 @@
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--otp-text);
+  animation: otp-rise 260ms var(--otp-ease) backwards;
 }
 
 .railTicks {
@@ -231,9 +232,7 @@
   gap: 0;
   min-width: 0;
   min-height: 0;
-  transition:
-    opacity 500ms var(--otp-ease),
-    filter 500ms var(--otp-ease);
+  transition: opacity 380ms var(--otp-ease);
 }
 
 /* Each column slides left by exactly one lean so its slanted edge meets
@@ -244,7 +243,6 @@
 
 .column[data-state="dim"] {
   opacity: 0.42;
-  filter: grayscale(0.55);
 }
 
 /* Focus lighting lives on each tile's rim now, so nothing extra is needed on
@@ -350,11 +348,7 @@
   );
   filter: drop-shadow(0 3px 9px rgba(0, 0, 0, 0.5))
     drop-shadow(0 0 8px rgba(12, 68, 41, 0.5));
-  transition:
-    flex-grow 620ms var(--otp-ease),
-    background 500ms var(--otp-ease),
-    opacity 500ms var(--otp-ease),
-    filter 500ms var(--otp-ease);
+  transition: opacity 380ms var(--otp-ease);
 }
 
 /* Focus brightens the whole tile's neon edge and lifts its glow. */
@@ -366,7 +360,7 @@
     var(--otp-neon) 100%
   );
   filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.6))
-    drop-shadow(0 0 26px rgba(125, 255, 190, 0.7));
+    drop-shadow(0 0 14px rgba(125, 255, 190, 0.55));
 }
 
 .cardFrame[data-muted="true"] {
@@ -394,20 +388,18 @@
 /* Staggered reveal each time a column is focused, so the expansion feels dealt
    rather than merely resized; the index sets the per-tile delay. */
 .column[data-state="active"] .cardInner {
-  animation: otp-card-in 560ms var(--otp-ease-strike) both;
-  animation-delay: calc(var(--card-index, 0) * 80ms);
+  animation: otp-card-in 400ms var(--otp-ease) backwards;
+  animation-delay: calc(min(var(--card-index, 0), 6) * 55ms);
 }
 
 /*
- * Focus highlight for the picked map: a hot neon ring inside the tile, a
- * breathing glow and a scan sweep. Size stays equal to its siblings — every
- * map of the focused type still reads large, the pick is only lit brighter.
+ * The manager's focused map gets a decisive one-shot scan, then holds as a
+ * stable broadcast frame. No perpetual glow is repainting the OBS canvas.
  */
 .cardFrame[data-hero="true"] .cardInner {
   box-shadow:
     inset 0 0 0 2px var(--otp-neon-hot),
-    inset 0 0 22px rgba(62, 224, 138, 0.5);
-  animation: otp-hero-pulse 2.4s ease-in-out infinite;
+    inset 0 0 18px rgba(62, 224, 138, 0.38);
 }
 
 .cardFrame[data-hero="true"] .cardInner::after {
@@ -421,7 +413,7 @@
     transparent 100%
   );
   transform: translateY(-110%);
-  animation: otp-scan 2.6s var(--otp-ease) infinite;
+  animation: otp-scan 700ms var(--otp-ease) both;
   pointer-events: none;
   z-index: 1;
 }
@@ -582,6 +574,19 @@
 /* Keep the still frame usable for anyone who opts out of motion: the layout,
    rims and focus lighting all stay, only the looping/entrance motion stops. */
 @media (prefers-reduced-motion: reduce) {
+  .fan,
+  .column,
+  .cardFrame,
+  .cardImage,
+  .cardLabel,
+  .columnHeader,
+  .columnTitle,
+  .columnCount {
+    transition: none;
+  }
+
+  .focusPlate,
+  .focusMap,
   .cardFrame[data-hero="true"] .cardInner,
   .cardFrame[data-hero="true"] .cardInner::after,
   .column[data-state="active"] .cardInner {

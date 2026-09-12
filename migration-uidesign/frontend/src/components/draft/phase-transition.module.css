@@ -1,62 +1,90 @@
 .host {
   position: relative;
+  isolation: isolate;
   width: 100%;
+  --phase-signal: var(--color-accent);
 }
 
-/* The incoming phase. Rises and resolves from a slight scale-down with a hint
-   of overshoot so the board "snaps" into place like a broadcast cut-in. */
-.live {
-  animation: phase-in 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  will-change: transform, opacity, filter;
+.host[data-phase="BAN"] {
+  --phase-signal: var(--color-danger);
 }
 
-/* The frozen outgoing phase, overlaid and fading up out of the way. It never
-   catches pointer input and never reflows the layout beneath it. */
-.ghost {
+.host[data-transitioning="true"] {
+  overflow: clip;
+}
+
+.scene {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+
+/* The next board reveals along the draft's left-to-right decision flow. The
+   old board stays underneath, so even a slow OBS frame has no blank cut. */
+.incoming {
+  animation: phase-reveal 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.outgoing {
   position: absolute;
   inset: 0;
+  z-index: 0;
   pointer-events: none;
-  animation: phase-out 360ms cubic-bezier(0.4, 0, 0.7, 0.2) both;
-  will-change: transform, opacity, filter;
+  animation: phase-release 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* A short score-line accompanies the wipe, then gets out of the way. */
+.signal {
+  position: absolute;
   z-index: 2;
+  top: 0;
+  left: 0;
+  width: min(58%, 42rem);
+  height: 2px;
+  transform-origin: left center;
+  background: linear-gradient(90deg, var(--phase-signal), transparent);
+  pointer-events: none;
+  animation: phase-signal 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-@keyframes phase-in {
-  0% {
-    opacity: 0;
-    transform: translate3d(0, 22px, 0) scale(0.985);
-    filter: blur(6px);
+@keyframes phase-reveal {
+  from {
+    clip-path: polygon(0 0, 0 0, 0 100%, 0 100%);
   }
-  60% {
-    opacity: 1;
-    filter: blur(0);
-  }
-  100% {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-    filter: blur(0);
+  to {
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
   }
 }
 
-@keyframes phase-out {
-  0% {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-    filter: blur(0);
+@keyframes phase-release {
+  from {
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
   }
-  100% {
-    opacity: 0;
-    transform: translate3d(0, -18px, 0) scale(1.015);
-    filter: blur(7px);
+  to {
+    clip-path: polygon(100% 0, 100% 0, 100% 100%, 100% 100%);
   }
+}
+
+@keyframes phase-signal {
+  0% { opacity: 0; transform: scaleX(0.05); }
+  25% { opacity: 0.9; }
+  75% { opacity: 0.8; }
+  100% { opacity: 0; transform: scaleX(1); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .live,
-  .ghost {
+  .incoming {
+    animation: phase-gentle-in 160ms ease-out both;
+  }
+
+  .outgoing,
+  .signal {
+    display: none;
     animation: none;
   }
-  .ghost {
-    display: none;
-  }
+}
+
+@keyframes phase-gentle-in {
+  from { opacity: 0.85; }
+  to { opacity: 1; }
 }

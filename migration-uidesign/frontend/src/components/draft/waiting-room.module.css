@@ -16,7 +16,12 @@
   gap: 2rem;
   align-items: center;
   padding: 2rem 0.5rem 0;
-  animation: var(--animate-phase-in);
+}
+
+@media (max-width: 760px) {
+  .checkIn {
+    padding-top: 0;
+  }
 }
 
 /*
