@@ -269,7 +269,7 @@ export function MapPoolOverlay({ matchId, variant = "classic" }: MapPoolOverlayP
 
             <div className={styles.stack}>
               {column.maps.length > 0 ? (
-                column.maps.map((map) => {
+                column.maps.map((map, mapIndex) => {
                   const isHero = heroMap?.id === map.id;
                   const isMutedByHero = Boolean(heroMap) && column.focused && !isHero;
 
@@ -277,6 +277,7 @@ export function MapPoolOverlay({ matchId, variant = "classic" }: MapPoolOverlayP
                     <div
                       key={`${column.key}-${map.id}`}
                       className={styles.cardFrame}
+                      style={{ ["--card-index" as string]: mapIndex } as React.CSSProperties}
                       data-hero={isHero ? "true" : "false"}
                       data-muted={isMutedByHero ? "true" : "false"}
                     >

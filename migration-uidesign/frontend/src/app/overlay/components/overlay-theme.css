@@ -93,3 +93,15 @@
     opacity: 1;
   }
 }
+
+/* Tiles dealt in from the left when a column takes focus. */
+@keyframes otp-card-in {
+  from {
+    opacity: 0;
+    transform: translateX(-16px) scale(0.965);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

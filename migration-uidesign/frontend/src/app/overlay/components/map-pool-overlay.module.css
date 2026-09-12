@@ -212,8 +212,9 @@
   padding: 2.25rem 3rem 1.5rem 1rem;
   min-width: 0;
   /* The whole point of the focus state. Chromium animates this, and OBS is
-     Chromium, so the columns slide rather than snap. */
-  transition: grid-template-columns 620ms var(--otp-ease);
+     Chromium, so the columns slide rather than snap. The strike easing gives
+     the expansion a bit of snap-and-settle so it reads as an action. */
+  transition: grid-template-columns 560ms var(--otp-ease-strike);
 }
 
 .column {
@@ -238,10 +239,8 @@
   filter: grayscale(0.55);
 }
 
-/* Dimmed columns recede: drop the glow so only the focused band lifts. */
-.column[data-state="dim"] .stack {
-  filter: none;
-}
+/* Focus lighting lives on each tile's rim now, so nothing extra is needed on
+   the stack when a column dims — the column opacity already carries it. */
 
 .columnHeader {
   --plate-lean: var(--otp-lean-sm);
@@ -290,25 +289,62 @@
 
 /* One slanted band per column. The lean lives here so the tiles inside can
    be plain rectangles that stack flush. */
+/* The band is just a flex column now. Each tile below carries its own kinked
+   neon rim, so the column no longer draws one frame around the whole stack —
+   it stacks individually-outlined panels the way the reference art does. */
 .stack {
   --lean: var(--otp-lean);
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 0;
-  /* Padding, not a border: clip-path eats borders. The gradient showing
-     through the padding is the frame — bright at the top-left, falling to
-     shadow at the bottom-right, so the column reads as raised rather than
-     drawn. The glow lifts it off the background. */
-  padding: 4px;
-  /* The slanted side edges kink once at mid-height — a small horizontal jog to
-     the right — instead of running as straight diagonals. That is the "quiebre"
-     the reference art has: between two columns the shared edge reads as a ">"
-     pointing into the next band. Both sides jog by the same amount, so the
-     -lean interlock still lands exactly (one column's outward kink is the next
-     one's inward notch). Top and bottom stay flat. */
-  --kink: 18px;
+  /* A thin dark seam so adjacent rims read as separate brackets. */
+  gap: 5px;
+  padding: 0;
+  transition: filter 500ms var(--otp-ease);
+}
+
+/* When a column takes focus, brighten every tile's rim and lift the glow. */
+.column[data-state="active"] .cardFrame {
+  background: linear-gradient(
+    150deg,
+    var(--otp-neon-hot) 0%,
+    var(--otp-neon) 46%,
+    var(--otp-bright) 100%
+  );
+  filter: drop-shadow(0 5px 16px rgba(0, 0, 0, 0.6))
+    drop-shadow(0 0 24px rgba(62, 224, 138, 0.6));
+}
+
+/* Staggered reveal each time a column is focused, so the expansion feels dealt
+   rather than merely resized. The inner art carries it while the rim keeps its
+   own glow; the index sets the per-tile delay. */
+.column[data-state="active"] .cardInner {
+  animation: otp-card-in 560ms var(--otp-ease-strike) both;
+  animation-delay: calc(var(--card-index, 0) * 80ms);
+}
+
+/* ----------------------------------------------------------------- cards */
+
+/*
+ * Every tile IS its own neon rim: a bright kinked frame (padding + gradient)
+ * with the map art inset inside the same clip. This is the "borde diferente"
+ * from the reference — each panel bracketed individually, with the "quiebre"
+ * chevron on both slanted edges — instead of one frame around the column.
+ */
+.cardFrame {
+  --lean: var(--otp-lean);
+  --kink: 14px;
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  padding: 3px;
+  background: linear-gradient(
+    150deg,
+    color-mix(in srgb, #fff 20%, var(--otp-neon) 80%) 0%,
+    var(--otp-bright) 46%,
+    var(--otp-brand) 100%
+  );
   clip-path: polygon(
     var(--lean) 0,
     100% 0,
@@ -317,39 +353,8 @@
     0 100%,
     calc(var(--lean) / 2 + var(--kink)) 50%
   );
-  background: linear-gradient(
-    150deg,
-    color-mix(in srgb, #fff 18%, var(--otp-neon) 82%) 0%,
-    var(--otp-bright) 42%,
-    var(--otp-brand) 100%
-  );
   filter: drop-shadow(0 3px 10px rgba(0, 0, 0, 0.55))
-    drop-shadow(0 0 9px rgba(62, 224, 138, 0.22));
-  transition:
-    background 500ms var(--otp-ease),
-    filter 500ms var(--otp-ease);
-}
-
-.column[data-state="active"] .stack {
-  background: linear-gradient(
-    150deg,
-    var(--otp-neon-hot) 0%,
-    var(--otp-neon) 46%,
-    var(--otp-bright) 100%
-  );
-  filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.6))
-    drop-shadow(0 0 22px rgba(62, 224, 138, 0.6));
-}
-
-/* ----------------------------------------------------------------- cards */
-
-.cardFrame {
-  position: relative;
-  flex: 1 1 0;
-  min-height: 0;
-  /* Divider between stacked tiles; the outline itself is the band padding. */
-  padding: 0 0 3px;
-  background: transparent;
+    drop-shadow(0 0 8px rgba(62, 224, 138, 0.2));
   transition:
     flex-grow 620ms var(--otp-ease),
     background 500ms var(--otp-ease),
@@ -357,30 +362,47 @@
     filter 500ms var(--otp-ease);
 }
 
-/* The band already frames the bottom; a divider there would double it. */
-.cardFrame:last-child {
-  padding-bottom: 0;
-}
-
-
 /*
  * Focusing a map type keeps every map in that type at full size — a picked map
- * is only highlighted, never the sole big one. The ring and label below are the
- * highlight; the size stays equal so "los mapas del map type" all read large.
+ * is only highlighted, never the sole big one. The hot rim, breathing pulse and
+ * scan sweep are the highlight; the size stays equal so every map of the type
+ * still reads large.
  */
 .cardFrame[data-hero="true"] {
-  padding: 0 0 3px;
+  background: linear-gradient(
+    150deg,
+    var(--otp-neon-hot) 0%,
+    var(--otp-neon) 50%,
+    var(--otp-bright) 100%
+  );
+  animation: otp-hero-pulse 2.4s ease-in-out infinite;
 }
 
 .cardFrame[data-hero="true"] .cardInner {
-  box-shadow:
-    inset 0 0 0 2px var(--otp-neon-hot),
-    inset 0 0 22px rgba(62, 224, 138, 0.5);
+  box-shadow: inset 0 0 22px rgba(62, 224, 138, 0.5);
+}
+
+/* A neon scan travelling down the highlighted pick, so the hero never sits
+   still on stream. */
+.cardFrame[data-hero="true"] .cardInner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(125, 255, 190, 0.28) 50%,
+    transparent 100%
+  );
+  transform: translateY(-110%);
+  animation: otp-scan 2.6s var(--otp-ease) infinite;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .cardFrame[data-muted="true"] {
   /* Still full size — only a touch dimmer so the highlighted pick stands out. */
-  opacity: 0.9;
+  opacity: 0.86;
 }
 
 .cardInner {
@@ -389,6 +411,15 @@
   height: 100%;
   overflow: hidden;
   background: var(--otp-panel);
+  /* Same clip as the frame so the art sits inside the rim, not over it. */
+  clip-path: polygon(
+    var(--lean) 0,
+    100% 0,
+    calc(100% - var(--lean) / 2 + var(--kink)) 50%,
+    calc(100% - var(--lean)) 100%,
+    0 100%,
+    calc(var(--lean) / 2 + var(--kink)) 50%
+  );
 }
 
 .cardImage {
@@ -426,6 +457,7 @@
 
 .cardLabel {
   position: absolute;
+  z-index: 2;
   /* Clear of the band's slanted edge so the text never rides the cut. */
   left: calc(var(--otp-lean) + 0.65rem);
   right: 0.65rem;
@@ -541,4 +573,14 @@
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--otp-text-faint);
+}
+
+/* Keep the still frame usable for anyone who opts out of motion: the layout,
+   rims and focus lighting all stay, only the looping/entrance motion stops. */
+@media (prefers-reduced-motion: reduce) {
+  .cardFrame[data-hero="true"],
+  .cardFrame[data-hero="true"] .cardInner::after,
+  .column[data-state="active"] .cardInner {
+    animation: none;
+  }
 }
