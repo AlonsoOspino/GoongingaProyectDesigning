@@ -39,6 +39,7 @@ import { clsx } from "clsx";
 import { resolveGenericBackendAsset, resolveHeroImageUrl, resolveMapImageUrl } from "@/lib/assetUrls";
 import { MapImage, MapBackground, useImageReady, preloadImages } from "@/components/draft/MapImage";
 import { DraftStage, TeamRail, teamVars, type TeamSide } from "@/components/draft/DraftStage";
+import { PhaseTransition } from "@/components/draft/PhaseTransition";
 import { BanTile, type HeroTileState } from "@/components/draft/BanTile";
 import { BanSlot, EmptyBanSlot } from "@/components/draft/BanRail";
 import { BanCeremony, type BanCeremonyRequest } from "@/components/draft/BanCeremony";
@@ -1131,7 +1132,8 @@ export default function DraftTablePage() {
             </div>
           )}
 
-          {/* Phase Content */}
+          {/* Phase Content — crossfaded so phase swaps read as broadcast transitions. */}
+        <PhaseTransition phaseKey={currentPhase}>
         {currentPhase === "STARTING" && (() => {
           // The Grand Final wraps the same starting phase in the presentation
           // stage. Build the phase once so both paths stay in sync.
@@ -1258,6 +1260,7 @@ export default function DraftTablePage() {
             actionLoading={actionLoading}
           />
         )}
+        </PhaseTransition>
 
         {/* Draft History - Only shown after PENDINGRESULT/FINISHED */}
         {showDraftHistory && !isObsKeyAccess && (
