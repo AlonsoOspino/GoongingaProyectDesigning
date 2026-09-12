@@ -332,11 +332,13 @@
   min-height: 0;
   /* Padding = neon border thickness. */
   padding: 5px;
+  /* Deep, dim green border like the reference — the bright neon is saved for
+     the focused column so it still reads as the active pick. */
   background: linear-gradient(
     150deg,
-    var(--otp-neon-hot) 0%,
-    var(--otp-neon) 42%,
-    var(--otp-bright) 100%
+    #1f7a4d 0%,
+    #14603b 45%,
+    #0c4429 100%
   );
   clip-path: polygon(
     var(--lean) 0,
@@ -347,7 +349,7 @@
     calc(var(--lean) / 2 + var(--kink)) 50%
   );
   filter: drop-shadow(0 3px 9px rgba(0, 0, 0, 0.5))
-    drop-shadow(0 0 11px rgba(62, 224, 138, 0.38));
+    drop-shadow(0 0 8px rgba(12, 68, 41, 0.5));
   transition:
     flex-grow 620ms var(--otp-ease),
     background 500ms var(--otp-ease),
