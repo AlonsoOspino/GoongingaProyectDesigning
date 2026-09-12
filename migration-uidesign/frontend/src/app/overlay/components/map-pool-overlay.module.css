@@ -207,10 +207,17 @@
   grid-column: 2;
   grid-row: 1;
   display: grid;
+  /* One lean value drives BOTH the chevron clip on each column band and the
+     negative-margin overlap between columns. They must match exactly or the
+     seams stop meeting, so they share this variable. Bold, like the reference:
+     a strong slant with a pronounced mid-height kink. */
+  --fan-lean: 54px;
+  --fan-kink: 46px;
   /* No gap. The columns interlock instead — see .column below. */
   gap: 0;
-  /* Tighter padding so the mosaic reads bigger and fills the frame. */
-  padding: 1.5rem 1.75rem 1rem 0.5rem;
+  /* Tighter padding so the mosaic reads bigger and fills the frame. Extra right
+     room so the last column's lean is never clipped by the frame edge. */
+  padding: 1.5rem 3.5rem 1rem 0.5rem;
   min-width: 0;
   /* The whole point of the focus state. Chromium animates this, and OBS is
      Chromium, so the columns slide rather than snap. The strike easing gives
@@ -232,7 +239,7 @@
 /* Each column slides left by exactly one lean so its slanted edge meets
    the previous one. The first keeps its place. */
 .column + .column {
-  margin-left: calc(var(--otp-lean) * -1);
+  margin-left: calc(var(--fan-lean) * -1);
 }
 
 .column[data-state="dim"] {
@@ -302,20 +309,22 @@
  * welded together even as a focused column grows.
  */
 .stack {
-  --lean: var(--otp-lean);
-  --kink: 16px;
+  --lean: var(--fan-lean);
+  --kink: var(--fan-kink);
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  /* Neon seam between the two rows; padding is the neon border around them. */
-  gap: 3px;
-  padding: 3px;
+  /* Thick, bright neon seam like the reference. The padding is the border that
+     wraps the tiles; the gap is the seam between the two rows. Both show the
+     neon gradient below. */
+  gap: 6px;
+  padding: 6px;
   background: linear-gradient(
     150deg,
-    color-mix(in srgb, #fff 18%, var(--otp-neon) 82%) 0%,
-    var(--otp-bright) 44%,
-    var(--otp-brand) 100%
+    var(--otp-neon-hot) 0%,
+    var(--otp-neon) 40%,
+    var(--otp-bright) 100%
   );
   clip-path: polygon(
     var(--lean) 0,
@@ -326,22 +335,22 @@
     calc(var(--lean) / 2 + var(--kink)) 50%
   );
   filter: drop-shadow(0 3px 10px rgba(0, 0, 0, 0.55))
-    drop-shadow(0 0 9px rgba(62, 224, 138, 0.22));
+    drop-shadow(0 0 14px rgba(62, 224, 138, 0.45));
   transition:
     background 500ms var(--otp-ease),
     filter 500ms var(--otp-ease);
 }
 
-/* Focus lights the whole seam: hotter neon band and a stronger glow. */
+/* Focus lights the whole seam even brighter and lifts the glow. */
 .column[data-state="active"] .stack {
   background: linear-gradient(
     150deg,
-    var(--otp-neon-hot) 0%,
-    var(--otp-neon) 46%,
-    var(--otp-bright) 100%
+    #b6ffdb 0%,
+    var(--otp-neon-hot) 45%,
+    var(--otp-neon) 100%
   );
   filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.6))
-    drop-shadow(0 0 24px rgba(62, 224, 138, 0.6));
+    drop-shadow(0 0 30px rgba(125, 255, 190, 0.7));
 }
 
 /* Staggered reveal each time a column is focused, so the expansion feels dealt
@@ -444,7 +453,7 @@
   position: absolute;
   z-index: 2;
   /* Clear of the band's slanted edge so the text never rides the cut. */
-  left: calc(var(--otp-lean) + 0.65rem);
+  left: calc(var(--fan-lean) + 0.65rem);
   right: 0.65rem;
   bottom: 0.55rem;
   font-family: var(--otp-font-hud);
