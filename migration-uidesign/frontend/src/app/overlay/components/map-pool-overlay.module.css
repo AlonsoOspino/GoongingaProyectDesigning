@@ -211,8 +211,8 @@
      negative-margin overlap between columns. They must match exactly or the
      seams stop meeting, so they share this variable. Bold, like the reference:
      a strong slant with a pronounced mid-height kink. */
-  --fan-lean: 54px;
-  --fan-kink: 46px;
+  --fan-lean: 46px;
+  --fan-kink: 26px;
   /* No gap. The columns interlock instead — see .column below. */
   gap: 0;
   /* Tighter padding so the mosaic reads bigger and fills the frame. Extra right
@@ -295,35 +295,47 @@
   color: rgba(4, 8, 5, 0.75);
 }
 
-/*
- * One slanted band per column — this is what makes the mosaic "pegado".
- *
- * The chevron (lean + kink) is clipped ONCE here, on the band, and clip-path
- * clips the band's children too, so the tiles inside can be plain rectangles
- * and still come out with the exact same bracket shape. The band's neon
- * gradient IS the border: 3px of padding wraps the tiles and a 3px gap sits
- * between them, and that neon shows through as the seam. Neighbouring columns
- * interlock by exactly one lean (see the .column margin), so one column's
- * kinked neon edge butts flush against the next — a single continuous seam
- * with no dark gap. The interlock is width-independent, so the columns stay
- * welded together even as a focused column grows.
- */
+/* The column is now just a plain flex stack of tiles; every tile carries its
+   own slanted, kinked neon shape, so the band itself draws nothing. */
 .stack {
-  --lean: var(--fan-lean);
-  --kink: var(--fan-kink);
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  /* Thick, bright neon seam like the reference. The padding is the border that
-     wraps the tiles; the gap is the seam between the two rows. Both show the
-     neon gradient below. */
-  gap: 6px;
-  padding: 6px;
+  /* No gap: each tile's own neon border meets the next, and the two borders
+     together form the horizontal seam between the rows. */
+  gap: 0;
+  padding: 0;
+}
+
+/* ----------------------------------------------------------------- cards */
+
+/*
+ * THIS is the reference's shape: every tile is an identical right-leaning
+ * parallelogram whose left and right edges KINK at the tile's own mid-height —
+ * so both rows slant the same way and each row shows its own chevron, instead
+ * of one big bracket around the whole column.
+ *
+ * The clip lives on the tile, and the frame's neon gradient painted through its
+ * padding IS the border. Left and right edges have the exact same profile, so
+ * when the next column slides left by one lean (see .column margin) its left
+ * neon edge lands precisely on this tile's right neon edge — one continuous
+ * zig-zag seam, no dark gaps, at any column width (so it survives the focus
+ * grow). The mid points push slightly past the box; the neighbouring tile
+ * paints that sliver, which is why the seam looks welded.
+ */
+.cardFrame {
+  --lean: var(--fan-lean);
+  --kink: var(--fan-kink);
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  /* Padding = neon border thickness. */
+  padding: 5px;
   background: linear-gradient(
     150deg,
     var(--otp-neon-hot) 0%,
-    var(--otp-neon) 40%,
+    var(--otp-neon) 42%,
     var(--otp-bright) 100%
   );
   clip-path: polygon(
@@ -334,15 +346,17 @@
     0 100%,
     calc(var(--lean) / 2 + var(--kink)) 50%
   );
-  filter: drop-shadow(0 3px 10px rgba(0, 0, 0, 0.55))
-    drop-shadow(0 0 14px rgba(62, 224, 138, 0.45));
+  filter: drop-shadow(0 3px 9px rgba(0, 0, 0, 0.5))
+    drop-shadow(0 0 11px rgba(62, 224, 138, 0.38));
   transition:
+    flex-grow 620ms var(--otp-ease),
     background 500ms var(--otp-ease),
+    opacity 500ms var(--otp-ease),
     filter 500ms var(--otp-ease);
 }
 
-/* Focus lights the whole seam even brighter and lifts the glow. */
-.column[data-state="active"] .stack {
+/* Focus brightens the whole tile's neon edge and lifts its glow. */
+.column[data-state="active"] .cardFrame {
   background: linear-gradient(
     150deg,
     #b6ffdb 0%,
@@ -350,29 +364,7 @@
     var(--otp-neon) 100%
   );
   filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.6))
-    drop-shadow(0 0 30px rgba(125, 255, 190, 0.7));
-}
-
-/* Staggered reveal each time a column is focused, so the expansion feels dealt
-   rather than merely resized; the index sets the per-tile delay. */
-.column[data-state="active"] .cardInner {
-  animation: otp-card-in 560ms var(--otp-ease-strike) both;
-  animation-delay: calc(var(--card-index, 0) * 80ms);
-}
-
-/* ----------------------------------------------------------------- cards */
-
-/*
- * A tile is just a rectangle of map art. The band around it draws the bracket
- * and the seam; the tile only fills its cell and carries the highlight state.
- */
-.cardFrame {
-  position: relative;
-  flex: 1 1 0;
-  min-height: 0;
-  transition:
-    flex-grow 620ms var(--otp-ease),
-    opacity 500ms var(--otp-ease);
+    drop-shadow(0 0 26px rgba(125, 255, 190, 0.7));
 }
 
 .cardFrame[data-muted="true"] {
@@ -386,6 +378,22 @@
   height: 100%;
   overflow: hidden;
   background: var(--otp-panel);
+  /* Same chevron so the art sits inside the neon rim, not over it. */
+  clip-path: polygon(
+    var(--lean) 0,
+    100% 0,
+    calc(100% - var(--lean) / 2 + var(--kink)) 50%,
+    calc(100% - var(--lean)) 100%,
+    0 100%,
+    calc(var(--lean) / 2 + var(--kink)) 50%
+  );
+}
+
+/* Staggered reveal each time a column is focused, so the expansion feels dealt
+   rather than merely resized; the index sets the per-tile delay. */
+.column[data-state="active"] .cardInner {
+  animation: otp-card-in 560ms var(--otp-ease-strike) both;
+  animation-delay: calc(var(--card-index, 0) * 80ms);
 }
 
 /*
