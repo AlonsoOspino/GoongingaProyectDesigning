@@ -25,6 +25,7 @@ export function MatchHeaderOverlay({ matchId, reverseSides = false }: MatchHeade
   const [match, setMatch] = useState<Match | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
   const [draft, setDraft] = useState<DraftState | null>(null);
+  const headerBanSlots = matchId === "dev" ? 1 : 2;
 
   useEffect(() => {
     if (matchId === null) {
@@ -102,27 +103,27 @@ export function MatchHeaderOverlay({ matchId, reverseSides = false }: MatchHeade
     for (const action of actions) {
       if (action.action !== "BAN" || action.gameNumber !== currentGameNumber) continue;
       const list = result.get(action.teamId) ?? [];
-      if (list.length >= 2) continue;
+      if (list.length >= headerBanSlots) continue;
       list.push(action.value ?? null);
       result.set(action.teamId, list);
     }
 
     return result;
-  }, [draft, currentGameNumber]);
+  }, [draft, currentGameNumber, headerBanSlots]);
 
   const teamABans = useMemo(() => {
     const list = match ? bansByTeam.get(match.teamAId) ?? [] : [];
     const filled = [...list];
-    while (filled.length < 2) filled.push(null);
-    return filled.slice(0, 2);
-  }, [bansByTeam, match]);
+    while (filled.length < headerBanSlots) filled.push(null);
+    return filled.slice(0, headerBanSlots);
+  }, [bansByTeam, headerBanSlots, match]);
 
   const teamBBans = useMemo(() => {
     const list = match ? bansByTeam.get(match.teamBId) ?? [] : [];
     const filled = [...list];
-    while (filled.length < 2) filled.push(null);
-    return filled.slice(0, 2);
-  }, [bansByTeam, match]);
+    while (filled.length < headerBanSlots) filled.push(null);
+    return filled.slice(0, headerBanSlots);
+  }, [bansByTeam, headerBanSlots, match]);
 
   const leftTeam = reverseSides ? teamB : teamA;
   const rightTeam = reverseSides ? teamA : teamB;
@@ -163,7 +164,7 @@ export function MatchHeaderOverlay({ matchId, reverseSides = false }: MatchHeade
                   return (
                     <div
                       key={`left-team-ban-${index}`}
-                      className={`${styles.banSlot} ${index === 0 ? styles.banSlotTop : styles.banSlotBottom}`}
+                      className={styles.banSlot}
                     >
                       {hero?.imgPath ? (
                         <img
@@ -207,7 +208,7 @@ export function MatchHeaderOverlay({ matchId, reverseSides = false }: MatchHeade
                   return (
                     <div
                       key={`right-team-ban-${index}`}
-                      className={`${styles.banSlot} ${index === 0 ? styles.banSlotTop : styles.banSlotBottom}`}
+                      className={styles.banSlot}
                     >
                       {hero?.imgPath ? (
                         <img

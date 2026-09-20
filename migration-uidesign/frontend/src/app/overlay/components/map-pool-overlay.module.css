@@ -251,6 +251,7 @@
    the stack when a column dims — the column opacity already carries it. */
 
 .columnHeader {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -259,12 +260,38 @@
   /* The cap and the first map share the same two endpoints, so the active
      column reads as one continuous ribbon instead of a label over a card. */
   clip-path: polygon(var(--fan-lean) 0, 100% 0, 100% 100%, var(--fan-lean) 100%);
-  background: linear-gradient(100deg, rgba(27, 53, 39, 0.9), rgba(12, 22, 16, 0.55));
+  background:
+    linear-gradient(100deg, rgba(62, 224, 138, 0.16), transparent 34%),
+    linear-gradient(100deg, #173f2c 0%, #0d2419 54%, #07110c 100%);
   transition: background 500ms var(--otp-ease);
 }
 
+.columnHeader::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: var(--fan-lean);
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    var(--otp-neon-hot) 0%,
+    var(--otp-neon) 18%,
+    var(--otp-line-bright) 62%,
+    transparent 100%
+  );
+  opacity: 0.66;
+}
+
 .column[data-state="active"] .columnHeader {
-  background: linear-gradient(100deg, var(--otp-neon) 0%, rgba(52, 122, 87, 0.55) 100%);
+  background:
+    linear-gradient(100deg, rgba(255, 255, 255, 0.34), transparent 24%),
+    linear-gradient(100deg, var(--otp-neon-hot) 0%, var(--otp-neon) 44%, #1b6e48 100%);
+}
+
+.column[data-state="active"] .columnHeader::after {
+  background: linear-gradient(90deg, #ffffff 0%, var(--otp-neon-hot) 34%, var(--otp-neon) 100%);
+  opacity: 1;
 }
 
 .columnTitle {
@@ -298,11 +325,24 @@
 
 /* The outer silhouette belongs to the whole type, not to each map. */
 .stack {
+  position: relative;
+  isolation: isolate;
   flex: 1;
   min-height: 0;
-  padding: 5px;
+  padding: 7px;
   display: flex;
-  background: linear-gradient(150deg, #1f7a4d 0%, #14603b 45%, #0c4429 100%);
+  background:
+    linear-gradient(100deg, rgba(221, 255, 238, 0.7) 0 1px, transparent 1px 13px),
+    linear-gradient(
+      150deg,
+      color-mix(in srgb, #ffffff 28%, var(--otp-neon) 72%) 0%,
+      var(--otp-neon) 14%,
+      #0b6841 30%,
+      #052719 48%,
+      #19c96f 58%,
+      #073b27 78%,
+      var(--otp-neon-hot) 100%
+    );
   clip-path: polygon(
     var(--fan-lean) 0,
     100% 0,
@@ -313,24 +353,55 @@
     var(--fan-notch-far) 57%,
     calc(var(--fan-lean) - var(--fan-notch-mid)) 43%
   );
-  filter: drop-shadow(0 3px 9px rgba(0, 0, 0, 0.5))
-    drop-shadow(0 0 8px rgba(12, 68, 41, 0.5));
+  filter: drop-shadow(0 5px 12px rgba(0, 0, 0, 0.64))
+    drop-shadow(0 0 10px rgba(62, 224, 138, 0.26));
+  transition:
+    background 500ms var(--otp-ease),
+    filter 500ms var(--otp-ease);
+}
+
+.stack::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.62) 0 2px, transparent 2px 100%),
+    repeating-linear-gradient(100deg, transparent 0 12px, rgba(125, 255, 190, 0.42) 12px 14px);
+  opacity: 0.48;
 }
 
 .column[data-state="active"] .stack {
-  background: linear-gradient(150deg, #b6ffdb 0%, var(--otp-neon-hot) 45%, var(--otp-neon) 100%);
-  filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.6))
-    drop-shadow(0 0 14px rgba(125, 255, 190, 0.55));
+  background:
+    linear-gradient(100deg, rgba(255, 255, 255, 0.82) 0 2px, transparent 2px 12px),
+    linear-gradient(
+      150deg,
+      #ffffff 0%,
+      var(--otp-neon-hot) 11%,
+      var(--otp-neon) 42%,
+      #11895a 62%,
+      var(--otp-neon-hot) 100%
+    );
+  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.7))
+    drop-shadow(0 0 20px rgba(125, 255, 190, 0.58));
+}
+
+.column[data-state="active"] .stack::before {
+  opacity: 0.82;
 }
 
 .stackInner {
+  position: relative;
+  z-index: 1;
   flex: 1;
   min-width: 0;
   min-height: 0;
+  padding: 2px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: var(--otp-panel);
+  background: linear-gradient(150deg, #0a2e1f 0%, var(--otp-neon) 46%, #06160f 52%, #146f47 100%);
   clip-path: polygon(
     var(--fan-lean) 0,
     100% 0,
@@ -340,6 +411,17 @@
     0 100%,
     var(--fan-notch-far) 57%,
     calc(var(--fan-lean) - var(--fan-notch-mid)) 43%
+  );
+}
+
+.column[data-state="active"] .stackInner {
+  background: linear-gradient(
+    150deg,
+    var(--otp-neon-hot) 0%,
+    #ffffff 19%,
+    var(--otp-neon) 48%,
+    #0a5235 58%,
+    var(--otp-neon-hot) 100%
   );
 }
 
@@ -361,11 +443,27 @@
 }
 
 .cardFrame + .cardFrame {
-  border-top: 4px solid #14603b;
+  border-top: 5px solid transparent;
+  border-image: linear-gradient(
+      90deg,
+      #062a1c 0%,
+      #168b57 20%,
+      var(--otp-neon-hot) 48%,
+      var(--otp-neon) 62%,
+      #073523 100%
+    )
+    1;
 }
 
 .column[data-state="active"] .cardFrame + .cardFrame {
-  border-top-color: var(--otp-neon-hot);
+  border-image: linear-gradient(
+      90deg,
+      var(--otp-neon) 0%,
+      #ffffff 44%,
+      var(--otp-neon-hot) 58%,
+      var(--otp-neon) 100%
+    )
+    1;
 }
 
 .cardFrame[data-muted="true"] {
