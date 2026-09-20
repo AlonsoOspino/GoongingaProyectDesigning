@@ -1,7 +1,7 @@
 const teamRepo = require("../repositories/team");
 
-const getAll = async () => {
-  return await teamRepo.findAll();
+const getAll = async (options) => {
+  return await teamRepo.findAll(options);
 };
 
 const getById = async (id) => {

@@ -1,6 +1,8 @@
 const matchService = require("../services/match");
+const devDraftAppService = require("../services/devDraftApp");
 const prisma = require("../config/prisma");
 const { sendDiscordMatchScheduled, editDiscordMatchScheduled } = require("../utils/discordWebhook");
+const { normalizeOverlayFocus } = require("../utils/overlayFocus");
 
 const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj || {}, key);
 
@@ -143,13 +145,15 @@ const notifyDiscordScheduleChange = async ({
 
 const getById = async (req, res) => {
   try {
-    const match = await matchService.getById(Number(req.params.id));
+    const matchId = await devDraftAppService.resolveMatchReference(req.params.id);
+    const match = await matchService.getById(matchId);
     if (!match) {
       return res.status(404).json({ message: "Match not found" });
     }
     res.json(match);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    const status = String(err.message || "").toLowerCase().includes("not found") ? 404 : 400;
+    res.status(status).json({ message: err.message });
   }
 };
 
@@ -545,49 +549,6 @@ const generateVsImage = async (req, res) => {
     console.error("Image generation error:", err);
     res.status(500).json({ message: err.message });
   }
-};
-
-// Broadcast focus for the map pool overlay. The overlay runs as an OBS browser
-// source, a separate browser process, so nothing client-side can carry this —
-// it has to round-trip through the match row the overlay already polls.
-const OVERLAY_MAP_TYPES = ["CONTROL", "HYBRID", "PAYLOAD", "PUSH", "FLASHPOINT"];
-
-const normalizeOverlayFocus = (body) => {
-  const hasType = hasOwn(body, "focusType");
-  const hasMapId = hasOwn(body, "focusMapId");
-
-  if (!hasType && !hasMapId) {
-    throw new Error("Provide focusType or focusMapId.");
-  }
-
-  const rawType = hasType ? body.focusType : null;
-
-  // A null type is how the manager sends the overlay back to the plain pool,
-  // which also drops any hero card behind it.
-  if (rawType === null || rawType === undefined || rawType === "") {
-    if (hasMapId && body.focusMapId !== null && body.focusMapId !== undefined) {
-      throw new Error("focusType is required when focusMapId is set.");
-    }
-    return { overlayFocusType: null, overlayFocusMapId: null };
-  }
-
-  const overlayFocusType = String(rawType).trim().toUpperCase();
-  if (!OVERLAY_MAP_TYPES.includes(overlayFocusType)) {
-    throw new Error(`Invalid focusType: ${rawType}`);
-  }
-
-  const rawMapId = hasMapId ? body.focusMapId : null;
-  if (rawMapId === null || rawMapId === undefined) {
-    return { overlayFocusType, overlayFocusMapId: null };
-  }
-
-  // Number("") is 0 and Number(true) is 1, so reject anything that is not
-  // already a number before letting it near the column.
-  if (typeof rawMapId !== "number" || !Number.isInteger(rawMapId) || rawMapId <= 0) {
-    throw new Error(`Invalid focusMapId: ${rawMapId}`);
-  }
-
-  return { overlayFocusType, overlayFocusMapId: rawMapId };
 };
 
 // Deliberately not routed through managerUpdate: that path fires a Discord

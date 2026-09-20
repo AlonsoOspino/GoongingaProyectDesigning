@@ -5,11 +5,12 @@ import { getMatchById } from "@/lib/api/admin";
 import { getDraftByMatchId } from "@/lib/api/draft";
 import { getTeams } from "@/lib/api/team";
 import type { DraftState, Hero, Match, Team } from "@/lib/api/types";
+import type { MatchReference } from "@/lib/matchReference";
 import { resolveGenericBackendAsset, resolveHeroImageUrl } from "@/lib/assetUrls";
 import styles from "./match-header-overlay.module.css";
 
 interface MatchHeaderOverlayProps {
-  matchId: number;
+  matchId: MatchReference | null;
   reverseSides?: boolean;
 }
 
@@ -26,7 +27,7 @@ export function MatchHeaderOverlay({ matchId, reverseSides = false }: MatchHeade
   const [draft, setDraft] = useState<DraftState | null>(null);
 
   useEffect(() => {
-    if (!Number.isInteger(matchId) || matchId <= 0) {
+    if (matchId === null) {
       return;
     }
 
@@ -36,7 +37,7 @@ export function MatchHeaderOverlay({ matchId, reverseSides = false }: MatchHeade
       try {
         const [loadedMatch, loadedTeams] = await Promise.all([
           getMatchById(matchId),
-          getTeams(),
+          getTeams({ includeDev: matchId === "dev" }),
         ]);
         const loadedDraft = await getDraftByMatchId(matchId).catch(() => undefined);
 
@@ -53,7 +54,7 @@ export function MatchHeaderOverlay({ matchId, reverseSides = false }: MatchHeade
     void load();
     const pollId = window.setInterval(() => {
       void load();
-    }, POLL_INTERVAL_MS);
+    }, matchId === "dev" ? 1200 : POLL_INTERVAL_MS);
 
     return () => {
       cancelled = true;
@@ -148,8 +149,13 @@ export function MatchHeaderOverlay({ matchId, reverseSides = false }: MatchHeade
                   src={teamAssetUrl(leftTeam.bannerLeft)}
                   alt=""
                 />
+              ) : leftTeam?.logo ? (
+                <div className={styles.logoFallback}>
+                  <img className={styles.logoFallbackImage} src={teamAssetUrl(leftTeam.logo)} alt="" />
+                  <span>{leftTeam.name}</span>
+                </div>
               ) : (
-                <div className={styles.fallback}>BANNER</div>
+                <div className={styles.fallback}>{leftTeam?.name || "TEAM"}</div>
               )}
               <div className={`${styles.banStack} ${styles.banStackOverlay} ${styles.banStackRight}`}>
                 {leftTeamBans.map((heroId, index) => {
@@ -187,8 +193,13 @@ export function MatchHeaderOverlay({ matchId, reverseSides = false }: MatchHeade
                   src={teamAssetUrl(rightTeam.bannerRight)}
                   alt=""
                 />
+              ) : rightTeam?.logo ? (
+                <div className={`${styles.logoFallback} ${styles.logoFallbackRight}`}>
+                  <img className={styles.logoFallbackImage} src={teamAssetUrl(rightTeam.logo)} alt="" />
+                  <span>{rightTeam.name}</span>
+                </div>
               ) : (
-                <div className={styles.fallback}>BANNER</div>
+                <div className={styles.fallback}>{rightTeam?.name || "TEAM"}</div>
               )}
               <div className={`${styles.banStack} ${styles.banStackOverlay} ${styles.banStackLeft}`}>
                 {rightTeamBans.map((heroId, index) => {

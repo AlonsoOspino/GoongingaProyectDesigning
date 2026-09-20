@@ -1,8 +1,9 @@
 import { apiRequest } from "@/lib/api/client";
 import type { Team } from "@/lib/api/types";
 
-export async function getTeams() {
-  return apiRequest<Team[]>("/team");
+export async function getTeams(options: { includeDev?: boolean } = {}) {
+  const query = options.includeDev ? "?includeDev=true" : "";
+  return apiRequest<Team[]>(`/team${query}`);
 }
 
 export async function getLeaderboard(tournamentId?: number) {

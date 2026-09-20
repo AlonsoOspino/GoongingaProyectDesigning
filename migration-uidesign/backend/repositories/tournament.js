@@ -1,4 +1,7 @@
 const prisma = require("../config/prisma");
+const { DEV_DRAFT_TOURNAMENT_NAME } = require("../utils/devDraftApp");
+
+const visibleTournamentWhere = { name: { not: DEV_DRAFT_TOURNAMENT_NAME } };
 
 const create = (data) => prisma.tournament.create({ data });
 
@@ -14,14 +17,15 @@ const findByName = (name) =>
 const findById = (id) =>
   prisma.tournament.findUnique({ where: { id } });
 
-const findAll = () => prisma.tournament.findMany();
+const findAll = () => prisma.tournament.findMany({ where: visibleTournamentWhere });
 
 const findActive = () => prisma.tournament.findFirst({
-  where: { state: { not: "FINISHED" } },
+  where: { ...visibleTournamentWhere, state: { not: "FINISHED" } },
   orderBy: [{ startDate: "desc" }, { id: "desc" }],
 });
 
 const findMostRecent = () => prisma.tournament.findFirst({
+  where: visibleTournamentWhere,
   orderBy: [{ startDate: "desc" }, { id: "desc" }],
 });
 

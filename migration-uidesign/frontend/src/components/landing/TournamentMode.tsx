@@ -20,8 +20,8 @@ import styles from "./tournament-mode.module.css";
  *                       taste of the nearest week if neither exists
  *   grand final      -> the same, but staged bigger
  *
- * Data is scoped to the current tournament so the developer sandbox season can
- * never leak onto the homepage.
+ * Data is scoped to the current tournament so old seasons can never leak onto
+ * the homepage.
  */
 
 type Phase =

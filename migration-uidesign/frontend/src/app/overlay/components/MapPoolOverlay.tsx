@@ -4,13 +4,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { clsx } from "clsx";
 import { getMaps, getMatchById, type AdminGameMap } from "@/lib/api/admin";
 import type { MapType, Match } from "@/lib/api/types";
+import type { MatchReference } from "@/lib/matchReference";
 import { resolveMapImageUrl } from "@/lib/assetUrls";
 import styles from "./map-pool-overlay.module.css";
 
 type OverlayVariant = "classic" | "clean";
 
 interface MapPoolOverlayProps {
-  matchId: number;
+  matchId: MatchReference | null;
   variant?: OverlayVariant;
 }
 
@@ -92,7 +93,7 @@ export function MapPoolOverlay({ matchId, variant = "classic" }: MapPoolOverlayP
   const hasLoadedRef = useRef(false);
 
   useEffect(() => {
-    if (!Number.isInteger(matchId) || matchId <= 0) {
+    if (matchId === null) {
       setLoading(false);
       setError("Invalid match id.");
       return;

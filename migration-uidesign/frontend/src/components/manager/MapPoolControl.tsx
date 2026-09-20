@@ -3,14 +3,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check, Copy, Radio, RotateCcw } from "lucide-react";
 import { getMaps, type AdminGameMap } from "@/lib/api/admin";
-import { managerSetOverlayFocus } from "@/lib/api/match";
+import { managerSetOverlayFocus, type OverlayFocusPayload } from "@/lib/api/match";
 import type { MapType, Match } from "@/lib/api/types";
+import type { MatchReference } from "@/lib/matchReference";
 import { resolveMapImageUrl } from "@/lib/assetUrls";
 import styles from "./map-pool-control.module.css";
 
 interface MapPoolControlProps {
   match: Match;
   token: string;
+  overlayMatchReference?: MatchReference;
+  updateFocus?: (payload: OverlayFocusPayload) => Promise<unknown>;
 }
 
 interface ColumnDefinition {
@@ -95,7 +98,12 @@ function extractMapPoolIds(match: Match) {
 
 const sameFocus = (a: Focus, b: Focus) => a.type === b.type && a.mapId === b.mapId;
 
-export function MapPoolControl({ match, token }: MapPoolControlProps) {
+export function MapPoolControl({
+  match,
+  token,
+  overlayMatchReference = match.id,
+  updateFocus,
+}: MapPoolControlProps) {
   const [maps, setMaps] = useState<AdminGameMap[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -162,10 +170,15 @@ export function MapPoolControl({ match, token }: MapPoolControlProps) {
       setSaving(true);
       setError(null);
       try {
-        await managerSetOverlayFocus(token, match.id, {
+        const payload = {
           focusType: next.type,
           focusMapId: next.mapId,
-        });
+        };
+        if (updateFocus) {
+          await updateFocus(payload);
+        } else {
+          await managerSetOverlayFocus(token, match.id, payload);
+        }
       } catch (requestError) {
         // Roll back to whatever the server last told us rather than leaving a
         // control that claims something the overlay is not showing.
@@ -177,11 +190,13 @@ export function MapPoolControl({ match, token }: MapPoolControlProps) {
         setSaving(false);
       }
     },
-    [match.id, token]
+    [match.id, token, updateFocus]
   );
 
   const overlayUrl =
-    typeof window === "undefined" ? "" : `${window.location.origin}/overlay/map-pool/${match.id}`;
+    typeof window === "undefined"
+      ? ""
+      : `${window.location.origin}/overlay/map-pool/${overlayMatchReference}`;
 
   const handleCopy = useCallback(async () => {
     if (!overlayUrl) return;

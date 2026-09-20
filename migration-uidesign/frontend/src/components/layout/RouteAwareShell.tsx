@@ -14,7 +14,6 @@ export function RouteAwareShell({ children }: { children: ReactNode }) {
   const isLandingRoute = pathname === "/";
   const isWrappedRoute = pathname.startsWith("/wrapped") || pathname.startsWith("/history/season-8/wrapped");
   const isDraftTableRoute = pathname.startsWith("/draft-table");
-  const isDraftTableDevRoute = pathname === "/draft-table-dev";
   // Registration is a full-bleed page with its own way back, so the site
   // header would both duplicate that and push it past 100vh.
   const isLoginRoute = pathname === "/login";
@@ -22,7 +21,7 @@ export function RouteAwareShell({ children }: { children: ReactNode }) {
   const hasDraftAccessKey = isDraftTableRoute && Boolean(searchParams?.get("key"));
   const isKeyViewerMode = hasDraftAccessKey && user?.role !== "MANAGER";
 
-  if (isOverlayRoute || isWrappedRoute || isDraftTableDevRoute || isLoginRoute || isEmbeddedManager || hasDraftAccessKey || isKeyViewerMode) {
+  if (isOverlayRoute || isWrappedRoute || isLoginRoute || isEmbeddedManager || hasDraftAccessKey || isKeyViewerMode) {
     return <>{children}</>;
   }
 

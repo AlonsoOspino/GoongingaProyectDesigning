@@ -48,22 +48,7 @@ import stageStyles from "@/components/draft/draft-stage.module.css";
 import waitingStyles from "@/components/draft/waiting-room.module.css";
 import playing from "@/components/draft/playing-stage.module.css";
 import { isBracketMatch, getRequiredWins, getSeriesLength } from "@/lib/match-format";
-import { useDraftTableDevData } from "@/app/draft-table-dev/DraftTableDevContext";
-import {
-  banDraftTableDevHero,
-  createDraftTableDevState,
-  createDraftTableDevTeams,
-  endDraftTableDevGame,
-  pickDraftTableDevMap,
-  pickDraftTableDevMapType,
-  readyNextDraftTableDevCaptain,
-  startDraftTableDevBans,
-  startDraftTableDevMapPicking,
-  submitDraftTableDevResult,
-  undoDraftTableDevResult,
-  yieldDraftTableDevFirstPick,
-  type DraftTableDevData,
-} from "@/app/draft-table-dev/demo-data";
+import { parseMatchReference } from "@/lib/matchReference";
 
 const POLL_INTERVAL = 3000;
 const TURN_DURATION = 95;
@@ -95,20 +80,15 @@ export default function DraftTablePage() {
   const { user, token, isAuthenticated, isHydrated, clearSession } = useSession();
   const searchParams = useSearchParams();
   const urlKey = searchParams?.get("key");
-  const devData = useDraftTableDevData();
-  const isDevDemo = Boolean(devData);
-
-  const matchId = devData?.match.id ?? Number(params.matchId);
+  const matchReference = parseMatchReference((params as { matchId?: string }).matchId);
+  const isDevMatch = matchReference === "dev";
   const isObsKeyAccess = Boolean(urlKey);
 
-  const [draftState, setDraftState] = useState<DraftState | null>(() =>
-    devData ? createDraftTableDevState(devData) : null
-  );
+  const [draftState, setDraftState] = useState<DraftState | null>(null);
+  const matchId = draftState?.matchId ?? (typeof matchReference === "number" ? matchReference : 0);
   const draftId = draftState?.id;
-  const [teams, setTeams] = useState<Team[]>(() =>
-    devData ? createDraftTableDevTeams(devData) : []
-  );
-  const [loading, setLoading] = useState(!devData);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -152,16 +132,14 @@ export default function DraftTablePage() {
     };
   }, []);
 
-  const isManager = isDevDemo || Boolean(networkUser?.roles.some((role) => role === "SOCIAL_MEDIA" || role === "ADMIN"));
-  const isAdmin = isDevDemo || Boolean(networkUser?.roles.includes("ADMIN"));
+  const isManager = Boolean(networkUser?.roles.some((role) => role === "SOCIAL_MEDIA" || role === "ADMIN"));
+  const isAdmin = Boolean(networkUser?.roles.includes("ADMIN"));
   // Destructive operational actions (full match reset) are open to both roles.
   const canResetMatch = isManager || isAdmin;
-  const isCaptain = isDevDemo || user?.role === "CAPTAIN";
+  const isCaptain = user?.role === "CAPTAIN";
   const isKeyAccess = isObsKeyAccess;
   const shouldRenderCompactHeader = true;
-  const myTeamId = isDevDemo
-    ? draftState?.currentTurnTeamId ?? devData?.match.initialPickerTeamId
-    : user?.teamId;
+  const myTeamId = user?.teamId;
   const isMyTurn = draftState?.currentTurnTeamId === myTeamId;
   const currentPhase = draftState?.phase as Phase;
   const isMapSelectionLocked = currentPhase === "MAPPICKING" && Boolean(draftState?.currentMapId);
@@ -197,19 +175,6 @@ export default function DraftTablePage() {
     [clearSession, showActionError]
   );
 
-  const updateDemoState = (
-    transition: (state: DraftState, data: DraftTableDevData) => DraftState
-  ): boolean => {
-    if (!isDevDemo || !devData || !draftState) return false;
-    try {
-      setDraftState(transition(draftState, devData));
-      setActionError(null);
-    } catch (err) {
-      showActionError(getRequestErrorMessage(err, "The local demo action could not be completed."));
-    }
-    return true;
-  };
-
   useEffect(() => {
     return () => {
       if (actionErrorTimerRef.current) clearTimeout(actionErrorTimerRef.current);
@@ -220,16 +185,13 @@ export default function DraftTablePage() {
   const showDraftHistory = matchStatus === "FINISHED" || currentPhase === "FINISHED";
 
   // Check if I'm ready (for captains)
-  const amIReady = isDevDemo
-    ? draftState?.match?.teamAready === 1 && draftState?.match?.teamBready === 1
-    : isCaptain && myTeamId === teamA?.id
-      ? draftState?.match?.teamAready === 1
-      : draftState?.match?.teamBready === 1;
+  const amIReady = isCaptain && myTeamId === teamA?.id
+    ? draftState?.match?.teamAready === 1
+    : draftState?.match?.teamBready === 1;
 
   useEffect(() => {
-    if (isDevDemo) return;
     if (!isHydrated) return;
-    if (!Number.isFinite(matchId) || matchId <= 0) {
+    if (matchReference === null) {
       setError("Invalid match id.");
       setLoading(false);
       return;
@@ -240,10 +202,9 @@ export default function DraftTablePage() {
       return;
     }
     loadData();
-  }, [isDevDemo, isHydrated, isAuthenticated, matchId, urlKey]);
+  }, [isHydrated, isAuthenticated, matchReference, urlKey]);
 
   useEffect(() => {
-    if (isDevDemo) return;
     if (!draftState || currentPhase === "FINISHED") return;
     if (!isAuthenticated && !urlKey) return;
     pollRef.current = setInterval(() => {
@@ -252,7 +213,7 @@ export default function DraftTablePage() {
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [isDevDemo, draftState, currentPhase, isAuthenticated, urlKey]);
+  }, [draftState, currentPhase, isAuthenticated, urlKey]);
 
   const isMatchPaused = !!draftState?.match?.mapTimerPaused;
   const pauseRequestedBy = draftState?.match?.pauseRequestedBy ?? null;
@@ -332,10 +293,11 @@ export default function DraftTablePage() {
   }, [draftState?.allMaps, draftState?.availableMaps]);
 
   async function loadData() {
+    if (matchReference === null) return;
     try {
       const [draft, teamsData] = await Promise.all([
-        getDraftByMatchId(matchId, { key: urlKey ?? undefined, token: token ?? undefined }),
-        getTeams(),
+        getDraftByMatchId(matchReference, { key: urlKey ?? undefined, token: token ?? undefined }),
+        getTeams({ includeDev: isDevMatch }),
       ]);
       setDraftState(draft);
       setTeams(teamsData);
@@ -354,7 +316,6 @@ export default function DraftTablePage() {
   }
 
   async function fetchDraftState() {
-    if (isDevDemo) return;
     if (!draftId) return;
     try {
       const draft = await getDraftState(draftId, { key: urlKey ?? undefined, token: token ?? undefined });
@@ -370,7 +331,6 @@ export default function DraftTablePage() {
   }
 
   async function handleStartMapPicking() {
-    if (updateDemoState(startDraftTableDevMapPicking)) return;
     if (!token) {
       showActionError(SESSION_EXPIRED_MESSAGE);
       return;
@@ -392,7 +352,6 @@ export default function DraftTablePage() {
   }
 
   async function handleYieldFirstPick() {
-    if (updateDemoState(yieldDraftTableDevFirstPick)) return;
     if (!token) {
       showActionError(SESSION_EXPIRED_MESSAGE);
       return;
@@ -414,16 +373,6 @@ export default function DraftTablePage() {
   }
 
   async function handlePickMapType(mapType: MapType) {
-    if (isDevDemo && devData && draftState) {
-      try {
-        setDraftState(pickDraftTableDevMapType(draftState, devData, mapType));
-        setActionError(null);
-        return true;
-      } catch (err) {
-        showActionError(getRequestErrorMessage(err, "The local demo action could not be completed."));
-        return false;
-      }
-    }
     if (!token) {
       showActionError(SESSION_EXPIRED_MESSAGE);
       return false;
@@ -461,7 +410,6 @@ export default function DraftTablePage() {
   }
 
   async function handleStartBan() {
-    if (updateDemoState(startDraftTableDevBans)) return;
     if (!token) {
       showActionError(SESSION_EXPIRED_MESSAGE);
       return;
@@ -483,7 +431,6 @@ export default function DraftTablePage() {
   }
 
   async function handleEndGame() {
-    if (updateDemoState(endDraftTableDevGame)) return;
     if (!token) {
       showActionError(SESSION_EXPIRED_MESSAGE);
       return;
@@ -505,16 +452,6 @@ export default function DraftTablePage() {
   }
 
   async function handlePickMap(mapId: number) {
-    if (isDevDemo && devData && draftState) {
-      try {
-        setDraftState(pickDraftTableDevMap(draftState, devData, mapId));
-        setActionError(null);
-        return true;
-      } catch (err) {
-        showActionError(getRequestErrorMessage(err, "The local demo action could not be completed."));
-        return false;
-      }
-    }
     if (!token) {
       showActionError(SESSION_EXPIRED_MESSAGE);
       return false;
@@ -544,7 +481,6 @@ export default function DraftTablePage() {
   }
 
   async function handleBanHero(heroId: number | null) {
-    if (updateDemoState((state, data) => banDraftTableDevHero(state, data, heroId))) return;
     if (!token) {
       showActionError(SESSION_EXPIRED_MESSAGE);
       return;
@@ -572,7 +508,6 @@ export default function DraftTablePage() {
   }
 
   async function handleSubmitResult(winnerTeamId: number | null) {
-    if (updateDemoState((state, data) => submitDraftTableDevResult(state, data, winnerTeamId))) return;
     if (!token) {
       showActionError(SESSION_EXPIRED_MESSAGE);
       return;
@@ -594,7 +529,6 @@ export default function DraftTablePage() {
   }
 
   async function handleUndoResult() {
-    if (updateDemoState(undoDraftTableDevResult)) return;
     if (!token) {
       showActionError(SESSION_EXPIRED_MESSAGE);
       return;
@@ -619,13 +553,6 @@ export default function DraftTablePage() {
   // scratch: clears the draft, the score, the timers, the ready flags and the
   // uploaded stats, and rolls back the standings.
   async function handleResetMatch() {
-    if (isDevDemo && devData) {
-      setDraftState(createDraftTableDevState(devData));
-      setTeams(createDraftTableDevTeams(devData));
-      setResetConfirmOpen(false);
-      setActionError(null);
-      return;
-    }
     if (!token) {
       showActionError(SESSION_EXPIRED_MESSAGE);
       return;
@@ -644,7 +571,6 @@ export default function DraftTablePage() {
   }
 
   async function handleSetReady() {
-    if (updateDemoState(readyNextDraftTableDevCaptain)) return;
     if (!token) {
       showActionError(SESSION_EXPIRED_MESSAGE);
       return;
@@ -957,7 +883,7 @@ export default function DraftTablePage() {
     if (urls.length) preloadImages(urls);
   }, [draftState?.allMaps]);
 
-  if ((!isDevDemo && !isHydrated) || loading) {
+  if (!isHydrated || loading) {
     return wrapKeyView(
       <div
         className={clsx("bg-background flex items-center justify-center", !isKeyAccess && "min-h-screen")}
@@ -1307,7 +1233,7 @@ export default function DraftTablePage() {
         </div>
       )}
 
-      {isCaptain && !isDevDemo && !isObsKeyAccess && (
+      {isCaptain && !isObsKeyAccess && (
         <div className={clsx(floatingPositionClass, "right-6 bottom-6 z-40")}>
           <Button size="sm" variant="secondary" onClick={handleOpenShareOverlay} disabled={shareLoading}>
             {shareLoading ? "Loading..." : "Share draft"}
@@ -1378,31 +1304,23 @@ export default function DraftTablePage() {
         >
           <div className="w-[min(92vw,460px)] rounded-lg border border-danger/50 bg-surface p-5 shadow-2xl shadow-black/50">
             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-danger">
-              {isDevDemo ? "Local demo" : "Destructive action"}
+              Destructive action
             </p>
             <h2 id="reset-match-title" className="mt-1 text-2xl font-black text-foreground">
               Reset match #{matchId}?
             </h2>
-            {isDevDemo ? (
-              <p className="mt-3 text-sm leading-relaxed text-muted">
-                This restores the ignored fixture and restarts the local rehearsal at captain check-in.
-              </p>
-            ) : (
-              <>
-                <p className="mt-3 text-sm leading-relaxed text-muted">
-                  This sends the match back to the schedule stage. It will:
-                </p>
-                <ul className="mt-3 space-y-1.5 text-sm leading-relaxed text-muted">
-                  <li>· Delete the draft and every pick and ban</li>
-                  <li>· Clear the score, map results and uploaded player stats</li>
-                  <li>· Reset both captain ready flags and all timers</li>
-                  <li>· Roll back team standings and un-eliminate the loser</li>
-                </ul>
-                <p className="mt-3 text-sm font-semibold leading-relaxed text-foreground">
-                  This cannot be undone.
-                </p>
-              </>
-            )}
+            <p className="mt-3 text-sm leading-relaxed text-muted">
+              This sends the match back to the schedule stage. It will:
+            </p>
+            <ul className="mt-3 space-y-1.5 text-sm leading-relaxed text-muted">
+              <li>· Delete the draft and every pick and ban</li>
+              <li>· Clear the score, map results and uploaded player stats</li>
+              <li>· Reset both captain ready flags and all timers</li>
+              <li>· Roll back team standings and un-eliminate the loser</li>
+            </ul>
+            <p className="mt-3 text-sm font-semibold leading-relaxed text-foreground">
+              This cannot be undone.
+            </p>
 
             <div className="mt-5 grid grid-cols-2 gap-2">
               <Button
@@ -1421,7 +1339,7 @@ export default function DraftTablePage() {
         </div>
       )}
 
-      {isManager && !isDevDemo && (
+      {isManager && (
         <div className={clsx(floatingPositionClass, "right-6 z-40", isObsKeyAccess ? "top-6" : "bottom-6")}>
           <Button size="sm" variant="secondary" onClick={() => toggleNavbar(!isNavHidden)}>
             {isNavHidden ? "Show header" : "Hide header"}
@@ -1430,7 +1348,7 @@ export default function DraftTablePage() {
       )}
 
       {/* Captain pause request button — wired to backend */}
-      {!isDevDemo && (currentPhase === "MAPTYPEPICKING" || currentPhase === "MAPPICKING" || currentPhase === "BAN") && isCaptain && !isMatchPaused && (
+      {(currentPhase === "MAPTYPEPICKING" || currentPhase === "MAPPICKING" || currentPhase === "BAN") && isCaptain && !isMatchPaused && (
         <button
           onClick={async () => {
             if (pauseActionPending) return;
@@ -1468,7 +1386,7 @@ export default function DraftTablePage() {
       )}
 
       {/* Manager pause/resume control */}
-      {!isDevDemo && (currentPhase === "MAPTYPEPICKING" || currentPhase === "MAPPICKING" || currentPhase === "BAN") && isManager && (
+      {(currentPhase === "MAPTYPEPICKING" || currentPhase === "MAPPICKING" || currentPhase === "BAN") && isManager && (
         <button
           onClick={async () => {
             if (pauseActionPending) return;
@@ -1510,7 +1428,7 @@ export default function DraftTablePage() {
       )}
 
       {/* Manager-only: floating pause-request notification when a captain asks */}
-      {!isDevDemo && isManager && pauseRequestedBy && !isMatchPaused && (
+      {isManager && pauseRequestedBy && !isMatchPaused && (
         <div className={clsx(floatingPositionClass, "top-24 right-6 z-40 w-80 bg-surface border-2 border-warning rounded-xl shadow-2xl shadow-warning/20 animate-fade-in")}>
           <div className="p-4">
             <div className="flex items-center gap-2 mb-3">

@@ -128,7 +128,7 @@ graph TD
 
     SUB["Superficies existentes"]
     SUB --> PUB["Públicas: /season-9 · /history · /news · /standings · /teams · /schedule · /stats · /wrapped · /login"]
-    SUB --> OPS["Operativas: dashboards admin/manager/captain/casting/editor/social/dev · Announcement Studio"]
+    SUB --> OPS["Operativas: dashboards admin/manager/captain/casting/editor/social · Announcement Studio"]
     SUB --> LIVE["En vivo: /draft-table/[id] · overlays OBS (/overlay/*) · Launcher Electron"]
     SUB --> MG["Minigames: /feud · Jeopardy (app separada)"]
 

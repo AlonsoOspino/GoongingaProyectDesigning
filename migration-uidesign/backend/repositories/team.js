@@ -1,11 +1,15 @@
 const prisma = require("../config/prisma");
+const { DEV_DRAFT_TOURNAMENT_NAME } = require("../utils/devDraftApp");
+
+const visibleTeamWhere = { tournament: { name: { not: DEV_DRAFT_TOURNAMENT_NAME } } };
 
 const create = (data) => prisma.team.create({ data });
 const update = (id, data) => prisma.team.update({ where: { id }, data });
 const remove = (id) => prisma.team.delete({ where: { id } });
-const findByName = (name) => prisma.team.findFirst({ where: { name } });
+const findByName = (name) => prisma.team.findFirst({ where: { name, ...visibleTeamWhere } });
 const findById = (id) => prisma.team.findUnique({ where: { id } });
-const findAll = () => prisma.team.findMany();
+const findAll = ({ includeDev = false } = {}) =>
+  prisma.team.findMany({ where: includeDev ? undefined : visibleTeamWhere });
 const mapDiff = (team) => Number(team.mapWins || 0) - Number(team.mapLoses || 0);
 
 const pairingKey = (teamAId, teamBId) =>
@@ -38,13 +42,17 @@ const sortLeaderboard = (teams, headToHeadWinners = new Map()) =>
   });
 
 const findLeaderboard = async (tournamentId) => {
+  const teamWhere = tournamentId ? { tournamentId } : visibleTeamWhere;
+  const matchWhere = tournamentId
+    ? { tournamentId }
+    : { tournament: { name: { not: DEV_DRAFT_TOURNAMENT_NAME } } };
   const [teams, decidedRoundRobinMatches] = await Promise.all([
     prisma.team.findMany({
-      where: tournamentId ? { tournamentId } : undefined,
+      where: teamWhere,
     }),
     prisma.match.findMany({
       where: {
-        ...(tournamentId ? { tournamentId } : {}),
+        ...matchWhere,
         type: "ROUNDROBIN",
         status: "FINISHED",
       },

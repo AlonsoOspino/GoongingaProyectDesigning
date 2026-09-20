@@ -2,7 +2,7 @@ const teamService = require("../services/team");
 
 const getAll = async (req, res) => {
   try {
-    const teams = await teamService.getAll()
+    const teams = await teamService.getAll({ includeDev: req.query.includeDev === "true" })
     res.json(teams)
     } catch (err) {
       res.status(400).json({ message: err.message })

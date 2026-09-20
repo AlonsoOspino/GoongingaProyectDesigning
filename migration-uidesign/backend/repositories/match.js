@@ -1,4 +1,5 @@
 const prisma = require("../config/prisma");
+const { DEV_DRAFT_TOURNAMENT_NAME } = require("../utils/devDraftApp");
 
 /**
  * Bracket (playoff) matches are identified by playoffRound when available.
@@ -431,7 +432,11 @@ const undoLastResult = async (id) => {
 const findSoonest = () => {
   return prisma.match.findFirst({
     orderBy: { startDate: "asc" },
-    where: { status: "SCHEDULED", startDate: { not: null } },
+    where: {
+      status: "SCHEDULED",
+      startDate: { not: null },
+      tournament: { name: { not: DEV_DRAFT_TOURNAMENT_NAME } },
+    },
   });
 };
 

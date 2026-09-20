@@ -20,7 +20,7 @@ const networkMemberRoutes = require("./routes/networkMember");
 const minigameRoutes = require("./routes/minigame");
 const announcementRoutes = require("./routes/announcement");
 const seasonRosterRoutes = require("./routes/seasonRoster");
-const devSandboxRoutes = require("./routes/devSandbox");
+const devDraftAppRoutes = require("./routes/devDraftApp");
 const cors = require("cors");
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -73,7 +73,6 @@ app.use("/draftAction", draftActionRoutes);
 app.use("/draftTable", draftTableRoutes);
 app.use("/draft", draftRoutes);
 app.use("/match", matchRoutes);
-app.use("/dev-sandbox", devSandboxRoutes);
 app.use("/team", teamRoutes);
 app.use("/playerStat", playerStatRoutes);
 app.use("/news", newsRoutes);
@@ -86,6 +85,7 @@ app.use("/network-members", networkMemberRoutes);
 app.use("/minigames", minigameRoutes);
 app.use("/announcements", announcementRoutes);
 app.use("/season-roster", seasonRosterRoutes);
+app.use("/dev/draft-app", devDraftAppRoutes);
 
 const startServer = async () => {
   if (!process.env.DATABASE_URL) {

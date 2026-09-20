@@ -4,6 +4,7 @@ export * from "@/lib/api/auth";
 export * from "@/lib/api/networkMember";
 export * from "@/lib/api/client";
 export * from "@/lib/api/draft";
+export * from "@/lib/api/devDraftApp";
 export * from "@/lib/api/match";
 export * from "@/lib/api/news";
 export * from "@/lib/api/playerStat";

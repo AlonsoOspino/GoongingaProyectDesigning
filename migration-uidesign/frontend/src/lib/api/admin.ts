@@ -1,5 +1,6 @@
 import { apiRequest, ApiError } from "@/lib/api/client";
 import type { Match, Team, MatchType, MatchStatus, Tournament, GenerateRoundRobinPayload } from "@/lib/api/types";
+import type { MatchReference } from "@/lib/matchReference";
 
 export type { Tournament };
 
@@ -128,7 +129,7 @@ export async function adminGetWeekMapsConfig(
   );
 }
 
-export async function getMatchById(matchId: number) {
+export async function getMatchById(matchId: MatchReference) {
   return apiRequest<Match>(`/match/${matchId}`);
 }
 

@@ -3,12 +3,13 @@
 import { useEffect } from "react";
 import { useParams } from "next/navigation";
 import { MapPoolOverlay } from "@/app/overlay/components/MapPoolOverlay";
+import { parseMatchReference } from "@/lib/matchReference";
 
 export default function MapPoolOverlayPage() {
   const params = useParams();
   // support both `[matchId]` and `[matchid]` folder naming (case differences)
   const rawId = (params as any).matchId ?? (params as any).matchid ?? (params as any).id;
-  const matchId = Number(rawId);
+  const matchId = parseMatchReference(rawId);
 
   useEffect(() => {
     const root = document.documentElement;

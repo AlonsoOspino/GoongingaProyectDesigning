@@ -1,5 +1,6 @@
 const matchRepo = require("../repositories/match");
 const tournamentRepo = require("../repositories/tournament");
+const { DEV_DRAFT_TOURNAMENT_NAME } = require("../utils/devDraftApp");
 
 const parsePositiveInt = (value, fieldName) => {
   const parsed = Number(value);
@@ -101,7 +102,7 @@ const getById = async (id) => {
 };
 
 const getAll = async (tournamentId, semanas, type) => {
-  const where = {};
+  const where = { tournament: { name: { not: DEV_DRAFT_TOURNAMENT_NAME } } };
   if (tournamentId) where.tournamentId = tournamentId;
   if (semanas) where.semanas = semanas;
   if (type) where.type = type;
@@ -234,10 +235,10 @@ const findSoonest = async () => {
   return await matchRepo.findSoonest();
 }
 const getActiveMatches = async () => {
-  const now = new Date();
   return await matchRepo.findAll({
     where: {
       status: "ACTIVE",
+      tournament: { name: { not: DEV_DRAFT_TOURNAMENT_NAME } },
     }
   });
 } 

@@ -3,10 +3,11 @@
 import { useEffect } from "react";
 import { useParams } from "next/navigation";
 import { MatchHeaderOverlay } from "@/app/overlay/components/MatchHeaderOverlay";
+import { parseMatchReference } from "@/lib/matchReference";
 
 export default function MatchHeaderOverlayReversedPage() {
   const params = useParams<{ matchId: string }>();
-  const matchId = Number(params.matchId);
+  const matchId = parseMatchReference(params.matchId);
 
   useEffect(() => {
     const root = document.documentElement;

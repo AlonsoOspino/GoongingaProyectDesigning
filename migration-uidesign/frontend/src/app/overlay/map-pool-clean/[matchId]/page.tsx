@@ -3,10 +3,11 @@
 import { useEffect } from "react";
 import { useParams } from "next/navigation";
 import { MapPoolOverlay } from "@/app/overlay/components/MapPoolOverlay";
+import { parseMatchReference } from "@/lib/matchReference";
 
 export default function MapPoolCleanOverlayPage() {
   const params = useParams<{ matchId: string }>();
-  const matchId = Number(params.matchId);
+  const matchId = parseMatchReference(params.matchId);
 
   useEffect(() => {
     const root = document.documentElement;

@@ -1,4 +1,5 @@
 const prisma = require("../config/prisma");
+const devDraftAppService = require("../services/devDraftApp");
 const { hasManagerAccess, resolveSeasonPlayer } = require("../utils/permissions");
 
 const mapOrder = ["CONTROL", "HYBRID", "PAYLOAD", "PUSH", "FLASHPOINT"];
@@ -1018,7 +1019,7 @@ const getDraftState = async (draftId) => {
 };
 
 const getDraftByMatchId = async (matchId, req) => {
-  const parsedMatchId = assertPositiveInt(matchId, "matchId");
+  const parsedMatchId = await devDraftAppService.resolveMatchReference(matchId);
 
   const draft = await prisma.draftTable.findUnique({
     where: { matchId: parsedMatchId },
@@ -1093,10 +1094,6 @@ module.exports = {
   getRoundKey,
   isBracketMatchType,
   determineFirstPicker,
-  // Exposed for the developer sandbox autopilot, which has to ask the same
-  // questions the map-type and map screens ask before it can answer them.
-  getAvailableMapTypes,
-  getAvailableMaps,
   __testables: {
     resolveActingTeamId,
     parseAllAllowedMapIds,
