@@ -17,7 +17,7 @@ interface MapPoolControlProps {
 }
 
 interface ColumnDefinition {
-  key: "CONTROL" | "HYBRID" | "ESCORT" | "PUSH_FLASH";
+  key: "CONTROL" | "HYBRID" | "ESCORT" | "PUSH" | "FLASHPOINT";
   title: string;
   /** What gets written when the header itself is clicked. */
   focusType: MapType;
@@ -33,11 +33,12 @@ const COLUMNS: ColumnDefinition[] = [
   { key: "CONTROL", title: "Control", focusType: "CONTROL", accepts: (type) => type === "CONTROL" },
   { key: "HYBRID", title: "Hybrid", focusType: "HYBRID", accepts: (type) => type === "HYBRID" },
   { key: "ESCORT", title: "Escort", focusType: "PAYLOAD", accepts: (type) => type === "PAYLOAD" },
+  { key: "PUSH", title: "Push", focusType: "PUSH", accepts: (type) => type === "PUSH" },
   {
-    key: "PUSH_FLASH",
-    title: "Push / Flash",
-    focusType: "PUSH",
-    accepts: (type) => type === "PUSH" || type === "FLASHPOINT",
+    key: "FLASHPOINT",
+    title: "Flash",
+    focusType: "FLASHPOINT",
+    accepts: (type) => type === "FLASHPOINT",
   },
 ];
 
@@ -58,9 +59,7 @@ const loadMapCatalogue = () => {
 };
 
 function columnMatchesFocus(column: ColumnDefinition, focusType: MapType | null) {
-  if (!focusType) return false;
-  if (column.key === "PUSH_FLASH") return focusType === "PUSH" || focusType === "FLASHPOINT";
-  return column.focusType === focusType;
+  return Boolean(focusType && column.focusType === focusType);
 }
 
 function sortRoundKeys(a: string, b: string) {

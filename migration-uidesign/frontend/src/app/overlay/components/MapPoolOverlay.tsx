@@ -16,7 +16,7 @@ interface MapPoolOverlayProps {
 }
 
 interface ColumnDefinition {
-  key: "CONTROL" | "HYBRID" | "ESCORT" | "PUSH_FLASH";
+  key: "CONTROL" | "HYBRID" | "ESCORT" | "PUSH" | "FLASHPOINT";
   title: string;
   /** The value the manager writes when focusing this column. */
   focusType: MapType;
@@ -34,19 +34,17 @@ const COLUMNS: ColumnDefinition[] = [
   { key: "CONTROL", title: "CONTROL", focusType: "CONTROL", accepts: (type) => type === "CONTROL" },
   { key: "HYBRID", title: "HYBRID", focusType: "HYBRID", accepts: (type) => type === "HYBRID" },
   { key: "ESCORT", title: "ESCORT", focusType: "PAYLOAD", accepts: (type) => type === "PAYLOAD" },
+  { key: "PUSH", title: "PUSH", focusType: "PUSH", accepts: (type) => type === "PUSH" },
   {
-    key: "PUSH_FLASH",
-    title: "PUSH / FLASH",
-    focusType: "PUSH",
-    accepts: (type) => type === "PUSH" || type === "FLASHPOINT",
+    key: "FLASHPOINT",
+    title: "FLASH",
+    focusType: "FLASHPOINT",
+    accepts: (type) => type === "FLASHPOINT",
   },
 ];
 
-/** A focused PUSH or FLASHPOINT both light up the shared fourth column. */
 function columnMatchesFocus(column: ColumnDefinition, focusType: MapType | null | undefined) {
-  if (!focusType) return false;
-  if (column.key === "PUSH_FLASH") return focusType === "PUSH" || focusType === "FLASHPOINT";
-  return column.focusType === focusType;
+  return Boolean(focusType && column.focusType === focusType);
 }
 
 function sortRoundKeys(a: string, b: string) {
@@ -183,7 +181,7 @@ export function MapPoolOverlay({ matchId, variant = "classic" }: MapPoolOverlayP
    * keeps filling the frame whatever the pool looks like.
    */
   const templateColumns = focusedColumn
-    ? columns.map((column) => (column.focused ? "2.2fr" : "0.6fr")).join(" ")
+    ? columns.map((column) => (column.focused ? "2.4fr" : "0.55fr")).join(" ")
     : columns.map(() => "1fr").join(" ");
 
   const weekText =
@@ -269,37 +267,38 @@ export function MapPoolOverlay({ matchId, variant = "classic" }: MapPoolOverlayP
             </header>
 
             <div className={styles.stack}>
-              {column.maps.length > 0 ? (
-                column.maps.map((map, mapIndex) => {
-                  const isHero = heroMap?.id === map.id;
-                  const isMutedByHero = Boolean(heroMap) && column.focused && !isHero;
+              <div className={styles.stackInner}>
+                {column.maps.length > 0 ? (
+                  column.maps.map((map, mapIndex) => {
+                    const isHero = heroMap?.id === map.id;
+                    const isMutedByHero = Boolean(heroMap) && column.focused && !isHero;
 
-                  return (
-                    <div
-                      key={`${column.key}-${map.id}`}
-                      className={styles.cardFrame}
-                      style={{ ["--card-index" as string]: mapIndex } as React.CSSProperties}
-                      data-edge={mapIndex % 2 === 0 ? "forward" : "reverse"}
-                      data-hero={isHero ? "true" : "false"}
-                      data-muted={isMutedByHero ? "true" : "false"}
-                    >
-                      <div className={styles.cardInner}>
-                        <img
-                          className={styles.cardImage}
-                          src={resolveMapImageUrl(map.imgPath)}
-                          alt={map.description}
-                        />
-                        <div className={styles.cardShade} aria-hidden />
-                        <span className={styles.cardLabel}>{map.description}</span>
+                    return (
+                      <div
+                        key={`${column.key}-${map.id}`}
+                        className={styles.cardFrame}
+                        style={{ ["--card-index" as string]: mapIndex } as React.CSSProperties}
+                        data-hero={isHero ? "true" : "false"}
+                        data-muted={isMutedByHero ? "true" : "false"}
+                      >
+                        <div className={styles.cardInner}>
+                          <img
+                            className={styles.cardImage}
+                            src={resolveMapImageUrl(map.imgPath)}
+                            alt={map.description}
+                          />
+                          <div className={styles.cardShade} aria-hidden />
+                          <span className={styles.cardLabel}>{map.description}</span>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className={styles.emptyCard}>
-                  <span>No maps</span>
-                </div>
-              )}
+                    );
+                  })
+                ) : (
+                  <div className={styles.emptyCard}>
+                    <span>No maps</span>
+                  </div>
+                )}
+              </div>
             </div>
           </article>
         ))}
