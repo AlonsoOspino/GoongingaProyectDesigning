@@ -25,7 +25,8 @@ export function MatchHeaderOverlay({ matchId, reverseSides = false }: MatchHeade
   const [match, setMatch] = useState<Match | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
   const [draft, setDraft] = useState<DraftState | null>(null);
-  const headerBanSlots = matchId === "dev" ? 1 : 2;
+  const isDevMatch = matchId === "dev";
+  const headerBanSlots = isDevMatch ? 1 : 2;
 
   useEffect(() => {
     if (matchId === null) {
@@ -133,11 +134,11 @@ export function MatchHeaderOverlay({ matchId, reverseSides = false }: MatchHeade
   const rightScore = reverseSides ? match?.mapWinsTeamA ?? 0 : match?.mapWinsTeamB ?? 0;
 
   if (!match) {
-    return <div className={styles.root}><div className={styles.standby} role="status">Match header · stand by</div></div>;
+    return <div className={styles.root} data-dev={isDevMatch}><div className={styles.standby} role="status">Match header · stand by</div></div>;
   }
 
   return (
-    <div className={styles.root}>
+    <div className={styles.root} data-dev={isDevMatch}>
       <header className={styles.headerBar}>
         <div className={styles.decor} aria-hidden />
 

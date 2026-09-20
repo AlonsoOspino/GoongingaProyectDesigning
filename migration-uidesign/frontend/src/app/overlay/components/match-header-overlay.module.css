@@ -207,3 +207,124 @@
   color: #f3ca8d;
   text-shadow: none;
 }
+
+/* Developer matches use a clean Overwatch-style broadcast plate. The normal
+   match header intentionally keeps the established dark treatment above. */
+.root[data-dev="true"] {
+  --dev-accent: #f06414;
+  --dev-ink: #111318;
+  background: #ffffff;
+}
+
+.root[data-dev="true"] .standby {
+  color: var(--dev-ink);
+  background: #ffffff;
+  font-family: var(--font-otp-display), var(--font-overlay-display), sans-serif;
+  font-style: italic;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.root[data-dev="true"] .headerBar {
+  background: #ffffff;
+  border-top: 3px solid var(--dev-ink);
+  box-shadow: inset 0 -4px 0 var(--dev-ink);
+}
+
+.root[data-dev="true"] .content {
+  padding: 0 0 4px;
+}
+
+.root[data-dev="true"] .bannerFrame,
+.root[data-dev="true"] .banStack,
+.root[data-dev="true"] .banSlot {
+  border-color: var(--dev-ink);
+}
+
+.root[data-dev="true"] .bannerFrame {
+  height: 64px;
+  max-height: 64px;
+  aspect-ratio: auto;
+  background: #ffffff;
+}
+
+.root[data-dev="true"] .logoFallback,
+.root[data-dev="true"] .fallback {
+  color: var(--dev-ink);
+  background: #ffffff;
+  font-family: var(--font-otp-display), var(--font-overlay-display), sans-serif;
+  font-style: italic;
+  font-weight: 900;
+  letter-spacing: 0.055em;
+}
+
+.root[data-dev="true"] .logoFallback {
+  gap: 16px;
+  padding: 0 76px 0 0;
+}
+
+.root[data-dev="true"] .logoFallbackRight {
+  padding: 0 0 0 76px;
+}
+
+.root[data-dev="true"] .logoFallbackImage {
+  width: auto;
+  height: 64px;
+  max-width: 58%;
+  flex: 0 1 auto;
+  object-fit: contain;
+}
+
+.root[data-dev="true"] .logoFallback span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.root[data-dev="true"] .banStack {
+  width: 64px;
+  height: 64px;
+  border: 0;
+}
+
+.root[data-dev="true"] .banSlot {
+  width: 64px;
+  height: 64px;
+  border: 3px solid var(--dev-ink);
+  background: var(--dev-ink);
+  box-shadow: inset 0 -4px 0 var(--dev-accent);
+}
+
+.root[data-dev="true"] .banImage {
+  object-position: center 20%;
+}
+
+.root[data-dev="true"] .banFallback {
+  color: #ffffff;
+  background: var(--dev-ink);
+  font-family: var(--font-otp-display), var(--font-overlay-display), sans-serif;
+  font-size: 1.45rem;
+  font-weight: 900;
+}
+
+.root[data-dev="true"] .scoreValue {
+  position: relative;
+  border: 0;
+  background: var(--dev-ink);
+  color: #ffffff;
+  font-family: var(--font-otp-display), var(--font-overlay-display), sans-serif;
+  font-style: italic;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.root[data-dev="true"] .scoreValue::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 4px;
+  background: var(--dev-accent);
+}
