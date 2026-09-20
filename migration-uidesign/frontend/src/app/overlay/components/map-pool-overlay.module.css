@@ -6,9 +6,9 @@
  * the match row, so everything here is driven by data attributes rather than
  * by a second component.
  *
- * The lean is clipped, never skewed: a skew would shear the map art. It is
- * applied once per column so the tiles inside stack flush, and neighbouring
- * columns overlap by exactly one lean so the whole fan reads as one band.
+ * The lean is clipped, never skewed: a skew would shear the map art. Every map
+ * type owns one self-contained ribbon, so columns with two and three maps can
+ * divide their height independently without forcing their seams to align.
  */
 
 .root {
@@ -208,17 +208,17 @@
   grid-column: 2;
   grid-row: 1;
   display: grid;
-  /* One lean value drives BOTH the chevron clip on each column band and the
-     negative-margin overlap between columns. They must match exactly or the
-     seams stop meeting, so they share this variable. Bold, like the reference:
-     a strong slant with a pronounced mid-height kink. */
-  --fan-lean: 46px;
-  --fan-kink: 26px;
-  /* No gap. The columns interlock instead — see .column below. */
-  gap: 0;
-  /* Tighter padding so the mosaic reads bigger and fills the frame. Extra right
-     room so the last column's lean is never clipped by the frame edge. */
-  padding: 1.5rem 3.5rem 1rem 0.5rem;
+  /* One compact geometry system drives every ribbon. The values stay fixed in
+     pixels so the notch remains crisp when a column grows into focus. */
+  --fan-lean: 32px;
+  --fan-notch-near: 4px;
+  --fan-notch-mid: 14px;
+  --fan-notch-mirror: 18px;
+  --fan-notch-far: 28px;
+  /* Columns are deliberately independent. The breathing room is what lets a
+     50/50 stack sit beside a 33/33/33 stack without suggesting false joins. */
+  gap: 12px;
+  padding: 1.5rem 2.25rem 1rem 0.75rem;
   min-width: 0;
   /* The whole point of the focus state. Chromium animates this, and OBS is
      Chromium, so the columns slide rather than snap. The strike easing gives
@@ -235,12 +235,6 @@
   transition: opacity 380ms var(--otp-ease);
 }
 
-/* Each column slides left by exactly one lean so its slanted edge meets
-   the previous one. The first keeps its place. */
-.column + .column {
-  margin-left: calc(var(--fan-lean) * -1);
-}
-
 .column[data-state="dim"] {
   opacity: 0.42;
 }
@@ -249,13 +243,14 @@
    the stack when a column dims — the column opacity already carries it. */
 
 .columnHeader {
-  --plate-lean: var(--otp-lean-sm);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  padding: 0.4rem 1rem 0.45rem 1.15rem;
-  clip-path: polygon(var(--plate-lean) 0, 100% 0, calc(100% - var(--plate-lean)) 100%, 0 100%);
+  padding: 0.4rem 1rem 0.45rem calc(var(--fan-lean) + 1rem);
+  /* The cap and the first map share the same two endpoints, so the active
+     column reads as one continuous ribbon instead of a label over a card. */
+  clip-path: polygon(var(--fan-lean) 0, 100% 0, 100% 100%, var(--fan-lean) 100%);
   background: linear-gradient(100deg, rgba(27, 53, 39, 0.9), rgba(12, 22, 16, 0.55));
   transition: background 500ms var(--otp-ease);
 }
@@ -293,15 +288,14 @@
   color: rgba(4, 8, 5, 0.75);
 }
 
-/* The column is now just a plain flex stack of tiles; every tile carries its
-   own slanted, kinked neon shape, so the band itself draws nothing. */
+/* The stack is a single ribbon assembled from touching map segments. */
 .stack {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  /* No gap: each tile's own neon border meets the next, and the two borders
-     together form the horizontal seam between the rows. */
+  /* No gap: the bottom endpoints of one segment are the top endpoints of the
+     next. Their rims overlap by one border width below. */
   gap: 0;
   padding: 0;
 }
@@ -309,22 +303,23 @@
 /* ----------------------------------------------------------------- cards */
 
 /*
- * THIS is the reference's shape: every tile is an identical right-leaning
- * parallelogram whose left and right edges KINK at the tile's own mid-height —
- * so both rows slant the same way and each row shows its own chevron, instead
- * of one big bracket around the whole column.
- *
- * The clip lives on the tile, and the frame's neon gradient painted through its
- * padding IS the border. Left and right edges have the exact same profile, so
- * when the next column slides left by one lean (see .column margin) its left
- * neon edge lands precisely on this tile's right neon edge — one continuous
- * zig-zag seam, no dark gaps, at any column width (so it survives the focus
- * grow). The mid points push slightly past the box; the neighbouring tile
- * paints that sliver, which is why the seam looks welded.
+ * Reference geometry: the outline travels diagonally, snaps back briefly at
+ * mid-height, then keeps travelling to the next map. Adjacent segments share
+ * their exact endpoints. Every other map reverses the travel direction, which
+ * creates one connected alternating ribbon instead of repeated hexagons.
  */
 .cardFrame {
   --lean: var(--fan-lean);
-  --kink: var(--fan-kink);
+  --top-left: var(--lean);
+  --top-right: 100%;
+  --right-before: calc(100% - var(--fan-notch-mid));
+  --right-after: calc(100% - var(--fan-notch-near));
+  --bottom-right: calc(100% - var(--lean));
+  --bottom-left: 0px;
+  --left-after: var(--fan-notch-far);
+  --left-before: var(--fan-notch-mid);
+  --label-left-cut: 0px;
+  --label-right-cut: var(--lean);
   position: relative;
   flex: 1 1 0;
   min-height: 0;
@@ -339,16 +334,39 @@
     #0c4429 100%
   );
   clip-path: polygon(
-    var(--lean) 0,
-    100% 0,
-    calc(100% - var(--lean) / 2 + var(--kink)) 50%,
-    calc(100% - var(--lean)) 100%,
-    0 100%,
-    calc(var(--lean) / 2 + var(--kink)) 50%
+    var(--top-left) 0,
+    var(--top-right) 0,
+    var(--right-before) 43%,
+    var(--right-after) 57%,
+    var(--bottom-right) 100%,
+    var(--bottom-left) 100%,
+    var(--left-after) 57%,
+    var(--left-before) 43%
   );
   filter: drop-shadow(0 3px 9px rgba(0, 0, 0, 0.5))
     drop-shadow(0 0 8px rgba(12, 68, 41, 0.5));
   transition: opacity 380ms var(--otp-ease);
+}
+
+/* The next segment starts where the previous one ended, then bends toward the
+   opposite side. These values are mirrored rather than visually approximated,
+   which keeps the outside line welded at every width. */
+.cardFrame[data-edge="reverse"] {
+  --top-left: 0px;
+  --top-right: calc(100% - var(--lean));
+  --right-before: calc(100% - var(--fan-notch-mirror));
+  --right-after: calc(100% - var(--fan-notch-far));
+  --bottom-right: 100%;
+  --bottom-left: var(--lean);
+  --left-after: var(--fan-notch-near);
+  --left-before: var(--fan-notch-mid);
+  --label-left-cut: var(--lean);
+  --label-right-cut: 0px;
+}
+
+/* Collapse the duplicate horizontal rims into a single separator. */
+.cardFrame + .cardFrame {
+  margin-top: -5px;
 }
 
 /* Focus brightens the whole tile's neon edge and lifts its glow. */
@@ -374,14 +392,16 @@
   height: 100%;
   overflow: hidden;
   background: var(--otp-panel);
-  /* Same chevron so the art sits inside the neon rim, not over it. */
+  /* The art uses the same coordinates and remains inside the connected rim. */
   clip-path: polygon(
-    var(--lean) 0,
-    100% 0,
-    calc(100% - var(--lean) / 2 + var(--kink)) 50%,
-    calc(100% - var(--lean)) 100%,
-    0 100%,
-    calc(var(--lean) / 2 + var(--kink)) 50%
+    var(--top-left) 0,
+    var(--top-right) 0,
+    var(--right-before) 43%,
+    var(--right-after) 57%,
+    var(--bottom-right) 100%,
+    var(--bottom-left) 100%,
+    var(--left-after) 57%,
+    var(--left-before) 43%
   );
 }
 
@@ -454,9 +474,10 @@
 .cardLabel {
   position: absolute;
   z-index: 2;
-  /* Clear of the band's slanted edge so the text never rides the cut. */
-  left: calc(var(--fan-lean) + 0.65rem);
-  right: 0.65rem;
+  /* Follow the alternating bottom edge instead of reserving the same inset on
+     every row. */
+  left: calc(var(--label-left-cut) + 0.75rem);
+  right: calc(var(--label-right-cut) + 0.75rem);
   bottom: 0.55rem;
   font-family: var(--otp-font-hud);
   font-size: 0.72rem;

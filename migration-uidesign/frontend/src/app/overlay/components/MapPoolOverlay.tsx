@@ -279,6 +279,7 @@ export function MapPoolOverlay({ matchId, variant = "classic" }: MapPoolOverlayP
                       key={`${column.key}-${map.id}`}
                       className={styles.cardFrame}
                       style={{ ["--card-index" as string]: mapIndex } as React.CSSProperties}
+                      data-edge={mapIndex % 2 === 0 ? "forward" : "reverse"}
                       data-hero={isHero ? "true" : "false"}
                       data-muted={isMutedByHero ? "true" : "false"}
                     >
