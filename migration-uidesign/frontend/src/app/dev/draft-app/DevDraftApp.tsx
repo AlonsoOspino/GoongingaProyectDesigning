@@ -6,6 +6,7 @@ import {
   Check,
   Copy,
   ExternalLink,
+  Minus,
   Plus,
   Trash2,
   X,
@@ -21,6 +22,7 @@ import {
   getDevDraftAppState,
   setDevBans,
   setDevOverlayFocus,
+  setDevScores,
   type DevDraftAppState,
   type DevOverlayFocusPayload,
 } from "@/lib/api/devDraftApp";
@@ -41,6 +43,12 @@ const OVERLAYS = [
 
 type OverlayId = (typeof OVERLAYS)[number]["id"];
 type BanSide = "teamA" | "teamB";
+
+function parseScoreDraft(value: string) {
+  if (!/^\d+$/.test(value)) return null;
+  const score = Number(value);
+  return Number.isInteger(score) && score <= 2147483647 ? score : null;
+}
 
 function getTeam(state: DevDraftAppState, side: BanSide) {
   if (!state.match) return null;
@@ -100,6 +108,7 @@ export function DevDraftApp() {
   const [heroSearch, setHeroSearch] = useState("");
   const [activeOverlay, setActiveOverlay] = useState<OverlayId>("map-pool");
   const [copiedPath, setCopiedPath] = useState<string | null>(null);
+  const [scoreDraft, setScoreDraft] = useState({ teamA: "0", teamB: "0" });
 
   useEffect(() => {
     const sessionToken = readNetworkSessionToken();
@@ -142,6 +151,14 @@ export function DevDraftApp() {
     setTeamAId((current) => (current && teamIds.has(current) ? current : state.teams[0]?.id ?? null));
     setTeamBId((current) => (current && teamIds.has(current) ? current : state.teams[1]?.id ?? null));
   }, [state]);
+
+  useEffect(() => {
+    if (!state?.match) return;
+    setScoreDraft({
+      teamA: String(state.match.mapWinsTeamA),
+      teamB: String(state.match.mapWinsTeamB),
+    });
+  }, [state?.match?.id, state?.match?.mapWinsTeamA, state?.match?.mapWinsTeamB]);
 
   const mapsByType = useMemo(() => {
     const grouped = new Map<MapType, DevDraftAppState["maps"]>();
@@ -245,6 +262,30 @@ export function DevDraftApp() {
     }
   }
 
+  function adjustScore(side: BanSide, delta: number) {
+    setScoreDraft((current) => {
+      const score = parseScoreDraft(current[side]) ?? 0;
+      const next = Math.max(0, score + delta);
+      return { ...current, [side]: String(Number.isSafeInteger(next) ? next : score) };
+    });
+  }
+
+  async function handleSaveScores(event: FormEvent) {
+    event.preventDefault();
+    const mapWinsTeamA = parseScoreDraft(scoreDraft.teamA);
+    const mapWinsTeamB = parseScoreDraft(scoreDraft.teamB);
+    if (!token || !state?.match || mapWinsTeamA === null || mapWinsTeamB === null) return;
+    setPending("scores");
+    setError(null);
+    try {
+      setState(await setDevScores(token, { mapWinsTeamA, mapWinsTeamB }));
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Header scores could not be saved.");
+    } finally {
+      setPending(null);
+    }
+  }
+
   const handleOverlayFocus = useCallback(
     async (payload: DevOverlayFocusPayload) => {
       if (!token) throw new Error("Developer session is unavailable.");
@@ -316,6 +357,11 @@ export function DevDraftApp() {
       return counts;
     },
     { TANK: 0, DPS: 0, SUPPORT: 0 }
+  );
+  const scoreA = parseScoreDraft(scoreDraft.teamA);
+  const scoreB = parseScoreDraft(scoreDraft.teamB);
+  const scoresChanged = Boolean(
+    state.match && (scoreA !== state.match.mapWinsTeamA || scoreB !== state.match.mapWinsTeamB)
   );
 
   return (
@@ -536,6 +582,59 @@ export function DevDraftApp() {
                   )}
                 </div>
               </section>
+
+              <form className={styles.controlSection} onSubmit={(event) => void handleSaveScores(event)}>
+                <div className={styles.sectionHead}>
+                  <div>
+                    <h2>Header scores</h2>
+                    <p>Set the map wins shown on both match headers.</p>
+                  </div>
+                  <span className={styles.saveState}>{pending === "scores" ? "Saving…" : "Live"}</span>
+                </div>
+                <div className={styles.scoreControls}>
+                  {(["teamA", "teamB"] as BanSide[]).map((side) => {
+                    const team = side === "teamA" ? teamA : teamB;
+                    return (
+                      <div className={styles.scoreField} key={side}>
+                        <label htmlFor={`dev-score-${side}`}>{team?.name || (side === "teamA" ? "Team A" : "Team B")}</label>
+                        <div className={styles.scoreStepper}>
+                          <button
+                            type="button"
+                            onClick={() => adjustScore(side, -1)}
+                            disabled={pending !== null || (parseScoreDraft(scoreDraft[side]) ?? 0) <= 0}
+                            aria-label={`Decrease ${team?.name || side} score`}
+                          ><Minus size={16} aria-hidden /></button>
+                          <input
+                            id={`dev-score-${side}`}
+                            type="number"
+                            inputMode="numeric"
+                            min="0"
+                            max="2147483647"
+                            step="1"
+                            value={scoreDraft[side]}
+                            onChange={(event) => setScoreDraft((current) => ({ ...current, [side]: event.target.value }))}
+                            disabled={pending !== null}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => adjustScore(side, 1)}
+                            disabled={pending !== null || (parseScoreDraft(scoreDraft[side]) ?? 0) >= 2147483647}
+                            aria-label={`Increase ${team?.name || side} score`}
+                          ><Plus size={16} aria-hidden /></button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <button
+                    type="submit"
+                    className={styles.primaryButton}
+                    disabled={pending !== null || scoreA === null || scoreB === null || !scoresChanged}
+                  >{pending === "scores" ? "Saving…" : "Save scores"}</button>
+                </div>
+                {(scoreA === null || scoreB === null) ? (
+                  <p className={styles.scoreHint} role="alert">Enter whole numbers from 0 to 2147483647.</p>
+                ) : null}
+              </form>
 
               <section className={styles.controlSection}>
                 <div className={styles.sectionHead}>

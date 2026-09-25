@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const { isDevMatchReference } = require("../utils/devDraftApp");
 const { __testables } = require("../services/devDraftApp");
 
-const { normalizeTeamInput, normalizeMapIds, normalizeBanIds } = __testables;
+const { normalizeTeamInput, normalizeMapIds, normalizeBanIds, normalizeScore } = __testables;
 
 test("the dev match alias is case-insensitive and exact", () => {
   assert.equal(isDevMatchReference("dev"), true);
@@ -34,4 +34,12 @@ test("each team can register at most two hero bans", () => {
   assert.deepEqual(normalizeBanIds([1, "2", null], "teamABans"), [1, 2]);
   assert.throws(() => normalizeBanIds([1, 2, 3], "teamABans"), /at most two/i);
   assert.throws(() => normalizeBanIds(["bad"], "teamABans"), /positive integer/i);
+});
+
+test("header scores accept zero and whole numbers only", () => {
+  assert.equal(normalizeScore(0, "Team A score"), 0);
+  assert.equal(normalizeScore(12, "Team B score"), 12);
+  for (const value of [-1, 1.5, "2", null, 2147483648]) {
+    assert.throws(() => normalizeScore(value, "Team A score"), /integer from 0/i);
+  }
 });

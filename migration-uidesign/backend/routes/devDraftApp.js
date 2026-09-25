@@ -14,6 +14,7 @@ router.delete("/teams/:id", controller.deleteTeam);
 router.post("/match", controller.createMatch);
 router.delete("/match", controller.deleteMatch);
 router.patch("/match/overlay", controller.setOverlayFocus);
+router.patch("/match/score", controller.setScores);
 router.put("/match/bans", controller.setBans);
 
 module.exports = router;

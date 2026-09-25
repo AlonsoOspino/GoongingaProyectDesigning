@@ -63,6 +63,14 @@ export function setDevOverlayFocus(token: string, payload: DevOverlayFocusPayloa
   });
 }
 
+export function setDevScores(token: string, payload: { mapWinsTeamA: number; mapWinsTeamB: number }) {
+  return apiRequest<DevDraftAppState>("/dev/draft-app/match/score", {
+    method: "PATCH",
+    token,
+    body: payload,
+  });
+}
+
 export function setDevBans(
   token: string,
   payload: { teamABans: number[]; teamBBans: number[] }

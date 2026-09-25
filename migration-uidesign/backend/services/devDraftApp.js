@@ -58,6 +58,13 @@ const normalizeBanIds = (value, label) => {
   return ids;
 };
 
+const normalizeScore = (value, label) => {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > 2147483647) {
+    throw new Error(`${label} must be an integer from 0 to 2147483647.`);
+  }
+  return value;
+};
+
 const findTournament = (client = prisma) =>
   client.tournament.findFirst({ where: { name: DEV_DRAFT_TOURNAMENT_NAME } });
 
@@ -254,6 +261,18 @@ const setOverlayFocus = async (payload) => {
   return getState();
 };
 
+const setScores = async (payload) => {
+  const mapWinsTeamA = normalizeScore(payload?.mapWinsTeamA, "Team A score");
+  const mapWinsTeamB = normalizeScore(payload?.mapWinsTeamB, "Team B score");
+  const match = await findMatch();
+  if (!match) throw new Error("Developer match not found.");
+  await prisma.match.update({
+    where: { id: match.id },
+    data: { mapWinsTeamA, mapWinsTeamB },
+  });
+  return getState();
+};
+
 const setBans = async (payload) => {
   const teamABans = normalizeBanIds(payload?.teamABans, "teamABans");
   const teamBBans = normalizeBanIds(payload?.teamBBans, "teamBBans");
@@ -322,6 +341,7 @@ module.exports = {
   createMatch,
   deleteMatch,
   setOverlayFocus,
+  setScores,
   setBans,
-  __testables: { normalizeTeamInput, normalizeMapIds, normalizeBanIds },
+  __testables: { normalizeTeamInput, normalizeMapIds, normalizeBanIds, normalizeScore },
 };

@@ -25,5 +25,6 @@ module.exports = {
   createMatch: handle((req) => devDraftApp.createMatch(req.body), 201),
   deleteMatch: handle(() => devDraftApp.deleteMatch()),
   setOverlayFocus: handle((req) => devDraftApp.setOverlayFocus(req.body)),
+  setScores: handle((req) => devDraftApp.setScores(req.body)),
   setBans: handle((req) => devDraftApp.setBans(req.body)),
 };
