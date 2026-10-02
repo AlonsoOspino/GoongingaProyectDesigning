@@ -1,0 +1,184 @@
+{
+  "categories": [
+    {
+      "id": "category-1",
+      "name": "Whose line is it?",
+      "questions": [
+        {
+          "id": "question-1-1",
+          "question": "I'm putting a rock in this one!",
+          "answer": "Who is Mei",
+          "reward": 100
+        },
+        {
+          "id": "question-1-2",
+          "question": "Nous sommes ravis de vous avoir parmi nous.",
+          "answer": "Who is Luna (the omnic in the Paris attacker first-point spawn)",
+          "reward": 200
+        },
+        {
+          "id": "question-1-3",
+          "question": "Get ready for a shock!",
+          "answer": "Who is Sombra",
+          "reward": 300
+        },
+        {
+          "id": "question-1-4",
+          "question": "Bone-a sera, signora... can I-a getchu-a somethin' to drink?",
+          "answer": "Who is Cassidy",
+          "reward": 400
+        },
+        {
+          "id": "question-1-5",
+          "question": "Two Amaris foiled at once!",
+          "answer": "Who is Doomfist",
+          "reward": 500
+        }
+      ]
+    },
+    {
+      "id": "category-2",
+      "name": "Overwatch Geoguesser",
+      "questions": [
+        {
+          "id": "question-2-1",
+          "question": "Name the playable map location shown by the host.",
+          "answer": "What is King's Row Winter",
+          "reward": 100
+        },
+        {
+          "id": "question-2-2",
+          "question": "Name the playable map location shown by the host.",
+          "answer": "What is Watchpoint: Gibraltar",
+          "reward": 200
+        },
+        {
+          "id": "question-2-3",
+          "question": "Name the playable map location shown by the host.",
+          "answer": "What is Powder Keg Mine (Stadium)",
+          "reward": 300
+        },
+        {
+          "id": "question-2-4",
+          "question": "Name the playable map location shown by the host.",
+          "answer": "What is Busan Sanctuary",
+          "reward": 400
+        },
+        {
+          "id": "question-2-5",
+          "question": "Name the playable map location shown by the host.",
+          "answer": "What is Paris",
+          "reward": 500
+        }
+      ]
+    },
+    {
+      "id": "category-3",
+      "name": "Throwback Season",
+      "questions": [
+        {
+          "id": "question-3-1",
+          "question": "Who were the two recipients of the Tank Rolestar accolade in Season 7?",
+          "answer": "Who are Deathoof and Arterrat",
+          "reward": 100
+        },
+        {
+          "id": "question-3-2",
+          "question": "AddieBC1 has won Rolestar for Support every posted season except which season?",
+          "answer": "What is Season 6",
+          "reward": 200
+        },
+        {
+          "id": "question-3-3",
+          "question": "Who was the Season 3 MVP?",
+          "answer": "Who is Sheppy",
+          "reward": 300
+        },
+        {
+          "id": "question-3-4",
+          "question": "What two teams have the worst W/L records in GGL history?",
+          "answer": "Who are the Oracles (0-7) and Team Pete (0-7)",
+          "reward": 400
+        },
+        {
+          "id": "question-3-5",
+          "question": "What is Team AFN's all-time W/L record, not counting finals?",
+          "answer": "What is 25-13",
+          "reward": 500
+        }
+      ]
+    },
+    {
+      "id": "category-4",
+      "name": "In-Game Mechanics",
+      "questions": [
+        {
+          "id": "question-4-1",
+          "question": "How much healing does Mercy do per second? Bonus: how much during her ultimate?",
+          "answer": "55 heals per second. Bonus: 65 heals per second.",
+          "reward": 100
+        },
+        {
+          "id": "question-4-2",
+          "question": "On release, how much armor did Torbjorn's armor packs give?",
+          "answer": "What is 75 armor",
+          "reward": 200
+        },
+        {
+          "id": "question-4-3",
+          "question": "How much damage reduction does Vendetta receive when using Warding Stance?",
+          "answer": "What is 75%",
+          "reward": 300
+        },
+        {
+          "id": "question-4-4",
+          "question": "How many characters have multiple quick-melee animations?",
+          "answer": "What is 7: D.Va, Junker Queen, Shion, Mercy, Moira, Ramattra, and Emre",
+          "reward": 400
+        },
+        {
+          "id": "question-4-5",
+          "question": "How much damage would a Nano'd, full-HP Reinhardt take from a clip of Tracer headshots?",
+          "answer": "Idk either",
+          "reward": 500
+        }
+      ]
+    },
+    {
+      "id": "category-5",
+      "name": "MiracleMax",
+      "questions": [
+        {
+          "id": "question-5-1",
+          "question": "Gay Baby Jail",
+          "answer": "What is Panopticon",
+          "reward": 100
+        },
+        {
+          "id": "question-5-2",
+          "question": "Grippy Sock Vacation",
+          "answer": "What is Lifegrip",
+          "reward": 200
+        },
+        {
+          "id": "question-5-3",
+          "question": "Stomp-Tech",
+          "answer": "What is Overrun",
+          "reward": 300
+        },
+        {
+          "id": "question-5-4",
+          "question": "That's a lot of Japanese",
+          "answer": "What is Kitsune Rush",
+          "reward": 400
+        },
+        {
+          "id": "question-5-5",
+          "question": "BALLS",
+          "answer": "What is Charged Volley (Orb of Destruction Alt-Fire)",
+          "reward": 500
+        }
+      ]
+    }
+  ]
+}

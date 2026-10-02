@@ -7,6 +7,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
       - goonginga_postgres_data:/var/lib/postgresql
+      - ../backend-springboot/src/main/resources/db/public-bootstrap.sql:/docker-entrypoint-initdb.d/001-public-schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -15,9 +16,10 @@ services:
     restart: unless-stopped
 
   backend:
+    image: ${GOON_SPRING_IMAGE:-goonginga-spring:latest}
     build:
-      context: .
-      dockerfile: backend/Dockerfile
+      context: ..
+      dockerfile: backend-springboot/Dockerfile
     env_file:
       - backend/.env
     volumes:
@@ -25,14 +27,29 @@ services:
     environment:
       PORT: 3000
       MEDIA_DIR: /app/uploads
+      NODE_ENV: production
+      SPRING_DATASOURCE_URL: jdbc:postgresql://database:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      DRAFT_FLYWAY_ENABLED: "true"
+      DRAFT_CORS_ORIGINS: https://${GOON_DOMAIN},https://${GOON_GAMENIGHTS_DOMAIN}
+      APP_URL: https://${GOON_DOMAIN}/backend
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:3000/health/db"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 6
     depends_on:
       database:
         condition: service_healthy
     restart: unless-stopped
+    mem_limit: 768m
     ports:
       - "${GOON_API_BIND_ADDRESS:-127.0.0.1}:${GOON_API_PORT:-3000}:3000"
 
   frontend:
+    group_add: ["10001"]
     build:
       context: .
       dockerfile: frontend/Dockerfile
@@ -40,11 +57,13 @@ services:
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?Set NEXT_PUBLIC_API_BASE_URL in .env}
         NEXT_PUBLIC_MINIGAMES_FRONTEND_URL: https://${GOON_GAMENIGHTS_DOMAIN:?Set GOON_GAMENIGHTS_DOMAIN in .env}
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     env_file:
       - frontend/.env
     environment:
       MEDIA_DIR: /app/uploads
+      UPLOAD_AUTH_API_BASE_URL: http://backend:3000
     volumes:
       - ./media:/app/uploads
     restart: unless-stopped
@@ -59,7 +78,8 @@ services:
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_MINIGAMES_API_BASE_URL:?Set NEXT_PUBLIC_MINIGAMES_API_BASE_URL in .env}
         NEXT_PUBLIC_GOONGINGA_URL: https://${GOON_DOMAIN:?Set GOON_DOMAIN in .env}
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
 
   caddy:

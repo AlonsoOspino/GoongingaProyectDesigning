@@ -41,9 +41,9 @@ set /p "COMMIT_MESSAGE=Commit message: "
 :message_ready
 if not defined COMMIT_MESSAGE goto missing_message
 
-echo [1/7] Running backend tests...
-pushd "migration-uidesign\backend"
-call npm test
+echo [1/7] Compiling the Java backend...
+pushd "backend-springboot"
+call mvnw.cmd -B -DskipTests package
 if errorlevel 1 goto test_failed_from_backend
 popd
 
@@ -59,11 +59,10 @@ if errorlevel 1 goto build_failed_from_minigames
 popd
 
 echo.
-echo [3/7] Staging project changes...
-git add -A
-rem This generated compiler cache is tracked historically, but should not be
-rem included in routine deploy commits.
-git reset -- "migration-uidesign/frontend/tsconfig.tsbuildinfo" >nul 2>&1
+echo [3/7] Reviewing explicitly staged changes...
+rem Stage the intended files with git add before running this script.
+rem Unrelated edits and deletions are not included automatically.
+git diff --cached --stat
 
 git diff --cached --quiet
 if errorlevel 1 goto commit_changes
@@ -83,11 +82,7 @@ if errorlevel 1 goto push_failed
 
 echo.
 echo [6/7] Pulling and deploying backend + frontends on the VPS...
-rem The VPS has intentional Caddyfile and compose.yaml changes for Adara and
-rem its Docker network. Stash only those tracked files, pull the application,
-rem then reapply them. If reapplying conflicts, deployment stops and the stash
-rem remains recoverable on the VPS.
-ssh -i "%SSH_KEY%" -o StrictHostKeyChecking=accept-new "%VPS_HOST%" "set -e; cd '%VPS_PROJECT%'; git restore --source=HEAD --worktree -- backend frontend minigames-frontend; git clean -fd -- backend/prisma/migrations/20260805000000_add_finals_presentation_time backend/prisma/migrations/20260805010000_add_finals_presentation_version backend/tests/finalsPresentation.test.js frontend/src/app/finals frontend/src/components/finals; config_stashed=0; if ! git diff --quiet -- Caddyfile compose.yaml; then git stash push -m 'vps-local-caddy-compose' -- Caddyfile compose.yaml; config_stashed=1; fi; git pull --ff-only origin '%DEPLOY_BRANCH%'; if [ $config_stashed = 1 ]; then git stash pop; fi; bash scripts/deploy-vps.sh"
+ssh -i "%SSH_KEY%" -o StrictHostKeyChecking=yes "%VPS_HOST%" "set -e; cd '%VPS_PROJECT%'; bash scripts/update-vps-checkout.sh '%DEPLOY_BRANCH%'; bash scripts/deploy-vps.sh"
 if errorlevel 1 goto deploy_failed
 
 echo.
@@ -101,7 +96,7 @@ exit /b 0
 :test_failed_from_backend
 popd
 echo.
-echo ERROR: Backend tests failed. Nothing was committed or deployed.
+echo ERROR: Java compilation failed. Nothing was committed or deployed. Use JDK 21.
 goto failed
 
 :build_failed_from_frontend
@@ -157,11 +152,13 @@ where npm >nul 2>&1
 if errorlevel 1 goto missing_tool
 where ssh >nul 2>&1
 if errorlevel 1 goto missing_tool
-echo BAT preflight passed. Branch, Git, npm, SSH and the VPS key are available.
+where java >nul 2>&1
+if errorlevel 1 goto missing_tool
+echo BAT preflight passed. Use JDK 21 through JAVA_HOME.
 exit /b 0
 
 :missing_tool
-echo ERROR: Git, npm and OpenSSH must be available in PATH.
+echo ERROR: Git, npm, Java 21 and OpenSSH must be available.
 goto failed
 
 :failed

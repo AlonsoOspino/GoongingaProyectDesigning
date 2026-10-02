@@ -55,6 +55,8 @@ NETWORK_AUTH_PUBLIC_PATH_PREFIX=/backend
 NETWORK_FRONTEND_URL=https://${public_domain}
 NETWORK_MINIGAMES_FRONTEND_URL=https://${minigames_domain}
 NETWORK_JWT_SECRET=${network_jwt_secret}
+NODE_ENV=production
+APP_URL=https://${public_domain}/backend
 EOF
 
 cat > frontend/.env <<EOF

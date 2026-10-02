@@ -1,0 +1,9 @@
+.git
+**/node_modules
+**/.next
+**/target
+media
+migration-uidesign/media
+**/backups
+**/.env
+**/.env.*

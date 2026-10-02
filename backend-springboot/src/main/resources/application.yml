@@ -1,0 +1,50 @@
+spring:
+  application:
+    name: goonginga-backend-springboot
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+  flyway:
+    # Existing public tables are preserved; reviewed SQL owns spring_draft.
+    enabled: ${DRAFT_FLYWAY_ENABLED:true}
+    default-schema: spring_draft
+    schemas: spring_draft
+  jpa:
+    hibernate:
+      # Table changes come from reviewed SQL migrations, never from Hibernate.
+      ddl-auto: validate
+    open-in-view: false
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+      accept-float-as-int: false
+    mapper:
+      allow-coercion-of-scalars: false
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 12MB
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+server:
+  port: ${PORT:3002}
+  forward-headers-strategy: framework
+
+draft:
+  jwt-secret: ${NETWORK_JWT_SECRET:${JWT_SECRET:}}
+  legacy-jwt-secret: ${JWT_SECRET:}
+  share-key: ${DRAFT_TABLE_MANAGER_KEY:}
+  cors-origins: ${DRAFT_CORS_ORIGINS:${CORS_ORIGIN:http://localhost:3000}}
+  timeouts-enabled: ${DRAFT_TIMEOUTS_ENABLED:true}
+
+media:
+  root: ${MEDIA_DIR:uploads}
+  bundled-maps: ${MAP_ASSET_DIR:../migration-uidesign/frontend/MapImages}
+  bundled-heroes: ${HERO_ASSET_DIR:../migration-uidesign/frontend/HeroImages}
+  versus-background: ${VS_BACKGROUND_PATH:../migration-uidesign/backend/assets/VSPARATEAM.jpg}
