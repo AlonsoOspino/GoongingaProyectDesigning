@@ -101,3 +101,15 @@ El despliegue reutiliza la configuración actual. La prueba automatizada usa
 OAuth y webhooks simulados; completa una sesión humana para revisar la experiencia
 de consentimiento en Discord. Las notificaciones de horarios se entregan mediante
 cola persistente con reintentos y actualización del mensaje al reprogramar.
+
+## Registro del cambio · 2 de octubre de 2026
+
+- Código de la API desplegado: commit `2a72969`, Java 21 / Spring Boot 4.1.1.
+- 46 drafts importados; cero bloqueados; historial anterior conservado.
+- Contenedor saludable, sin reinicios ni errores en la revisión final.
+- Sesiones existentes, CORS de Game Nights, medios, imágenes versus y Adara verificados.
+- Respaldo anterior a Node → Java: `backups/pre-spring-20261002T225032Z.dump`.
+- Imagen Node: `goonginga-backend:rollback-20261002T225032Z`.
+- Respaldo anterior a la última corrección: `backups/pre-spring-20261002T230855Z.dump`.
+- Los contenedores y la red de revisión fueron retirados. Los logs y los dumps
+  permanecen en la VPS; los frontends siguen siendo Next.js.

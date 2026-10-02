@@ -147,6 +147,13 @@ incluidas en la imagen Docker. Family Feud conserva eventos SSE y los vencimient
 - OAuth contra proveedor simulado y avisos contra webhook local: reintento y edición.
 - Ambos frontends compilan. Copia real: 46 drafts importados, cero bloqueados,
   lectura de todos y concordancia de marcadores competitivos.
+- Producción: API Spring Boot saludable, sesiones con la clave existente,
+  CORS de Game Nights, archivos preservados, imágenes versus y ambos sitios.
+  La partida antigua de Family Feud con un representante ausente continúa
+  correctamente; la revisión final no encontró errores en los logs.
+
+El contenedor Node de la API fue sustituido. Se conservan su código, la imagen
+anterior y el dump previo al cambio como respaldo de recuperación.
 
 Los scripts de revisión temporal viven fuera del repositorio. El consentimiento
 humano de Discord y la entrega a un canal real requieren una sesión real; la
