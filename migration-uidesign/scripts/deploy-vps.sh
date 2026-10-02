@@ -91,6 +91,11 @@ curl --fail --silent --show-error --max-time 15 "https://${GOON_DOMAIN}/backend/
 curl --fail --silent --show-error --max-time 15 "https://${GOON_DOMAIN}/backend/tournament/current" > /dev/null
 curl --fail --silent --show-error --max-time 15 "https://${GOON_DOMAIN}/" > /dev/null
 curl --fail --silent --show-error --max-time 15 "https://${GOON_GAMENIGHTS_DOMAIN}/feud" > /dev/null
+curl --fail --silent --show-error --max-time 15 -D - -o /dev/null -X OPTIONS \
+  "https://${GOON_DOMAIN}/backend/match" \
+  -H "Origin: https://${GOON_GAMENIGHTS_DOMAIN}" \
+  -H 'Access-Control-Request-Method: GET' -H 'Access-Control-Request-Headers: authorization' | \
+  python3 -c 'import sys; origin=sys.argv[1]; headers=sys.stdin.read().lower(); assert "access-control-allow-origin: "+origin.lower() in headers' "https://${GOON_GAMENIGHTS_DOMAIN}"
 if docker network inspect adara_proxy > /dev/null 2>&1; then
   curl --fail --silent --show-error --max-time 15 https://adara.pe/ > /dev/null
 fi

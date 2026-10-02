@@ -47,8 +47,8 @@ public class SecurityConfiguration {
     }
 
     @Bean
-    SecurityFilterChain security(HttpSecurity http) throws Exception {
-        return http.csrf(csrf -> csrf.disable()).cors(Customizer.withDefaults())
+    SecurityFilterChain security(HttpSecurity http, CorsConfigurationSource corsConfigurationSource) throws Exception {
+        return http.csrf(csrf -> csrf.disable()).cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ASYNC).permitAll()
@@ -69,7 +69,7 @@ public class SecurityConfiguration {
     }
 
     @Bean
-    CorsConfigurationSource cors(@Value("${draft.cors-origins}") String origins) {
+    CorsConfigurationSource corsConfigurationSource(@Value("${draft.cors-origins}") String origins) {
         var config = new CorsConfiguration();
         config.setAllowedOrigins(Arrays.stream(origins.split(",")).map(String::trim).filter(s -> !s.isBlank()).toList());
         config.setAllowedMethods(java.util.List.of("GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"));
