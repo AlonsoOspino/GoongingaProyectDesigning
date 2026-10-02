@@ -127,10 +127,18 @@ public class FeudRoundService {
         }
         int winner=secondRank!=null && (firstRank==null || secondRank<firstRank)?second:first;
         JsonNode participant=turn.game.participant(winner);
-        if (participant==null) throw new IllegalArgumentException("The face-off player left the game.");
-        String side=turn.game.participantSide(participant);
-        jdbc.update("UPDATE public.\"FeudFaceOff\" SET \"familyWinnerTeamId\"=?,\"resolvedAt\"=now() WHERE \"roundId\"=?",participant.get("teamId").asInt(),turn.game.round().get("id").asInt());
-        turn.phase("PLAY_PASS");turn.put("activeMemberId",winner);turn.put("playPassWinnerSide",side);turn.deadline=null;
+        // Representative IDs preserve their original sides after a guest leaves.
+        // The team wins the face-off; its captain or manager can choose play/pass.
+        String side=winner==face.get("teamARepresentativeId").asInt()?"ALPHA":"BETA";
+        JsonNode team=turn.game.team(side);
+        Integer actingMember=winner;
+        if (participant==null || !FeudProjection.active(participant)) {
+            Integer captain=FeudProjection.number(team,"captainMemberId");
+            JsonNode captainPlayer=captain==null?null:turn.game.participant(captain);
+            actingMember=captainPlayer!=null && FeudProjection.active(captainPlayer)?captain:nextPlayer(turn.game,side,-1);
+        }
+        jdbc.update("UPDATE public.\"FeudFaceOff\" SET \"familyWinnerTeamId\"=?,\"resolvedAt\"=now() WHERE \"roundId\"=?",team.get("id").asInt(),turn.game.round().get("id").asInt());
+        turn.phase("PLAY_PASS");turn.put("activeMemberId",actingMember);turn.put("playPassWinnerSide",side);turn.deadline=null;
         jdbc.update("UPDATE public.\"FeudRound\" SET status='PLAY_PASS'::\"FeudRoundStatus\" WHERE id=?",turn.game.round().get("id").asInt());
     }
     public void finishRound(FeudTurn turn,String winnerSide,int award) {
@@ -176,7 +184,13 @@ public class FeudRoundService {
     public boolean timeout(FeudTurn turn) {
         if (turn.game.round()==null || turn.nullableNumber("pendingResponseId")!=null) return false;
         turn.event("NO_ANSWER","NO ANSWER");
-        if (turn.phase.startsWith("FACE_OFF")) faceOff(turn,turn.number("activeMemberId"),null);
+        if (turn.phase.startsWith("FACE_OFF")) {
+            JsonNode face=turn.game.faceOff();
+            if (face==null) throw new IllegalArgumentException("Face-off representatives are missing.");
+            int first=face.get("externalWinnerMemberId").asInt();
+            int second=first==face.get("teamARepresentativeId").asInt()?face.get("teamBRepresentativeId").asInt():face.get("teamARepresentativeId").asInt();
+            faceOff(turn,turn.phase.equals("FACE_OFF_FIRST_ANSWER")?first:second,null);
+        }
         else if (turn.phase.equals("ROUND_PLAY")) wrong(turn);
         else if (turn.phase.equals("STEAL")) finishRound(turn,FeudTurn.other(turn.text("activeSide")),turn.game.round().get("roundBank").asInt());
         else if (turn.phase.equals("FAST_MONEY")) {
