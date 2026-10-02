@@ -31,14 +31,16 @@ trap on_failure ERR
 
 echo "[1/7] Building images while the current API keeps serving..."
 docker compose config --quiet
-docker compose build "${services[@]}"
 running_backend="$(docker compose ps -q backend)"
 if [[ -n "$running_backend" ]]; then
-  previous_image="$(docker inspect --format '{{.Image}}' "$running_backend")"
+  # Docker's containerd store reports a config digest on the container,
+  # which cannot always be tagged. Preserve the named image before replacing it.
+  previous_image="$(docker inspect --format '{{.Config.Image}}' "$running_backend")"
   docker tag "$previous_image" "goonginga-backend:rollback-${deploy_id}"
   printf '%s\n' "goonginga-backend:rollback-${deploy_id}" > "backups/previous-image-${deploy_id}.txt"
 fi
 cp compose.yaml "backups/compose-${deploy_id}.yaml"
+docker compose build "${services[@]}"
 
 echo "[2/7] Preparing shared media permissions..."
 # Frontend owns existing files (UID 1000); Java uses group 10001.
