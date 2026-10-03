@@ -23,9 +23,9 @@ function Logo({ url, name }: { url?: string; name: string }) {
 export function TournamentHeader() {
   const state = useTournament();
   // The finals banner owns the top of the program frame so two OBS sources never overlap.
-  if (!state || state.stage === "finals") return null;
+  if (!state || state.stage === "finals") return <div className={styles.headerPage} data-6v6-header />;
   const match = activeTournamentMatch(state);
-  if (!match) return null;
+  if (!match) return <div className={styles.headerPage} data-6v6-header />;
   const a = tournamentTeam(state, match.teamAId);
   const b = tournamentTeam(state, match.teamBId);
   const round = state.rounds.find((item) => item.id === match.roundId);
