@@ -66,7 +66,14 @@ app.get("/health/db", async (_req, res) => {
 
 app.use("/assets/heroes", express.static(path.join(__dirname, "../frontend/HeroImages")));
 app.use("/assets/maps", express.static(path.join(__dirname, "../frontend/MapImages")));
-app.use("/uploads", express.static(MEDIA_DIR, { maxAge: "1y", immutable: true }));
+app.use("/uploads", express.static(MEDIA_DIR, {
+  maxAge: "1y",
+  immutable: true,
+  setHeaders(res) {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
+  },
+}));
 
 app.use("/tournament", tournamentRoutes);
 app.use("/draftAction", draftActionRoutes);

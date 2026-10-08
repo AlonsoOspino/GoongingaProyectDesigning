@@ -24,16 +24,13 @@ const marquee = [
 export default function HistoryPage() {
   return (
     <div className={styles.page}>
-      {/* El mismo tablero que la landing y Season 9, fijo detras del archivo. */}
-      <BrandField variant="section" className={styles.board} intensity={0.7} seedOffset={9090} />
-
+      <BrandField variant="section" className={styles.board} intensity={0.22} seedOffset={9090} />
       <header className={styles.hero}>
         <p className={styles.eyebrow}>Goonginga League · Archive</p>
         <h1 className={styles.h1}>GGL History</h1>
         <p className={styles.standfirst}>
-          The frozen record of every completed season. Pick a season to open its rosters, player
-          statistics, standings, playoff results, Grand Final and Wrapped recap, exactly as they
-          stood the night it closed.
+          Past seasons, final rosters and every result. Choose a season for standings, player stats
+          and the Grand Final recap.
         </p>
       </header>
 

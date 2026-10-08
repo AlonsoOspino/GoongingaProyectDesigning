@@ -44,7 +44,7 @@ public class MapSelectionService {
     }
 
     public DraftView beginBans(long id, DraftActor actor) {
-        var draft = commands.manager(id, actor);
+        var draft = commands.production(id, actor);
         return views.map(store.save(draft, workflow.beginBans(draft.state()), clock.instant()));
     }
 }

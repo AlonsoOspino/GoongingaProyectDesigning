@@ -709,22 +709,8 @@
   will-change: transform, filter;
 }
 
-.figureAura {
-  grid-area: 1 / 1;
-  align-self: end;
-  justify-self: center;
-  width: 82%;
-  height: 48%;
-  margin-bottom: 3%;
-  border-radius: 50%;
-  background: radial-gradient(ellipse, color-mix(in srgb, var(--accent) 15%, transparent), transparent 70%);
-  filter: blur(30px);
-  opacity: 0.7;
-  z-index: -1;
-}
 
-/* GridFigure deriva esta máscara del alfa real del PNG. Los recortes sólo
-   existen donde un píxel opaco toca físicamente el borde del archivo. */
+/* Artwork uses its original transparency with smooth edge fades. */
 .figureImg {
   grid-area: 1 / 1;
   width: 100%;
@@ -735,40 +721,17 @@
   mask-size: 100% 100%;
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
-  filter: saturate(0.96) contrast(1.04) drop-shadow(0 30px 34px rgba(0, 0, 0, 0.42));
+  filter: saturate(0.9) contrast(1.02);
   transform-origin: 50% 64%;
   transition: transform 800ms cubic-bezier(0.16, 1, 0.3, 1), filter 800ms ease;
 }
 
-/* Las celdas que se dibujan ENCIMA de la imagen. Mismo verde y mismo pelo que el
-   tablero del fondo: si no coincidieran, se leerian como un marco decorativo en
-   vez de como la misma rejilla pasando por delante. */
-.figureCells {
-  grid-area: 1 / 1;
-  width: 100%;
-  height: 100%;
-  display: block;
-  pointer-events: none;
-  z-index: 2;
-}
 
-.figureCutCell {
-  fill: color-mix(in srgb, #050806 88%, var(--accent) 12%);
-  stroke: color-mix(in srgb, var(--accent) 50%, transparent);
-  stroke-width: 0.045;
-  vector-effect: non-scaling-stroke;
-}
 
-.figureContourCell {
-  fill: transparent;
-  stroke: color-mix(in srgb, var(--accent-300) 58%, transparent);
-  stroke-width: 0.055;
-  vector-effect: non-scaling-stroke;
-}
+
 
 .gridFigure:hover .figureImg {
-  transform: scale(1.018);
-  filter: saturate(1.04) contrast(1.05) drop-shadow(0 34px 42px rgba(0, 0, 0, 0.48));
+  filter: saturate(1) contrast(1.02);
 }
 
 /* La figura cede un punto de su caja para dejarle sitio al halo: si ocupa el
@@ -863,7 +826,7 @@
 }
 
 .archiveSideWon {
-  background: linear-gradient(90deg, color-mix(in srgb, var(--team) 20%, transparent), transparent 78%);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
   border-left-color: var(--team);
 }
 
@@ -2321,4 +2284,203 @@
   .memberRow:hover {
     transform: none;
   }
+}
+
+/* Static green landing. Artwork blends with smooth alpha, without grid cells. */
+.landing {
+  background: color-mix(in srgb, var(--ground-base) 88%, var(--accent) 12%);
+}
+.landingHeader {
+  background: #091c13;
+  border-bottom-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.brandZone {
+  background: radial-gradient(ellipse at 80% 38%, rgba(52, 199, 123, .20), transparent 68%);
+}
+.heroLine:last-child { color: var(--accent); }
+.gglHeading .lightH2 span, .discordCopy .lightH2 span:last-child { color: var(--accent); }
+.gglSection::before, .gglSection::after,
+.gamesSection::before, .gamesSection::after,
+.discordSection::before, .discordSection::after { display: none; }
+.gglSection, .gamesSection, .discordSection { border-top-color: color-mix(in srgb, var(--accent) 25%, transparent); }
+.landing .eyebrow, .landing .h1, .landing .heroSub, .landing .heroCtas,
+.landing .liveDot, .landing .memberRow, .landing .scrollCue i::after { animation: none; }
+.landing .scrollCue i::after { display: none; }
+.heroInner {
+  min-height: min(760px, calc(100svh - 62px));
+  padding-block: 82px 70px;
+}
+.heroCopy { position: relative; z-index: 1; max-width: 66%; }
+.eyebrow { font-size: 11px; letter-spacing: .16em; margin-bottom: 22px; }
+.h1 { font-size: clamp(80px, 12vw, 184px); line-height: .84; }
+.heroSub { max-width: 34ch; margin-top: 30px; line-height: 1.55; }
+.heroCtas { margin-top: 28px; gap: 20px 28px; }
+.heroArt {
+  position: absolute;
+  z-index: 0;
+  top: 62px;
+  right: -18%;
+  width: 82%;
+  pointer-events: none;
+}
+.heroArt .gridFigure { aspect-ratio: 1920 / 823; }
+.heroArt { mix-blend-mode: luminosity; opacity: .78; }
+.heroArt .figureImg {
+  filter: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 38%), linear-gradient(180deg, transparent, #000 24%, #000 68%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 38%), linear-gradient(180deg, transparent, #000 24%, #000 68%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+}
+.landing .heroWatch { display: inline-flex; align-items: center; gap: 9px; color: var(--text); font-size: 14px; text-decoration: none; }
+.heroWatch:hover { text-decoration: underline; text-underline-offset: 5px; }
+.scrollCue { margin-top: 42px; }
+.landing .btnPrimary { background: var(--accent); border-color: var(--accent); color: var(--ground-base); }
+.landing .btnPrimary:hover { color: var(--ground-base); background: var(--accent-300); }
+.announceSection { padding: 24px 0 56px; }
+.announceSection:has(.announceStream:empty):not(:has(.joinedRail)) { display: none; }
+.announceInner { grid-template-columns: minmax(0, 1fr); }
+.announceInner:has(.announceStream:empty) { display: block; }
+.announceInner:has(.announceStream:empty) .joinedRail { max-width: 440px; }
+.gglSection {
+  display: block;
+  margin: 0;
+  min-height: 0;
+  padding: 84px max(40px, calc((100% - 1360px) / 2 + 40px)) 64px;
+}
+.gglIntro {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr);
+  align-items: end;
+  gap: 56px;
+}
+.gglHeading { min-width: 0; }
+.gglHeading .lightH2 { font-size: clamp(76px, 9.5vw, 140px); margin: 0; }
+.gglCopy { padding: 0 0 3px; }
+.lightH2 { font-size: clamp(62px, 7.5vw, 112px); margin-bottom: 24px; }
+.lightParagraph, .gamesCopy .heroSub { font-size: 18px; line-height: 1.6; max-width: 38ch; }
+.gglCopy .lightParagraph { margin-bottom: 0; }
+.lightEyebrow { font-size: 11px; letter-spacing: .14em; margin-bottom: 16px; }
+.figureStage { min-height: 0; }
+.gglStage { --figure-inset: 0; display: block; margin: 40px auto 0; max-width: 1180px; }
+.gridFigure { padding: 0; will-change: auto; }
+.figureImg, .gridFigure:hover .figureImg { filter: none; transition: none; }
+.gglFigure {
+  -webkit-mask-image: linear-gradient(180deg, #000 66%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 66%, transparent 100%);
+}
+.gamesFigure {
+  -webkit-mask-image: linear-gradient(180deg, #000 65%, transparent 100%), linear-gradient(90deg, transparent, #000 7%, #000 94%, transparent);
+  mask-image: linear-gradient(180deg, #000 65%, transparent 100%), linear-gradient(90deg, transparent, #000 7%, #000 94%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+}
+.gglBox, .gamesBox { width: 100%; }
+.gglCardSlot {
+  position: absolute;
+  right: 0;
+  bottom: 14px;
+  width: min(400px, 36%);
+  margin: 0;
+}
+.gglCardSlot::before { display: none; }
+.archiveCard { background: color-mix(in srgb, var(--bg) 90%, transparent); box-shadow: none; border-color: var(--divider); padding: 20px 22px 16px; }
+.archiveCard:hover { transform: none; box-shadow: none; border-color: var(--divider); background: color-mix(in srgb, var(--bg) 90%, transparent); }
+.archiveSideWon .archiveScore { color: var(--text); }
+.archiveSide { padding-block: 11px; }
+.archiveLogo { width: 36px; height: 36px; }
+.archiveScore { font-size: 38px; }
+.archiveTeam { font-size: 15px; }
+.sectionActions { display: flex; flex-wrap: wrap; gap: 20px 30px; }
+.landing .sectionLink { display: inline-flex; align-items: center; gap: 12px; width: fit-content; margin-top: 20px; color: var(--text); font-size: 14px; text-decoration: none; }
+.sectionLink svg { color: var(--accent); }
+.sectionLink:hover { text-decoration: underline; text-underline-offset: 5px; }
+.gamesInner {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, .7fr);
+  align-items: center;
+  gap: 24px;
+  min-height: 620px;
+  max-width: 1360px;
+  margin-inline: auto;
+  padding: 78px 40px;
+}
+.gamesCopy { position: relative; z-index: 2; padding: 0; }
+.gamesCopy .heroSub { margin-top: 0; }
+.gamesH2 { font-size: clamp(80px, 9vw, 134px); max-width: 5ch; margin-bottom: 26px; }
+.gamesStage { --figure-inset: 0; display: block; margin-left: -40px; width: calc(100% + 60px); }
+.discordInner {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 32px;
+  max-width: 1360px;
+  min-height: 0;
+  padding: 76px 40px 84px;
+}
+.discordCopy { max-width: none; }
+.discordCopy .lightH2 { font-size: clamp(74px, 8.4vw, 118px); max-width: none; }
+.discordCopy .lightH2 span { display: block; white-space: nowrap; }
+.discordCopy .lightParagraph { max-width: 37ch; }
+.discordArt { width: min(460px, 100%); justify-self: end; }
+.discordArt img { display: block; width: 100%; height: auto; }
+.discordJoin { align-self: start; width: fit-content; }
+.joinedRail { display: flex; flex-direction: column; align-items: flex-start; background: transparent; border-left: 1px solid var(--divider); }
+.memberAvatar { box-shadow: none; border: 1px solid var(--divider); }
+.memberRow:hover .memberAvatar { box-shadow: none; transform: none; }
+.memberRow:hover { transform: none; }
+.footerTop { padding-block: 64px 40px; }
+
+@media (min-width: 1000px) {
+  .announceInner:has(.joinedRail):not(:has(.announceStream:empty)) { grid-template-columns: minmax(0, 1fr) 296px; }
+}
+@media (max-width: 1100px) {
+  .heroArt { top: 56px; width: 108%; right: -28%; }
+  .gglSection { padding-block: 64px 48px; }
+  .gglIntro { gap: 36px; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); }
+  .gglHeading .lightH2 { font-size: 9.2vw; }
+  .gglStage { margin-top: 36px; }
+  .gglCardSlot { width: min(360px, 43%); bottom: 0; }
+  .archiveCard { padding: 16px 18px 14px; }
+  .gamesInner { min-height: 0; padding-block: 64px; }
+  .gamesH2 { font-size: 9.5vw; }
+  .discordInner { gap: 20px; padding-block: 64px; }
+  .discordCopy .lightH2 { font-size: 8.4vw; }
+}
+@media (max-width: 760px) {
+  .heroInner { min-height: 600px; padding: 66px 24px 48px; align-items: flex-start; }
+  .heroCopy { max-width: 100%; }
+  .h1 { font-size: clamp(84px, 17.5vw, 132px); }
+  .heroArt { top: 22px; width: 168%; right: -73%; opacity: .48; }
+  .heroSub { max-width: 30ch; margin-top: 28px; }
+  .scrollCue { margin-top: 34px; }
+  .gglSection { padding: 56px 24px 48px; }
+  .gglIntro { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .gglHeading .lightH2 { font-size: clamp(70px, 13vw, 100px); }
+  .gglCopy { padding: 0; }
+  .gglStage { margin-top: 28px; }
+  .gglBox { width: calc(100% + 48px); margin-left: -24px; }
+  .gglCardSlot { position: relative; right: auto; bottom: auto; width: min(400px, 100%); margin: -10px 0 0 auto; }
+  .gamesInner { grid-template-columns: minmax(0, 1fr); gap: 30px; padding: 56px 24px 48px; }
+  .gamesCopy { grid-row: 1; padding: 0; }
+  .gamesH2 { font-size: clamp(70px, 13vw, 100px); max-width: none; }
+  .gamesStage { width: calc(100% + 48px); margin-left: -24px; }
+  .discordInner { grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 56px 24px; }
+  .discordCopy .lightH2 { font-size: clamp(64px, 11vw, 88px); }
+  .discordArt { width: min(350px, 82%); justify-self: end; margin-top: -8px; }
+  .lightParagraph, .gamesCopy .heroSub { font-size: 17px; }
+}
+@media (max-width: 440px) {
+  .heroInner { min-height: 540px; padding-inline: 20px; }
+  .h1 { font-size: 20.5vw; }
+  .heroCtas { gap: 20px; }
+  .heroSub { font-size: 17px; }
+  .heroCtas .btn { padding-inline: 20px; }
+  .gglSection, .gamesInner, .discordInner { padding-inline: 20px; }
+  .gglHeading .lightH2 { font-size: 17vw; }
+  .gglBox, .gamesStage { width: calc(100% + 40px); margin-left: -20px; }
+  .discordCopy .lightH2 { font-size: 15.5vw; }
+  .archiveLogo { width: 30px; height: 30px; }
+  .archiveScore { font-size: 32px; }
 }

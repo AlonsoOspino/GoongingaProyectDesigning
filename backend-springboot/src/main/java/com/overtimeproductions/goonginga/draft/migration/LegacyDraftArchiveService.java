@@ -3,6 +3,7 @@ package com.overtimeproductions.goonginga.draft.migration;
 import com.overtimeproductions.goonginga.common.data.JsonSql;
 import com.overtimeproductions.goonginga.draft.api.*;
 import com.overtimeproductions.goonginga.draft.data.*;
+import com.overtimeproductions.goonginga.draft.preparation.DraftProvisioningService;
 import java.util.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -20,8 +21,11 @@ public class LegacyDraftArchiveService {
     private final JdbcTemplate jdbc;
     private final DraftStore drafts;
     private final DraftViewMapper views;
-    public LegacyDraftArchiveService(JsonSql json,JdbcTemplate jdbc,DraftStore drafts,DraftViewMapper views) {
+    private final DraftProvisioningService provisioning;
+    public LegacyDraftArchiveService(JsonSql json,JdbcTemplate jdbc,DraftStore drafts,DraftViewMapper views,
+            DraftProvisioningService provisioning) {
         this.json=json;this.jdbc=jdbc;this.drafts=drafts;this.views=views;
+        this.provisioning=provisioning;
     }
     private JsonNode rawTable(long id) {
         return json.first("SELECT to_jsonb(d)::text FROM public.\"DraftTable\" d WHERE id=?",id)
@@ -38,6 +42,7 @@ public class LegacyDraftArchiveService {
                 "This draft has migrated. Use /draft phase commands; legacy history is read-only.");
     }
     public List<Object> tables() {
+        provisioning.ensureScheduledMatches();
         var rows=new ArrayList<Object>(json.list("""
             SELECT to_jsonb(d)::text FROM public."DraftTable" d JOIN public."Match" m ON m.id=d."matchId"
             JOIN public."Tournament" t ON t.id=m."tournamentId" WHERE t.name<>'GGL Developer Draft App'
@@ -50,6 +55,7 @@ public class LegacyDraftArchiveService {
         return rows;
     }
     public Object byMatch(int id) {
+        provisioning.ensure(id);
         if(drafts.exists(id))return views.map(drafts.byMatch(id));
         return json.first("""
             SELECT (to_jsonb(d)||jsonb_build_object('actions',COALESCE(

@@ -16,7 +16,6 @@ import { Modal } from "@/components/ui/Modal";
 import { ImageUploadField } from "@/components/ui/ImageUploadField";
 import { MatchCard } from "@/components/matches/MatchCard";
 import type { Team, Match } from "@/lib/api/types";
-import { deleteReplacedBlobImage } from "@/lib/blobUpload";
 
 export default function MyTeamPage() {
   const { user, token, isAuthenticated, isHydrated } = useSession();
@@ -80,10 +79,6 @@ export default function MyTeamPage() {
         logo: editForm.logo || undefined,
         roster: editForm.roster || undefined,
       });
-      await Promise.allSettled([
-        deleteReplacedBlobImage(team.logo, editForm.logo),
-        deleteReplacedBlobImage(team.roster, editForm.roster),
-      ]);
       setTeam(updatedTeam);
       setEditModalOpen(false);
     } catch (error) {

@@ -1,14 +1,8 @@
-import { apiRequest, ApiError } from "@/lib/api/client";
-import type { Match, Team, MatchType, MatchStatus, Tournament, GenerateRoundRobinPayload } from "@/lib/api/types";
+import { apiRequest } from "@/lib/api/client";
+import type { Match, Team, Tournament, GenerateRoundRobinPayload } from "@/lib/api/types";
 import type { MatchReference } from "@/lib/matchReference";
 
 export type { Tournament };
-
-// ==================== TOURNAMENT ====================
-
-export async function getTournaments() {
-  return apiRequest<Tournament[]>("/tournament");
-}
 
 export async function getCurrentTournament(options: { cache?: RequestCache } = {}) {
   return apiRequest<Tournament>("/tournament/current", { cache: options.cache });
@@ -24,7 +18,6 @@ export async function createTournament(
     body: payload,
   });
 }
-
 export async function updateTournament(
   token: string,
   id: number,
@@ -49,53 +42,6 @@ export async function startTournamentPlayoffs(
   });
 }
 
-export async function deleteTournament(token: string, id: number) {
-  return apiRequest<void>(`/tournament/delete/${id}`, {
-    method: "DELETE",
-    token,
-  });
-}
-
-// ==================== MATCHES (Admin) ====================
-export interface CreateMatchPayload {
-  type: MatchType;
-  bestOf: number;
-  startDate: string;
-  teamAId: number;
-  teamBId: number;
-  tournamentId: number;
-  semanas?: number | null;
-  title?: string;
-  mapsAllowedByRound?: Record<string, number[]>;
-}
-
-export async function adminCreateMatch(token: string, payload: CreateMatchPayload) {
-  return apiRequest<Match>("/match/admin/create", {
-    method: "POST",
-    token,
-    body: payload,
-  });
-}
-
-export async function adminUpdateMatch(
-  token: string,
-  matchId: number,
-  payload: Partial<Match>
-) {
-  return apiRequest<Match>(`/match/admin/update/${matchId}`, {
-    method: "PUT",
-    token,
-    body: payload,
-  });
-}
-
-export async function adminDeleteMatch(token: string, matchId: number) {
-  return apiRequest<void>(`/match/admin/delete/${matchId}`, {
-    method: "DELETE",
-    token,
-  });
-}
-
 export async function adminGenerateRoundRobin(
   token: string,
   payload: GenerateRoundRobinPayload
@@ -105,28 +51,6 @@ export async function adminGenerateRoundRobin(
     token,
     body: payload,
   });
-}
-
-export async function adminUpdateWeekMaps(
-  token: string,
-  payload: { tournamentId: number; semanas: number; mapsAllowedByRound: Record<string, number[]> }
-) {
-  return apiRequest<{ message: string; matches: Match[] }>("/match/admin/week-maps", {
-    method: "PUT",
-    token,
-    body: payload,
-  });
-}
-
-export async function adminGetWeekMapsConfig(
-  token: string,
-  tournamentId: number,
-  semanas: number
-) {
-  return apiRequest<{ mapsAllowedByRound: Record<string, number[]> | null }>(
-    `/match/admin/week-maps/${tournamentId}/${semanas}`,
-    { token }
-  );
 }
 
 export async function getMatchById(matchId: MatchReference) {
@@ -160,25 +84,6 @@ export async function adminCreateTeams(token: string, payload: { count: number; 
   });
 }
 
-export async function adminUpdateTeam(
-  token: string,
-  teamId: number,
-  payload: Partial<Team>
-) {
-  return apiRequest<Team>(`/team/admin/update/${teamId}`, {
-    method: "PUT",
-    token,
-    body: payload,
-  });
-}
-
-export async function adminDeleteTeam(token: string, teamId: number) {
-  return apiRequest<void>(`/team/delete/${teamId}`, {
-    method: "DELETE",
-    token,
-  });
-}
-
 // ==================== MEMBERS (Admin) ====================
 export interface Member {
   id: number;
@@ -195,12 +100,6 @@ export interface Member {
 
 export async function getMembers() {
   return apiRequest<Member[]>("/network-members/players");
-}
-
-export async function getMemberById(token: string, id: number) {
-  return apiRequest<Member>(`/network-members/players/${id}`, {
-    token,
-  });
 }
 
 // ==================== MAPS & HEROES ====================
@@ -314,49 +213,4 @@ export async function adminCreateHero(
     token,
     formData: form,
   });
-}
-
-// ==================== DATABASE TOOLS (Admin) ====================
-export async function adminDownloadBackupSql(token: string) {
-  return apiRequest<string>("/system-db/backup", {
-    token,
-  });
-}
-
-export async function adminRestoreBackupSql(
-  token: string,
-  payload: { confirmationText: string; script: string }
-) {
-  return apiRequest<{ message: string; executedStatements: number }>("/system-db/restore", {
-    method: "POST",
-    token,
-    body: payload,
-  });
-}
-
-export async function adminWipeDatabase(token: string, payload: { confirmationText: string }) {
-  try {
-    return await apiRequest<{ message: string }>("/system-db/wipe", {
-      method: "POST",
-      token,
-      body: payload,
-    });
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 404) {
-      if (payload.confirmationText !== "DELETE DATABASE") {
-        throw error;
-      }
-
-      const fallback = await adminRestoreBackupSql(token, {
-        confirmationText: "RESTORE DATABASE",
-        script:
-          'TRUNCATE TABLE "PlayerStat", "DraftAction", "DraftTable", "LeaderboardOverlayAsset", "News", "Match", "Member", "Team", "Tournament", "_AllowedMaps" RESTART IDENTITY CASCADE;',
-      });
-
-      return {
-        message: `${fallback.message} (compatibility mode)` ,
-      };
-    }
-    throw error;
-  }
 }

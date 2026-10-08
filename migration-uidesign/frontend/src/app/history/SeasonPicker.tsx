@@ -88,12 +88,11 @@ export default function SeasonPicker({ onOpen }: { onOpen: (season: number) => v
         <div className={styles.seasonCardBody}>
           <p className={styles.seasonStatusLive}>
             <span className={styles.liveDot} aria-hidden="true" />
-            Now live
+            Current season
           </p>
           <h2 className={styles.seasonNumber}>Season 9</h2>
           <p className={styles.seasonBlurb}>
-            The season being played right now. Rosters, schedule and the table are live rather than
-            archived, so they live on the season page.
+            Season format, map pool and draft rules.
           </p>
           <Link href="/season-9" className={styles.seasonCta}>
             Open Season 9 <ArrowIcon size={14} />

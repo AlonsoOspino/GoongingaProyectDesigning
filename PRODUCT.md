@@ -87,11 +87,11 @@ Goonginga should feel closer to a real esports league ecosystem than to a generi
 - Product architecture, roles, workflows, routes, and development commands are documented in `README.md`.
 - The primary public and operational application is in `migration-uidesign/frontend`.
 - Community minigames and Family Feud experiences are in `migration-uidesign/minigames-frontend`.
-- Authoritative business logic, role enforcement, synchronized match state, and data persistence are in `migration-uidesign/backend`.
+- Authoritative business logic, role enforcement, synchronized match state, and data persistence are in `backend-springboot`; the draft workflow is separated by phase.
 - Existing league history, teams, players, match data, media, broadcast assets, and season content are present under `migration-uidesign/frontend/public` and `migration-uidesign/frontend/src/data`.
 - Existing Goonginga landing-page copy identifies eight completed seasons, 122 maps in Season 8, and a 2023 founding date. These claims are repository evidence and must remain tied to real source data rather than be generalized or fabricated.
 - Existing Discord, Twitch, Instagram, and TikTok links are encoded in the public application.
-- Existing OBS overlays, draft tools, manual stat workflows, and Windows launcher assets are implementation evidence that future work must preserve.
+- Existing OBS overlays, draft tools, manual stat workflows, and broadcast assets are implementation evidence that future work must preserve.
 - No testimonials, revenue claims, or permission to invent player counts or competitive metrics have been provided. Future work must not fabricate them.
 
 ## Product Principles

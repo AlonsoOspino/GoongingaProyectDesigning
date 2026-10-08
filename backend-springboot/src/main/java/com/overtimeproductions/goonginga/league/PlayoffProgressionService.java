@@ -1,6 +1,7 @@
 package com.overtimeproductions.goonginga.league;
 
 import com.overtimeproductions.goonginga.draft.context.MatchInfo;
+import com.overtimeproductions.goonginga.draft.preparation.DraftProvisioningService;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -15,7 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class PlayoffProgressionService {
     private final JdbcTemplate jdbc;
-    public PlayoffProgressionService(JdbcTemplate jdbc) { this.jdbc=jdbc; }
+    private final DraftProvisioningService drafts;
+    public PlayoffProgressionService(JdbcTemplate jdbc, DraftProvisioningService drafts) { this.jdbc=jdbc; this.drafts=drafts; }
     private record Series(int teamA,int teamB,int winsA,int winsB,String status) {
         int winner() { return winsA>winsB?teamA:teamB; }
     }
@@ -70,6 +72,7 @@ public class PlayoffProgressionService {
                     VALUES (?::"MatchType",?,?,?,?, 'SCHEDULED',?,?,?) RETURNING id
                     """,Integer.class,grandFinal?"FINALS":"PLAYOFFS",grandFinal?"Grand Final":"Semifinal",nextRound,seeds.get(a),grandFinal?7:5,match.tournamentId(),a,b);
             jdbc.update("INSERT INTO public.\"_AllowedMaps\" (\"A\",\"B\") SELECT id,? FROM public.\"Map\"",id);
+            drafts.ensure(id);
         }
     }
     private static void enumerate(List<List<Integer>> options,int index,List<Integer> current,List<Set<Pair>> outcomes,Map<Integer,Integer> seeds) {

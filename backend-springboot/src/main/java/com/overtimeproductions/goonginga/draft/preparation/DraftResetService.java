@@ -65,11 +65,10 @@ public class DraftResetService {
         jdbc.update("DELETE FROM spring_draft.schedule_notifications WHERE match_id=?",id);
         deleteLegacy(id);
         matches.reset(id);
-        if(draft!=null) {
-            var initial = DraftState.newDraft(id,match.teamAId(),match.teamBId(),match.effectiveBestOf(),
-                    pickers.choose(match,catalog.team(match.teamAId()),catalog.team(match.teamBId())));
-            store.reset(draft,initial,clock.instant());
-        }
+        var initial = DraftState.newDraft(id,match.teamAId(),match.teamBId(),match.effectiveBestOf(),
+                pickers.choose(match,catalog.team(match.teamAId()),catalog.team(match.teamBId())));
+        if(draft!=null) store.reset(draft,initial,clock.instant());
+        else store.create(matches.get(id),initial,clock.instant());
         return matches.get(id);
     }
 

@@ -58,11 +58,6 @@ export function preloadImages(urls: Array<string | null | undefined>): Promise<v
   return Promise.all(urls.map((u) => preloadImage(u)));
 }
 
-/** Synchronous "is this URL already cached and decoded?" check. */
-export function isImageReady(src: string | null | undefined): boolean {
-  return !!src && readyUrls.has(src);
-}
-
 /**
  * React hook that reports whether an image URL is fully loaded.
  *

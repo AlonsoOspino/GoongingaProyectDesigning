@@ -33,11 +33,6 @@ export interface MemberProfile {
   obsWebsocketPassword?: string | null;
 }
 
-export interface LoginResponse {
-  token: string;
-  user: AuthUser;
-}
-
 export type NetworkMemberRole =
   | "MEMBER"
   | "ADMIN"

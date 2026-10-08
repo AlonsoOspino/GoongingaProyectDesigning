@@ -72,17 +72,11 @@ export async function banHero(
   });
 }
 
-export async function endMap(token: string, draftId: number) {
-  return apiRequest<DraftState>(`/draft/${draftId}/end-map`, {
-    method: "PATCH",
-    token,
-  });
-}
-
-export async function endGame(token: string, draftId: number) {
+export async function endGame(token: string, draftId: number, expected?: { expectedGameNumber: number; expectedMapId: number }) {
   return apiRequest<DraftState>(`/draft/${draftId}/end-game`, {
     method: "PATCH",
     token,
+    body: expected,
   });
 }
 

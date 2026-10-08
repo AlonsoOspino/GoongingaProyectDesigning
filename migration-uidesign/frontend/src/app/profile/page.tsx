@@ -17,7 +17,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const { token, user, isHydrated } = useSession();
   const [networkUser, setNetworkUser] = useState<NetworkSessionUser | null>(null);
-  const [form, setForm] = useState({ nickname: "", profilePic: "", obsWebsocketUrl: "" });
+  const [form, setForm] = useState({ nickname: "", profilePic: "", obsWebsocketUrl: "", obsWebsocketPassword: "" });
   const [message, setMessage] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -38,6 +38,7 @@ export default function ProfilePage() {
           nickname: profile.nickname || "",
           profilePic: profile.profilePic || "",
           obsWebsocketUrl: profile.obsWebsocketUrl || "",
+          obsWebsocketPassword: profile.obsWebsocketPassword || "",
         })
       )
       .catch((error) => {
@@ -56,6 +57,7 @@ export default function ProfilePage() {
         nickname: form.nickname.trim(),
         profilePic: form.profilePic.trim() || undefined,
         obsWebsocketUrl: form.obsWebsocketUrl.trim() || null,
+        obsWebsocketPassword: form.obsWebsocketPassword,
       });
       setMessage("Profile updated.");
     } catch (error) {
@@ -134,6 +136,12 @@ export default function ProfilePage() {
                 onChange={(event) => setForm({ ...form, obsWebsocketUrl: event.target.value })}
                 placeholder="Optional. Used to drive overlays from your own OBS."
               />
+            </div>
+            <div className={styles.fieldWide}>
+              <Input label="OBS WebSocket password" type="password" autoComplete="off"
+                value={form.obsWebsocketPassword}
+                onChange={(event) => setForm({ ...form, obsWebsocketPassword: event.target.value })}
+                placeholder="Optional. You can also enter it when casting." />
             </div>
           </div>
 

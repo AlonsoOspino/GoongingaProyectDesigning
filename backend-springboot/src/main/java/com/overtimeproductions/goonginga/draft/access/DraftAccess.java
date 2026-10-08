@@ -38,6 +38,11 @@ public class DraftAccess {
         throw forbidden("Only a manager can perform this action.");
     }
 
+    public void requireProduction(DraftActor actor, MatchInfo match) {
+        if (actor.isProduction() || (actor.isDeveloper() && "PRACTICE".equals(match.type()))) return;
+        throw forbidden("Only production staff can perform this action.");
+    }
+
     public int captainTeam(DraftActor actor, MatchInfo match) {
         return jdbc.queryForList("""
                 SELECT "teamId" FROM public."SeasonPlayer"
@@ -59,12 +64,12 @@ public class DraftAccess {
     public void requireRead(Jwt token, String key, MatchInfo match) {
         if (validKey(key)) return;
         var actor = actor(token);
-        if (actor.isManager() || (actor.isDeveloper() && "PRACTICE".equals(match.type()))) return;
+        if (actor.isProduction() || (actor.isDeveloper() && "PRACTICE".equals(match.type()))) return;
         captainTeam(actor, match);
     }
 
     public String share(DraftActor actor, MatchInfo match) {
-        if (!actor.isManager() && !(actor.isDeveloper() && "PRACTICE".equals(match.type()))) captainTeam(actor, match);
+        if (!actor.isProduction() && !(actor.isDeveloper() && "PRACTICE".equals(match.type()))) captainTeam(actor, match);
         if (shareKey.isBlank()) throw new DraftHttpException(HttpStatus.SERVICE_UNAVAILABLE, "Draft sharing is not configured.");
         return shareKey;
     }

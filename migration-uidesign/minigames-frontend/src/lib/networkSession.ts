@@ -1,7 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { NetworkMemberRole } from "@/lib/api/types";
+
+type NetworkMemberRole =
+  | "MEMBER"
+  | "ADMIN"
+  | "CASTER"
+  | "DEVELOPER"
+  | "SEASON_PLAYER"
+  | "MODERATOR"
+  | "COMMUNITY_MANAGER"
+  | "CONTENT_CREATOR"
+  | "SOCIAL_MEDIA";
 
 const STORAGE_KEY = "goonginga.network.session";
 

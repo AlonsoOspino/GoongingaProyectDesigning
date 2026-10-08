@@ -261,23 +261,6 @@ function TypewriterText({
   );
 }
 
-function TeamTile({ team, index }: { team: GoongingaWrapped["snapshot"]["overview"]["teams"][number]; index: number }) {
-  const [logoUnavailable, setLogoUnavailable] = useState(!team.logo);
-  return (
-    <div className={styles.teamTile}>
-      <span className={styles.teamIndex}>{String(index + 1).padStart(2, "0")}</span>
-      <div className={styles.teamMark}>
-        {!logoUnavailable && team.logo ? (
-          <img src={resolveGenericBackendAsset(team.logo)} alt={team.name} onError={() => setLogoUnavailable(true)} />
-        ) : (
-          <span aria-label={team.name}>{team.name.slice(0, 2).toUpperCase()}</span>
-        )}
-      </div>
-      <p>{team.name}</p>
-    </div>
-  );
-}
-
 function SeasonLogo({ team, index }: { team: GoongingaWrapped["snapshot"]["overview"]["teams"][number]; index: number }) {
   const [logoUnavailable, setLogoUnavailable] = useState(!team.logo);
   return (
@@ -734,7 +717,6 @@ function PlayerSlide({
   const storyAudioSources = assets.storyAudios[story.assetKey] || EMPTY_AUDIO_SOURCES;
   const revealStage = useHighlightSequence(active);
   const title = story.titleLines.join("\n");
-  const titleRevealed = revealStage >= 1;
 
   useEffect(() => {
     const video = videoRef.current;

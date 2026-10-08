@@ -24,9 +24,14 @@ public class ResultService {
     }
 
     public MatchInfo record(int matchId, DraftActor actor, Long winner) {
+        return record(matchId, actor, winner, null, null);
+    }
+
+    public MatchInfo record(int matchId, DraftActor actor, Long winner, Integer expectedGameNumber, Integer expectedMapId) {
         matches.lockBracketTournament(matchId);
         var draft = store.lockByMatch(matchId);
-        access.requireManager(actor, draft.match());
+        access.requireProduction(actor, draft.match());
+        com.overtimeproductions.goonginga.draft.application.MapCommandScope.require(draft.state(), expectedGameNumber, expectedMapId);
         var next = rules.recordResult(draft.state(), winner);
         matches.lockTeams(draft.match());
         if (winner != null) matches.adjustMapStanding(Math.toIntExact(winner), Math.toIntExact(next.otherTeam(winner)), 1);

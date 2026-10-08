@@ -1,19 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import SeasonArchiveCard from "./SeasonArchiveCard";
-import WhoWeAre from "./WhoWeAre";
 import TournamentMode from "./TournamentMode";
-import GridFigure, { type FigureEdge } from "./GridFigure";
-import BrandField from "./atmosphere/BrandField";
-import { useStoryMotion } from "@/components/story/useStoryMotion";
-import {
-  ChapterIndex,
-  RevealWords,
-  Story,
-  type Chapter,
-} from "@/components/story/StoryParts";
+import GridFigure from "./GridFigure";
 import { getRecentNetworkMembers } from "@/lib/api/networkMember";
 import type { NetworkMember } from "@/lib/api/types";
 import { getActiveAnnouncements } from "@/lib/api/announcement";
@@ -26,15 +17,6 @@ import {
   TWITCH_URL,
   TwitchIcon,
 } from "./brandAssets";
-
-const GGL_EDGES: FigureEdge[] = ["left", "right", "top", "bottom"];
-const GAME_NIGHT_EDGES: FigureEdge[] = ["left", "right", "top", "bottom"];
-
-const chapters: Chapter[] = [
-  { id: "ggl", label: "GGL" },
-  { id: "games", label: "Game night" },
-  { id: "discord", label: "Discord" },
-];
 
 function CommunityCarousel({ members }: { members: NetworkMember[] }) {
   // Mapped vertically, one per row, big enough to actually see who joined.
@@ -86,11 +68,8 @@ interface BuilderCard {
 }
 
 export function LandingPage() {
-  const landingRef = useRef<HTMLDivElement | null>(null);
   const [announcements, setAnnouncements] = useState<ActiveAnnouncements | null>(null);
   const [recentMembers, setRecentMembers] = useState<NetworkMember[] | null>(null);
-
-  useStoryMotion(landingRef);
 
 
 
@@ -175,41 +154,44 @@ export function LandingPage() {
     { href: "/stats", label: "Stats" },
   ];
 
-  const mobileLinks = [
-    { href: "/#about", label: "About" },
-    { href: "/news", label: "News" },
-    { href: "/history", label: "GGL History" },
-    { href: "/season-9", label: "Season 9" },
-  ];
-
   return (
-    <div ref={landingRef} className={styles.landing} data-landing-root>
+    <div className={styles.landing} data-landing-root>
 
       <main id="top">
         <div className={styles.brandZone}>
-          <BrandField variant="zone" />
 
         <section className={styles.hero} data-hero>
-
+          <div className={styles.heroArt} aria-hidden="true">
+            <GridFigure
+              src="/REINHARD.jpg"
+              alt=""
+              width={1920}
+              height={823}
+              motion={false}
+              eager
+            />
+          </div>
           <div className={styles.heroInner}>
-            <div className={styles.heroCopy} data-hero-copy>
-              <div className={styles.heroRule} aria-hidden="true" />
+            <div className={styles.heroCopy}>
               <p className={styles.eyebrow}>ON AIR SINCE 2023</p>
               <h1 className={styles.h1}>
                 <span className={styles.heroLine}>overtime</span>
                 <span className={styles.heroLine}>productions</span>
               </h1>
               <p className={styles.heroSub}>
-                A very active community that hosts streams &amp; events of many games like Overwatch,
-                Deadlock, League of Legends and more!
+                Overwatch tournaments, live casts and game nights.
+                Home of the Goonginga League.
               </p>
               <div className={styles.heroCtas}>
                 <a href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer" className={styles.btnPrimary}>
                   Join the Discord <ArrowIcon />
                 </a>
+                <a href={TWITCH_URL} target="_blank" rel="noopener noreferrer" className={styles.heroWatch}>
+                  <TwitchIcon /> Watch on Twitch
+                </a>
               </div>
               <div className={styles.scrollCue} aria-hidden="true">
-                <span>Scroll to tune in</span>
+                <span>Explore Overtime</span>
                 <i />
               </div>
             </div>
@@ -268,28 +250,22 @@ export function LandingPage() {
         </div>
 
 
-        <WhoWeAre />
-
-        <Story>
-          <ChapterIndex chapters={chapters} />
-
         <section className={styles.gglSection} id="about" data-chapter="ggl">
-          <BrandField variant="section" className={styles.fieldGgl} intensity={0.9} ground={false} seedOffset={101} />
-          <div className={styles.gglCopy} data-motion-copy>
-            <p className={styles.lightEyebrow}>OUR BIGGEST PROJECT!</p>
-            <h2 className={styles.lightH2}>OVERTIME GGL</h2>
-            <RevealWords className={styles.lightParagraph}>
-              Our biggest event brings the whole community together for a competitive Overwatch
-              5v5 tournament. Teams play every week, with each match organized, cast, and streamed
-              live by our staff.
-            </RevealWords>
-            <RevealWords className={styles.lightParagraph}>
-              Eight seasons have already brought players and spectators together this way, and
-              Season 9 is on the way — new teams, new matchups, new stories.
-            </RevealWords>
-            <a href={TWITCH_URL} target="_blank" rel="noopener noreferrer" className={styles.twitchLink}>
-              <TwitchIcon /> Watch the stream
-            </a>
+          <div className={styles.gglIntro}>
+            <div className={styles.gglHeading}>
+              <p className={styles.lightEyebrow}>Overwatch 5v5</p>
+              <h2 className={styles.lightH2}>OVERTIME <span>GGL</span></h2>
+            </div>
+            <div className={styles.gglCopy} data-motion-copy>
+              <p className={styles.lightParagraph}>
+                Weekly Overwatch matches, captain drafts and live casts.
+                Eight seasons played.
+              </p>
+              <div className={styles.sectionActions}>
+                <Link href="/season-9" className={styles.sectionLink}>Season 9 <ArrowIcon /></Link>
+                <Link href="/history" className={styles.sectionLink}>Past seasons <ArrowIcon /></Link>
+              </div>
+            </div>
           </div>
           <div className={`${styles.figureStage} ${styles.gglStage}`}>
             <GridFigure
@@ -297,8 +273,7 @@ export function LandingPage() {
               alt="Goonginga League heroes artwork"
               width={1920}
               height={1080}
-              edges={GGL_EDGES}
-              cols={36}
+              motion={false}
               className={styles.gglBox}
               imgClassName={styles.gglFigure}
             />
@@ -309,7 +284,6 @@ export function LandingPage() {
         </section>
 
         <section className={styles.gamesSection} data-chapter="games">
-          <BrandField variant="section" className={styles.fieldGames} intensity={0.9} ground={false} seedOffset={202} />
           <div className={styles.gamesInner}>
             <div className={`${styles.figureStage} ${styles.gamesStage}`}>
               <GridFigure
@@ -317,49 +291,43 @@ export function LandingPage() {
                 alt="Overwatch heroes posing for a group selfie"
                 width={1672}
                 height={941}
-                edges={GAME_NIGHT_EDGES}
-                cols={36}
+                motion={false}
                 className={styles.gamesBox}
                 imgClassName={styles.gamesFigure}
               />
             </div>
             <div className={styles.gamesCopy} data-motion-copy>
-              <p className={styles.amberEyebrow}>Events</p>
-              <h2 className={styles.gamesH2}>Game-night events, any game</h2>
-              <RevealWords className={styles.heroSub}>
-                Outside the league we run events designed to start and finish in a single day — a
-                different game, format, or challenge each time. They are open to whoever signs up,
-                organized through the community, and streamed from the same production room.
-              </RevealWords>
-              <RevealWords className={styles.heroSub}>
-                These nights give us room to experiment, bring new players on stream, and play with
-                the community instead of simply broadcasting to it.
-              </RevealWords>
+              <h2 className={styles.gamesH2}>Game nights</h2>
+              <p className={styles.heroSub}>
+                Deadlock, League of Legends, trivia and open lobbies.
+                Check Discord for the next one.
+              </p>
+              <a href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer" className={styles.sectionLink}>
+                Find the next event <ArrowIcon />
+              </a>
             </div>
           </div>
         </section>
 
         <section className={styles.discordSection} data-chapter="discord">
-          <BrandField variant="section" className={styles.fieldDiscord} intensity={0.9} ground={false} seedOffset={303} />
           <div className={styles.discordInner}>
             <div className={styles.discordCopy} data-motion-copy>
-              <p className={styles.lightEyebrow}>The Discord</p>
-              <h2 className={styles.lightH2}>It all runs in the Discord</h2>
-              <RevealWords className={`${styles.lightParagraph} ${styles.discordLead}`}>
-                Sign-ups, drafts, event days and the league itself are organised in one server. If you
-                want in on Season 9, that is where to go.
-              </RevealWords>
+              <h2 className={styles.lightH2}><span>It all runs</span><span>in the Discord</span></h2>
+              <p className={`${styles.lightParagraph} ${styles.discordLead}`}>
+                Sign up for GGL, find a team or join the next game night.
+              </p>
               <a href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer" className={styles.discordJoin}>
                 <DiscordIcon size={18} /> Join the Discord
               </a>
             </div>
+            <div className={styles.discordArt}>
+              <img src="/winton-discord.png" alt="Winston plush wearing Overwatch armour" width={348} height={348} loading="lazy" decoding="async" />
+            </div>
           </div>
         </section>
-        </Story>
       </main>
 
       <footer className={styles.footer}>
-        <BrandField variant="footer" />
         <div className={styles.footerTop}>
           <div className={styles.footerBrand}>
             <div className={styles.footerBrandRow}>

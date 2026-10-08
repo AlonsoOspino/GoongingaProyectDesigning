@@ -1,4 +1,3 @@
-import { apiRequest } from "@/lib/api/client";
 import seasonEightArchive from "@/data/history/season-8.json";
 
 export type WrappedAssetKey =
@@ -282,37 +281,4 @@ export function resolveWrappedSnapshot(snapshot: WrappedSnapshot) {
 
 export async function getGoongingaWrapped() {
   return seasonEightArchive.wrapped as unknown as GoongingaWrapped;
-}
-
-export async function getManageGoongingaWrapped(token: string) {
-  return apiRequest<GoongingaWrapped>("/wrapped/manage", { token, cache: "no-store" });
-}
-
-export async function freezeGoongingaWrapped(token: string) {
-  return apiRequest<GoongingaWrapped>("/wrapped/manage/snapshot", { method: "POST", token });
-}
-
-export async function updateManageGoongingaWrappedAssets(token: string, assets: WrappedAssets) {
-  return apiRequest<GoongingaWrapped>("/wrapped/manage/assets", {
-    method: "PUT",
-    token,
-    body: { assets },
-  });
-}
-
-// Legacy admin API helpers remain exported for backwards compatibility.
-export async function getAdminGoongingaWrapped(token: string) {
-  return apiRequest<GoongingaWrapped>("/wrapped/admin", { token, cache: "no-store" });
-}
-
-export async function adminGenerateGoongingaWrapped(token: string) {
-  return apiRequest<GoongingaWrapped>("/wrapped/admin/generate", { method: "POST", token });
-}
-
-export async function adminUpdateGoongingaWrappedAssets(token: string, assets: WrappedAssets) {
-  return apiRequest<GoongingaWrapped>("/wrapped/admin/assets", {
-    method: "PUT",
-    token,
-    body: { assets },
-  });
 }

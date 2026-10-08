@@ -1,8 +1,6 @@
 "use client";
 
-import Link from "next/link";
 import type { ReactNode } from "react";
-import { ArrowIcon } from "@/components/landing/brandAssets";
 import styles from "./story.module.css";
 
 /* EL VOCABULARIO NARRATIVO, COMPARTIDO.
@@ -60,46 +58,6 @@ export function BroadcastMarquee({ items }: { items: readonly string[] }) {
   );
 }
 
-export interface Signal {
-  value: string;
-  label: string;
-  href: string;
-  /** Marca la cifra que esta ocurriendo ahora. Solo deberia haber una. */
-  live?: boolean;
-}
-
-/* ---- Cubierta de cifras ----
-   Cuatro datos reales, cada uno enlazando a donde se comprueban. Una cifra que
-   no lleva a ninguna parte es decoracion; esta si se puede seguir. */
-export function SignalDeck({
-  signals,
-  label = "At a glance",
-  marquee,
-}: {
-  signals: readonly Signal[];
-  label?: string;
-  marquee?: readonly string[];
-}) {
-  return (
-    <section className={styles.signalDeck} aria-label={label}>
-      <div className={styles.signalDeckInner}>
-        {signals.map((signal) => (
-          <Link
-            key={`${signal.value}-${signal.label}`}
-            href={signal.href}
-            className={`${styles.signalCell} ${signal.live ? styles.signalCellLive : ""}`}
-          >
-            <span className={styles.signalValue}>{signal.value}</span>
-            <span className={styles.signalLabel}>{signal.label}</span>
-            <ArrowIcon size={14} />
-          </Link>
-        ))}
-      </div>
-      {marquee ? <BroadcastMarquee items={marquee} /> : null}
-    </section>
-  );
-}
-
 export interface Chapter {
   id: string;
   label: string;
@@ -134,11 +92,3 @@ export function Story({ children, className }: { children: ReactNode; className?
     </div>
   );
 }
-
-/* Se exportan para que cada pagina componga sus secciones con el tratamiento de
-   capitulo sin tener que conocer los nombres internos del modulo. */
-export const chapterClass = {
-  base: styles.chapterSection,
-  mirror: styles.chapterSectionMirror,
-  center: styles.chapterSectionCenter,
-} as const;

@@ -13,12 +13,10 @@ import { resolveMapImageUrl } from "@/lib/assetUrls";
 import type { GameMap, Match, PlayerStat, Team } from "@/lib/api/types";
 import { buildPlayerAverages, sortByMetric, TOP_METRICS, type PlayerAverage, type TopMetricKey } from "@/lib/stats/playerAverages";
 
-const ROLE_CONFIG: Record<PlayerAverage["role"], { label: string; text: string; bg: string; gradient: string; icon: ReactNode }> = {
+const ROLE_CONFIG: Record<PlayerAverage["role"], { label: string; text: string; icon: ReactNode }> = {
   TANK: {
     label: "Tank",
     text: "text-primary",
-    bg: "bg-primary/15",
-    gradient: "from-primary/30 via-primary/10 to-transparent",
     icon: (
       <svg className="h-8 w-8" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
         <path
@@ -32,8 +30,6 @@ const ROLE_CONFIG: Record<PlayerAverage["role"], { label: string; text: string; 
   DPS: {
     label: "Damage",
     text: "text-danger",
-    bg: "bg-danger/15",
-    gradient: "from-danger/30 via-danger/10 to-transparent",
     icon: (
       <svg className="h-8 w-8" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
         <path d="M10 2a8 8 0 100 16 8 8 0 000-16zm2 10.414l-4.293-4.293a1 1 0 011.414-1.414L10 7.586V4h2v3.586l.879-.879a1 1 0 111.414 1.414L10 12.414z" />
@@ -43,8 +39,6 @@ const ROLE_CONFIG: Record<PlayerAverage["role"], { label: string; text: string; 
   SUPPORT: {
     label: "Support",
     text: "text-success",
-    bg: "bg-success/15",
-    gradient: "from-success/30 via-success/10 to-transparent",
     icon: (
       <svg className="h-8 w-8" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
         <path
@@ -230,16 +224,16 @@ function MatchStatsTable({
   const toneClasses =
     tone === "ally"
       ? {
-          panel: "border-primary/30 bg-primary/5",
-          header: "bg-primary/15 text-primary",
-          row: "hover:bg-primary/10",
-          active: "bg-primary/15 ring-1 ring-primary/30",
+          panel: "border-border border-l-2 border-l-primary/60 bg-surface",
+          header: "bg-surface-elevated text-foreground",
+          row: "hover:bg-surface-elevated",
+          active: "bg-surface-elevated ring-1 ring-border-strong",
         }
       : {
-          panel: "border-danger/30 bg-danger/5",
-          header: "bg-danger/15 text-danger",
-          row: "hover:bg-danger/10",
-          active: "bg-danger/15 ring-1 ring-danger/30",
+          panel: "border-border border-l-2 border-l-danger/60 bg-surface",
+          header: "bg-surface-elevated text-foreground",
+          row: "hover:bg-surface-elevated",
+          active: "bg-surface-elevated ring-1 ring-border-strong",
         };
 
   return (
@@ -682,12 +676,6 @@ export default function PlayerStatsDetailPage() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
-      {/* Ambient background */}
-      <div className="pointer-events-none fixed inset-0">
-        <div className={`absolute -left-32 top-0 h-[500px] w-[500px] rounded-full bg-gradient-to-br ${role.gradient} blur-[150px] opacity-60`} />
-        <div className="absolute -right-32 top-1/3 h-[400px] w-[400px] rounded-full bg-accent/5 blur-[140px]" />
-      </div>
-
       <div className="relative mx-auto max-w-[86.4rem] px-4 py-6 lg:px-8 lg:py-10">
         {/* Back Link */}
         <Link href="/stats" className="inline-flex items-center gap-2 text-sm text-muted hover:text-foreground transition-colors mb-6 group">
@@ -699,15 +687,14 @@ export default function PlayerStatsDetailPage() {
 
         {/* Hero Section */}
         <header className="mb-8">
-          <div className="overflow-hidden rounded-3xl border border-border/50 bg-surface/70 backdrop-blur-sm">
-            {/* Gradient Header Bar */}
-            <div className={`h-2 w-full bg-gradient-to-r ${role.gradient.replace('to-transparent', 'to-primary/20')}`} />
+          <div className="overflow-hidden rounded-md border border-border bg-surface">
+            <div className={`h-1 w-full ${role.text.replace("text-", "bg-")}`} />
             
             <div className="p-6 lg:p-8">
               <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                 {/* Player Identity */}
                 <div className="flex items-center gap-5">
-                  <div className={`flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br ${role.gradient} ${role.text} shadow-lg shadow-black/20`}>
+                  <div className={`flex h-20 w-20 items-center justify-center rounded-md border border-border bg-surface-elevated ${role.text}`}>
                     {role.icon}
                   </div>
                   <div>
@@ -768,14 +755,14 @@ export default function PlayerStatsDetailPage() {
                 className="group relative overflow-hidden rounded-xl border border-border/40 bg-surface/60 p-4 backdrop-blur-sm transition-all hover:border-border hover:bg-surface-elevated/80"
               >
                 <div className="flex items-center justify-between mb-3">
-                  <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${stat.bgColor}/15 ${stat.color}`}>
+                  <div className={`flex h-9 w-9 items-center justify-center rounded-md bg-surface-elevated ${stat.color}`}>
                     {stat.icon}
                   </div>
                   {stat.status === "leader" && (
                     <span className="text-xs font-bold text-warning">1ST</span>
                   )}
                 </div>
-                <p className={`font-mono text-2xl font-bold ${stat.color}`}>
+                <p className="font-mono text-2xl font-bold text-foreground">
                   {formatMetric(stat.mine)}
                 </p>
                 <p className="text-xs text-muted mt-1">{stat.label}</p>
@@ -906,7 +893,7 @@ export default function PlayerStatsDetailPage() {
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
                       {/* Metric Info */}
                       <div className="flex items-center gap-3 lg:w-48">
-                        <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${stat.bgColor}/15 ${stat.color}`}>
+                        <div className={`flex h-10 w-10 items-center justify-center rounded-md bg-surface-elevated ${stat.color}`}>
                           {stat.icon}
                         </div>
                         <div>
@@ -923,7 +910,7 @@ export default function PlayerStatsDetailPage() {
                           <div className="flex-1">
                             <div className="h-2 rounded-full bg-border/30 overflow-hidden">
                               <div
-                                className={`h-full rounded-full ${stat.bgColor} transition-all duration-500`}
+                                className="h-full rounded-full bg-muted transition-all duration-500"
                                 style={{ width: `${progress}%` }}
                               />
                             </div>
@@ -966,7 +953,7 @@ export default function PlayerStatsDetailPage() {
           <div className="grid gap-4 md:grid-cols-3">
             {/* Best Performance */}
             {bestMetric && (
-              <div className="rounded-2xl border border-success/30 bg-success/5 p-5">
+              <div className="rounded-md border border-border bg-surface p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <svg className="h-5 w-5 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -993,7 +980,7 @@ export default function PlayerStatsDetailPage() {
             </div>
 
             {/* Primary Role */}
-            <div className={`rounded-2xl border ${role.text.replace('text-', 'border-')}/30 ${role.bg} p-5`}>
+            <div className="rounded-md border border-border bg-surface p-5">
               <div className="flex items-center gap-2 mb-3">
                 <div className={role.text}>{ROLE_CONFIG[userAverage.role].icon}</div>
                 <span className={`text-sm font-semibold ${role.text}`}>Primary Role</span>

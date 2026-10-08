@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useFeudGame } from "@/lib/familyFeud/useFeudGame";
 import type { TeamSide } from "@/lib/familyFeud/types";
 import { AnswerBoard, ConnectionPill, ErrorState, FeudLogo, GameEffects, LoadingState, PhaseName, ScoreStrip, Strikes, TeamCard, Timer } from "./Shared";

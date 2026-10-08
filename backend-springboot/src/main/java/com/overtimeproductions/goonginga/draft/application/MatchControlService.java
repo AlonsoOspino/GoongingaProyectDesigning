@@ -35,7 +35,7 @@ public class MatchControlService {
 
     public MatchInfo overlay(int id, DraftActor actor, DraftRequests.Overlay request) {
         var match = matches.lock(id);
-        access.requireManager(actor, match);
+        access.requireProduction(actor, match);
         if (request.focusMapId() != null && (request.focusType() == null || catalog.pool(match).stream()
                 .noneMatch(m -> m.id() == request.focusMapId() && m.type() == request.focusType()))) {
             throw new DraftRuleViolation("Focused map must belong to the selected mode and pool.");

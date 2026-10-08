@@ -67,12 +67,6 @@ export function saveFeudGuestToken(gameCode: string, token: string) {
   }
 }
 
-export function clearFeudGuestToken(gameCode: string) {
-  if (typeof window === "undefined") return;
-  try { window.sessionStorage.removeItem(guestKey(gameCode)); } catch { /* restricted storage */ }
-  window.dispatchEvent(new Event("feud-guest-session-changed"));
-}
-
 export function releaseFeudGuestTab(gameCode: string, token: string) {
   if (typeof window === "undefined") return;
   const payload = tokenPayload(token);

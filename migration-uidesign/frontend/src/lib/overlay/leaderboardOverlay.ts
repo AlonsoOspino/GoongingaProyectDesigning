@@ -1,14 +1,5 @@
 import type { LeaderboardOverlaySettings } from "@/lib/api/types";
 
-export const OVERLAY_FONT_OPTIONS = [
-  { label: "Bebas Neue", value: "var(--font-overlay-display), sans-serif" },
-  { label: "League Gothic", value: "var(--font-league-gothic), sans-serif" },
-  { label: "Oswald", value: "var(--font-overlay-body), sans-serif" },
-  { label: "Big Noodle Titling", value: "BigNoodleTitling, sans-serif" },
-  { label: "Trebuchet", value: "Trebuchet MS, sans-serif" },
-  { label: "Tahoma", value: "Tahoma, sans-serif" },
-] as const;
-
 export const DEFAULT_LEADERBOARD_OVERLAY_SETTINGS: LeaderboardOverlaySettings = {
   weekNumber: 1,
   teamAbbreviations: {},

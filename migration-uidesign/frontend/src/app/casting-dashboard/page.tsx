@@ -1,86 +1,53 @@
 "use client";
-
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowUpRight, Radio, RefreshCw } from "lucide-react";
 import { AnnouncementStudio } from "@/announcements/AnnouncementStudio";
-import { ManagerDashboardFrame } from "@/components/dashboard/ManagerDashboardFrame";
 import { readNetworkSessionUser, type NetworkSessionUser } from "@/features/networkSession/storage";
-import styles from "./social-dashboard.module.css";
+import { getMatches, getTeams, type Match, type Team } from "@/lib/api";
+import { resolveGenericBackendAsset } from "@/lib/assetUrls";
+import { canCast } from "@/lib/casting/model";
+import styles from "@/components/casting/control-room.module.css";
 
-/*
- * Production control for the league.
- *
- * This used to be three workspaces. Minigames moved to their own site, and the
- * stream tools were links to an overlay-asset editor that is gone and to
- * overlay URLs that OBS now pulls over its websocket. One surface is left, so
- * the tab bar went with them.
- *
- * Access narrowed with it: casters only ever had the minigames workspace here,
- * so the page is now for the people who run league operations.
- */
 export default function CastingDashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<NetworkSessionUser | null>(null);
-  const [ready, setReady] = useState(false);
-
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("upcoming");
+  const load = useCallback(async () => {
+    try {
+      const [rows, clubs] = await Promise.all([getMatches({ cache: "no-store" }), getTeams()]);
+      setMatches(rows); setTeams(clubs); setError("");
+    } catch (failure) { setError(failure instanceof Error ? failure.message : "Unable to load matches."); }
+    finally { setLoading(false); }
+  }, []);
   useEffect(() => {
     const current = readNetworkSessionUser();
-    const allowed = current?.roles.some((role) => role === "SOCIAL_MEDIA" || role === "ADMIN");
-    if (!current || !allowed) {
-      router.replace("/login");
-      setReady(true);
-      return;
-    }
+    if (!current || !canCast(current.roles)) { router.replace("/login?next=/casting-dashboard"); return; }
     setUser(current);
-    setReady(true);
-  }, [router]);
-
-  if (!ready || !user) {
-    return <main className={styles.loading}>Loading dashboard...</main>;
-  }
-
-  return (
-    <main className={styles.dashboard}>
-      <header className={styles.dashboardHeader}>
-        <div className="ow-container">
-          <span className={styles.kicker}>Production control</span>
-          <div className={styles.titleRow}>
-            <div>
-              <h1>Casting Dashboard</h1>
-              <p>Publish announcements and run league operations.</p>
-            </div>
-            <span className={styles.operator}>{user.username}</span>
-          </div>
-        </div>
-      </header>
-
-      {/* Two jobs, named. Before this they were stacked with nothing to say
-          where one ended and the next began. */}
-      <div className={styles.workspaceBody}>
-        <section className="ow-container">
-          <div className={styles.areaHead}>
-            <span className={styles.areaIndex}>01</span>
-            <div>
-              <h2 className={styles.areaTitle}>Announcements</h2>
-              <p className={styles.areaNote}>What the homepage is telling the community right now.</p>
-            </div>
-          </div>
-          <AnnouncementStudio />
-        </section>
-
-        <section className={styles.areaBlock}>
-          <div className="ow-container">
-            <div className={styles.areaHead}>
-              <span className={styles.areaIndex}>02</span>
-              <div>
-                <h2 className={styles.areaTitle}>League operations</h2>
-                <p className={styles.areaNote}>Matches, draft tables and results.</p>
-              </div>
-            </div>
-          </div>
-          <ManagerDashboardFrame />
-        </section>
-      </div>
-    </main>
-  );
+    void load();
+    const timer = window.setInterval(() => void load(), 15000);
+    return () => window.clearInterval(timer);
+  }, [load, router]);
+  const visible = matches.filter(m => filter === "all" || (filter === "live" ? m.status === "ACTIVE" : m.status !== "FINISHED"))
+    .sort((a,b) => Number(b.status === "ACTIVE") - Number(a.status === "ACTIVE") || Date.parse(a.startDate) - Date.parse(b.startDate));
+  return <div className={styles.room} data-theme="dark"><div className={styles.container}>
+    <header className={styles.dashboardHead}><div><span className={styles.eyebrow}><Radio size={14} /> GOONGINGA · BROADCAST PRODUCTION</span><h1>Casting dashboard</h1><p>Choose your match. Prepare OBS. Run the show.</p></div><span className={styles.operator}>{user?.username || "Production"}</span></header>
+    <div className={styles.sectionBar}><div><h2>Match lineup</h2><p>Every match has a draft table ready for its captains.</p></div><div className={styles.inline}><select aria-label="Filter matches" value={filter} onChange={e => setFilter(e.target.value)}><option value="upcoming">Upcoming & live</option><option value="live">Live matches</option><option value="all">All matches</option></select><button className={styles.iconButton} aria-label="Refresh matches" onClick={() => void load()}><RefreshCw size={18} /></button></div></div>
+    {error && <p className={styles.error} role="alert">{error}</p>}{loading && <p className={styles.empty}>Loading the match lineup…</p>}{!loading && !visible.length && <p className={styles.empty}>No matches in this lineup.</p>}
+    <div className={styles.matchGrid}>{visible.map(match => {
+      const a = teams.find(t => t.id === match.teamAId), b = teams.find(t => t.id === match.teamBId);
+      return <article key={match.id} className={styles.matchCard}>
+        <div className={styles.cardTop}><span className={match.status === "ACTIVE" ? styles.live : styles.muted}>{match.status === "ACTIVE" ? "● LIVE MATCH" : match.status === "FINISHED" ? "COMPLETED" : "SCHEDULED"}</span><span>BO{match.bestOf} · #{match.id}</span></div>
+        <div className={styles.versus}>{[a,b].map((team,index) => <div className={styles.club} key={index}><div className={styles.clubLogo}>{team?.logo ? <img src={resolveGenericBackendAsset(team.logo)} alt={`${team.name} logo`} /> : <span>{team?.name.charAt(0) || (index === 0 ? "A" : "B")}</span>}</div><strong>{team?.name || `Team ${index + 1}`}</strong></div>)}<span className={styles.vs}>VS</span></div>
+        <div className={styles.cardDetails}><strong>{match.title || (match.semanas ? `Week ${match.semanas}` : "League match")}</strong><time dateTime={match.startDate}>{new Date(match.startDate).toLocaleString("en-US", { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" })}</time></div>
+        <Link className={styles.primary} href={`/casting-table/${match.id}`}>Start Casting <ArrowUpRight size={18} /></Link>
+      </article>;
+    })}</div>
+    {user?.roles.some(r => r === "ADMIN" || r === "SOCIAL_MEDIA") && <details className={styles.announcements}><summary>Announcements <span>Manage homepage publishing</span></summary><AnnouncementStudio /></details>}
+  </div></div>;
 }

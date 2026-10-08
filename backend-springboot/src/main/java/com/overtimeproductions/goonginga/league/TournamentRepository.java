@@ -2,6 +2,7 @@ package com.overtimeproductions.goonginga.league;
 
 import com.overtimeproductions.goonginga.common.data.JsonSql;
 import com.overtimeproductions.goonginga.draft.api.DraftHttpException;
+import com.overtimeproductions.goonginga.draft.preparation.DraftProvisioningService;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -16,7 +17,10 @@ import tools.jackson.databind.JsonNode;
 public class TournamentRepository {
     private final JdbcTemplate jdbc;
     private final JsonSql json;
-    public TournamentRepository(JdbcTemplate jdbc, JsonSql json) { this.jdbc=jdbc; this.json=json; }
+    private final DraftProvisioningService drafts;
+    public TournamentRepository(JdbcTemplate jdbc, JsonSql json, DraftProvisioningService drafts) {
+        this.jdbc=jdbc; this.json=json; this.drafts=drafts;
+    }
     public List<JsonNode> all() { return json.list("SELECT to_jsonb(t)::text FROM public.\"Tournament\" t WHERE name <> 'GGL Developer Draft App' ORDER BY id"); }
     public JsonNode get(int id) { return json.first("SELECT to_jsonb(t)::text FROM public.\"Tournament\" t WHERE id=?",id)
             .orElseThrow(() -> new DraftHttpException(HttpStatus.NOT_FOUND,"Tournament not found.")); }
@@ -41,6 +45,7 @@ public class TournamentRepository {
                 VALUES ('PLAYOFFS',5,'SCHEDULED',?,?,?,?,1,?) RETURNING id
                 """,Integer.class,tournamentId,teamA,teamB,"Quarterfinal "+slot,slot);
         jdbc.update("INSERT INTO public.\"_AllowedMaps\" (\"A\",\"B\") SELECT id,? FROM public.\"Map\"",matchId);
+        drafts.ensure(matchId);
     }
     public JsonNode bracket(int id) {
         return json.first("""

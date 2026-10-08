@@ -2,6 +2,7 @@ package com.overtimeproductions.goonginga.league;
 
 import com.overtimeproductions.goonginga.common.data.JsonSql;
 import com.overtimeproductions.goonginga.draft.api.DraftHttpException;
+import com.overtimeproductions.goonginga.draft.preparation.DraftProvisioningService;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -39,9 +40,12 @@ public class MatchAdminService {
     private final MatchQueryService reads;
     private final TournamentRepository tournaments;
     private final ScheduleNotifications notifications;
-    public MatchAdminService(JdbcTemplate jdbc,JsonSql json,MatchQueryService reads,TournamentRepository tournaments,ScheduleNotifications notifications) {
+    private final DraftProvisioningService drafts;
+    public MatchAdminService(JdbcTemplate jdbc,JsonSql json,MatchQueryService reads,TournamentRepository tournaments,ScheduleNotifications notifications,
+            DraftProvisioningService drafts) {
         this.jdbc=jdbc;this.json=json;this.reads=reads;this.tournaments=tournaments;
         this.notifications=notifications;
+        this.drafts=drafts;
     }
     private JsonNode raw(int id) { return json.first("SELECT to_jsonb(m)::text FROM public.\"Match\" m WHERE id=?",id)
             .orElseThrow(() -> new DraftHttpException(HttpStatus.NOT_FOUND,"Match not found.")); }
@@ -108,6 +112,7 @@ public class MatchAdminService {
             for (Object raw:connected) if (raw instanceof Map<?,?> map) ids.add(positive(map.get("id"),"map id"));
             connectMaps(id,ids);
         }
+        drafts.ensure(id);
         return raw(id);
     }
     @Transactional
@@ -135,6 +140,7 @@ public class MatchAdminService {
                 if (!pairs.add(pair)) throw new IllegalStateException("Duplicate round robin pairing.");
                 int id=insert(tournamentId,a,b,"ROUNDROBIN",5,round+1,"Week "+(round+1),"SCHEDULED",null);
                 connectMaps(id,maps);
+                drafts.ensure(id);
                 created.add(raw(id));
             }
             Integer last=rotation.remove(rotation.size()-1);
@@ -148,9 +154,15 @@ public class MatchAdminService {
         jdbc.queryForList("SELECT id FROM public.\"Match\" WHERE id=? FOR UPDATE",Integer.class,id);
         JsonNode original=raw(id);
         if (input.isEmpty()) throw new IllegalArgumentException("No allowed fields to update.");
-        if(Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM spring_draft.draft_sessions WHERE match_id=?)",Boolean.class,id))) {
-            for(String field:List.of("type","bestOf","tournamentId","teamAId","teamBId","status","gameNumber","mapResults","mapWinsTeamA","mapWinsTeamB"))
-                if(input.containsKey(field))throw new DraftHttpException(HttpStatus.CONFLICT,"Use draft phase commands or reset before changing "+field+" on a match with a draft.");
+        boolean hasDraft = Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM spring_draft.draft_sessions WHERE match_id=?)",Boolean.class,id));
+        var structural = List.of("type","bestOf","tournamentId","teamAId","teamBId");
+        java.util.function.Predicate<String> changed = field -> input.containsKey(field)
+                && !json.stringify(input.get(field)).equals(original.path(field).toString());
+        boolean rebuild = hasDraft && structural.stream().anyMatch(changed);
+        com.overtimeproductions.goonginga.draft.data.LoadedDraft freshDraft = rebuild ? drafts.freshForEdit(id) : null;
+        if (hasDraft) {
+            for (String field : List.of("status","gameNumber","mapResults","mapWinsTeamA","mapWinsTeamB"))
+                if (changed.test(field)) throw new DraftHttpException(HttpStatus.CONFLICT,"Use draft phase commands or reset before changing "+field+" on a match with a draft.");
         }
         int tournamentId=input.get("tournamentId")==null?original.get("tournamentId").asInt():positive(input.get("tournamentId"),"tournamentId");
         int a=input.get("teamAId")==null?original.get("teamAId").asInt():positive(input.get("teamAId"),"teamAId");
@@ -161,6 +173,8 @@ public class MatchAdminService {
         if(input.keySet().stream().anyMatch(Set.of("type","tournamentId","teamAId","teamBId","semanas")::contains))
             validate(tournamentId,matchType,week,a,b,id);
         var fields=new java.util.LinkedHashMap<>(input);
+        if (changed.test("teamAId")) fields.put("teamAready",0);
+        if (changed.test("teamBId")) fields.put("teamBready",0);
         fields.put("type",matchType);
         fields.put("semanas",matchType.equals("ROUNDROBIN")?week:null);
         if (manager) for (String forbidden:List.of("id","bestOf","tournamentId","teamAId","teamBId","allowedMaps")) fields.remove(forbidden);
@@ -183,7 +197,9 @@ public class MatchAdminService {
         }
         args.add(id);
         jdbc.update("UPDATE public.\"Match\" SET "+String.join(",",clauses)+" WHERE id=?",args.toArray());
+        if (freshDraft != null) drafts.reconfigure(freshDraft, List.of("type","tournamentId","teamAId","teamBId").stream().anyMatch(changed));
         if(input.containsKey("startDate"))notifications.enqueue(id);
+        drafts.ensure(id);
         return raw(id);
     }
     @Transactional

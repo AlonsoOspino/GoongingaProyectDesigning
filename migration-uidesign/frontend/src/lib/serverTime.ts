@@ -23,7 +23,6 @@
  */
 
 let serverOffsetMs = 0;
-let lastSyncAt = 0;
 
 /**
  * Update the server/client clock offset from an HTTP `Date` response header.
@@ -34,7 +33,6 @@ export function setServerTimeFromDateHeader(header: string | null | undefined): 
   const parsed = Date.parse(header);
   if (Number.isNaN(parsed)) return;
   serverOffsetMs = parsed - Date.now();
-  lastSyncAt = Date.now();
 }
 
 /**
@@ -43,20 +41,4 @@ export function setServerTimeFromDateHeader(header: string | null | undefined): 
  */
 export function getServerNow(): number {
   return Date.now() + serverOffsetMs;
-}
-
-/**
- * Offset in milliseconds: serverTime - clientTime.
- * Positive means the client clock is behind the server.
- */
-export function getServerOffsetMs(): number {
-  return serverOffsetMs;
-}
-
-/**
- * Timestamp (client clock) of the last successful sync.
- * 0 means we've never synced.
- */
-export function getLastSyncAt(): number {
-  return lastSyncAt;
 }

@@ -169,7 +169,7 @@
 }
 
 html {
-  min-width: 320px;
+  min-width: 0;
   scroll-behavior: auto;
   scroll-padding-top: 88px;
   background: var(--color-background);

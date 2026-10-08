@@ -17,7 +17,7 @@ public class ResultController {
 
     @PostMapping("/match/{id}/result")
     public tools.jackson.databind.JsonNode record(@PathVariable int id, @AuthenticationPrincipal Jwt token, @Valid @RequestBody DraftRequests.Result request) {
-        results.record(id, access.actor(token), request.winnerTeamId());return query.get(String.valueOf(id));
+        results.record(id, access.actor(token), request.winnerTeamId(), request.expectedGameNumber(), request.expectedMapId());return query.get(String.valueOf(id));
     }
 
     @PostMapping("/match/{id}/undo-result")

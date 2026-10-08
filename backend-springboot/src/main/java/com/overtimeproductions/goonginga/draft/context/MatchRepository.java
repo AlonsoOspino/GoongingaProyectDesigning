@@ -8,6 +8,7 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -26,6 +27,16 @@ public class MatchRepository {
 
     public MatchInfo get(int id) { return load(id, false); }
     public MatchInfo lock(int id) { return load(id, true); }
+
+    public List<Integer> unprovisionedScheduledIds() {
+        return jdbc.queryForList("""
+                SELECT m.id FROM public."Match" m
+                WHERE m.status='SCHEDULED' AND m."gameNumber"=0 AND m."mapWinsTeamA"=0 AND m."mapWinsTeamB"=0
+                  AND m."mapStartedAt" IS NULL
+                  AND NOT EXISTS(SELECT 1 FROM spring_draft.draft_sessions s WHERE s.match_id=m.id)
+                ORDER BY m.id
+                """, Integer.class);
+    }
 
     public void lockBracketTournament(int id) {
         MatchInfo match=get(id);

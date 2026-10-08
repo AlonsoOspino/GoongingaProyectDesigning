@@ -1,21 +1,12 @@
 {
-  "name": "leaguepagedef",
+  "name": "goonginga-backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Goonginga League API and live production backend",
   "scripts": {
     "start": "prisma migrate deploy && node app.js",
     "postinstall": "prisma generate",
-    "test": "node --test tests/*.test.js",
-    "db:seed:maps-heroes-sql": "node scripts/db-generate-maps-heroes-sql.js",
-    "db:seed:maps": "node scripts/db-seed-maps-from-images.js",
-    "db:refresh:maps-heroes": "node scripts/db-refresh-maps-heroes.js"
+    "test": "node --test tests/*.test.js"
   },
-  "prisma": {
-    "seed": "node prisma/seed.js"
-  },
-  "keywords": [],
-  "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {

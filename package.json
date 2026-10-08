@@ -6,23 +6,6 @@
     "build": "cd migration-uidesign/frontend && npm run build",
     "start": "cd migration-uidesign/frontend && npm run start",
     "minigames:dev": "cd migration-uidesign/minigames-frontend && npm run dev",
-    "minigames:build": "cd migration-uidesign/minigames-frontend && npm run build",
-    "launcher:dev": "cd migration-uidesign/launcher && npm run dev",
-    "launcher:build": "cd migration-uidesign/launcher && npm run build:win",
-    "blob:migrate-existing-images": "node migration-uidesign/frontend/scripts/migrate-existing-image-links-to-blob.js"
-  },
-  "dependencies": {
-    "bcrypt": "^6.0.0",
-    "clsx": "^2.1.1",
-    "cors": "^2.8.6",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "jsonwebtoken": "^9.0.3",
-    "next": "^16.2.4",
-    "obs-websocket-js": "^5.0.8",
-    "react": "^19.2.5",
-    "react-markdown": "^10.1.0",
-    "remark-gfm": "^4.0.1",
-    "swr": "^2.4.1"
+    "minigames:build": "cd migration-uidesign/minigames-frontend && npm run build"
   }
 }

@@ -39,6 +39,7 @@ deploy.local.bat
 # Logs and scratch output
 *.log
 tmp/
+.tmp-edge-6v6/
 
 
 # Subagent-driven development scratch (ledger, briefs, review packages)

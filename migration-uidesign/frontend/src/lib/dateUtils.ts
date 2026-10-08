@@ -219,27 +219,6 @@ export function formatDateTimeEST(isoString: string): string {
 }
 
 /**
- * Convert an ISO-8601 DateTime to a date input value (YYYY-MM-DD format)
- * @param isoString - ISO-8601 DateTime string
- * @returns Date string for HTML input (YYYY-MM-DD)
- */
-export function formatForDateInput(isoString: string): string {
-  if (!isoString) return "";
-  
-  const date = new Date(isoString);
-  
-  // Get EST date
-  const formatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/New_York",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  
-  return formatter.format(date);
-}
-
-/**
  * Convert an ISO-8601 DateTime to a datetime-local input value (YYYY-MM-DDTHH:MM format)
  * @param isoString - ISO-8601 DateTime string
  * @returns DateTime string for HTML input (YYYY-MM-DDTHH:MM)

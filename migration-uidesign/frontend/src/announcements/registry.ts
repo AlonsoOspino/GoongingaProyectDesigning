@@ -17,10 +17,6 @@ export const announcementRegistry: Partial<Record<AnnouncementType, Announcement
   FORM: { type: "FORM", label: "GGL Form", description: "Promote a registration, survey, or submission form.", icon: ClipboardList, defaultContent: { headline: "", body: "", formUrl: "", ctaLabel: "" }, Editor: FormEditor, View: FormMode },
 };
 
-export const announcementTemplates = Object.values(announcementRegistry).filter(
-  (template): template is AnnouncementTemplate => Boolean(template)
-);
-
 export function getAnnouncementTemplate(type: AnnouncementType): AnnouncementTemplate | undefined {
   return announcementRegistry[type];
 }

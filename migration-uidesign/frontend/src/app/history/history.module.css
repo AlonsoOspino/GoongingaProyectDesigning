@@ -1,16 +1,5 @@
-/* GGL HISTORY.
- *
- * Esta pagina era HTML semantico sin una sola clase. Luego fue una pagina de
- * tablas en gris sobre verde, todas iguales. Ahora es lo que deberia haber sido
- * desde el principio: un archivo que se recorre por temporadas.
- *
- * Dos criterios mandan aqui:
- *
- * 1. El color IDENTIFICA. Cada equipo lleva el suyo (palette.ts) en la tabla, en
- *    su tarjeta, en el bracket y en la final. Se reconoce de un vistazo sin leer.
- *    Nada se pinta "para que tenga color".
- * 2. Los numeros se COMPARAN. Donde hay una columna de dieciocho cifras hay una
- *    barra detras: leer dieciocho numeros es trabajo, ver dieciocho barras no. */
+/* Neutral archive surfaces. Team colors identify narrow rules and logos;
+   shared metric bars let players compare values without a rainbow of fills. */
 
 .page {
   composes: surface from "../../components/story/story.module.css";
@@ -22,9 +11,6 @@
   font-family: var(--font-body);
 }
 
-/* El tablero va fijo: el archivo es largo y no tiene sentido renderizar un
-   lienzo de varios miles de pixeles. Doble clase para ganar especificidad sin
-   recurrir a !important. */
 .page .board {
   position: fixed;
   inset: 0;
@@ -102,7 +88,7 @@
    tarjeta cuente algo — con tres por fila solo cabe el numero de temporada. */
 .seasonGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
   gap: 16px;
 }
 
@@ -112,16 +98,14 @@
   overflow: hidden;
   border: 1px solid var(--edge-soft);
   border-left: 3px solid var(--team);
-  background:
-    linear-gradient(150deg, color-mix(in srgb, var(--team) 13%, transparent), transparent 58%),
-    color-mix(in srgb, var(--bg) 72%, transparent);
+  background: var(--surface);
   transition:
     border-color 220ms ease,
     transform 380ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .seasonCard:hover {
-  border-color: color-mix(in srgb, var(--team) 58%, transparent);
+  border-color: var(--edge-strong);
   border-left-color: var(--team);
   transform: translateY(-3px);
 }
@@ -187,7 +171,6 @@
   height: 7px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 12px rgba(52, 199, 123, 0.85);
 }
 
 /* El pulso solo existe donde algo esta realmente en vivo. */
@@ -247,7 +230,7 @@
 .seasonChampion {
   font-size: 19px !important;
   line-height: 1.15 !important;
-  color: var(--team);
+  color: var(--text);
 }
 
 .seasonCta {
@@ -257,9 +240,9 @@
   min-height: 46px;
   margin-top: 6px;
   padding: 0 22px;
-  border: 1px solid color-mix(in srgb, var(--team) 52%, transparent);
+  border: 1px solid var(--edge-strong);
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--team) 14%, transparent);
+  background: transparent;
   font-family: var(--font-heading);
   font-size: 12px;
   font-weight: 600;
@@ -274,7 +257,7 @@
 }
 
 .seasonCta:hover {
-  background: color-mix(in srgb, var(--team) 26%, transparent);
+  background: color-mix(in srgb, var(--text) 6%, transparent);
   transform: translateY(-2px);
 }
 
@@ -307,7 +290,7 @@
   min-width: 0;
   padding: 9px 11px;
   border-left: 2px solid var(--team);
-  background: color-mix(in srgb, var(--team) 12%, transparent);
+  background: color-mix(in srgb, var(--text) 3%, transparent);
 }
 
 .rotatorTeamIn {
@@ -363,8 +346,7 @@
   position: sticky;
   top: 0;
   z-index: 6;
-  background: color-mix(in srgb, var(--ground-base) 92%, transparent);
-  backdrop-filter: blur(10px);
+  background: var(--ground-base);
   border-bottom: 1px solid var(--edge-soft);
 }
 
@@ -439,13 +421,13 @@
 
 .tab:hover {
   color: var(--text);
-  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
 }
 
 .tabActive {
   color: var(--accent-300);
   border-bottom-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
 }
 
 /* ---------- panel ---------- */
@@ -487,7 +469,7 @@
 .tableWrap {
   overflow-x: auto;
   border: 1px solid var(--edge-soft);
-  background: color-mix(in srgb, var(--bg) 62%, transparent);
+  background: var(--surface);
 }
 
 .table {
@@ -517,7 +499,7 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  background: color-mix(in srgb, var(--bg) 96%, transparent);
+  background: var(--bg);
   font-family: var(--font-heading);
   font-size: 10px;
   font-weight: 600;
@@ -556,7 +538,7 @@
 }
 
 .table tbody tr:hover {
-  background: color-mix(in srgb, var(--team) 9%, transparent);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
 }
 
 .num {
@@ -607,7 +589,7 @@
   flex: none;
   border-radius: var(--radius-sm);
   object-fit: cover;
-  border: 1px solid color-mix(in srgb, var(--team, var(--accent)) 55%, transparent);
+  border: 1px solid var(--edge-soft);
 }
 
 .portraitFallback {
@@ -617,18 +599,16 @@
   display: grid;
   place-items: center;
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--team, var(--accent)) 20%, transparent);
-  border: 1px solid color-mix(in srgb, var(--team, var(--accent)) 45%, transparent);
+  background: var(--bg);
+  border: 1px solid var(--edge-soft);
   color: var(--text);
   font-family: var(--font-heading);
   font-size: 12px;
   font-weight: 700;
 }
 
-/* El nombre del equipo en su color, no en gris: es el enlace visual entre la
-   fila de un jugador y la tabla de equipos. */
 .teamTag {
-  color: color-mix(in srgb, var(--team) 52%, var(--text));
+  color: color-mix(in srgb, var(--text) 72%, transparent);
   font-weight: 500;
 }
 
@@ -636,14 +616,14 @@
   display: inline-block;
   padding: 4px 9px;
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--role) 14%, transparent);
-  border: 1px solid color-mix(in srgb, var(--role) 32%, transparent);
+  background: transparent;
+  border: 1px solid var(--edge-soft);
   font-family: var(--font-heading);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--role);
+  color: color-mix(in srgb, var(--text) 70%, transparent);
 }
 
 /* Barra detras de la cifra. Dieciocho numeros hay que leerlos; dieciocho barras
@@ -662,8 +642,8 @@
   inset-block: 0;
   right: 0;
   width: var(--share);
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--team) 22%, transparent));
-  border-right: 2px solid color-mix(in srgb, var(--team) 70%, transparent);
+  background: color-mix(in srgb, var(--text) 9%, transparent);
+  border-right: 2px solid color-mix(in srgb, var(--text) 36%, transparent);
 }
 
 .barValue {
@@ -678,7 +658,7 @@
   width: 100px;
   height: 7px;
   background: color-mix(in srgb, var(--text) 12%, transparent);
-  background-image: linear-gradient(90deg, var(--team) 0 var(--won), transparent var(--won));
+  background-image: linear-gradient(90deg, color-mix(in srgb, var(--text) 62%, transparent) 0 var(--won), transparent var(--won));
 }
 
 .diffPos {
@@ -749,16 +729,20 @@
 }
 
 .chip:hover {
-  border-color: color-mix(in srgb, var(--chip) 55%, transparent);
+  border-color: var(--edge-strong);
   color: var(--text);
 }
 
-/* Los filtros de rol se pintan con el color de ese rol, asi que el filtro activo
-   y la columna Role dicen lo mismo. */
 .chipActive {
-  border-color: var(--chip);
-  background: color-mix(in srgb, var(--chip) 16%, transparent);
-  color: var(--chip);
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--ground-base);
+}
+
+.chipActive:hover {
+  border-color: var(--accent-300);
+  background: var(--accent-300);
+  color: var(--ground-base);
 }
 
 /* El lider de la metrica activa: el unico dato fuera de tabla, porque responde a
@@ -770,11 +754,9 @@
   gap: 16px;
   margin: 0 0 22px;
   padding: 18px 20px;
-  border: 1px solid color-mix(in srgb, var(--team) 45%, transparent);
+  border: 1px solid var(--edge-soft);
   border-left: 3px solid var(--team);
-  background:
-    linear-gradient(100deg, color-mix(in srgb, var(--team) 14%, transparent), transparent 62%),
-    color-mix(in srgb, var(--bg) 55%, transparent);
+  background: var(--surface);
 }
 
 .leader .portrait,
@@ -791,7 +773,7 @@
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--team);
+  color: color-mix(in srgb, var(--text) 62%, transparent);
 }
 
 .leaderName {
@@ -826,7 +808,7 @@
 
 .teamGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
   gap: 14px;
 }
 
@@ -837,16 +819,14 @@
   overflow: hidden;
   border: 1px solid var(--edge-soft);
   border-top: 3px solid var(--team);
-  background:
-    linear-gradient(165deg, color-mix(in srgb, var(--team) 11%, transparent), transparent 52%),
-    color-mix(in srgb, var(--bg) 62%, transparent);
+  background: var(--surface);
   transition:
     border-color 200ms ease,
     transform 320ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .teamCard:hover {
-  border-color: color-mix(in srgb, var(--team) 55%, transparent);
+  border-color: var(--edge-strong);
   border-top-color: var(--team);
   transform: translateY(-3px);
 }
@@ -882,7 +862,7 @@
   font-family: var(--font-display);
   font-size: 26px;
   line-height: 0.9;
-  color: var(--team);
+  color: var(--text);
   font-variant-numeric: tabular-nums;
 }
 
@@ -908,7 +888,7 @@
   padding: 7px 0 7px 13px;
   font-size: 14px;
   color: color-mix(in srgb, var(--text) 78%, transparent);
-  border-left: 2px solid color-mix(in srgb, var(--team) 40%, transparent);
+  border-left: 2px solid var(--edge-soft);
 }
 
 .rosterImage {
@@ -942,8 +922,7 @@
   gap: 8px;
 }
 
-/* Los dos colores de equipo entran por los cantos y se apagan hacia el centro:
-   el enfrentamiento se lee antes de leer los nombres. */
+/* Team identity stays on the two edges; the score has a neutral center. */
 .match {
   --team-a: var(--accent);
   --team-b: var(--accent);
@@ -953,10 +932,7 @@
   gap: 16px;
   padding: 15px 18px;
   border: 1px solid var(--edge-soft);
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--team-a) 16%, transparent), transparent 34%),
-    linear-gradient(-90deg, color-mix(in srgb, var(--team-b) 16%, transparent), transparent 34%),
-    color-mix(in srgb, var(--bg) 58%, transparent);
+  background: var(--surface);
 }
 
 .matchSide {
@@ -981,7 +957,7 @@
 
 /* El perdedor se apaga: dos senales (color y opacidad), no solo una. */
 .matchSideLost {
-  opacity: 0.46;
+  opacity: 0.7;
 }
 
 .matchSideRight {
@@ -1010,18 +986,18 @@
 }
 
 .matchScoreWinA {
-  color: var(--team-a);
+  color: var(--text);
 }
 
 .matchScoreWinB {
-  color: var(--team-b);
+  color: var(--text);
 }
 
 /* ---------- gran final ---------- */
 
 .finalCard {
   border: 1px solid var(--edge-strong);
-  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  background: var(--surface);
 }
 
 .finalHead {
@@ -1060,7 +1036,7 @@
 }
 
 .finalSideWon {
-  background: linear-gradient(90deg, color-mix(in srgb, var(--team) 18%, transparent), transparent 64%);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
 }
 
 .finalLogo {
@@ -1086,7 +1062,7 @@
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--team);
+  color: var(--accent);
 }
 
 .finalScore {
@@ -1100,7 +1076,7 @@
 }
 
 .finalSideWon .finalScore {
-  color: var(--team);
+  color: var(--text);
 }
 
 .mvp {
@@ -1109,14 +1085,14 @@
   align-items: center;
   gap: 22px;
   padding: 24px 22px;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--team) 9%, transparent), transparent);
+  background: var(--bg);
 }
 
 .mvpPortrait {
   width: 112px;
   height: 112px;
   flex: none;
-  border: 2px solid var(--team);
+  border: 1px solid var(--edge-strong);
   object-fit: cover;
 }
 
@@ -1127,7 +1103,7 @@
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--team);
+  color: color-mix(in srgb, var(--text) 62%, transparent);
 }
 
 .mvpName {
@@ -1153,9 +1129,7 @@
   gap: 28px;
   padding: clamp(28px, 4vw, 52px);
   border: 1px solid var(--edge-strong);
-  background:
-    linear-gradient(140deg, color-mix(in srgb, var(--accent) 12%, transparent), transparent 60%),
-    color-mix(in srgb, var(--bg) 60%, transparent);
+  background: var(--surface);
 }
 
 .wrappedCopy {
@@ -1266,17 +1240,7 @@
   font-family: var(--font-otp-display), var(--font-accent), "Arial Narrow", sans-serif;
 }
 
-/* La barra ahora es el elemento principal de su columna, y crece al cambiar de
-   metrica en vez de saltar. */
 .bar {
-  background: linear-gradient(
-    90deg,
-    transparent,
-    color-mix(in srgb, var(--team) 30%, transparent) 55%,
-    color-mix(in srgb, var(--team) 62%, transparent)
-  );
-  border-right: 3px solid var(--team);
-  box-shadow: 0 0 18px -6px var(--team);
   transition: width 620ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -1298,21 +1262,14 @@
   }
 }
 
-/* El color del equipo entra en la fila entera al pasar por encima: la tabla
-   deja de ser una rejilla y pasa a ser nueve identidades. */
 .table tbody tr:hover td,
 .table tbody tr:hover th {
-  background: color-mix(in srgb, var(--team) 9%, transparent);
-}
-
-.rankMedal {
-  text-shadow: 0 0 16px color-mix(in srgb, var(--medal) 55%, transparent);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
 }
 
 /* La tarjeta del lider tenia el mismo peso que una fila cualquiera. */
 .leader {
   border-left-width: 4px;
-  box-shadow: 0 0 44px -20px var(--team);
   animation: history-leader-in 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
@@ -1325,11 +1282,6 @@
     opacity: 1;
     transform: translateY(0);
   }
-}
-
-/* El chip activo se nota; antes habia que compararlo con los demas. */
-.chipActive {
-  box-shadow: 0 0 20px -8px var(--chip, var(--accent));
 }
 
 @media (prefers-reduced-motion: reduce) {

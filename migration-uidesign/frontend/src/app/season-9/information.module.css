@@ -1,11 +1,5 @@
-/* INFORMATION.
-   Era una hoja de papel crema: fondo continuo, columna central, tinta oscura.
-   Leia como reportaje impreso y no como temporada producida en vivo, y ademas no
-   se parecia a la landing.
-
-   Ahora corre sobre el mismo tablero de cuadrados que el resto del sitio. Todo
-   el color sale de los tokens de abajo, asi que girar la pagina entera es girar
-   este bloque. */
+/* Season information uses the shared green palette with quiet square texture.
+   Rules, numbers and spacing carry the hierarchy before accent color. */
 
 .page {
   /* Los tokens vienen de la capa compartida: el verde de OTP se decide en un
@@ -28,19 +22,10 @@
   --panel: color-mix(in srgb, var(--text) 4.5%, transparent);
   --panel-strong: color-mix(in srgb, var(--text) 8%, transparent);
 
-  /* IDENTIDAD DE TEMPORADA.
-     La regla es la de la auditoria y se sostiene en toda la pagina: el verde
-     significa sistema OTP, accion o estado en vivo — por eso la fase EN CURSO
-     del rail sigue siendo verde. El azul y el violeta son Season 9: numeracion,
-     modos, reglas y pasos del draft.
-
-     Los dos hex base son los de la auditoria. Sobre este suelo casi negro se
-     quedaban apagados para texto pequeno, asi que cada uno tiene su version
-     levantada, con el mismo tono. */
-  --season: #536b9c;
-  --season-bright: #86a2d6;
-  --season-2: #776aa6;
-  --season-2-bright: #a496d8;
+  --season: color-mix(in srgb, var(--text) 28%, transparent);
+  --season-bright: var(--ink);
+  --season-2: var(--season);
+  --season-2-bright: var(--ink-soft);
 }
 
 /* El tablero va fijo. La pagina mide varios miles de pixeles de alto y no tiene
@@ -108,6 +93,11 @@
   padding-top: clamp(64px, 8vw, 104px);
 }
 
+.section::before,
+.section::after {
+  display: none;
+}
+
 .kicker {
   margin: 0 0 14px;
   font-family: var(--font-otp-heading), "Chakra Petch", system-ui, sans-serif;
@@ -154,46 +144,18 @@
   color: var(--ink-soft);
 }
 
-/* ---------- ranura de arte ---------- */
-
-.slot {
-  margin: clamp(28px, 3.5vw, 40px) 0 0;
+/* Existing Overwatch artwork replaces visible production placeholders. */
+.openingArt {
+  max-width: var(--measure);
+  margin: 36px auto 0;
+  overflow: hidden;
+  border-bottom: 1px solid var(--rule);
 }
 
-.slotFrame {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
+.openingArt img {
+  display: block;
   width: 100%;
-  height: 100%;
-  min-height: 140px;
-  padding: 14px 16px;
-  border: 1px solid var(--rule);
-  border-radius: 2px;
-  background: var(--panel);
-}
-
-.slotId {
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: 12px;
-  letter-spacing: 0.06em;
-  color: var(--ink-faint);
-}
-
-.slotRatio {
-  font-family: var(--font-otp-heading), "Chakra Petch", system-ui, sans-serif;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
-  margin-left: auto;
-}
-
-.slotCaption {
-  margin: 10px 0 0;
-  font-size: 13px;
-  color: var(--ink-faint);
+  height: auto;
 }
 
 /* ---------- raíl de fases ---------- */
@@ -501,7 +463,7 @@
 /* ---- el cierre ---- */
 .cta {
   display: grid;
-  grid-template-columns: minmax(0, 0.72fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: clamp(24px, 4vw, 48px);
   align-items: center;
   margin-top: clamp(72px, 9vw, 116px);
@@ -510,10 +472,6 @@
   border-left: 3px solid var(--green);
   border-radius: 2px;
   background: var(--panel);
-}
-
-.ctaArt .slot {
-  margin: 0;
 }
 
 .ctaCopy {
@@ -545,13 +503,11 @@
   letter-spacing: 0.16em;
   text-transform: uppercase;
   text-decoration: none;
-  /* Sube la luz, no escala: la regla de movimiento del sitio. */
-  transition: background-color 120ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 120ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background-color 120ms ease;
 }
 
 .ctaButton:hover {
-  background: var(--green);
-  box-shadow: 0 0 26px -8px var(--green);
+  background: var(--accent-300);
 }
 
 @media (max-width: 760px) {
@@ -610,11 +566,6 @@
    Solo dos elementos rompen, y lo hacen a la MISMA anchura para que se lea como
    una decisión y no como un descuadre: el raíl de fases, que necesita cinco
    columnas, y el bloque de cierre. */
-.slot {
-  max-width: var(--measure);
-  margin-inline: auto;
-}
-
 .rail,
 .cta {
   max-width: none;
@@ -636,8 +587,7 @@
 .railCardNow {
   border-top-width: 4px;
   border-top-color: var(--green);
-  background: color-mix(in srgb, var(--green) 12%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--green) 30%, transparent);
+  background: var(--panel-strong);
 }
 
 .railCardNow .railWhen {
@@ -671,8 +621,8 @@
    pegas de la auditoria. */
 .modeActive {
   border-color: var(--season-bright);
-  background: color-mix(in srgb, var(--season) 26%, transparent);
-  color: var(--season-bright);
+  background: var(--panel-strong);
+  color: var(--green);
 }
 
 .modeIcon {
@@ -712,7 +662,7 @@
   border: 1px solid color-mix(in srgb, var(--season) 34%, transparent);
   border-left: 2px solid var(--season);
   border-radius: 2px;
-  background: linear-gradient(160deg, color-mix(in srgb, var(--season) 12%, transparent), transparent 58%), var(--panel);
+  background: var(--panel);
   overflow: hidden;
 }
 
@@ -729,9 +679,7 @@
   width: 100%;
   aspect-ratio: 3 / 2;
   display: block;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--season) 30%, transparent), color-mix(in srgb, var(--season-2) 18%, transparent) 58%, transparent),
-    color-mix(in srgb, var(--text) 5%, transparent);
+  background: var(--panel-strong);
 }
 
 .mapName {

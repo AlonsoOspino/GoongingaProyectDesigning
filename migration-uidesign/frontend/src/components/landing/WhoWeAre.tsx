@@ -8,17 +8,10 @@ export default function WhoWeAre() {
   return (
     <section className={styles.section} aria-label="Who we are">
       <div className={styles.inner}>
-        <p className={styles.eyebrow}>
-          <span className={styles.mark} aria-hidden="true" />
-          Overtime Productions
-        </p>
-        <h2 className={styles.title}>Who we are?</h2>
+        <h2 className={styles.title}>Run by the community.</h2>
         <p className={styles.body}>
-          Overtime Productions started back in 2023 as a small circle of friends on Discord,
-          running mini-tournaments just for the fun of it. It has grown a little at a time ever
-          since — one event, one new face after another — into an active community that plays,
-          casts and talks together almost every day. Win or lose, most of us stick
-          around long after the match ends — that part matters as much as the games.
+          We’ve been organising tournaments and streams since 2023.
+          Players, casters and friends on Discord — the same people who play the games put on the show.
         </p>
       </div>
     </section>

@@ -20,10 +20,8 @@ import {
   getMatches,
   getTeams,
   getMembers,
-  createDraft,
   getDraftByMatchId,
   getDraftPhases,
-  updateManagerMatch,
   getAllPlayerStats,
   managerTogglePause,
   managerClearPauseRequest,
@@ -32,7 +30,7 @@ import {
   type DraftState,
   type Member,
 } from "@/lib/api";
-import { formatDateEST, formatDateTimeEST } from "@/lib/dateUtils";
+import { formatDateTimeEST } from "@/lib/dateUtils";
 import styles from "./manager-dashboard.module.css";
 import type { PlayerStat } from "@/lib/api/types";
 
@@ -42,7 +40,7 @@ const POLL_INTERVAL = 12000;
 
 function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean }) {
   const router = useRouter();
-  const { user, token, isAuthenticated, isHydrated } = useSession();
+  const { token, isAuthenticated, isHydrated } = useSession();
   const [networkUser, setNetworkUser] = useState<NetworkSessionUser | null>(null);
   const [networkReady, setNetworkReady] = useState(false);
   const [activeTab, setActiveTab] = useState<TabValue>("scheduled");
@@ -56,7 +54,6 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
   const [draftPhases, setDraftPhases] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [dataError, setDataError] = useState<string | null>(null);
-  const [creatingDraft, setCreatingDraft] = useState<number | null>(null);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
   const [notificationsSupported, setNotificationsSupported] = useState(false);
   // Stats tab state
@@ -215,26 +212,6 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
     [embedded, router]
   );
 
-  async function handleCreateDraft(matchId: number) {
-    if (!token) return;
-    setCreatingDraft(matchId);
-    try {
-      await createDraft(token, matchId);
-      openDraftTable(matchId);
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      // If draft already exists, redirect to it instead of showing error
-      if (errorMsg.includes("already exists")) {
-        openDraftTable(matchId);
-      } else {
-        console.error("Failed to create draft:", err);
-        alert("Failed to create draft table. Make sure both teams are ready.");
-      }
-    } finally {
-      setCreatingDraft(null);
-    }
-  }
-
   const getTeamName = (teamId: number) =>
     teams.find((t) => t.id === teamId)?.name || `Team ${teamId}`;
 
@@ -253,25 +230,6 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
   const nextMatch = scheduledMatches
     .filter((m) => m.startDate)
     .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())[0] || null;
-
-  // Stats filtering
-  const statsFiltered = (() => {
-    let data = [...allStats];
-    if (statsSearch.trim()) {
-      const q = statsSearch.trim().toLowerCase();
-      // We need member nicknames - join by userId
-      const memberMap = new Map(members.map((m) => [m.id, m]));
-      data = data.filter((s) => {
-        const m = memberMap.get(s.userId);
-        return m?.nickname?.toLowerCase().includes(q) || m?.user?.toLowerCase().includes(q);
-      });
-    }
-    if (statsTopFilter) {
-      const field = statsTopFilter as keyof PlayerStat;
-      data = [...data].sort((a, b) => (b[field] as number) - (a[field] as number)).slice(0, 10);
-    }
-    return data;
-  })();
 
   // Average stats per player
   const playerAverages = (() => {
@@ -322,7 +280,7 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
           <div className={styles.headerText}>
             <span className={styles.kicker}>Overtime Productions</span>
             <h1 className={styles.title}>{embedded ? "League operations" : "Manager Dashboard"}</h1>
-            <p className={styles.subtitle}>Manage matches, create draft tables, and register results</p>
+            <p className={styles.subtitle}>Manage matches, open draft tables, and register results</p>
           </div>
           <div className={styles.headerAside}>
             {notificationsSupported && notificationPermission === "default" ? <Button size="sm" variant="secondary" onClick={() => void Notification.requestPermission().then(setNotificationPermission)}>Enable alerts</Button> : null}
@@ -373,11 +331,10 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
                   {getTeamName(nextMatch.teamBId).slice(0, 8)}: {nextMatch.teamBready ? "✓" : "—"}
                 </Badge>
                 <Button
-                  onClick={() => handleCreateDraft(nextMatch.id)}
-                  disabled={creatingDraft === nextMatch.id}
+                  onClick={() => openDraftTable(nextMatch.id)}
                   size="sm"
                 >
-                  {creatingDraft === nextMatch.id ? "Creating..." : "Create Draft"}
+                  View Draft
                 </Button>
               </div>
             </div>
@@ -451,11 +408,10 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
                                       {teamBName.charAt(0)}
                                     </div>
                                     <Button
-                                      onClick={() => handleCreateDraft(match.id)}
-                                      disabled={creatingDraft === match.id}
+                                      onClick={() => openDraftTable(match.id)}
                                       size="sm"
                                     >
-                                      {creatingDraft === match.id ? "Creating..." : "Create Draft"}
+                                      View Draft
                                     </Button>
                                   </div>
                                 </div>

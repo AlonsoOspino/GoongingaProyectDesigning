@@ -16,7 +16,6 @@ import { ApiError, getMatches, getTeams, updateCaptainMatch, updateCaptainTeam, 
 import { convertToISODateTime, formatForDateTimeInput, formatRelativeEST, formatTimeEST, isWithinNextHoursEST } from "@/lib/dateUtils";
 import { MapTimer } from "@/components/match/MapTimer";
 import { clsx } from "clsx";
-import { deleteReplacedBlobImage } from "@/lib/blobUpload";
 
 type TabValue = "upcoming" | "active" | "history";
 type ConnectionStatus = "idle" | "running" | "success" | "error";
@@ -386,10 +385,6 @@ export default function CaptainDashboardPage() {
         logo: teamFormData.logo || undefined,
         roster: teamFormData.roster || undefined,
       });
-      await Promise.allSettled([
-        deleteReplacedBlobImage(myTeam.logo, teamFormData.logo),
-        deleteReplacedBlobImage(myTeam.roster, teamFormData.roster),
-      ]);
       setShowEditTeamModal(false);
       showTeamNotification("success", "Team updated successfully");
       loadData();
@@ -925,7 +920,7 @@ function ActiveMatchCard({ match, draft, isTeamA, opponentName, currentTeamId, t
               </Link>
             ) : (
               <div className="text-center p-4 bg-surface rounded-lg border border-border">
-                <p className="text-sm text-muted">Waiting for manager to create draft table...</p>
+                <p className="text-sm text-muted">Preparing your draft table automatically...</p>
               </div>
             )}
           </div>

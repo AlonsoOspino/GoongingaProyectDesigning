@@ -20,7 +20,6 @@ import {
   banHero,
   endGame,
   type DraftState,
-  type GameMap,
   type Hero,
   type MapType,
 } from "@/lib/api";
@@ -38,7 +37,7 @@ import {
 import { clsx } from "clsx";
 import { resolveGenericBackendAsset, resolveHeroImageUrl, resolveMapImageUrl } from "@/lib/assetUrls";
 import { MapImage, MapBackground, useImageReady, preloadImages } from "@/components/draft/MapImage";
-import { DraftStage, TeamRail, teamVars, type TeamSide } from "@/components/draft/DraftStage";
+import { DraftStage, TeamRail, type TeamSide } from "@/components/draft/DraftStage";
 import { PhaseTransition } from "@/components/draft/PhaseTransition";
 import { BanTile, type HeroTileState } from "@/components/draft/BanTile";
 import { BanSlot, EmptyBanSlot } from "@/components/draft/BanRail";
@@ -82,7 +81,7 @@ export default function DraftTablePage() {
   const urlKey = searchParams?.get("key");
   const matchReference = parseMatchReference((params as { matchId?: string }).matchId);
   const isDevMatch = matchReference === "dev";
-  const isObsKeyAccess = Boolean(urlKey);
+  const isObsKeyAccess = Boolean(urlKey) || searchParams?.get("broadcast") === "1";
 
   const [draftState, setDraftState] = useState<DraftState | null>(null);
   const matchId = draftState?.matchId ?? (typeof matchReference === "number" ? matchReference : 0);
@@ -96,7 +95,6 @@ export default function DraftTablePage() {
   const [selectedRole, setSelectedRole] = useState<"ALL" | "TANK" | "DPS" | "SUPPORT">("ALL");
   const [banWarning, setBanWarning] = useState<string | null>(null);
   const [heroCacheById, setHeroCacheById] = useState<Record<number, Hero>>({});
-  const [mapCacheById, setMapCacheById] = useState<Record<number, GameMap>>({});
   const [pauseActionPending, setPauseActionPending] = useState(false);
   const [isNavHidden, setIsNavHidden] = useState(false);
   // Bans are announced one at a time, center stage. Two bans landing in the
@@ -132,11 +130,11 @@ export default function DraftTablePage() {
     };
   }, []);
 
-  const isManager = Boolean(networkUser?.roles.some((role) => role === "SOCIAL_MEDIA" || role === "ADMIN"));
-  const isAdmin = Boolean(networkUser?.roles.includes("ADMIN"));
+  const isManager = !isObsKeyAccess && Boolean(networkUser?.roles.some((role) => role === "SOCIAL_MEDIA" || role === "ADMIN"));
+  const isAdmin = !isObsKeyAccess && Boolean(networkUser?.roles.includes("ADMIN"));
   // Destructive operational actions (full match reset) are open to both roles.
   const canResetMatch = isManager || isAdmin;
-  const isCaptain = user?.role === "CAPTAIN";
+  const isCaptain = !isObsKeyAccess && user?.role === "CAPTAIN";
   const isKeyAccess = isObsKeyAccess;
   const shouldRenderCompactHeader = true;
   const myTeamId = user?.teamId;
@@ -279,18 +277,6 @@ export default function DraftTablePage() {
       return next;
     });
   }, [draftState?.heroes]);
-
-  useEffect(() => {
-    const maps = [...(draftState?.allMaps || []), ...(draftState?.availableMaps || [])];
-    if (!maps.length) return;
-    setMapCacheById((prev) => {
-      const next = { ...prev };
-      for (const map of maps) {
-        next[map.id] = map;
-      }
-      return next;
-    });
-  }, [draftState?.allMaps, draftState?.availableMaps]);
 
   async function loadData() {
     if (matchReference === null) return;
@@ -744,17 +730,6 @@ export default function DraftTablePage() {
     },
     [draftState?.heroes, heroCacheById]
   );
-  const getMapById = useCallback(
-    (mapId?: number | null) => {
-      if (!mapId || !Number.isFinite(mapId)) return null;
-      const liveMap =
-        draftState?.allMaps?.find((map) => map.id === mapId) ||
-        draftState?.availableMaps?.find((map) => map.id === mapId);
-      if (liveMap) return liveMap;
-      return mapCacheById[mapId] || null;
-    },
-    [draftState?.allMaps, draftState?.availableMaps, mapCacheById]
-  );
 
   const enqueueCeremony = useCallback((ceremony: BanCeremonyRequest) => {
     setCeremonyQueue((prev) => [...prev, ceremony]);
@@ -763,13 +738,6 @@ export default function DraftTablePage() {
   const getTeamById = useCallback(
     (teamId?: number | null) => teams.find((team) => team.id === teamId),
     [teams]
-  );
-
-  // Left rail is always team A, right rail always team B. Everything that
-  // needs a team color derives it from this instead of hardcoding a hue.
-  const sideForTeam = useCallback(
-    (teamId?: number | null): TeamSide => (teamId === teamB?.id ? "B" : "A"),
-    [teamB?.id]
   );
 
   useEffect(() => {
@@ -2553,10 +2521,6 @@ function EndMapPhase({
   const currentMap = draftState.allMaps?.find((m) => m.id === draftState.currentMapId);
   const currentGameNumber = (draftState.match.gameNumber || 0) + 1;
 
-  // Get banned heroes for this game
-  const teamABans = teamA ? getBannedHeroesByTeam(teamA.id) : [];
-  const teamBBans = teamB ? getBannedHeroesByTeam(teamB.id) : [];
-
   // Check if result has been registered for current game
   const currentMapResult = draftState.match.mapResults?.find(
     (r) => r.gameNumber === currentGameNumber
@@ -2568,38 +2532,6 @@ function EndMapPhase({
 
   // Check if both teams are ready for next map
   const bothReady = draftState.match.teamAready === 1 && draftState.match.teamBready === 1;
-
-  const renderBannedHeroEndMap = (heroId: number | null, index: number) => {
-    if (heroId === null) {
-      return (
-        <div
-          key={`noban-${index}`}
-          className="w-12 h-12 rounded-lg bg-muted/20 border border-muted/50 flex items-center justify-center"
-        >
-          <span className="text-[8px] text-muted font-semibold uppercase">No Ban</span>
-        </div>
-      );
-    }
-    
-    const hero = getHeroById(heroId);
-    return (
-      <div
-        key={heroId}
-        className="w-12 h-12 rounded-lg bg-danger/20 border border-danger/50 flex flex-col items-center justify-center overflow-hidden"
-      >
-        {hero?.imgPath ? (
-          <>
-            <img src={resolveHeroImageUrl(hero.imgPath)} alt="" className="w-full h-8 object-cover grayscale" />
-            <span className="text-[7px] text-danger truncate w-full text-center">
-              {hero.name}
-            </span>
-          </>
-        ) : (
-          <span className="text-xs text-danger font-bold">#{heroId}</span>
-        )}
-      </div>
-    );
-  };
 
   const actionsRef = useRef<HTMLDivElement | null>(null);
 

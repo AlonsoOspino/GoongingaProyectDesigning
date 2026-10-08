@@ -30,20 +30,6 @@ const FACTS = [
   { value: "5", unit: "modes", label: "in the pool" },
 ];
 
-/* Ranura de arte. Hasta que exista la imagen se ve el hueco con su id, para que
-   nunca se confunda un espacio vacío con una decisión de diseño. */
-function ArtSlot({ id, ratio, caption }: { id: string; ratio: string; caption: string }) {
-  return (
-    <figure className={styles.slot} style={{ aspectRatio: ratio }}>
-      <div className={styles.slotFrame}>
-        <span className={styles.slotId}>{id}</span>
-        <span className={styles.slotRatio}>{ratio.replace(" / ", ":")}</span>
-      </div>
-      <figcaption className={styles.slotCaption}>{caption}</figcaption>
-    </figure>
-  );
-}
-
 const PHASES: Phase[] = [
   {
     name: "Registration",
@@ -78,10 +64,7 @@ export default function InformationPage() {
 
   return (
     <div className={styles.page} ref={pageRef}>
-      {/* El mismo tablero que la landing, fijo detrás del documento. Antes esto
-          era papel crema y era la razón principal de que Season 9 no pareciera
-          parte del sitio. */}
-      <BrandField variant="section" className={styles.paper} intensity={0.85} seedOffset={707} />
+      <BrandField variant="section" className={styles.paper} intensity={0.22} seedOffset={707} />
 
       <Story>
         <ChapterIndex chapters={chapters} />
@@ -91,16 +74,13 @@ export default function InformationPage() {
           <p className={styles.eyebrow}>Goonginga League · Season 9</p>
           <h1 className={styles.h1}>How a season runs</h1>
           <p className={styles.standfirst}>
-            From sign-ups to the Grand Finals, this is the shape of a GGL season and the rules the
-            draft table runs on.
+            Registration, team draft, weekly matches and playoffs. Here is how Season 9 works.
           </p>
         </header>
 
-        <ArtSlot
-          id="otp-info-00-opening"
-          ratio="16 / 7"
-          caption="Opening image — the league at full scale."
-        />
+        <figure className={styles.openingArt}>
+          <img src="/ggl-lineup.png" alt="" width={1920} height={1080} decoding="async" />
+        </figure>
 
         <ul className={styles.facts} aria-label="Season at a glance">
           {FACTS.map((fact) => (
@@ -118,19 +98,12 @@ export default function InformationPage() {
         <section className={styles.section} aria-labelledby="schedule" data-chapter="schedule">
           <p className={styles.kicker}>01 · Calendar</p>
           <h2 className={styles.h2} id="schedule">
-            Main Schedule: one match per week
+            One match per week
           </h2>
           <RevealWords className={styles.lead}>
-            The season is spread across many weeks, depending on how many teams get to participate.
-            The roster has time to prepare, play, look at what went wrong, and come back for the
-            next opponent.
+            Each team plays once a week. The number of teams determines the length of the regular
+            season, with time between matches to practice and prepare.
           </RevealWords>
-
-          <ArtSlot
-            id="otp-info-01-schedule"
-            ratio="16 / 7"
-            caption="Season calendar — the week-by-week shape of a season."
-          />
 
           <PhaseRail phases={PHASES} />
         </section>
@@ -139,23 +112,16 @@ export default function InformationPage() {
         <section className={styles.section} aria-labelledby="teams" data-chapter="teams">
           <p className={styles.kicker}>02 · Before the first match</p>
           <h2 className={styles.h2} id="teams">
-            How does the team building work?
+            Captains draft the teams
           </h2>
           <RevealWords className={styles.lead}>
-            Captains pick from the players registered for the season. Before the draft, the admin
-            team reviews ranks and the shape of the pool so the finished rosters land near the same
-            average level.
+            Captains pick from registered players. Before draft night, admins review player ranks
+            to keep the teams at a similar average skill level.
           </RevealWords>
           <p className={styles.body}>
-            The picks stay with the captains. The structure only exists to stop one obviously
-            stacked roster from deciding the season before week one.
+            Captains make the picks within those limits.
           </p>
 
-          <ArtSlot
-            id="otp-info-02-draft-night"
-            ratio="16 / 7"
-            caption="Draft night — captains building rosters from the registered pool."
-          />
         </section>
 
         {/* ---------- 3 ---------- */}
@@ -165,9 +131,8 @@ export default function InformationPage() {
             The map pool
           </h2>
           <RevealWords className={styles.lead}>
-            The pool rotates through the regular season, so no roster gets to live on one map. In
-            Playoffs and Finals the rotation is dropped: once a mode is called, every eligible map
-            is on the table.
+            Maps rotate during the regular season. In playoffs and finals, captains can pick any
+            eligible map for the selected mode.
           </RevealWords>
 
           <ModeTabs />
@@ -180,16 +145,9 @@ export default function InformationPage() {
             The draft table
           </h2>
           <RevealWords className={styles.lead}>
-            Captains and production work off one match state. A confirmed mode, map or ban lands in
-            the same place for both, which is why the stream never has to be caught up by hand
-            between games.
+            Captains pick modes and maps, then lock their hero bans. The stream updates as each
+            decision is confirmed.
           </RevealWords>
-
-          <ArtSlot
-            id="otp-info-04-draft-table"
-            ratio="16 / 7"
-            caption="The draft table — captain view and production view, one match state."
-          />
 
           <div className={styles.steps}>
             <section className={styles.step}>
@@ -198,8 +156,7 @@ export default function InformationPage() {
                 The match opens on Control
               </h3>
               <p className={styles.body}>
-                Every match starts on the same mode. Both captains walk in already knowing it, so
-                the first decision on the table is a map, not an argument.
+                Every match starts on Control. The first pick is the map.
               </p>
             </section>
 
@@ -209,13 +166,10 @@ export default function InformationPage() {
                 The captain on turn calls the mode
               </h3>
               <p className={styles.body}>
-                Hybrid, Payload, or Push and Flashpoint. The call is what decides which maps are
-                legal for the next action, so it is made before anyone sees the list.
+                The captain selects Hybrid, Payload, Push or Flashpoint before choosing a map.
               </p>
               <p className={styles.body}>
-                The active captain then has ninety seconds to pick from the maps eligible for that
-                mode. The same timer runs on the broadcast, so the audience is never waiting on
-                something it cannot see.
+                They have ninety seconds to pick an eligible map. The timer is visible on stream.
               </p>
             </section>
 
@@ -243,45 +197,28 @@ export default function InformationPage() {
             <section className={styles.step}>
               <h3 className={styles.h3}>
                 <span className={styles.stepNum}>04</span>
-                The broadcast reads the same state
+                Picks update on stream
               </h3>
               <p className={styles.body}>
-                Captain view and production view are the same match. When a captain confirms a mode,
-                a map or a ban, production already has it — there is nothing to rebuild in a
-                separate graphic.
+                Confirmed modes, maps and bans appear on the broadcast automatically.
               </p>
             </section>
           </div>
 
-          <p className={styles.closing}>
-            None of this exists for its own sake. Every rule on this page is there so a match starts
-            on time and ends without an argument. The team behind the draft table keeps building
-            toward the same thing: fewer rules to explain mid-match, less waiting on a screen nobody
-            else can see, and a broadcast that never falls behind the game it is showing.
-          </p>
         </section>
 
         {/* ---------- cierre ---------- */}
         <section className={styles.cta} aria-labelledby="join">
-          <div className={styles.ctaArt}>
-            <ArtSlot
-              id="otp-info-05-join"
-              ratio="4 / 5"
-              caption="Roster portrait — a player on season night."
-            />
-          </div>
-
           <div className={styles.ctaCopy}>
             <p className={styles.kicker}>Season 9 · Registration</p>
             <h2 className={styles.ctaTitle} id="join">
-              Want to become a season player?
+              Play in Season 9
             </h2>
             <p className={styles.lead}>
-              Sign-ups run through a Network Member profile. Register before the draft and your name
-              goes into the pool the captains pick from — no prior season, no invite needed.
+              Create a Network Member profile to register for the draft. New players are welcome.
             </p>
             <Link href={JOIN_FORM_HREF} className={styles.ctaButton}>
-              Join now!
+              Register
             </Link>
           </div>
         </section>

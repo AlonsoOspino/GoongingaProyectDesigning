@@ -9,7 +9,8 @@ public final class DraftRequests {
     public record PickType(@NotNull MapType mapType, @Positive Long teamId) {}
     public record PickMap(@NotNull @Positive Integer mapId, @Positive Long teamId) {}
     public record BanHero(@Positive Integer heroId, @Positive Long teamId) {}
-    public record Result(@Positive Long winnerTeamId) {}
+    public record Result(@Positive Long winnerTeamId, @Positive Integer expectedGameNumber, @Positive Integer expectedMapId) {}
+    public record MapIdentity(@Positive Integer expectedGameNumber, @Positive Integer expectedMapId) {}
     public record Pause(@NotNull Boolean paused) {}
     public record Readiness(@Min(0) @Max(1) Integer teamAready, @Min(0) @Max(1) Integer teamBready, Instant startDate) {}
     public record Overlay(MapType focusType, @Positive Integer focusMapId) {}

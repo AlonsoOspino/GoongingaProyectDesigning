@@ -16,9 +16,6 @@ export function updateAnnouncement(token: string, id: number, payload: { name?: 
 export function deleteAnnouncement(token: string, id: number) {
   return apiRequest<{ deleted: true; id: number }>(`/announcements/${id}`, { method: "DELETE", token });
 }
-export function reorderAnnouncements(token: string, ids: number[]) {
-  return apiRequest<{ ids: number[] }>("/announcements/reorder", { method: "PATCH", token, body: { ids } });
-}
 export function getAnnouncementSettings(token: string) {
   return apiRequest<AnnouncementSettings>("/announcements/settings", { token, cache: "no-store" });
 }

@@ -8,11 +8,6 @@ let API_BASE =
 
 const DEFAULT_TIMEOUT_MS = 20000;
 
-export function setApiBase(url: string) {
-  if (!url) return;
-  API_BASE = url.replace(/\/$/, "");
-}
-
 export function getApiBase() {
   return API_BASE;
 }

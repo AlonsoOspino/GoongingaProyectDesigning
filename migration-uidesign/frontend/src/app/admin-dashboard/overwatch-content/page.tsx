@@ -112,12 +112,14 @@ export default function AddOverwatchContentPage() {
   };
 
   async function uploadContentImage(file: File, type: "map" | "hero" | "hero-gift") {
+    if (!token) throw new Error("Sign in before uploading images.");
     const formData = new FormData();
     formData.append("file", file);
     formData.append("type", type);
 
     const response = await fetch("/api/upload", {
       method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
       body: formData,
     });
 
@@ -134,13 +136,14 @@ export default function AddOverwatchContentPage() {
   }
 
   async function deleteUploadedContentImage(imgPath?: string | null) {
+    if (!token) throw new Error("Sign in before deleting images.");
     if (!imgPath || !/^https?:\/\//i.test(imgPath)) {
       return;
     }
 
     const response = await fetch("/api/upload", {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ url: imgPath }),
     });
 

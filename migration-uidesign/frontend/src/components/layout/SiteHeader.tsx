@@ -135,15 +135,15 @@ export function SiteHeader() {
   const avatarUrl = networkUser?.avatarUrl || networkUser?.profilePic || "";
 
   const dashboards = [
-    { href: "/casting-dashboard", label: "Casting Dashboard", chip: "Caster", show: isCaster },
+    { href: "/casting-dashboard", label: "Casting Dashboard", chip: "Caster", show: isCaster || isAdmin || Boolean(networkUser?.roles.includes("SOCIAL_MEDIA")) },
     { href: "/captain-dashboard", label: "Captain Dashboard", chip: "Captain", show: isCaptain },
     { href: "/manager-dashboard", label: "Manager Dashboard", chip: "Manager", show: isManager },
     { href: "/admin-dashboard", label: "Admin Dashboard", chip: "Admin", show: isAdmin },
   ].filter((entry) => entry.show);
 
   return (
-    <header className={`${styles.otpSurface} ${styles.header}`}>
-      <BrandField variant="bar" />
+    <header className={`${styles.otpSurface} ${styles.header} ${pathname === "/" ? styles.landingHeader : ""}`}>
+      {pathname !== "/" ? <BrandField variant="bar" /> : null}
 
       <div className={styles.headerInner}>
         <Link href="/" className={styles.brand} aria-label="Overtime Productions">

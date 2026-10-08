@@ -13,28 +13,12 @@ export async function getMatchesByWeek(tournamentId: number, week: number) {
   return apiRequest<Match[]>(`/match?tournamentId=${tournamentId}&semanas=${week}`);
 }
 
-export async function getSoonestMatch() {
-  return apiRequest<Match>("/match/soonest");
-}
-
-export async function getActiveMatches() {
-  return apiRequest<Match[]>("/match/active");
-}
-
 export async function updateCaptainMatch(
   token: string,
   matchId: number,
   payload: { teamAready?: 0 | 1; teamBready?: 0 | 1; startDate?: string }
 ) {
   return apiRequest<Match>(`/match/captain/update/${matchId}`, {
-    method: "PUT",
-    token,
-    body: payload,
-  });
-}
-
-export async function updateManagerMatch(token: string, matchId: number, payload: Partial<Match>) {
-  return apiRequest<Match>(`/match/manager/update/${matchId}`, {
     method: "PUT",
     token,
     body: payload,
@@ -53,11 +37,12 @@ export async function resetManagerMatch(token: string, matchId: number) {
   });
 }
 
-export async function submitMatchResult(token: string, matchId: number, winnerTeamId: number | null) {
+export async function submitMatchResult(token: string, matchId: number, winnerTeamId: number | null,
+  expected?: { expectedGameNumber: number; expectedMapId: number }) {
   return apiRequest<Match>(`/match/${matchId}/result`, {
     method: "POST",
     token,
-    body: { winnerTeamId },
+    body: { winnerTeamId, ...expected },
   });
 }
 

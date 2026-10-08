@@ -1,6 +1,6 @@
 # OVERTIME PRODUCTIONS — Documentación de Marca + Propuesta de Landing
 
-> Documento de entendimiento basado en el escaneo completo del repositorio (`README.md`, `PRODUCT.md`, `DESIGN.md`, código del frontend/minigames/launcher, assets y datos históricos). Sin código: solo comprensión mediante grafos.
+> Documento de entendimiento basado en el escaneo completo del repositorio (`README.md`, `PRODUCT.md`, `DESIGN.md`, código del frontend y Game Nights, assets y datos históricos). Sin código: solo comprensión mediante grafos.
 
 ---
 
@@ -14,13 +14,12 @@ graph TD
 
     OTP --> GGL["GOONGINGA LEAGUE (GGL)<br/>Producto principal<br/>Liga comunitaria de Overwatch<br/>Fundada 2023 · 8 temporadas · Actual: Season 9"]
     OTP --> ST["OTP STREAM TOOLS<br/>Goonginga Game Nights<br/>Family Feud · Jeopardy"]
-    OTP --> LCH["GOON LIVE LAUNCHER<br/>App Electron para control<br/>de overlays OBS en vivo"]
 
     GGL --> HIST["Archivo histórico<br/>GGL History + Wrapped"]
     GGL --> BCAST["Producción broadcast<br/>Twitch goongingatournament"]
 ```
 
-**Lectura:** OTP es la casa editorial; GGL es el producto estrella; Stream Tools y el Launcher son herramientas de producción que refuerzan la identidad de "estudio de transmisión".
+**Lectura:** OTP es la casa editorial; GGL es el producto estrella; Stream Tools aporta experiencias de producción para el directo.
 
 ---
 
@@ -129,7 +128,7 @@ graph TD
     SUB["Superficies existentes"]
     SUB --> PUB["Públicas: /season-9 · /history · /news · /standings · /teams · /schedule · /stats · /wrapped · /login"]
     SUB --> OPS["Operativas: dashboards admin/manager/captain/casting/editor/social · Announcement Studio"]
-    SUB --> LIVE["En vivo: /draft-table/[id] · overlays OBS (/overlay/*) · Launcher Electron"]
+    SUB --> LIVE["En vivo: /draft-table/[id] · overlays OBS (/overlay/*)"]
     SUB --> MG["Minigames: /feud · Jeopardy (app separada)"]
 
     A1 --> PUB

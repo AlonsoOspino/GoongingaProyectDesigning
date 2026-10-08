@@ -22,7 +22,12 @@ public class PlayingService {
     }
 
     public DraftView end(long id, DraftActor actor) {
-        var draft = commands.manager(id, actor);
+        return end(id, actor, null, null);
+    }
+
+    public DraftView end(long id, DraftActor actor, Integer expectedGameNumber, Integer expectedMapId) {
+        var draft = commands.production(id, actor);
+        MapCommandScope.require(draft.state(), expectedGameNumber, expectedMapId);
         return views.map(store.save(draft, workflow.endMap(draft.state()), clock.instant()));
     }
 }

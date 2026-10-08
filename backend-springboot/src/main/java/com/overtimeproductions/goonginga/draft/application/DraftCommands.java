@@ -25,6 +25,13 @@ public class DraftCommands {
         return draft;
     }
 
+    public LoadedDraft production(long id, DraftActor actor) {
+        var draft = store.lock(id);
+        access.requireProduction(actor, draft.match());
+        requireRunning(draft);
+        return draft;
+    }
+
     public TeamCommand team(long id, DraftActor actor, Long requested) {
         var draft = store.lock(id);
         long teamId = access.actingTeam(actor, draft.match(), requested);

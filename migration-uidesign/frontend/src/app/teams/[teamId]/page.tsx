@@ -10,7 +10,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { MatchCard } from "@/components/matches/MatchCard";
-import type { Team, Match } from "@/lib/api/types";
+import type { Match } from "@/lib/api/types";
 import { resolveGenericBackendAsset } from "@/lib/assetUrls";
 
 interface TeamPageProps {
@@ -191,33 +191,33 @@ export default async function TeamPage({ params }: TeamPageProps) {
               </Badge>
             )}
           </div>
-          <p className="text-muted">Roaster!</p>
+          <p className="text-muted">Team roster and match record</p>
         </div>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <Card variant="featured">
+        <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-3xl font-bold text-success font-mono">{team.victories}</p>
+            <p className="text-3xl font-bold text-foreground font-mono">{team.victories}</p>
             <p className="text-sm text-muted">Match Victories</p>
           </CardContent>
         </Card>
-        <Card variant="featured">
+        <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-3xl font-bold text-primary font-mono">{team.mapWins}</p>
+            <p className="text-3xl font-bold text-foreground font-mono">{team.mapWins}</p>
             <p className="text-sm text-muted">Maps Won</p>
           </CardContent>
         </Card>
-        <Card variant="featured">
+        <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-3xl font-bold text-danger font-mono">{team.mapLoses}</p>
+            <p className="text-3xl font-bold text-foreground font-mono">{team.mapLoses}</p>
             <p className="text-sm text-muted">Maps Lost</p>
           </CardContent>
         </Card>
-        <Card variant="featured">
+        <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-3xl font-bold text-accent font-mono">{winRate}%</p>
+            <p className="text-3xl font-bold text-foreground font-mono">{winRate}%</p>
             <p className="text-sm text-muted">Map Win Rate</p>
           </CardContent>
         </Card>
@@ -225,7 +225,7 @@ export default async function TeamPage({ params }: TeamPageProps) {
 
       {/* Roster Section (if available) */}
       {rosterSrc && (
-        <Card variant="featured" className="mb-8">
+        <Card className="mb-8">
           <CardHeader>
             <CardTitle>Roster</CardTitle>
           </CardHeader>
@@ -247,7 +247,7 @@ export default async function TeamPage({ params }: TeamPageProps) {
       {/* Content Grid */}
       <div className="grid gap-8 lg:grid-cols-2">
         {/* Upcoming Matches, limited to 2 */ }
-        <Card variant="featured">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Upcoming Matches</CardTitle>
             <Link href="/schedule">
@@ -273,7 +273,7 @@ export default async function TeamPage({ params }: TeamPageProps) {
         </Card>
 
         {/* Recent Results */}
-        <Card variant="featured">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Recent Results</CardTitle>
             <Link href="/schedule">
