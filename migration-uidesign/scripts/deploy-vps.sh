@@ -91,7 +91,9 @@ fi
 echo "[6/7] Checking public API, both frontends and Adara..."
 public_ready=0
 for _attempt in $(seq 1 30); do
-  if curl --fail --silent --max-time 5 "https://${GOON_DOMAIN}/backend/health/db" > /dev/null; then
+  if curl --fail --silent --max-time 5 "https://${GOON_DOMAIN}/backend/health/db" > /dev/null \
+      && curl --fail --silent --max-time 5 "https://${GOON_DOMAIN}/" > /dev/null \
+      && curl --fail --silent --max-time 5 "https://${GOON_GAMENIGHTS_DOMAIN}/feud" > /dev/null; then
     public_ready=1
     break
   fi

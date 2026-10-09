@@ -19,3 +19,11 @@ Flyway aplica las migraciones al arrancar el backend actualizado. V6 y V7 se ens
 ## Comprobaciones
 
 Backend: 34 pruebas aprobadas. Incluyen calendario 2×4, grupos impares, equipos sin división, cruces rechazados, asignaciones de otra temporada, generación sin cambios parciales, clasificación que excluye playoffs y ocho casos del resultado histórico sin mapas. Frontend y Game Nights: compilación de producción correcta; typecheck, dos pruebas de identidad y tres de agrupación/filtros/estadísticas aprobadas. API local: Season 9 `SCHEDULED`, `COMMITTEE`, fecha nula y dos divisiones; Season 8 y su final siguen `FINISHED` con marcador 2–4 en el orden No Tank?/Gamin 4 Goonginga.
+
+## Despliegue
+
+Verificado en producción el 8 de octubre de 2026 (Lima), versión de aplicación `34e39a5`. V6 y V7 aplicadas correctamente. Season 9 es la temporada actual (`SCHEDULED`, `COMMITTEE`, ocho equipos como objetivo y dos divisiones); todavía no tiene equipos ni calendario publicados. Season 8 y la final 43 están `FINISHED`, marcador 2–4 en el orden No Tank?/Gamin 4 Goonginga, sin crear mapas inexistentes. Importación: 44 drafts migrados, cero bloqueados.
+
+La API y PostgreSQL están saludables. Landing, Information, Schedule, Standings, Teams, Stats, Game Nights y Adara respondieron correctamente; CORS entre los sitios verificado. Se corrigió la espera final del script para que compruebe ambos frontends además de la API tras recrear los contenedores.
+
+Respaldo validado del VPS: `backups/pre-spring-20261009T024637Z.dump`. Capturas publicadas: [Season 9](visual-review/season-9-production.jpg) y [calendario](visual-review/season-9-production-schedule.jpg).
