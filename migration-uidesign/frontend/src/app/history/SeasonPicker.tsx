@@ -91,9 +91,6 @@ export default function SeasonPicker({ onOpen }: { onOpen: (season: number) => v
             Current season
           </p>
           <h2 className={styles.seasonNumber}>Season 9</h2>
-          <p className={styles.seasonBlurb}>
-            Two divisions, committee-built teams and the Season 9 rules.
-          </p>
           <Link href="/season-9" className={styles.seasonCta}>
             Open Season 9 <ArrowIcon size={14} />
           </Link>
