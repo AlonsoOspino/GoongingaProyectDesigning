@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { LandingPage } from "@/components/landing/LandingPage";
 
 export const metadata: Metadata = {
-  title: "Overtime Productions — The official home of Goonginga League",
+  title: "Overtime Productions — GGL Tournament",
   description:
-    "A very active community that hosts streams & events of many games like Overwatch, Deadlock, League of Legends and more. Home of Goonginga League Season 9.",
+    "Overwatch tournaments and community game nights.",
 };
 
 export default function HomePage() {

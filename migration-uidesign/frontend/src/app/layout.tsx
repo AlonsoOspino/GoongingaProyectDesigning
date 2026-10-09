@@ -56,7 +56,7 @@ export const metadata: Metadata = {
     default: "Overtime Productions",
     template: "%s | Overtime Productions",
   },
-  description: "The official home of Goonginga League.",
+  description: "The official home of GGL Tournament.",
 };
 
 export const viewport: Viewport = {

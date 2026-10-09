@@ -103,7 +103,7 @@ export default function TournamentMode() {
     let mounted = true;
     const load = async () => {
       try {
-        const tournament = await getCurrentTournament();
+        const tournament = await getCurrentTournament({ cache: "no-store" });
         if (!matchesSeasonNumber(tournament, 9)) {
           if (mounted) setLoaded({ phase: { kind: "coming-soon" }, teamsById: new Map(), finals: false });
           return;
@@ -178,13 +178,12 @@ export default function TournamentMode() {
       <div className={styles.inner}>
         <p className={styles.eyebrow}>
           <span className={styles.dot} aria-hidden="true" />
-          {finals ? "Season 9 · Grand Final" : "Goonginga League · Season 9"}
+          {finals ? "Season 9 · Grand Final" : "GGL Tournament · Season 9"}
         </p>
 
         {phase.kind === "coming-soon" && (
           <>
             <h2 className={styles.headline}>Season 9</h2>
-            <p className={styles.note}>Two divisions. Teams formed by committee. The goal is eight teams.</p>
             <Link href="/season-9" className={styles.link}>Season information</Link>
           </>
         )}

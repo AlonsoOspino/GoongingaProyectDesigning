@@ -120,6 +120,11 @@
 .step:last-child { padding-bottom: 0; }
 .h3 { margin: 0; font-family: var(--font-heading); font-weight: 600; font-size: 17px; line-height: 1.4; }
 .step .body { margin-top: 8px; font-size: 16px; }
+.matchRules { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); column-gap: 40px; }
+.matchPreview { min-width: 0; margin: 28px 0 0; }
+.matchPreview a, .matchPreview img { display: block; width: 100%; }
+.matchPreview img { height: auto; }
+.matchPreview a:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; }
 
 .cta { display: flex; align-items: center; justify-content: space-between; gap: 28px; padding: 38px 0 0; border-top: 1px solid var(--accent); }
 .cta .kicker { color: var(--ink-faint); }

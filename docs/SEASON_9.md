@@ -1,6 +1,6 @@
 # Season 9 · Divisiones
 
-Season 8 terminó: Gamin 4 Goonginga ganó 4–2 a No Tank?. Season 9 se prepara con equipos formados por comité. El objetivo es ocho equipos en dos divisiones de cuatro; el tamaño definitivo depende de las inscripciones. No se asignan equipos ni se inventa una fecha de inicio.
+Season 8 terminó: Gamin 4 Goonginga ganó 4–2 a No Tank?. Season 9 se prepara con equipos formados por comité y divisiones. El número de equipos depende de las inscripciones; ocho es un objetivo opcional, no un requisito de las reglas. No se asignan equipos ni se inventa una fecha de inicio.
 
 La liga regular genera un round robin independiente por división. Con dos grupos de cuatro son 12 series en tres semanas, cuatro series por semana. Los grupos impares reciben descansos. La generación exige que todos los equipos tengan división y que cada división tenga al menos dos equipos. Los partidos manuales también rechazan cruces entre divisiones durante la liga. Los playoffs cruzan divisiones y conservan el formato existente de ocho equipos.
 
@@ -27,3 +27,5 @@ Verificado en producción el 8 de octubre de 2026 (Lima), versión de aplicació
 La API y PostgreSQL están saludables. Landing, Information, Schedule, Standings, Teams, Stats, Game Nights y Adara respondieron correctamente; CORS entre los sitios verificado. Se corrigió la espera final del script para que compruebe ambos frontends además de la API tras recrear los contenedores.
 
 Respaldo validado del VPS: `backups/pre-spring-20261009T024637Z.dump`. Capturas publicadas: [Season 9](visual-review/season-9-production.jpg) y [calendario](visual-review/season-9-production-schedule.jpg).
+
+El control `Administration → Season → Homepage countdown` permite guardar o quitar la fecha y hora de inicio mientras la temporada está pendiente. Usa `PATCH /tournament/{id}/countdown`, reservado a ADMIN: fecha ISO guarda `startDate`; `null` lo borra. La portada lee ese valor y actualiza la cuenta regresiva. No cambia el estado del torneo ni exige ocho equipos. Se retiraron el texto repetido de formato en portada, el resumen de Season 8 añadido al párrafo GGL y la cinta de estadísticas de History. La captura de hero bans queda bajo el título, a la izquierda de las reglas.

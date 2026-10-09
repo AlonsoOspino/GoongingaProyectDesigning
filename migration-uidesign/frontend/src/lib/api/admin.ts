@@ -54,6 +54,18 @@ export async function updateTournament(
   });
 }
 
+export async function setTournamentCountdown(
+  token: string,
+  tournamentId: number,
+  startDate: string | null
+) {
+  return apiRequest<Tournament>(`/tournament/${tournamentId}/countdown`, {
+    method: "PATCH",
+    token,
+    body: { startDate },
+  });
+}
+
 export async function startTournamentPlayoffs(
   token: string,
   id: number,

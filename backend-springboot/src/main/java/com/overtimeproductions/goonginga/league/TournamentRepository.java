@@ -38,6 +38,9 @@ public class TournamentRepository {
     public void update(int id,String name,Instant date,String state) {
         jdbc.update("UPDATE public.\"Tournament\" SET name=COALESCE(?,name),\"startDate\"=COALESCE(?,\"startDate\"),state=COALESCE(?::\"TournamentState\",state) WHERE id=?",name,date==null?null:utc(date),state,id);
     }
+    public void countdown(int id,Instant date) {
+        jdbc.update("UPDATE public.\"Tournament\" SET \"startDate\"=? WHERE id=?",date==null?null:utc(date),id);
+    }
     public void remove(int id) { jdbc.update("DELETE FROM public.\"Tournament\" WHERE id=?",id); }
     public void lock(int id) { jdbc.queryForList("SELECT id FROM public.\"Tournament\" WHERE id=? FOR UPDATE",Integer.class,id); }
     public int unfinishedRoundRobin(int id) { return jdbc.queryForObject("SELECT count(*) FROM public.\"Match\" WHERE \"tournamentId\"=? AND type='ROUNDROBIN' AND status <> 'FINISHED'",Integer.class,id); }

@@ -13,13 +13,6 @@ const PHASES: Phase[] = [
   { name: "Grand Finals", when: "Season title", text: "The final two teams play for the Season 9 title." },
 ];
 
-const FACTS = [
-  { value: "8", unit: "teams", label: "Target field" },
-  { value: "2", unit: "divisions", label: "Proposed format" },
-  { value: "4", unit: "per division", label: "With a full field" },
-  { value: "1", unit: "match / week", label: "Per team" },
-];
-
 export default function InformationPage() {
   return (
     <div className={styles.page}>
@@ -35,31 +28,16 @@ export default function InformationPage() {
       <article className={styles.sheet}>
         <header className={styles.masthead}>
           <div className={styles.mastheadCopy}>
-            <p className={styles.eyebrow}>Goonginga League</p>
+            <p className={styles.eyebrow}>GGL Tournament</p>
             <h1 className={styles.h1}>Season <span>9</span></h1>
-            <p className={styles.standfirst}>Division matches. Teams built by committee.</p>
-            <p className={styles.intro}>
-              We’re aiming for eight teams this season, split into two divisions of four.
-            </p>
           </div>
           <figure className={styles.openingArt}>
             <img src="/ggl-lineup.png" alt="" width={1920} height={1080} decoding="async" />
           </figure>
         </header>
 
-        <ul className={styles.facts} aria-label="Proposed Season 9 format">
-          {FACTS.map((fact) => (
-            <li key={fact.label} className={styles.fact}>
-              <span className={styles.factLabel}>{fact.label}</span>
-              <span className={styles.factValue}>{fact.value}</span>
-              <span className={styles.factUnit}>{fact.unit}</span>
-            </li>
-          ))}
-        </ul>
-
         <nav className={styles.contents} aria-label="Season information">
-          <a href="#format">Divisions</a>
-          <a href="#teams">Team building</a>
+          <a href="#format">Format</a>
           <a href="#schedule">Schedule</a>
           <a href="#match-rules">Match rules</a>
         </nav>
@@ -67,67 +45,38 @@ export default function InformationPage() {
         <section className={styles.section} aria-labelledby="format">
           <div className={styles.sectionHeading}>
             <p className={styles.kicker}>01 · Format</p>
-            <h2 className={styles.h2} id="format">Two divisions</h2>
+            <h2 className={styles.h2} id="format">Season format</h2>
           </div>
           <div className={styles.sectionContent}>
             <p className={styles.lead}>
-              During the regular season, teams only play opponents in their own division.
-              With a full eight-team field, each division will have four teams.
+              Regular-season matches are played within each division. Teams are assembled
+              by committee, and both divisions meet in the playoffs.
             </p>
-            <p className={styles.body}>
-              Final division sizes depend on signups. The playoffs bring teams from both
-              divisions into one bracket.
-            </p>
-            <div className={styles.divisions} aria-label="Proposed divisions with eight teams">
-              <div className={styles.division}>
-                <h3>Division A</h3>
-                <p><strong>4</strong> teams</p>
-              </div>
-              <div className={styles.division}>
-                <h3>Division B</h3>
-                <p><strong>4</strong> teams</p>
-              </div>
-              <p className={styles.divisionNote}>Proposed split · subject to the final player pool</p>
-            </div>
-          </div>
-        </section>
-
-        <section className={styles.section} aria-labelledby="teams">
-          <div className={styles.sectionHeading}>
-            <p className={styles.kicker}>02 · Rosters</p>
-            <h2 className={styles.h2} id="teams">Built by committee</h2>
-          </div>
-          <div className={styles.sectionContent}>
-            <p className={styles.lead}>
-              This season, a committee will put teams together from the registered player pool.
-              The aim is to make the teams as competitively balanced as possible.
-            </p>
-            <p className={styles.body}>Captains won’t draft their rosters for Season 9.</p>
           </div>
         </section>
 
         <section className={styles.section} aria-labelledby="schedule">
           <div className={styles.sectionHeading}>
-            <p className={styles.kicker}>03 · Schedule</p>
+            <p className={styles.kicker}>02 · Schedule</p>
             <h2 className={styles.h2} id="schedule">One match a week</h2>
           </div>
           <div className={styles.sectionContent}>
             <p className={styles.lead}>
-              Each team plays once a week during the regular season, facing the other teams
-              in its division. The number of teams determines the season’s length.
-            </p>
-            <p className={styles.body}>
-              After the divisional matches, the season moves into a combined playoff bracket
-              and Grand Finals.
+              Teams play one match per week. Match dates will appear on the schedule.
             </p>
           </div>
           <PhaseRail phases={PHASES} />
         </section>
 
-        <section className={styles.section} aria-labelledby="match-rules">
+        <section className={`${styles.section} ${styles.matchRules}`} aria-labelledby="match-rules">
           <div className={styles.sectionHeading}>
-            <p className={styles.kicker}>04 · Match rules</p>
+            <p className={styles.kicker}>03 · Match rules</p>
             <h2 className={styles.h2} id="match-rules">Maps &amp; hero bans</h2>
+            <figure className={styles.matchPreview}>
+              <a href="/ggl-hero-bans.png" target="_blank" rel="noopener noreferrer">
+                <img src="/ggl-hero-bans.png" alt="Hero bans at the GGL Tournament match table" loading="lazy" decoding="async" />
+              </a>
+            </figure>
           </div>
           <div className={styles.sectionContent}>
             <p className={styles.lead}>
@@ -160,7 +109,7 @@ export default function InformationPage() {
 
         <section className={styles.cta} aria-labelledby="join">
           <div>
-            <p className={styles.kicker}>Goonginga League · Season 9</p>
+            <p className={styles.kicker}>GGL Tournament · Season 9</p>
             <h2 className={styles.ctaTitle} id="join">Play this season</h2>
             <p className={styles.body}>Start with your Network Member profile.</p>
           </div>

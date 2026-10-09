@@ -182,7 +182,7 @@ export function LandingPage() {
               </h1>
               <p className={styles.heroSub}>
                 Overwatch tournaments, live casts and game nights.
-                Home of the Goonginga League.
+                Home of GGL Tournament.
               </p>
               <div className={styles.heroCtas}>
                 <a href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer" className={styles.btnPrimary}>
@@ -262,10 +262,6 @@ export function LandingPage() {
                 5v5 tournament. Teams play every week, with each match organized, cast, and streamed
                 live by our staff.
               </p>
-              <p className={styles.lightParagraph}>
-                Season 8 ended with Gamin 4 Goonginga beating No Tank? 4–2 in the Grand Final.
-                Season 9 brings two divisions and teams formed by committee, with a goal of eight teams.
-              </p>
               <a href={TWITCH_URL} target="_blank" rel="noopener noreferrer" className={styles.twitchLink}>
                 <TwitchIcon /> Watch the stream
               </a>
@@ -273,7 +269,7 @@ export function LandingPage() {
           <div className={`${styles.figureStage} ${styles.gglStage}`}>
             <GridFigure
               src="/ggl-lineup.png"
-              alt="Goonginga League heroes artwork"
+              alt="GGL Tournament heroes artwork"
               width={1920}
               height={1080}
               motion={false}
@@ -342,7 +338,7 @@ export function LandingPage() {
                 <b>Overtime</b> <span>Productions</span>
               </span>
             </div>
-            <p className={styles.footerTagline}>The official home of Goonginga League.</p>
+            <p className={styles.footerTagline}>The official home of GGL Tournament.</p>
           </div>
 
           <div className={styles.footerColumn}>

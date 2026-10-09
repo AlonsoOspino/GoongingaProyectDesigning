@@ -28,6 +28,7 @@ import {
   adminGenerateRoundRobin,
   createTournament,
   getCurrentTournament,
+  setTournamentCountdown,
   startTournamentPlayoffs,
   updateTournamentDivisions,
 } from "@/lib/api/admin";
@@ -62,6 +63,14 @@ const PLAYOFF_ROUND_LABEL: Record<number, string> = {
   3: "Grand Final",
 };
 
+function localDateTimeInput(timestamp: string | null): string {
+  if (!timestamp) return "";
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 interface ConfirmState {
   title: string;
   body: React.ReactNode;
@@ -86,6 +95,7 @@ export default function SeasonControlPage() {
   // Formularios
   const [seasonName, setSeasonName] = useState("");
   const [seasonDate, setSeasonDate] = useState("");
+  const [countdownDate, setCountdownDate] = useState("");
   const [seasonFormat, setSeasonFormat] = useState("divisions");
   const [teamFormation, setTeamFormation] = useState<"COMMITTEE" | "DRAFT">("COMMITTEE");
   const [divisionNames, setDivisionNames] = useState(["Division A", "Division B"]);
@@ -102,6 +112,7 @@ export default function SeasonControlPage() {
     try {
       const current = await getCurrentTournament({ cache: "no-store" }).catch(() => null);
       setTournament(current);
+      setCountdownDate(localDateTimeInput(current?.startDate ?? null));
       if (current) {
         const [nextTeams, nextMatches] = await Promise.all([
           getLeaderboard(current.id),
@@ -212,7 +223,6 @@ export default function SeasonControlPage() {
         startDate: seasonDate || null,
         divisionNames: seasonFormat === "divisions" ? ["Division A", "Division B"] : [],
         teamFormation,
-        targetTeamCount: 8,
       });
       setSeasonName("");
       setSeasonDate("");
@@ -269,6 +279,21 @@ export default function SeasonControlPage() {
           .map((team) => team.id),
       })));
       setNotice("Divisions saved. Regular-season matches stay within each division.");
+      await refresh();
+    });
+
+  const doSetCountdown = (clear = false) =>
+    guard("countdown", async () => {
+      if (!token || !tournament) return;
+      let startDate: string | null = null;
+      if (!clear) {
+        if (!countdownDate) throw new Error("Choose a date and time.");
+        const date = new Date(countdownDate);
+        if (Number.isNaN(date.getTime())) throw new Error("Enter a valid date and time.");
+        startDate = date.toISOString();
+      }
+      await setTournamentCountdown(token, tournament.id, startDate);
+      setNotice(clear ? "Homepage countdown hidden." : "Homepage countdown updated.");
       await refresh();
     });
 
@@ -346,6 +371,35 @@ export default function SeasonControlPage() {
 
           {/* ---- Acciones por fase ---- */}
           <div className="space-y-6 lg:col-span-2">
+            {tournament && tournament.state === "SCHEDULED" && (
+              <Card variant="bordered">
+                <CardHeader className="flex items-center gap-2">
+                  <CalendarPlus size={18} className="text-accent" />
+                  <CardTitle>Homepage countdown</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted">Set the season start time shown on the homepage.</p>
+                  <Input
+                    id="homepage-countdown"
+                    label="Date and time"
+                    type="datetime-local"
+                    value={countdownDate}
+                    disabled={busy !== null}
+                    onChange={(event) => setCountdownDate(event.target.value)}
+                  />
+                  <p className="text-xs text-muted">Your timezone: {Intl.DateTimeFormat().resolvedOptions().timeZone}.</p>
+                  <div className="flex flex-wrap gap-3">
+                    <Button onClick={() => void doSetCountdown()} disabled={busy !== null || !countdownDate}>
+                      {busy === "countdown" && <Loader2 size={16} className="animate-spin" />}
+                      Save countdown
+                    </Button>
+                    <Button variant="outline" onClick={() => void doSetCountdown(true)} disabled={busy !== null || !tournament.startDate}>
+                      Hide countdown
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
             {canCreateSeason && (
               <Card variant="bordered">
                 <CardHeader className="flex items-center gap-2">
@@ -392,9 +446,6 @@ export default function SeasonControlPage() {
                       onChange={(event) => setTeamFormation(event.target.value as "COMMITTEE" | "DRAFT")}
                     />
                   </div>
-                  <p className="text-xs text-muted">
-                    Season 9 targets 8 teams: two divisions of 4. Assign teams to their divisions before generating fixtures.
-                  </p>
                   <Button
                     onClick={() =>
                       setConfirm({
@@ -426,7 +477,7 @@ export default function SeasonControlPage() {
                 <CardContent className="space-y-4">
                   <p className="text-sm text-muted">
                     Teams only face opponents in their own division during the regular season.
-                    The target is 4 teams per division. Assignments are locked once fixtures exist.
+                    Assignments are locked once fixtures exist.
                   </p>
                   <div className="grid gap-4 sm:grid-cols-2">
                     {divisionNames.map((name, index) => (

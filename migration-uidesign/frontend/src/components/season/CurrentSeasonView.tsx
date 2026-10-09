@@ -131,7 +131,7 @@ export default function CurrentSeasonView({ view }: { view: View }) {
     <main className={styles.page}>
       <div className={styles.container}>
         <header className={styles.header}>
-          <p className={styles.eyebrow}>Goonginga League · Season 9</p>
+          <p className={styles.eyebrow}>GGL Tournament · Season 9</p>
           <h1>{titles[view]}</h1>
           <p className={styles.lead}>{view === "schedule" ? "Regular-season opponents come from the same division."
             : view === "standings" ? "Regular-season records, ranked within each division."

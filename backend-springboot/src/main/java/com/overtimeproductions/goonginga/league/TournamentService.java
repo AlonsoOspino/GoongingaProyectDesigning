@@ -51,6 +51,14 @@ public class TournamentService {
     }
 
     @Transactional
+    public JsonNode countdown(int id,String startDate) {
+        tournaments.lock(id);
+        tournaments.get(id);
+        tournaments.countdown(id,startDate==null?null:parseDate(startDate));
+        return tournaments.get(id);
+    }
+
+    @Transactional
     public void remove(int id) { tournaments.get(id); tournaments.remove(id); }
 
     @Transactional

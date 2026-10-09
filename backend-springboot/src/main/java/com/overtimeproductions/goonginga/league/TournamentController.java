@@ -18,6 +18,7 @@ public class TournamentController {
     public record TournamentInput(String name,String startDate,String state,List<String> divisionNames,String teamFormation,Integer targetTeamCount) {}
     public record DivisionsInput(List<DivisionService.DivisionInput> divisions) {}
     public record PlayoffInput(List<Integer> teamIds) {}
+    public record CountdownInput(String startDate) {}
     @GetMapping public List<JsonNode> all() { return tournaments.all(); }
     @GetMapping("/current") public JsonNode current() { return tournaments.current(); }
     @PostMapping("/create") @ResponseStatus(HttpStatus.CREATED)
@@ -26,6 +27,9 @@ public class TournamentController {
     }
     @PutMapping("/update/{id}") public JsonNode update(@PathVariable int id,@AuthenticationPrincipal Jwt token,@RequestBody TournamentInput input) {
         access.admin(token); return tournaments.update(id,input.name(),input.startDate(),input.state());
+    }
+    @PatchMapping("/{id}/countdown") public JsonNode countdown(@PathVariable int id,@AuthenticationPrincipal Jwt token,@RequestBody CountdownInput input) {
+        access.admin(token); return tournaments.countdown(id,input.startDate());
     }
     @DeleteMapping("/delete/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
     public void remove(@PathVariable int id,@AuthenticationPrincipal Jwt token) { access.admin(token); tournaments.remove(id); }
