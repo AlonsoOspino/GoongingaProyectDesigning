@@ -92,7 +92,7 @@ export default function SeasonPicker({ onOpen }: { onOpen: (season: number) => v
           </p>
           <h2 className={styles.seasonNumber}>Season 9</h2>
           <p className={styles.seasonBlurb}>
-            Season format, map pool and draft rules.
+            Two divisions, committee-built teams and the Season 9 rules.
           </p>
           <Link href="/season-9" className={styles.seasonCta}>
             Open Season 9 <ArrowIcon size={14} />
@@ -146,7 +146,7 @@ export default function SeasonPicker({ onOpen }: { onOpen: (season: number) => v
             <p className={styles.seasonStatus}>Not archived yet</p>
             <h3 className={styles.seasonNumber}>Season 9</h3>
             <p className={styles.seasonBlurb}>
-              Season 9 joins the archive with its full record once the Grand Final is played.
+              Season 9 is being prepared. Its results will be added here after the season ends.
             </p>
           </div>
         </article>

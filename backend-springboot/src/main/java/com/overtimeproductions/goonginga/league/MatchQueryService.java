@@ -16,6 +16,7 @@ import com.overtimeproductions.goonginga.practice.PracticeDisplayRepository;
 @Service
 @org.springframework.transaction.annotation.Transactional(readOnly=true,isolation=org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
 public class MatchQueryService {
+    static final String DIVISION_JSON = "jsonb_build_object('divisionId',CASE WHEN m.type='ROUNDROBIN' THEN (SELECT team.\"divisionId\" FROM public.\"Team\" team WHERE team.id=m.\"teamAId\") END,'divisionName',CASE WHEN m.type='ROUNDROBIN' THEN (SELECT d.name FROM public.\"Team\" team JOIN public.\"TournamentDivision\" d ON d.id=team.\"divisionId\" WHERE team.id=m.\"teamAId\") END)";
     private final JsonSql json;
     private final MatchRepository matches;
     private final DraftStore drafts;
@@ -34,6 +35,8 @@ public class MatchQueryService {
                 FROM public."Match" m WHERE m.id=?
                 """,matchId).orElseThrow(() -> new DraftHttpException(HttpStatus.NOT_FOUND,"Match not found."));
         ObjectNode object=(ObjectNode)result;
+        JsonNode division=json.first("SELECT " + DIVISION_JSON + "::text FROM public.\"Match\" m WHERE id=?",matchId).orElseThrow();
+        object.set("divisionId",division.path("divisionId"));object.set("divisionName",division.path("divisionName"));
         if (drafts.exists(matchId)) object.set("draft",json.parse(json.stringify(views.map(drafts.byMatch(matchId)))));
         practice.get(matchId).ifPresent(display -> {
             if (display.scoreA()!=null) object.put("mapWinsTeamA",display.scoreA());
@@ -42,7 +45,7 @@ public class MatchQueryService {
         return object;
     }
     public List<JsonNode> all(Integer tournamentId,Integer semanas,String type) {
-        var sql=new StringBuilder("SELECT to_jsonb(m)::text FROM public.\"Match\" m JOIN public.\"Tournament\" t ON t.id=m.\"tournamentId\" WHERE t.name <> 'GGL Developer Draft App'");
+        var sql=new StringBuilder("SELECT (to_jsonb(m) || " + DIVISION_JSON + ")::text FROM public.\"Match\" m JOIN public.\"Tournament\" t ON t.id=m.\"tournamentId\" WHERE t.name <> 'GGL Developer Draft App'");
         var args=new ArrayList<Object>();
         if (tournamentId!=null) { sql.append(" AND m.\"tournamentId\"=?"); args.add(tournamentId); }
         if (semanas!=null) { sql.append(" AND m.semanas=?"); args.add(semanas); }

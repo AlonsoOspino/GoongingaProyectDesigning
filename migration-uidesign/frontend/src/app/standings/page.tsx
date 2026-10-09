@@ -1,5 +1,7 @@
-import { redirect } from "next/navigation";
+import CurrentSeasonView from "@/components/season/CurrentSeasonView";
 
-export default function StandingsRedirect() {
-  redirect("/history?tab=standings");
+export const metadata = { title: "Season 9 — Standings" };
+
+export default function StandingsPage() {
+  return <CurrentSeasonView view="standings" />;
 }

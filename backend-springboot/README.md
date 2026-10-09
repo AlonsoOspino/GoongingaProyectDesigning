@@ -78,12 +78,41 @@ Cambiar el lenguaje del backend no exige cambiar el motor de base de datos.
 | `spring_draft.schedule_notifications` | JDBC | Cola de avisos Discord con reintentos. |
 | `spring_draft.legacy_imports` | JDBC | Registro y huella del historial importado. |
 
-Flyway aplica `db/migration/V1...V5`; Hibernate solo valida el esquema.
+Flyway aplica `db/migration/V1...V7`; Hibernate solo valida el esquema.
 `db/public-bootstrap.sql` prepara una base **nueva** y vacía. Compose lo monta
 para la inicialización del volumen nuevo. No se ejecuta sobre el volumen existente.
 Las fechas públicas mantienen la interpretación UTC de Prisma; las nuevas usan
 `TIMESTAMPTZ`. Los mapas retirados del catálogo conservan su ID en el historial;
 su tipo desconocido permanece nulo y no se permite seleccionarlos en un juego nuevo.
+
+## Temporadas y divisiones
+
+Season 9 usa equipos formados por un comité y tiene como objetivo ocho equipos
+repartidos en dos divisiones. Las asignaciones se guardan por temporada; una
+restricción de PostgreSQL impide asignar un equipo a una división de otra temporada.
+Las temporadas históricas sin divisiones conservan su calendario de un solo grupo.
+La fecha de inicio puede quedar pendiente (`startDate: null`).
+
+`POST /tournament/create` acepta `teamFormation` (`DRAFT` o `COMMITTEE`),
+`targetTeamCount` y `divisionNames`. Las lecturas de torneos incluyen `divisions`;
+las lecturas de equipos incluyen `divisionId` y `divisionName`.
+`PUT /tournament/{id}/divisions`, con permisos ADMIN, recibe
+`{divisions: [{id?, name, teamIds}]}` y devuelve el torneo actualizado.
+El listado completo sustituye las asignaciones de forma atómica: los equipos
+omitidos quedan sin división. Estas asignaciones se bloquean cuando existe un
+partido de temporada regular.
+
+La generación del calendario acepta temporadas `SCHEDULED` o `ROUNDROBIN` y
+rechaza equipos sin división antes de crear partidos. Cada grupo tiene su propio
+todos contra todos y comparte los números de semana con los demás. Dos grupos
+de cuatro generan doce series en tres semanas. Al terminar la generación, la
+temporada pasa a `ROUNDROBIN` dentro de la misma transacción. La creación y edición
+manual de partidos también impiden cruces entre divisiones en temporada regular.
+
+Las tablas de divisiones se calculan con las series `ROUNDROBIN` finalizadas;
+las victorias de playoffs no alteran esas posiciones. Los playoffs pueden cruzar
+divisiones y mantienen la selección administrativa de ocho equipos, los criterios
+de siembra existentes y el mismo cuadro hasta la final BO7.
 
 ## Compilar y ejecutar
 

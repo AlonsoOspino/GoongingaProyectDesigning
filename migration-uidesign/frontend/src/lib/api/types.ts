@@ -71,6 +71,8 @@ export interface Team {
   tournamentId: number;
   state?: "ACTIVE" | "ELIMINATED";
   playoffSeed?: number | null;
+  divisionId?: number | null;
+  divisionName?: string | null;
 }
 
 export interface LeaderboardOverlaySettings {
@@ -162,6 +164,8 @@ export interface Match {
   // plain pool; a focused map only means anything alongside its type.
   overlayFocusType?: MapType | null;
   overlayFocusMapId?: number | null;
+  divisionId?: number | null;
+  divisionName?: string | null;
 }
 
 export interface DraftAction {
@@ -260,15 +264,24 @@ export interface PlayerStat {
 // Payload for adminGenerateRoundRobin API
 export interface GenerateRoundRobinPayload {
   tournamentId: number;
-  bestOf: number;
   confirmationText: string;
+}
+
+export interface TournamentDivision {
+  id: number;
+  tournamentId: number;
+  name: string;
+  sortOrder: number;
 }
 
 export interface Tournament {
   id: number;
   name: string;
-  startDate: string;
+  startDate: string | null;
   state: "SCHEDULED" | "ROUNDROBIN" | "PLAYOFFS" | "SEMIFINALS" | "FINALS" | "FINISHED";
+  divisions?: TournamentDivision[];
+  teamFormation?: "DRAFT" | "COMMITTEE";
+  targetTeamCount?: number | null;
   teams?: Team[];
   matches?: Match[];
 }

@@ -344,6 +344,7 @@ export default function PlayerStatsDetailPage() {
 
   useEffect(() => {
     async function load() {
+      setLoading(true);
       try {
         const [globalRows, userRows, matchesData, teamsData, mapsData] = await Promise.all([
           getPublicPlayerStats(),
@@ -352,10 +353,17 @@ export default function PlayerStatsDetailPage() {
           getTeams().catch(() => [] as Team[]),
           getMaps().catch(() => [] as GameMap[]),
         ]);
-        setAllStats(globalRows);
-        setUserStats(userRows);
-        setMatches(matchesData);
-        setTeams(teamsData);
+        const rawTournamentId = new URLSearchParams(window.location.search).get("tournamentId");
+        const tournamentId = rawTournamentId ? Number(rawTournamentId) : null;
+        const scoped = tournamentId !== null && Number.isInteger(tournamentId) && tournamentId > 0;
+        const seasonMatches = scoped
+          ? matchesData.filter((match) => match.tournamentId === tournamentId && match.type === "ROUNDROBIN")
+          : matchesData;
+        const seasonMatchIds = new Set(seasonMatches.map((match) => match.id));
+        setAllStats(scoped ? globalRows.filter((stat) => seasonMatchIds.has(stat.matchId)) : globalRows);
+        setUserStats(scoped ? userRows.filter((stat) => seasonMatchIds.has(stat.matchId)) : userRows);
+        setMatches(seasonMatches);
+        setTeams(scoped ? teamsData.filter((team) => team.tournamentId === tournamentId) : teamsData);
         setMaps(mapsData);
       } catch (error) {
         console.error("Failed to load player detail stats:", error);

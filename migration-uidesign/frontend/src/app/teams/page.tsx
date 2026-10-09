@@ -1,5 +1,7 @@
-import { redirect } from "next/navigation";
+import CurrentSeasonView from "@/components/season/CurrentSeasonView";
 
-export default function TeamsRedirect() {
-  redirect("/history?tab=rosters");
+export const metadata = { title: "Season 9 — Teams" };
+
+export default function TeamsPage() {
+  return <CurrentSeasonView view="teams" />;
 }

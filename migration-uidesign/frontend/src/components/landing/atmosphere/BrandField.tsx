@@ -22,6 +22,7 @@ import { getGrainTile, makeNoise } from "./field";
  */
 
 export type BrandVariant = "zone" | "bar" | "footer" | "section";
+export type BrandMotion = "ambient" | "calm" | "still";
 
 interface Tuning {
   /** Lado mínimo de celda en px. Manda el grano de la rejilla. */
@@ -83,6 +84,8 @@ interface Props {
      footer, header). Las secciones del cuerpo comparten el suelo de la página,
      así que pintan la rejilla sobre transparente. */
   ground?: boolean;
+  /** Calm keeps the lit cells steady; still renders without an animation loop. */
+  motion?: BrandMotion;
   /* Desplaza la semilla para que dos tableros contiguos no salgan calcados. */
   seedOffset?: number;
   className?: string;
@@ -92,6 +95,7 @@ export default function BrandField({
   variant = "zone",
   intensity = 1,
   ground = true,
+  motion = "ambient",
   seedOffset = 0,
   className,
 }: Props) {
@@ -189,7 +193,7 @@ export default function BrandField({
 
     const paint = (now: number) => {
       if (!ready || disposed) return;
-      const still = reduceMotion.matches;
+      const still = motion === "still" || reduceMotion.matches;
 
       ctx.clearRect(0, 0, width, height);
 
@@ -215,8 +219,12 @@ export default function BrandField({
 
       for (const c of cells) {
         if (c.level <= 0) continue;
-        const breath = still ? 0.72 : 0.5 + 0.5 * Math.sin((now / c.period) * Math.PI * 2 + c.phase);
-        const a = c.level * (0.42 + breath * 0.58) * intensity;
+        const brightness = still
+          ? 0.84
+          : motion === "calm"
+            ? 0.84 + 0.06 * Math.sin((now / (c.period * 2)) * Math.PI * 2 + c.phase)
+            : 0.42 + (0.5 + 0.5 * Math.sin((now / c.period) * Math.PI * 2 + c.phase)) * 0.58;
+        const a = c.level * brightness * intensity;
 
         ctx.fillStyle = `rgba(${GREEN}, ${(a * 0.14).toFixed(4)})`;
         ctx.fillRect(c.x, c.y, c.w, c.h);
@@ -259,7 +267,7 @@ export default function BrandField({
 
     const startLoop = () => {
       if (raf !== null || disposed) return;
-      if (reduceMotion.matches) {
+      if (motion === "still" || reduceMotion.matches) {
         paint(0);
         return;
       }
@@ -272,6 +280,13 @@ export default function BrandField({
         raf = null;
       }
     };
+
+    const handleMotionChange = () => {
+      stopLoop();
+      if (motion === "still" || reduceMotion.matches) paint(0);
+      else if (visible) startLoop();
+    };
+    reduceMotion.addEventListener("change", handleMotionChange);
 
     const build = () => {
       if (disposed) return;
@@ -339,16 +354,19 @@ export default function BrandField({
       window.clearTimeout(kick);
       io.disconnect();
       ro.disconnect();
+      reduceMotion.removeEventListener("change", handleMotionChange);
       window.clearTimeout(resizeTimer);
       stopLoop();
     };
-  }, [variant, intensity, ground, seedOffset]);
+  }, [variant, intensity, ground, motion, seedOffset]);
 
   return (
     <div
       ref={hostRef}
       className={`${styles.field} ${className ?? ""}`}
       data-variant={variant}
+      data-ground={ground ? "true" : "false"}
+      data-motion={motion}
       style={{ "--sweep-delay": `${sweepDelay}s` } as CSSProperties}
       aria-hidden="true"
     >

@@ -15,7 +15,7 @@ public class TeamController {
     private final TeamService teams;
     private final ApiPermissions access;
     public TeamController(TeamService teams, ApiPermissions access) { this.teams=teams; this.access=access; }
-    public record NewTeam(String name, Integer tournamentId, String logo, String roster,String bannerLeft,String bannerRight,String discordRoleId) {}
+    public record NewTeam(String name, Integer tournamentId, String logo, String roster,String bannerLeft,String bannerRight,String discordRoleId,Integer divisionId) {}
     public record ManyTeams(Integer count, Integer tournamentId, String namePrefix) {}
 
     @GetMapping public List<JsonNode> all(@RequestParam(defaultValue="false") boolean includeDev) { return teams.all(includeDev); }
@@ -26,7 +26,7 @@ public class TeamController {
     @PostMapping("/create") @ResponseStatus(HttpStatus.CREATED)
     public JsonNode create(@AuthenticationPrincipal Jwt token, @RequestBody NewTeam input) {
         access.admin(token);
-        return teams.create(input.name(),input.tournamentId(),input.logo(),input.roster(),input.bannerLeft(),input.bannerRight(),input.discordRoleId());
+        return teams.create(input.name(),input.tournamentId(),input.logo(),input.roster(),input.bannerLeft(),input.bannerRight(),input.discordRoleId(),input.divisionId());
     }
     @PostMapping("/create-many") @ResponseStatus(HttpStatus.CREATED)
     public Map<String,Object> createMany(@AuthenticationPrincipal Jwt token, @RequestBody ManyTeams input,

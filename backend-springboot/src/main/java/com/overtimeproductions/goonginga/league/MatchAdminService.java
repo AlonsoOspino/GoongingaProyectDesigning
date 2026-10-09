@@ -41,13 +41,15 @@ public class MatchAdminService {
     private final TournamentRepository tournaments;
     private final ScheduleNotifications notifications;
     private final DraftProvisioningService drafts;
+    private final DivisionService divisions;
     public MatchAdminService(JdbcTemplate jdbc,JsonSql json,MatchQueryService reads,TournamentRepository tournaments,ScheduleNotifications notifications,
-            DraftProvisioningService drafts) {
+            DraftProvisioningService drafts,DivisionService divisions) {
         this.jdbc=jdbc;this.json=json;this.reads=reads;this.tournaments=tournaments;
         this.notifications=notifications;
         this.drafts=drafts;
+        this.divisions=divisions;
     }
-    private JsonNode raw(int id) { return json.first("SELECT to_jsonb(m)::text FROM public.\"Match\" m WHERE id=?",id)
+    private JsonNode raw(int id) { return json.first("SELECT (to_jsonb(m) || " + MatchQueryService.DIVISION_JSON + ")::text FROM public.\"Match\" m WHERE id=?",id)
             .orElseThrow(() -> new DraftHttpException(HttpStatus.NOT_FOUND,"Match not found.")); }
     private static int positive(Object raw,String field) {
         if (!(raw instanceof Number n) || n.doubleValue()!=Math.rint(n.doubleValue()) || n.intValue()<1)
@@ -76,6 +78,7 @@ public class MatchAdminService {
         if (!allowed.contains(matchType)) throw new IllegalArgumentException("Match type is not allowed in tournament state "+state+".");
         int known=jdbc.queryForObject("SELECT count(*) FROM public.\"Team\" WHERE \"tournamentId\"=? AND id IN (?,?)",Integer.class,tournamentId,teamA,teamB);
         if (known!=2) throw new IllegalArgumentException("Both teams must belong to this tournament.");
+        divisions.validateMatch(tournamentId,matchType,teamA,teamB);
         if (matchType.equals("ROUNDROBIN")) {
             if (week==null || week<1) throw new IllegalArgumentException("semanas must be a positive integer.");
             int conflicts=jdbc.queryForObject("""
@@ -99,6 +102,7 @@ public class MatchAdminService {
     @Transactional
     public JsonNode create(Map<String,Object> input) {
         int tournamentId=positive(input.get("tournamentId"),"tournamentId"),a=positive(input.get("teamAId"),"teamAId"),b=positive(input.get("teamBId"),"teamBId");
+        tournaments.lock(tournamentId);
         String matchType=type(input.get("type"));
         Integer week=input.get("semanas")==null?null:positive(input.get("semanas"),"semanas");
         validate(tournamentId,matchType,week,a,b,null);
@@ -119,40 +123,34 @@ public class MatchAdminService {
     public List<JsonNode> generateRoundRobin(int tournamentId,String confirmation) {
         if (!"CONFIRM ROUND ROBIN".equals(confirmation)) throw new IllegalArgumentException("confirmationText must be exactly: CONFIRM ROUND ROBIN");
         tournaments.lock(tournamentId);
-        if (!"ROUNDROBIN".equals(tournaments.get(tournamentId).get("state").asText()))
-            throw new IllegalArgumentException("Round robin matches can only be generated when tournament state is ROUNDROBIN.");
+        String state=tournaments.get(tournamentId).path("state").asText();
+        if (!Set.of("SCHEDULED","ROUNDROBIN").contains(state))
+            throw new IllegalArgumentException("Round robin matches can only be generated for a SCHEDULED or ROUNDROBIN season.");
         if (Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM public.\"Match\" WHERE \"tournamentId\"=? AND type='ROUNDROBIN')",Boolean.class,tournamentId)))
             throw new IllegalArgumentException("This tournament already has round robin matches.");
-        var participants=new ArrayList<Integer>(jdbc.queryForList("SELECT id FROM public.\"Team\" WHERE \"tournamentId\"=? ORDER BY id",Integer.class,tournamentId));
-        if (participants.size()<2) throw new IllegalArgumentException("At least 2 teams are required for round robin generation.");
-        int teamCount=participants.size();
-        if (teamCount%2!=0) participants.add(null);
-        var rotation=new ArrayList<Integer>(participants);
+        var participants=jdbc.query("SELECT id,\"divisionId\" FROM public.\"Team\" WHERE \"tournamentId\"=? ORDER BY id",
+                (row,index) -> new RoundRobinPlanner.Participant(row.getInt(1),row.getObject(2,Integer.class)),tournamentId);
+        List<RoundRobinPlanner.Pairing> pairings=RoundRobinPlanner.plan(participants,divisions.ids(tournamentId));
         var created=new ArrayList<JsonNode>();
-        var pairs=new HashSet<String>();
         var maps=allMapIds();
-        for (int round=0;round<rotation.size()-1;round++) {
-            for (int i=0;i<rotation.size()/2;i++) {
-                Integer a=rotation.get(i),b=rotation.get(rotation.size()-1-i);
-                if (a==null || b==null) continue;
-                if (i==0 && round%2==1) { int swap=a; a=b; b=swap; }
-                String pair=Math.min(a,b)+"-"+Math.max(a,b);
-                if (!pairs.add(pair)) throw new IllegalStateException("Duplicate round robin pairing.");
-                int id=insert(tournamentId,a,b,"ROUNDROBIN",5,round+1,"Week "+(round+1),"SCHEDULED",null);
-                connectMaps(id,maps);
-                drafts.ensure(id);
-                created.add(raw(id));
-            }
-            Integer last=rotation.remove(rotation.size()-1);
-            rotation.add(1,last);
+        for (RoundRobinPlanner.Pairing pairing:pairings) {
+            int id=insert(tournamentId,pairing.teamAId(),pairing.teamBId(),"ROUNDROBIN",5,pairing.week(),"Week "+pairing.week(),"SCHEDULED",null);
+            connectMaps(id,maps);
+            drafts.ensure(id);
+            created.add(raw(id));
         }
-        if (pairs.size()!=teamCount*(teamCount-1)/2) throw new IllegalStateException("Incomplete round robin schedule.");
+        if ("SCHEDULED".equals(state)) tournaments.update(tournamentId,null,null,"ROUNDROBIN");
         return created;
     }
     @Transactional
     public JsonNode update(int id,Map<String,Object> input,boolean manager) {
+        JsonNode preview=raw(id);
+        int previewSeason=preview.path("tournamentId").asInt();
+        int targetSeason=input.get("tournamentId")==null?previewSeason:positive(input.get("tournamentId"),"tournamentId");
+        for (int season:java.util.stream.IntStream.of(previewSeason,targetSeason).distinct().sorted().toArray()) tournaments.lock(season);
         jdbc.queryForList("SELECT id FROM public.\"Match\" WHERE id=? FOR UPDATE",Integer.class,id);
         JsonNode original=raw(id);
+        if (original.path("tournamentId").asInt()!=previewSeason) throw new DraftHttpException(HttpStatus.CONFLICT,"The match season changed. Reload before editing it.");
         if (input.isEmpty()) throw new IllegalArgumentException("No allowed fields to update.");
         boolean hasDraft = Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM spring_draft.draft_sessions WHERE match_id=?)",Boolean.class,id));
         var structural = List.of("type","bestOf","tournamentId","teamAId","teamBId");

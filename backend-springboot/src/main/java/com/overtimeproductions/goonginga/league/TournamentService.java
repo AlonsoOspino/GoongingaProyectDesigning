@@ -22,11 +22,23 @@ public class TournamentService {
 
     @Transactional
     public JsonNode create(String name,String startDate) {
-        if (name==null || name.isBlank() || startDate==null || startDate.isBlank())
-            throw new IllegalArgumentException("name and startDate are required.");
+        return create(name,startDate,null,null,null);
+    }
+
+    @Transactional
+    public JsonNode create(String name,String startDate,List<String> divisionNames,String teamFormation,Integer targetTeamCount) {
+        if (name==null || name.isBlank()) throw new IllegalArgumentException("name is required.");
         tournaments.active().ifPresent(t -> { throw new IllegalArgumentException("Finish " + t.get("name").asText() + " before creating another season."); });
         if (tournaments.nameExists(name)) throw new IllegalArgumentException("Tournament already exists.");
-        return tournaments.get(tournaments.create(name.trim(),parseDate(startDate)));
+        String formation=teamFormation==null?"DRAFT":teamFormation.trim().toUpperCase(java.util.Locale.ROOT);
+        if (!List.of("DRAFT","COMMITTEE").contains(formation)) throw new IllegalArgumentException("teamFormation must be DRAFT or COMMITTEE.");
+        if (targetTeamCount!=null && (targetTeamCount<2 || targetTeamCount>128)) throw new IllegalArgumentException("targetTeamCount must be between 2 and 128.");
+        List<String> names=divisionNames==null?List.of():divisionNames;
+        DivisionService.validateInputs(names.stream().map(n -> new DivisionService.DivisionInput(null,n,List.of())).toList(),java.util.Set.of(),java.util.Set.of());
+        int id=tournaments.create(name.trim(),startDate==null || startDate.isBlank()?null:parseDate(startDate));
+        tournaments.format(id,formation,targetTeamCount);
+        for (int i=0;i<names.size();i++) tournaments.createDivision(id,names.get(i).trim(),i);
+        return tournaments.get(id);
     }
 
     @Transactional

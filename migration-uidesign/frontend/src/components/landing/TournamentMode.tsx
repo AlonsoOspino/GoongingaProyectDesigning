@@ -6,6 +6,7 @@ import { getCurrentTournament } from "@/lib/api/admin";
 import { getLeaderboard } from "@/lib/api/team";
 import { getMatches } from "@/lib/api/match";
 import type { Match, Team, Tournament } from "@/lib/api/types";
+import { matchesSeasonNumber } from "@/features/tournament/seasonIdentity";
 import styles from "./tournament-mode.module.css";
 
 /*
@@ -33,7 +34,6 @@ type Phase =
   | { kind: "preview"; match: Match };
 
 interface Loaded {
-  tournament: Tournament;
   phase: Phase;
   teamsById: Map<number, Team>;
   finals: boolean;
@@ -104,6 +104,10 @@ export default function TournamentMode() {
     const load = async () => {
       try {
         const tournament = await getCurrentTournament();
+        if (!matchesSeasonNumber(tournament, 9)) {
+          if (mounted) setLoaded({ phase: { kind: "coming-soon" }, teamsById: new Map(), finals: false });
+          return;
+        }
         const finished = tournament.state === "FINISHED";
         const [standings, matches] = await Promise.all([
           getLeaderboard(tournament.id).catch(() => [] as Team[]),
@@ -113,7 +117,7 @@ export default function TournamentMode() {
         const seasonMatches = matches.filter((m) => m.tournamentId === tournament.id);
         const teamsById = new Map(standings.map((t) => [t.id, t] as const));
         const phase = finished ? ({ kind: "coming-soon" } as Phase) : pickPhase(tournament, seasonMatches);
-        setLoaded({ tournament, phase, teamsById, finals: tournament.state === "FINALS" });
+        setLoaded({ phase, teamsById, finals: tournament.state === "FINALS" && phase.kind !== "coming-soon" });
       } catch {
         if (mounted) setLoaded(null);
       }
@@ -174,14 +178,14 @@ export default function TournamentMode() {
       <div className={styles.inner}>
         <p className={styles.eyebrow}>
           <span className={styles.dot} aria-hidden="true" />
-          {finals ? "Grand Final" : "Overtime GGL"}
+          {finals ? "Season 9 · Grand Final" : "Goonginga League · Season 9"}
         </p>
 
         {phase.kind === "coming-soon" && (
           <>
-            <h2 className={styles.headline}>Next season</h2>
-            <p className={styles.subhead}>Coming soon</p>
-            <p className={styles.note}>The next season is being drawn up. New teams, new schedule.</p>
+            <h2 className={styles.headline}>Season 9</h2>
+            <p className={styles.note}>Two divisions. Teams formed by committee. The goal is eight teams.</p>
+            <Link href="/season-9" className={styles.link}>Season information</Link>
           </>
         )}
 

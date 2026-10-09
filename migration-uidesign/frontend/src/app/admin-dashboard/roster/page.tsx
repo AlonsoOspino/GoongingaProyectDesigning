@@ -79,7 +79,7 @@ export default function SeasonRosterPage() {
   }, [loadRoster, router]);
 
   const teamOptions = useMemo(
-    () => (roster?.teams || []).map((team) => ({ value: String(team.id), label: team.name })),
+    () => (roster?.teams || []).map((team) => ({ value: String(team.id), label: team.divisionName ? `${team.divisionName} · ${team.name}` : team.name })),
     [roster]
   );
   const teamOrNoneOptions = useMemo(
@@ -183,6 +183,7 @@ export default function SeasonRosterPage() {
                   <div className="mb-4 flex items-center justify-between gap-3 border-b border-border pb-3">
                     <div>
                       <h2 className="font-display text-2xl uppercase">{team.name}</h2>
+                      {team.divisionName && <p className="mt-1 text-xs text-accent">{team.divisionName}</p>}
                       <p className="text-xs text-muted">{players.length} assigned</p>
                     </div>
                     <UsersRound size={20} className="text-muted" />

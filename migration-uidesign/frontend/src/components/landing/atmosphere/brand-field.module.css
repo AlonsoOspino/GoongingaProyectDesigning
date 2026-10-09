@@ -11,6 +11,10 @@
   background: #050806;
 }
 
+.field[data-ground="false"] {
+  background: transparent;
+}
+
 .canvas {
   position: absolute;
   inset: 0;
@@ -39,6 +43,13 @@
   mix-blend-mode: screen;
   animation: field-sweep 16s cubic-bezier(0.45, 0, 0.55, 1) var(--sweep-delay, 0s) infinite;
   will-change: transform;
+}
+
+.field[data-motion="calm"] .sweep,
+.field[data-motion="still"] .sweep {
+  display: none;
+  animation: none;
+  will-change: auto;
 }
 
 /* Velo de legibilidad. El tablero es oscuro de por sí, así que aquí basta con

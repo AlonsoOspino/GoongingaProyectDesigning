@@ -192,6 +192,7 @@ export default async function TeamPage({ params }: TeamPageProps) {
             )}
           </div>
           <p className="text-muted">Team roster and match record</p>
+          {team.divisionName && <p className="mt-2 text-sm text-accent">{team.divisionName}</p>}
         </div>
       </div>
 

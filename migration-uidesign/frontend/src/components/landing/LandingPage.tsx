@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import SeasonArchiveCard from "./SeasonArchiveCard";
 import TournamentMode from "./TournamentMode";
 import GridFigure from "./GridFigure";
+import BrandField from "./atmosphere/BrandField";
 import { getRecentNetworkMembers } from "@/lib/api/networkMember";
 import type { NetworkMember } from "@/lib/api/types";
 import { getActiveAnnouncements } from "@/lib/api/announcement";
@@ -159,6 +160,7 @@ export function LandingPage() {
 
       <main id="top">
         <div className={styles.brandZone}>
+          <BrandField variant="zone" intensity={1} ground={false} motion="calm" />
 
         <section className={styles.hero} data-hero>
           <div className={styles.heroArt} aria-hidden="true">
@@ -251,21 +253,22 @@ export function LandingPage() {
 
 
         <section className={styles.gglSection} id="about" data-chapter="ggl">
-          <div className={styles.gglIntro}>
-            <div className={styles.gglHeading}>
-              <p className={styles.lightEyebrow}>Overwatch 5v5</p>
-              <h2 className={styles.lightH2}>OVERTIME <span>GGL</span></h2>
-            </div>
-            <div className={styles.gglCopy} data-motion-copy>
+          <BrandField variant="section" className={styles.fieldGgl} intensity={1} ground={false} motion="calm" seedOffset={101} />
+          <div className={styles.gglCopy} data-motion-copy>
+              <p className={styles.lightEyebrow}>OUR BIGGEST PROJECT!</p>
+              <h2 className={styles.lightH2}>OVERTIME GGL</h2>
               <p className={styles.lightParagraph}>
-                Weekly Overwatch matches, captain drafts and live casts.
-                Eight seasons played.
+                Our biggest event brings the whole community together for a competitive Overwatch
+                5v5 tournament. Teams play every week, with each match organized, cast, and streamed
+                live by our staff.
               </p>
-              <div className={styles.sectionActions}>
-                <Link href="/season-9" className={styles.sectionLink}>Season 9 <ArrowIcon /></Link>
-                <Link href="/history" className={styles.sectionLink}>Past seasons <ArrowIcon /></Link>
-              </div>
-            </div>
+              <p className={styles.lightParagraph}>
+                Season 8 ended with Gamin 4 Goonginga beating No Tank? 4–2 in the Grand Final.
+                Season 9 brings two divisions and teams formed by committee, with a goal of eight teams.
+              </p>
+              <a href={TWITCH_URL} target="_blank" rel="noopener noreferrer" className={styles.twitchLink}>
+                <TwitchIcon /> Watch the stream
+              </a>
           </div>
           <div className={`${styles.figureStage} ${styles.gglStage}`}>
             <GridFigure
@@ -284,6 +287,7 @@ export function LandingPage() {
         </section>
 
         <section className={styles.gamesSection} data-chapter="games">
+          <BrandField variant="section" className={styles.fieldGames} intensity={1} ground={false} motion="calm" seedOffset={202} />
           <div className={styles.gamesInner}>
             <div className={`${styles.figureStage} ${styles.gamesStage}`}>
               <GridFigure
@@ -310,6 +314,7 @@ export function LandingPage() {
         </section>
 
         <section className={styles.discordSection} data-chapter="discord">
+          <BrandField variant="section" className={styles.fieldDiscord} intensity={1} ground={false} motion="calm" seedOffset={303} />
           <div className={styles.discordInner}>
             <div className={styles.discordCopy} data-motion-copy>
               <h2 className={styles.lightH2}><span>It all runs</span><span>in the Discord</span></h2>
@@ -328,6 +333,7 @@ export function LandingPage() {
       </main>
 
       <footer className={styles.footer}>
+        <BrandField variant="footer" intensity={0.65} ground={false} motion="calm" />
         <div className={styles.footerTop}>
           <div className={styles.footerBrand}>
             <div className={styles.footerBrandRow}>

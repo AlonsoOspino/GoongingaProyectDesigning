@@ -17,11 +17,7 @@
   margin: 0 auto;
   padding: 32px 28px;
   border-left: 3px solid var(--accent, #3ee08a);
-  background: linear-gradient(
-    100deg,
-    color-mix(in srgb, var(--accent, #3ee08a) 12%, transparent),
-    transparent 68%
-  );
+  background: transparent;
 }
 
 .eyebrow {

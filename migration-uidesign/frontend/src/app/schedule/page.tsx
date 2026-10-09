@@ -1,5 +1,7 @@
-import { redirect } from "next/navigation";
+import CurrentSeasonView from "@/components/season/CurrentSeasonView";
 
-export default function ScheduleRedirect() {
-  redirect("/history?tab=results");
+export const metadata = { title: "Season 9 — Schedule" };
+
+export default function SchedulePage() {
+  return <CurrentSeasonView view="schedule" />;
 }

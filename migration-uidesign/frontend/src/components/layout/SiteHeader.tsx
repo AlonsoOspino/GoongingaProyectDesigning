@@ -143,7 +143,7 @@ export function SiteHeader() {
 
   return (
     <header className={`${styles.otpSurface} ${styles.header} ${pathname === "/" ? styles.landingHeader : ""}`}>
-      {pathname !== "/" ? <BrandField variant="bar" /> : null}
+      <BrandField variant="bar" intensity={pathname === "/" ? 0.7 : 1} ground={pathname !== "/"} motion={pathname === "/" ? "calm" : "ambient"} />
 
       <div className={styles.headerInner}>
         <Link href="/" className={styles.brand} aria-label="Overtime Productions">

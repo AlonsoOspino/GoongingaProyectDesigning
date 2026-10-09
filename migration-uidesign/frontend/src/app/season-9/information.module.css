@@ -1,700 +1,172 @@
-/* Season information uses the shared green palette with quiet square texture.
-   Rules, numbers and spacing carry the hierarchy before accent color. */
-
 .page {
-  /* Los tokens vienen de la capa compartida: el verde de OTP se decide en un
-     unico archivo para las tres rutas. Los --ink de esta pagina se quedan como
-     nombres locales, pero derivados en vez de repetidos. */
   composes: surface from "../../components/story/story.module.css";
   position: relative;
   min-height: 100vh;
   isolation: isolate;
   background: var(--ground-base);
-
-  --ink: var(--text);
-  --ink-soft: color-mix(in srgb, var(--text) 66%, transparent);
-  --ink-faint: color-mix(in srgb, var(--text) 46%, transparent);
-  --green: var(--accent);
-  --rule: color-mix(in srgb, var(--text) 13%, transparent);
-  --rule-strong: var(--edge-soft);
-  /* Los paneles eran blancos al 30-52%: sobre papel eran un matiz, sobre el
-     tablero serian faros. Aqui son levantados minimos del propio suelo. */
-  --panel: color-mix(in srgb, var(--text) 4.5%, transparent);
-  --panel-strong: color-mix(in srgb, var(--text) 8%, transparent);
-
-  --season: color-mix(in srgb, var(--text) 28%, transparent);
-  --season-bright: var(--ink);
-  --season-2: var(--season);
-  --season-2-bright: var(--ink-soft);
+  color: var(--text);
+  --ink-soft: color-mix(in srgb, var(--text) 72%, transparent);
+  --ink-faint: color-mix(in srgb, var(--text) 49%, transparent);
+  --rule: color-mix(in srgb, var(--text) 14%, transparent);
 }
 
-/* El tablero va fijo. La pagina mide varios miles de pixeles de alto y no tiene
-   sentido renderizar un lienzo de ese tamano: fijandolo, el contenido se desliza
-   por delante de una rejilla que se queda quieta. Doble clase para ganar en
-   especificidad sin recurrir a !important. */
-.page .paper {
-  position: fixed;
-  inset: 0;
-}
+.page .paper { position: fixed; inset: 0; pointer-events: none; }
 
 .sheet {
   position: relative;
   z-index: 1;
-  max-width: 1180px;
-  margin: 0 auto;
-  padding: clamp(48px, 7vw, 92px) clamp(20px, 4vw, 40px) 140px;
-  color: var(--ink);
-  font-family: var(--font-otp-body), "Barlow", system-ui, sans-serif;
+  width: min(100%, 1240px);
+  margin-inline: auto;
+  padding: 76px 40px 104px;
+  font-family: var(--font-body);
 }
-
-/* ---------- cabecera ---------- */
 
 .masthead {
-  padding-bottom: clamp(34px, 4.5vw, 52px);
-  border-bottom: 1px solid var(--rule-strong);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 32px;
+  min-height: 340px;
 }
 
-.eyebrow {
+.mastheadCopy { position: relative; z-index: 1; }
+
+.eyebrow, .kicker {
   margin: 0;
-  font-family: var(--font-otp-heading), "Chakra Petch", system-ui, sans-serif;
+  font-family: var(--font-heading);
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.24em;
+  letter-spacing: .16em;
   text-transform: uppercase;
-  color: var(--season-bright);
+  color: var(--accent);
 }
 
 .h1 {
-  margin: 16px 0 0;
-  font-family: var(--font-otp-display), "League Gothic", "Arial Narrow", sans-serif;
+  margin: 18px 0 24px;
+  font-family: var(--font-display);
+  font-size: clamp(86px, 10vw, 148px);
   font-weight: 400;
-  font-size: clamp(56px, 11vw, 124px);
-  line-height: 0.84;
-  letter-spacing: 0.01em;
+  line-height: .85;
   text-transform: uppercase;
-  text-wrap: balance;
+  white-space: nowrap;
 }
 
-.standfirst {
-  max-width: 54ch;
-  margin: 22px 0 0;
-  font-size: clamp(17px, 1.7vw, 20px);
-  line-height: 1.55;
-  color: var(--ink-soft);
-}
+.h1 span { color: var(--accent); }
+.standfirst { margin: 0; max-width: 33ch; font-size: clamp(21px, 2vw, 26px); line-height: 1.3; text-wrap: balance; }
+.intro { margin: 16px 0 0; max-width: 41ch; font-size: 17px; line-height: 1.6; color: var(--ink-soft); }
 
-/* ---------- secciones ---------- */
-
-/* Cada seccion es un capitulo: hereda el filo superior que se enciende con el
-   scroll y el rescoldo interior, igual que las de la landing. Es lo que hace que
-   bajar por Season 9 se lea como progresion y no como un documento continuo. */
-.section {
-  composes: chapterSection from "../../components/story/story.module.css";
-  padding-top: clamp(64px, 8vw, 104px);
-}
-
-.section::before,
-.section::after {
-  display: none;
-}
-
-.kicker {
-  margin: 0 0 14px;
-  font-family: var(--font-otp-heading), "Chakra Petch", system-ui, sans-serif;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--season-bright);
-}
-
-.h2 {
-  margin: 0;
-  font-family: var(--font-otp-display), "League Gothic", "Arial Narrow", sans-serif;
-  font-weight: 400;
-  font-size: clamp(36px, 5.6vw, 62px);
-  line-height: 0.92;
-  text-transform: uppercase;
-  text-wrap: balance;
-}
-
-.h3 {
-  margin: 0 0 10px;
-  font-family: var(--font-otp-heading), "Chakra Petch", system-ui, sans-serif;
-  font-size: clamp(17px, 2vw, 21px);
-  font-weight: 700;
-  letter-spacing: 0.01em;
-}
-
-/* La medida se queda cerca de 65 caracteres: es lo que hace que un bloque de
-   texto se lea como documento y no como pared. */
-.lead {
-  max-width: 64ch;
-  margin: 20px 0 0;
-  font-size: clamp(17px, 1.6vw, 19px);
-  line-height: 1.62;
-  color: var(--ink-soft);
-}
-
-.body {
-  max-width: 66ch;
-  margin: 14px 0 0;
-  font-size: 17px;
-  line-height: 1.66;
-  color: var(--ink-soft);
-}
-
-/* Existing Overwatch artwork replaces visible production placeholders. */
 .openingArt {
-  max-width: var(--measure);
-  margin: 36px auto 0;
-  overflow: hidden;
-  border-bottom: 1px solid var(--rule);
-}
-
-.openingArt img {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-/* ---------- raíl de fases ---------- */
-
-.rail {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 0;
-  margin: clamp(34px, 4.5vw, 52px) 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* stretch, no center: las cinco tarjetas arrancan a la misma altura pase lo que
-   pase con el largo del texto. */
-.railStep {
-  display: flex;
-  align-items: stretch;
-  gap: 6px;
+  margin: 0 -20px 0 0;
   min-width: 0;
+  mask-image: linear-gradient(180deg, #000 72%, transparent);
+  -webkit-mask-image: linear-gradient(180deg, #000 72%, transparent);
 }
+.openingArt img { display: block; width: 100%; height: auto; }
 
-.railCard {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  flex: 1;
-  min-width: 0;
-  padding: 16px 16px 18px;
-  border-top: 2px solid var(--green);
-  background: var(--panel);
-}
-
-.railWhen {
-  font-family: var(--font-otp-heading), "Chakra Petch", system-ui, sans-serif;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--green);
-}
-
-.railName {
-  margin: 0;
-  font-family: var(--font-otp-display), "League Gothic", "Arial Narrow", sans-serif;
-  font-weight: 400;
-  font-size: 26px;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
-.railText {
-  margin: 2px 0 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--ink-soft);
-}
-
-.chevron {
-  flex: none;
-  align-self: center;
-  width: 20px;
-  height: 14px;
-  color: var(--ink-faint);
-}
-
-.railStep:last-child {
-  padding-right: 26px;
-}
-
-/* Estrecho: la secuencia se pone en vertical y las flechas giran con ella, en
-   lugar de recortar la quinta tarjeta fuera de la pantalla. */
-@media (max-width: 900px) {
-  .rail {
-    grid-template-columns: 1fr;
-    gap: 4px;
-  }
-  .railStep {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .chevron {
-    transform: rotate(90deg);
-    align-self: flex-start;
-    margin-left: 22px;
-  }
-}
-
-/* ---------- modos ---------- */
-
-.modes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin: clamp(24px, 3vw, 32px) 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.mode {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  padding: 9px 15px 9px 11px;
-  border: 1px solid var(--rule-strong);
-  border-radius: 2px;
-  background: var(--panel);
-}
-
-.modeIcon {
-  width: 22px;
-  height: 22px;
-  object-fit: contain;
-  flex: none;
-}
-
-.modeName {
-  font-family: var(--font-otp-heading), "Chakra Petch", system-ui, sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-}
-
-/* ---------- pasos del draft ---------- */
-
-.steps {
-  display: grid;
-  gap: 0;
-  margin: clamp(30px, 4vw, 44px) 0 0;
-}
-
-.step {
-  padding: 26px 0;
-  border-top: 1px solid var(--rule);
-}
-
-.step:first-child {
-  border-top: 1px solid var(--rule-strong);
-}
-
-.rules {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin: 18px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.rule {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 9px;
-  padding: 8px 15px;
-  border: 1px solid var(--rule-strong);
-  border-radius: 2px;
-  background: var(--panel);
-}
-
-.ruleValue {
-  font-family: var(--font-otp-display), "League Gothic", "Arial Narrow", sans-serif;
-  font-size: 28px;
-  line-height: 1;
-  color: var(--season-2-bright);
-}
-
-.ruleLabel {
-  font-family: var(--font-otp-heading), "Chakra Petch", system-ui, sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-}
-
-/* ---------- cierre ---------- */
-
-.closing {
-  max-width: 62ch;
-  margin: clamp(36px, 4.5vw, 52px) 0 0;
-  padding-left: 20px;
-  border-left: 2px solid var(--green);
-  font-size: clamp(17px, 1.6vw, 18.5px);
-  line-height: 1.65;
-  color: var(--ink);
-}
-
-@media (max-width: 720px) {
-  .railCard {
-    min-width: 176px;
-  }
-}
-
-
-/* ============================================================================
-   PESO ESTRUCTURAL
-   ----------------------------------------------------------------------------
-   La página era correcta pero demasiado plana: párrafo, párrafo, párrafo. Lo que
-   sigue no añade adorno, añade estructura — cifras que ya estaban en el texto,
-   una secuencia numerada porque de verdad es una secuencia, y modos que se ven
-   antes de leerse.
-   ============================================================================ */
-
-/* ---- cifras de un vistazo ---- */
 .facts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 0;
-  margin: clamp(30px, 4vw, 44px) 0 0;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 34px 0 0;
   padding: 0;
   list-style: none;
-  border-top: 1px solid var(--rule-strong);
-  border-bottom: 1px solid var(--rule-strong);
+  border-block: 1px solid var(--rule);
 }
+.fact { display: grid; grid-template-columns: auto 1fr; align-items: end; gap: 7px 10px; padding: 24px; border-left: 1px solid var(--rule); }
+.fact:first-child { border-left: 0; padding-left: 0; }
+.factLabel { grid-column: 1 / -1; font-size: 12px; color: var(--ink-faint); }
+.factValue { font-family: var(--font-display); font-size: 58px; line-height: .85; }
+.factUnit { padding-bottom: 3px; font-size: 14px; color: var(--ink-soft); }
 
-.fact {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 20px 22px 22px;
-  border-left: 1px solid var(--rule);
-}
+.contents { display: flex; flex-wrap: wrap; gap: 16px 32px; padding: 22px 0 30px; }
+.contents a { font-family: var(--font-heading); font-size: 12px; font-weight: 600; color: var(--ink-soft); text-decoration: none; text-underline-offset: 6px; }
+.contents a:hover { color: var(--accent); text-decoration: underline; }
 
-.fact:first-child {
-  border-left: 0;
-  padding-left: 0;
-}
-
-.factValue {
-  display: flex;
-  align-items: baseline;
-  gap: 5px;
-  font-family: var(--font-otp-display), "League Gothic", "Arial Narrow", sans-serif;
-  font-size: clamp(40px, 5vw, 58px);
-  line-height: 0.9;
-  color: var(--season-bright);
-}
-
-.factValue i {
-  font-family: var(--font-otp-heading), "Chakra Petch", system-ui, sans-serif;
-  font-style: normal;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-}
-
-.factLabel {
-  font-size: 13px;
-  line-height: 1.4;
-  color: var(--ink-faint);
-}
-
-/* ---- modos: fichas, no etiquetas ----
-   El icono es lo que identifica el modo de un vistazo; como chip diminuto no
-   servía para nada. */
-.modes {
+.section {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
-  gap: 10px;
+  grid-template-columns: minmax(0, .85fr) minmax(0, 1.7fr);
+  gap: 30px 64px;
+  padding: 54px 0;
+  border-top: 1px solid var(--rule);
+}
+.sectionHeading { min-width: 0; }
+.kicker { margin-bottom: 16px; }
+.h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: clamp(40px, 4.3vw, 58px); line-height: .98; text-transform: uppercase; text-wrap: balance; scroll-margin-top: 112px; }
+.sectionContent { min-width: 0; }
+.lead { margin: 0; max-width: 62ch; font-size: 20px; line-height: 1.55; }
+.body { margin: 14px 0 0; max-width: 66ch; font-size: 17px; line-height: 1.6; color: var(--ink-soft); }
+
+.divisions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 28px; border-top: 2px solid var(--accent); }
+.division { padding: 20px 24px 18px 0; }
+.division + .division { padding-left: 24px; border-left: 1px solid var(--rule); }
+.division h3 { margin: 0; font-family: var(--font-heading); font-size: 14px; font-weight: 600; }
+.division p { display: flex; align-items: baseline; gap: 10px; margin: 16px 0 0; font-size: 15px; color: var(--ink-soft); }
+.division strong { font-family: var(--font-display); font-weight: 400; font-size: 56px; line-height: .9; color: var(--text); }
+.divisionNote { grid-column: 1 / -1; margin: 0; padding-top: 13px; border-top: 1px solid var(--rule); font-size: 12px; line-height: 1.5; color: var(--ink-faint); }
+
+.rail { display: grid; grid-column: 1 / -1; grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 8px 0 0; padding: 0; list-style: none; counter-reset: phases; }
+.railStep { min-width: 0; counter-increment: phases; }
+.railCard { height: 100%; padding: 18px 20px 0 0; border-top: 1px solid var(--rule); }
+.railCard::before { content: "0" counter(phases); display: block; margin-bottom: 18px; font-family: var(--font-heading); font-size: 12px; color: var(--accent); }
+.railWhen { display: block; margin-bottom: 7px; font-size: 11px; color: var(--ink-faint); }
+.railName { margin: 0; font-family: var(--font-display); font-size: 27px; font-weight: 400; line-height: 1; text-transform: uppercase; }
+.railText { margin: 12px 0 0; max-width: 25ch; font-size: 14px; line-height: 1.5; color: var(--ink-soft); }
+.railCardNow { border-top-color: var(--accent); }
+.railCardNow .railWhen { color: var(--accent); }
+.railCardDone .railWhen { color: var(--ink-soft); }
+
+.steps { margin: 28px 0 0; padding: 0; list-style: none; counter-reset: rules; }
+.step { position: relative; padding: 22px 0 22px 38px; border-top: 1px solid var(--rule); counter-increment: rules; }
+.step::before { content: "0" counter(rules); position: absolute; left: 0; top: 25px; font-family: var(--font-heading); font-size: 11px; color: var(--accent); }
+.step:last-child { padding-bottom: 0; }
+.h3 { margin: 0; font-family: var(--font-heading); font-weight: 600; font-size: 17px; line-height: 1.4; }
+.step .body { margin-top: 8px; font-size: 16px; }
+
+.cta { display: flex; align-items: center; justify-content: space-between; gap: 28px; padding: 38px 0 0; border-top: 1px solid var(--accent); }
+.cta .kicker { color: var(--ink-faint); }
+.ctaTitle { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 48px; line-height: 1; text-transform: uppercase; }
+.cta .body { margin-top: 12px; }
+.ctaButton { display: inline-flex; align-items: center; justify-content: space-between; gap: 28px; flex-shrink: 0; padding: 17px 24px; background: var(--accent); color: #050806; font-family: var(--font-heading); font-size: 13px; font-weight: 700; text-decoration: none; }
+.ctaButton:hover { background: var(--accent-300); }
+.contents a:focus-visible, .ctaButton:focus-visible { outline: 2px solid var(--text); outline-offset: 5px; }
+
+@media (max-width: 1000px) {
+  .sheet { padding: 56px 28px 80px; }
+  .masthead { min-height: 280px; gap: 16px; }
+  .h1 { font-size: clamp(82px, 12vw, 118px); }
+  .section { gap: 28px 36px; }
+  .fact { padding: 22px 16px; }
+  .factUnit { font-size: 12px; }
+  .rail { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 26px 20px; }
+  .railCard { padding-right: 0; }
 }
 
-.mode {
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
-  min-height: 112px;
-  padding: 16px;
-  transition: border-color 120ms cubic-bezier(0.16, 1, 0.3, 1), background-color 120ms cubic-bezier(0.16, 1, 0.3, 1);
+@media (max-width: 700px) {
+  .sheet { padding: 42px 20px 64px; }
+  .masthead { grid-template-columns: 1fr; gap: 18px; min-height: 0; }
+  .h1 { font-size: clamp(78px, 20vw, 122px); }
+  .standfirst { max-width: 31ch; font-size: 22px; }
+  .intro { max-width: 46ch; font-size: 16px; }
+  .openingArt { width: min(100%, 520px); margin: 0 auto; }
+  .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 8px; }
+  .fact { padding: 20px 18px; }
+  .fact:nth-child(odd) { border-left: 0; padding-left: 0; }
+  .fact:nth-child(n + 3) { border-top: 1px solid var(--rule); }
+  .factValue { font-size: 50px; }
+  .contents { gap: 18px 24px; padding-block: 24px; }
+  .section { grid-template-columns: 1fr; gap: 24px; padding-block: 36px; }
+  .h2 { font-size: 44px; }
+  .lead { font-size: 18px; }
+  .body { font-size: 16px; }
+  .rail { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 0; }
+  .railName { font-size: 25px; }
+  .cta { align-items: flex-start; flex-direction: column; padding-top: 30px; }
+  .ctaTitle { font-size: 44px; }
 }
 
-.mode:hover {
-  border-color: color-mix(in srgb, var(--green) 45%, transparent);
-  background: var(--panel-strong);
-}
-
-.modeIcon {
-  width: 34px;
-  height: 34px;
-}
-
-.modeName {
-  font-size: 14px;
-  letter-spacing: 0.08em;
-}
-
-/* ---- pasos numerados ---- */
-.h3 {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-}
-
-.stepNum {
-  flex: none;
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  color: var(--season-2-bright);
-}
-
-/* ---- el cierre ---- */
-.cta {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: clamp(24px, 4vw, 48px);
-  align-items: center;
-  margin-top: clamp(72px, 9vw, 116px);
-  padding: clamp(28px, 4vw, 44px);
-  border: 1px solid var(--rule-strong);
-  border-left: 3px solid var(--green);
-  border-radius: 2px;
-  background: var(--panel);
-}
-
-.ctaCopy {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-.ctaTitle {
-  margin: 12px 0 0;
-  font-family: var(--font-otp-display), "League Gothic", "Arial Narrow", sans-serif;
-  font-weight: 400;
-  font-size: clamp(38px, 6vw, 76px);
-  line-height: 0.9;
-  text-transform: uppercase;
-  text-wrap: balance;
-}
-
-.ctaButton {
-  margin-top: 26px;
-  padding: 15px 30px;
-  border: 1px solid var(--green);
-  border-radius: 2px;
-  background: var(--green);
-  color: #050806;
-  font-family: var(--font-otp-heading), "Chakra Petch", system-ui, sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  text-decoration: none;
-  transition: background-color 120ms ease;
-}
-
-.ctaButton:hover {
-  background: var(--accent-300);
-}
-
-@media (max-width: 760px) {
-  .cta {
-    grid-template-columns: 1fr;
-  }
-  .fact:first-child {
-    padding-left: 22px;
-  }
-}
-
-
-/* ============================================================================
-   LA MEDIDA
-   ----------------------------------------------------------------------------
-   Una sola columna de texto, centrada, de la que cuelga todo. Es la respuesta a
-   "se queda todo a la izquierda": el problema no era que faltaran columnas, era
-   que el texto y el contenedor no compartían anchura, así que cada bloque
-   terminaba donde quería y el borde derecho quedaba roto.
-
-   Dos cosas que hay que respetar al tocar esto:
-
-   1. Va al FINAL del archivo. Las reglas originales traen `margin: 20px 0 0`, y
-      el atajo `margin` reinicia `margin-inline`: si esto va antes, el centrado
-      se pierde sin dejar rastro.
-   2. La medida es un valor FIJO, no `ch`. La unidad ch depende del tamaño de
-      fuente de cada elemento, así que 74ch en un titular de 62px son ~2200px y
-      en un párrafo de 17px son ~650: cada bloque calculaba una columna distinta
-      y por eso no compartían borde.
-   ============================================================================ */
-
-.sheet {
-  --measure: 760px;
-}
-
-.kicker,
-.h2,
-.h3,
-.lead,
-.body,
-.modes,
-.steps,
-.closing,
-.facts,
-.masthead .eyebrow,
-.masthead .h1,
-.masthead .standfirst {
-  max-width: var(--measure);
-  margin-inline: auto;
-}
-
-/* Las imágenes viven DENTRO de la columna, con su mismo ancho y sus mismos dos
-   bordes. Antes rompían a lo ancho con medidas distintas cada una y parecían
-   colocadas al azar: anchos arbitrarios no son ritmo, son ruido.
-
-   Solo dos elementos rompen, y lo hacen a la MISMA anchura para que se lea como
-   una decisión y no como un descuadre: el raíl de fases, que necesita cinco
-   columnas, y el bloque de cierre. */
-.rail,
-.cta {
-  max-width: none;
-  margin-inline: 0;
-}
-
-/* ---------- estados del rail de fases ---------- */
-
-/* Completada: la barra superior se apaga y el texto baja de peso. La fase sigue
-   legible —forma parte de la secuencia— pero deja de reclamar atencion. */
-.railCardDone {
-  border-top-color: color-mix(in srgb, var(--season) 32%, transparent);
-  opacity: 0.55;
-}
-
-/* En curso. Tres senales a la vez y solo una es el color: barra mas gruesa,
-   fondo levantado y la palabra "Now" delante del periodo. Quien no distinga el
-   verde sigue sabiendo donde esta la temporada. */
-.railCardNow {
-  border-top-width: 4px;
-  border-top-color: var(--green);
-  background: var(--panel-strong);
-}
-
-.railCardNow .railWhen {
-  color: var(--green);
-}
-
-.railCardNow .railName {
-  color: var(--text);
-}
-
-/* ---------- pool de mapas ---------- */
-
-.modeBlock {
-  margin: clamp(24px, 3vw, 32px) 0 0;
-}
-
-.mode {
-  cursor: pointer;
-  transition:
-    border-color 160ms ease,
-    background 160ms ease,
-    color 160ms ease;
-}
-
-.mode:hover {
-  border-color: var(--edge-strong);
-}
-
-/* La pestana activa. El icono recupera opacidad plena: en la version anterior
-   los cinco iconos quedaban casi blancos y sin contraste, que era una de las
-   pegas de la auditoria. */
-.modeActive {
-  border-color: var(--season-bright);
-  background: var(--panel-strong);
-  color: var(--green);
-}
-
-.modeIcon {
-  opacity: 0.62;
-  transition: opacity 160ms ease;
-}
-
-.modeActive .modeIcon,
-.mode:hover .modeIcon {
-  opacity: 1;
-}
-
-.modePanel {
-  margin-top: 18px;
-  min-height: 120px;
-}
-
-.modeNote {
-  margin: 0;
-  padding: 22px 0;
-  font-size: 15px;
-  color: var(--ink-soft);
-}
-
-.mapGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 10px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.mapCard {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid color-mix(in srgb, var(--season) 34%, transparent);
-  border-left: 2px solid var(--season);
-  border-radius: 2px;
-  background: var(--panel);
-  overflow: hidden;
-}
-
-.mapThumb {
-  width: 100%;
-  aspect-ratio: 3 / 2;
-  object-fit: cover;
-  display: block;
-}
-
-/* Sin miniatura, un panel de color con el nombre debajo. Es una decision de
-   diseno declarada, no un hueco a la espera de una imagen. */
-.mapThumbEmpty {
-  width: 100%;
-  aspect-ratio: 3 / 2;
-  display: block;
-  background: var(--panel-strong);
-}
-
-.mapName {
-  padding: 11px 13px;
-  font-family: var(--font-otp-heading), "Chakra Petch", system-ui, sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-}
-
-/* En movil dos columnas: una sola deja tarjetas enormes y obliga a un scroll
-   larguisimo para ver un pool de cinco mapas. */
-@media (max-width: 640px) {
-  .mapGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-  }
+@media (max-width: 380px) {
+  .sheet { padding-inline: 16px; }
+  .fact { gap: 7px 8px; padding-right: 12px; }
+  .factUnit { font-size: 11px; }
+  .division + .division { padding-left: 18px; }
+  .rail { gap: 24px 16px; }
 }

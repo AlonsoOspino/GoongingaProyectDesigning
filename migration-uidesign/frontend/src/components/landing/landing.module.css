@@ -2286,19 +2286,22 @@
   }
 }
 
-/* Static green landing. Artwork blends with smooth alpha, without grid cells. */
+/* Keep the illuminated background cubes; artwork uses smooth alpha only. */
 .landing {
-  background: color-mix(in srgb, var(--ground-base) 88%, var(--accent) 12%);
+  background: var(--ground-base);
+  --rest-ggl: .62;
+  --rest-games: .52;
+  --rest-discord: .62;
 }
 .landingHeader {
-  background: #091c13;
+  background: var(--ground-base);
   border-bottom-color: color-mix(in srgb, var(--accent) 40%, transparent);
 }
 .brandZone {
-  background: radial-gradient(ellipse at 80% 38%, rgba(52, 199, 123, .20), transparent 68%);
+  background: transparent;
 }
 .heroLine:last-child { color: var(--accent); }
-.gglHeading .lightH2 span, .discordCopy .lightH2 span:last-child { color: var(--accent); }
+.discordCopy .lightH2 span:last-child { color: var(--accent); }
 .gglSection::before, .gglSection::after,
 .gamesSection::before, .gamesSection::after,
 .discordSection::before, .discordSection::after { display: none; }
@@ -2343,28 +2346,21 @@
 .announceInner:has(.announceStream:empty) { display: block; }
 .announceInner:has(.announceStream:empty) .joinedRail { max-width: 440px; }
 .gglSection {
-  display: block;
+  display: flex;
   margin: 0;
   min-height: 0;
-  padding: 84px max(40px, calc((100% - 1360px) / 2 + 40px)) 64px;
+  padding: 0;
 }
-.gglIntro {
-  position: relative;
-  z-index: 2;
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr);
-  align-items: end;
-  gap: 56px;
-}
-.gglHeading { min-width: 0; }
-.gglHeading .lightH2 { font-size: clamp(76px, 9.5vw, 140px); margin: 0; }
-.gglCopy { padding: 0 0 3px; }
+.gglCopy { padding: 116px 56px 116px max(28px, calc((100% - 1440px) / 2 + 28px)); }
 .lightH2 { font-size: clamp(62px, 7.5vw, 112px); margin-bottom: 24px; }
 .lightParagraph, .gamesCopy .heroSub { font-size: 18px; line-height: 1.6; max-width: 38ch; }
-.gglCopy .lightParagraph { margin-bottom: 0; }
+.gglCopy .lightH2 { font-size: clamp(50px, 6.6vw, 96px); margin: 0 0 22px; }
+.gglCopy .lightParagraph { font-size: 19px; max-width: 54ch; margin: 0 0 16px; }
+.gglCopy .lightEyebrow { font-size: 13px; letter-spacing: .2em; margin: 0 0 20px; }
+.gglCopy .twitchLink { align-self: start; }
 .lightEyebrow { font-size: 11px; letter-spacing: .14em; margin-bottom: 16px; }
 .figureStage { min-height: 0; }
-.gglStage { --figure-inset: 0; display: block; margin: 40px auto 0; max-width: 1180px; }
+.gglStage { --figure-inset: 6%; display: grid; grid-template-areas: 'art' 'card'; grid-template-rows: 1fr auto; min-height: clamp(480px, 44vw, 660px); margin: 0; max-width: none; }
 .gridFigure { padding: 0; will-change: auto; }
 .figureImg, .gridFigure:hover .figureImg { filter: none; transition: none; }
 .gglFigure {
@@ -2378,12 +2374,16 @@
   mask-composite: intersect;
 }
 .gglBox, .gamesBox { width: 100%; }
+.gglBox { margin-left: 0; padding: 0 6% 6%; }
 .gglCardSlot {
-  position: absolute;
-  right: 0;
-  bottom: 14px;
-  width: min(400px, 36%);
-  margin: 0;
+  position: static;
+  grid-area: card;
+  right: auto;
+  bottom: auto;
+  align-self: auto;
+  justify-self: center;
+  width: min(344px, calc(100% - 56px));
+  margin: 20px 0 0;
 }
 .gglCardSlot::before { display: none; }
 .archiveCard { background: color-mix(in srgb, var(--bg) 90%, transparent); box-shadow: none; border-color: var(--divider); padding: 20px 22px 16px; }
@@ -2393,6 +2393,11 @@
 .archiveLogo { width: 36px; height: 36px; }
 .archiveScore { font-size: 38px; }
 .archiveTeam { font-size: 15px; }
+.gglCardSlot .archiveCard { padding: 16px 18px 14px; }
+.gglCardSlot .archiveSide { padding-block: 9px; }
+.gglCardSlot .archiveLogo { width: 30px; height: 30px; }
+.gglCardSlot .archiveScore { font-size: 30px; }
+.gglCardSlot .archiveTeam { font-size: 14px; }
 .sectionActions { display: flex; flex-wrap: wrap; gap: 20px 30px; }
 .landing .sectionLink { display: inline-flex; align-items: center; gap: 12px; width: fit-content; margin-top: 20px; color: var(--text); font-size: 14px; text-decoration: none; }
 .sectionLink svg { color: var(--accent); }
@@ -2435,18 +2440,23 @@
 @media (min-width: 1000px) {
   .announceInner:has(.joinedRail):not(:has(.announceStream:empty)) { grid-template-columns: minmax(0, 1fr) 296px; }
 }
+@media (min-width: 1101px) {
+  .gglSection { min-height: max(730px, 88svh); }
+  .gglStage { grid-template-areas: 'art'; grid-template-rows: 1fr; }
+  .gglCardSlot { grid-area: art; align-self: end; justify-self: start; width: clamp(300px, 24vw, 344px); margin: 0 0 clamp(20px, 3.4vw, 48px) clamp(-28px, -1.6vw, 0px); }
+}
 @media (max-width: 1100px) {
   .heroArt { top: 56px; width: 108%; right: -28%; }
-  .gglSection { padding-block: 64px 48px; }
-  .gglIntro { gap: 36px; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); }
-  .gglHeading .lightH2 { font-size: 9.2vw; }
-  .gglStage { margin-top: 36px; }
-  .gglCardSlot { width: min(360px, 43%); bottom: 0; }
+  .gglStage { min-height: 420px; }
   .archiveCard { padding: 16px 18px 14px; }
   .gamesInner { min-height: 0; padding-block: 64px; }
   .gamesH2 { font-size: 9.5vw; }
   .discordInner { gap: 20px; padding-block: 64px; }
   .discordCopy .lightH2 { font-size: 8.4vw; }
+}
+@media (max-width: 900px) {
+  .gglCopy { padding: 64px 28px; }
+  .gglStage { min-height: 320px; }
 }
 @media (max-width: 760px) {
   .heroInner { min-height: 600px; padding: 66px 24px 48px; align-items: flex-start; }
@@ -2455,13 +2465,6 @@
   .heroArt { top: 22px; width: 168%; right: -73%; opacity: .48; }
   .heroSub { max-width: 30ch; margin-top: 28px; }
   .scrollCue { margin-top: 34px; }
-  .gglSection { padding: 56px 24px 48px; }
-  .gglIntro { grid-template-columns: minmax(0, 1fr); gap: 24px; }
-  .gglHeading .lightH2 { font-size: clamp(70px, 13vw, 100px); }
-  .gglCopy { padding: 0; }
-  .gglStage { margin-top: 28px; }
-  .gglBox { width: calc(100% + 48px); margin-left: -24px; }
-  .gglCardSlot { position: relative; right: auto; bottom: auto; width: min(400px, 100%); margin: -10px 0 0 auto; }
   .gamesInner { grid-template-columns: minmax(0, 1fr); gap: 30px; padding: 56px 24px 48px; }
   .gamesCopy { grid-row: 1; padding: 0; }
   .gamesH2 { font-size: clamp(70px, 13vw, 100px); max-width: none; }
@@ -2471,15 +2474,18 @@
   .discordArt { width: min(350px, 82%); justify-self: end; margin-top: -8px; }
   .lightParagraph, .gamesCopy .heroSub { font-size: 17px; }
 }
+@media (max-width: 640px) {
+  .gglCopy { padding: 52px 18px; }
+  .gglCardSlot { width: min(344px, calc(100% - 36px)); }
+}
 @media (max-width: 440px) {
   .heroInner { min-height: 540px; padding-inline: 20px; }
   .h1 { font-size: 20.5vw; }
   .heroCtas { gap: 20px; }
   .heroSub { font-size: 17px; }
   .heroCtas .btn { padding-inline: 20px; }
-  .gglSection, .gamesInner, .discordInner { padding-inline: 20px; }
-  .gglHeading .lightH2 { font-size: 17vw; }
-  .gglBox, .gamesStage { width: calc(100% + 40px); margin-left: -20px; }
+  .gamesInner, .discordInner { padding-inline: 20px; }
+  .gamesStage { width: calc(100% + 40px); margin-left: -20px; }
   .discordCopy .lightH2 { font-size: 15.5vw; }
   .archiveLogo { width: 30px; height: 30px; }
   .archiveScore { font-size: 32px; }

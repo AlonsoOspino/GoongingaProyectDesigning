@@ -50,6 +50,10 @@ public class DraftSessionEntity {
     @Column(name = "paused_at")
     private Instant pausedAt;
 
+    // Set only by an audited historical result migration when no map history exists.
+    @Column(name = "summary_only_result", nullable = false)
+    private boolean summaryOnlyResult;
+
     @Version
     @Column(name = "version", nullable = false)
     private long version;
@@ -71,6 +75,7 @@ public class DraftSessionEntity {
 
     /** A state change starts a new turn; an ordinary read never resets the clock. */
     public void apply(DraftState state, Instant now, Duration broadcastHold) {
+        summaryOnlyResult = false;
         phase = state.phase();
         mapNumber = state.mapNumber();
         turnTeamId = state.turnTeamId() == null ? null : Math.toIntExact(state.turnTeamId());
@@ -104,6 +109,7 @@ public class DraftSessionEntity {
     public Instant getPhaseStartedAt() { return phaseStartedAt; }
     public Instant getTurnDeadlineAt() { return turnDeadlineAt; }
     public Instant getPausedAt() { return pausedAt; }
+    public boolean isSummaryOnlyResult() { return summaryOnlyResult; }
     public long getVersion() { return version; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }

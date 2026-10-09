@@ -21,7 +21,7 @@ public class SeasonRosterService {
             .orElseThrow(() -> new DraftHttpException(HttpStatus.NOT_FOUND,"Tournament not found.")); }
     public Map<String,Object> roster(int id) {
         JsonNode tournament=tournament(id);
-        List<JsonNode> teams=json.list("SELECT jsonb_build_object('id',id,'name',name,'playoffSeed',\"playoffSeed\")::text FROM public.\"Team\" WHERE \"tournamentId\"=? ORDER BY \"playoffSeed\" NULLS LAST,name",id);
+        List<JsonNode> teams=json.list("SELECT jsonb_build_object('id',team.id,'name',team.name,'playoffSeed',team.\"playoffSeed\",'divisionId',team.\"divisionId\",'divisionName',d.name)::text FROM public.\"Team\" team LEFT JOIN public.\"TournamentDivision\" d ON d.id=team.\"divisionId\" WHERE team.\"tournamentId\"=? ORDER BY d.\"sortOrder\" NULLS LAST,team.\"playoffSeed\" NULLS LAST,team.name",id);
         List<JsonNode> assigned=json.list("""
                 SELECT (jsonb_build_object('id',sp.id,'memberId',sp."memberId",'teamId',sp."teamId",'role',sp.role,'joinedAt',sp."joinedAt") ||
                   jsonb_build_object('member',jsonb_build_object('id',nm.id,'username',nm.username,'nickname',nm.nickname,'avatarUrl',nm."avatarUrl")))::text

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Modal, ModalFooter } from "@/components/ui/Modal";
@@ -28,7 +29,7 @@ import {
   createTournament,
   getCurrentTournament,
   startTournamentPlayoffs,
-  updateTournament,
+  updateTournamentDivisions,
 } from "@/lib/api/admin";
 import { getLeaderboard } from "@/lib/api/team";
 import { getMatchesByTournament } from "@/lib/api/match";
@@ -85,6 +86,10 @@ export default function SeasonControlPage() {
   // Formularios
   const [seasonName, setSeasonName] = useState("");
   const [seasonDate, setSeasonDate] = useState("");
+  const [seasonFormat, setSeasonFormat] = useState("divisions");
+  const [teamFormation, setTeamFormation] = useState<"COMMITTEE" | "DRAFT">("COMMITTEE");
+  const [divisionNames, setDivisionNames] = useState(["Division A", "Division B"]);
+  const [divisionAssignments, setDivisionAssignments] = useState<Record<number, string>>({});
   const [teamMode, setTeamMode] = useState<"bulk" | "single">("bulk");
   const [teamCount, setTeamCount] = useState("8");
   const [teamPrefix, setTeamPrefix] = useState("Team");
@@ -104,6 +109,13 @@ export default function SeasonControlPage() {
         ]);
         setTeams(nextTeams);
         setMatches(nextMatches);
+        setDivisionNames(current.divisions?.length
+          ? current.divisions.map((division) => division.name)
+          : ["Division A", "Division B"]);
+        setDivisionAssignments(Object.fromEntries(nextTeams.map((team) => [
+          team.id,
+          team.divisionId == null ? "" : String(team.divisionId),
+        ])));
       } else {
         setTeams([]);
         setMatches([]);
@@ -151,6 +163,23 @@ export default function SeasonControlPage() {
 
   const current = stepIndex(tournament?.state);
   const canCreateSeason = !tournament || tournament.state === "FINISHED";
+  const divisions = tournament?.divisions ?? [];
+  const divisionChangesPending = divisions.length > 0
+    ? divisionNames.some((name, index) => name !== divisions[index]?.name)
+      || teams.some((team) => (divisionAssignments[team.id] || "") !== (team.divisionId == null ? "" : String(team.divisionId)))
+    : Object.values(divisionAssignments).some(Boolean);
+  const divisionIssues = useMemo(() => {
+    if (!divisions.length) return [];
+    const issues: string[] = [];
+    const unassigned = teams.filter((team) => team.divisionId == null);
+    if (unassigned.length) issues.push(`${unassigned.length} team(s) have no division.`);
+    for (const division of divisions) {
+      if (teams.filter((team) => team.divisionId === division.id).length < 2) {
+        issues.push(`${division.name} needs at least 2 teams.`);
+      }
+    }
+    return issues;
+  }, [teams, divisions]);
 
   // El seed sale del orden del leaderboard entre los 8 elegidos, igual que el backend.
   const orderedSelection = useMemo(
@@ -175,10 +204,16 @@ export default function SeasonControlPage() {
   const doCreateSeason = () =>
     guard("create-season", async () => {
       if (!token) return;
-      if (!seasonName.trim() || !seasonDate) {
-        throw new Error("A season name and start date are required.");
+      if (!seasonName.trim()) {
+        throw new Error("A season name is required.");
       }
-      await createTournament(token, { name: seasonName.trim(), startDate: seasonDate });
+      await createTournament(token, {
+        name: seasonName.trim(),
+        startDate: seasonDate || null,
+        divisionNames: seasonFormat === "divisions" ? ["Division A", "Division B"] : [],
+        teamFormation,
+        targetTeamCount: 8,
+      });
       setSeasonName("");
       setSeasonDate("");
       setNotice(`Season "${seasonName.trim()}" created. It starts in the Scheduled phase.`);
@@ -209,17 +244,31 @@ export default function SeasonControlPage() {
   const doStartRoundRobin = () =>
     guard("start-rr", async () => {
       if (!token || !tournament) return;
-      // Solo pasar de estado si aún estamos en SCHEDULED; si ya está en
-      // ROUNDROBIN (p. ej. una generación previa falló) solo generamos.
-      if (tournament.state === "SCHEDULED") {
-        await updateTournament(token, tournament.id, { state: "ROUNDROBIN" });
-      }
+      if (divisionChangesPending) throw new Error("Save the division assignments before generating fixtures.");
+      if (divisionIssues.length) throw new Error(divisionIssues.join(" "));
       await adminGenerateRoundRobin(token, {
         tournamentId: tournament.id,
-        bestOf: 3,
         confirmationText: "CONFIRM ROUND ROBIN",
       });
-      setNotice("Round robin generated. The season is now in the Round Robin phase.");
+      setNotice("Best-of-5 fixtures generated. The season is now in the Round Robin phase.");
+      await refresh();
+    });
+
+  const doSaveDivisions = () =>
+    guard("save-divisions", async () => {
+      if (!token || !tournament) return;
+      const names = divisionNames.map((name) => name.trim());
+      if (names.some((name) => !name)) throw new Error("Give every division a name.");
+      if (new Set(names.map((name) => name.toLowerCase())).size !== names.length) {
+        throw new Error("Division names must be different.");
+      }
+      await updateTournamentDivisions(token, tournament.id, names.map((name, index) => ({
+        ...(divisions[index] ? { id: divisions[index].id } : {}),
+        name,
+        teamIds: teams.filter((team) => divisionAssignments[team.id] === String(divisions[index]?.id ?? `new-${index}`))
+          .map((team) => team.id),
+      })));
+      setNotice("Divisions saved. Regular-season matches stay within each division.");
       await refresh();
     });
 
@@ -317,12 +366,35 @@ export default function SeasonControlPage() {
                       onChange={(event) => setSeasonName(event.target.value)}
                     />
                     <Input
-                      label="Start date"
+                      label="Start date (optional)"
                       type="date"
                       value={seasonDate}
                       onChange={(event) => setSeasonDate(event.target.value)}
                     />
                   </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Select
+                      label="Regular-season format"
+                      value={seasonFormat}
+                      options={[
+                        { value: "divisions", label: "Two divisions" },
+                        { value: "single", label: "One pool" },
+                      ]}
+                      onChange={(event) => setSeasonFormat(event.target.value)}
+                    />
+                    <Select
+                      label="Team construction"
+                      value={teamFormation}
+                      options={[
+                        { value: "COMMITTEE", label: "Committee-balanced teams" },
+                        { value: "DRAFT", label: "Captain draft" },
+                      ]}
+                      onChange={(event) => setTeamFormation(event.target.value as "COMMITTEE" | "DRAFT")}
+                    />
+                  </div>
+                  <p className="text-xs text-muted">
+                    Season 9 targets 8 teams: two divisions of 4. Assign teams to their divisions before generating fixtures.
+                  </p>
                   <Button
                     onClick={() =>
                       setConfirm({
@@ -337,9 +409,65 @@ export default function SeasonControlPage() {
                         run: doCreateSeason,
                       })
                     }
-                    disabled={busy !== null || !seasonName.trim() || !seasonDate}
+                    disabled={busy !== null || !seasonName.trim()}
                   >
                     <CalendarPlus size={16} /> Create season
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {tournament && (tournament.state === "SCHEDULED" || tournament.state === "ROUNDROBIN") && roundRobinMatches.length === 0 && (
+              <Card variant="bordered">
+                <CardHeader className="flex items-center gap-2">
+                  <Users size={18} className="text-accent" />
+                  <CardTitle>{divisions.length ? "Division assignments" : "Set up two divisions"}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted">
+                    Teams only face opponents in their own division during the regular season.
+                    The target is 4 teams per division. Assignments are locked once fixtures exist.
+                  </p>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {divisionNames.map((name, index) => (
+                      <Input
+                        key={index}
+                        id={`division-name-${index}`}
+                        label={`Division ${index + 1} name`}
+                        value={name}
+                        onChange={(event) => setDivisionNames((current) => current.map((value, position) => position === index ? event.target.value : value))}
+                      />
+                    ))}
+                  </div>
+                  <div className="space-y-2">
+                    {teams.map((team) => (
+                      <div key={team.id} className="grid items-center gap-2 rounded-sm border border-border-subtle bg-surface-inset p-3 sm:grid-cols-2">
+                        <span className="text-sm text-text-primary">{team.name}</span>
+                        <Select
+                          aria-label={`Division for ${team.name}`}
+                          value={divisionAssignments[team.id] ?? ""}
+                          options={[
+                            { value: "", label: "Not assigned" },
+                            ...divisionNames.map((name, index) => ({
+                              value: String(divisions[index]?.id ?? `new-${index}`),
+                              label: name || `Division ${index + 1}`,
+                            })),
+                          ]}
+                          onChange={(event) => setDivisionAssignments((current) => ({ ...current, [team.id]: event.target.value }))}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap gap-4 text-xs text-muted">
+                    {divisionNames.map((name, index) => (
+                      <span key={index}>
+                        {name}: {teams.filter((team) => divisionAssignments[team.id] === String(divisions[index]?.id ?? `new-${index}`)).length} teams
+                      </span>
+                    ))}
+                  </div>
+                  <Button variant="outline" onClick={() => void doSaveDivisions()} disabled={busy !== null}>
+                    {busy === "save-divisions" && <Loader2 size={16} className="animate-spin" />}
+                    Save divisions
                   </Button>
                 </CardContent>
               </Card>
@@ -419,8 +547,10 @@ export default function SeasonControlPage() {
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <p className="text-sm text-muted">
-                      Moves the season into Round Robin and generates every weekly fixture with the circle method
-                      (no team plays twice in a week). This can only be generated once.
+                      {divisions.length
+                        ? "Generates weekly fixtures within each division. Both divisions share the same weeks, and no team plays twice in a week."
+                        : "Generates weekly fixtures for the season, with no team playing twice in a week."}
+                      {" "}Every fixture is best of 5. This can only be generated once.
                     </p>
                     <Button
                       onClick={() =>
@@ -429,7 +559,7 @@ export default function SeasonControlPage() {
                           body: (
                             <p>
                               This advances <strong>{tournament.name}</strong> to Round Robin and creates the full
-                              fixture list for {teams.length} teams. It cannot be regenerated without deleting the
+                              best-of-5 fixture list for {teams.length} teams. It cannot be regenerated without deleting the
                               matches first.
                             </p>
                           ),
@@ -437,13 +567,15 @@ export default function SeasonControlPage() {
                           run: doStartRoundRobin,
                         })
                       }
-                      disabled={busy !== null || teams.length < 2}
+                      disabled={busy !== null || teams.length < 2 || divisionIssues.length > 0 || divisionChangesPending}
                     >
                       <ListChecks size={16} /> Advance to Round Robin
                     </Button>
                     {teams.length < 2 && (
                       <p className="text-xs text-warning">Add at least 2 teams first.</p>
                     )}
+                    {divisionIssues.map((issue) => <p key={issue} className="text-xs text-warning">{issue}</p>)}
+                    {divisionChangesPending && <p className="text-xs text-warning">Save the division assignments before generating fixtures.</p>}
                   </CardContent>
                 </Card>
               </>
@@ -464,7 +596,7 @@ export default function SeasonControlPage() {
                       <Button
                         variant="outline"
                         onClick={() => void doStartRoundRobin()}
-                        disabled={busy !== null || teams.length < 2}
+                        disabled={busy !== null || teams.length < 2 || divisionIssues.length > 0 || divisionChangesPending}
                       >
                         {busy === "start-rr" ? <Loader2 size={16} className="animate-spin" /> : <ListChecks size={16} />}
                         Generate the fixtures
@@ -642,12 +774,20 @@ function StatusPanel({
             </Row>
             <Row label="Start date">
               <span className="text-text-primary">
-                {new Date(tournament.startDate).toLocaleDateString("en-US")}
+                {tournament.startDate ? new Date(tournament.startDate).toLocaleDateString("en-US") : "To be announced"}
               </span>
             </Row>
             <Row label="Teams">
               <span className="text-text-primary">{teamCount}</span>
             </Row>
+            <Row label="Format">
+              <span className="text-text-primary">{tournament.divisions?.length ? `${tournament.divisions.length} divisions` : "Single pool"}</span>
+            </Row>
+            {tournament.teamFormation && (
+              <Row label="Team construction">
+                <span className="text-text-primary">{tournament.teamFormation === "COMMITTEE" ? "Committee" : "Draft"}</span>
+              </Row>
+            )}
             {roundRobinTotal > 0 && (
               <Row label="Round robin">
                 <span className="text-text-primary">

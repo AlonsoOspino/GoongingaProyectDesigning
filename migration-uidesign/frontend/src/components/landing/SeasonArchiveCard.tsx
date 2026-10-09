@@ -50,8 +50,8 @@ export default function SeasonArchiveCard() {
   return (
     <article className={styles.archiveCard} aria-label={`${tournament.name} grand final result`}>
       <header className={styles.archiveHead}>
-        <span className={styles.archiveKicker}>Season 8 · Grand Final</span>
-        <span className={styles.archiveFormat}>Bo{grandFinal.bestOf}</span>
+        <span className={styles.archiveKicker}>Season 8 · Final result</span>
+        <span className={styles.archiveFormat}>Complete</span>
       </header>
 
       <ul className={styles.archiveSides}>

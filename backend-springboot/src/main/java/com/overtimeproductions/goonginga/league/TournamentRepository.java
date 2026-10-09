@@ -15,19 +15,26 @@ import tools.jackson.databind.JsonNode;
 
 @Repository
 public class TournamentRepository {
+    private static final String READ = "SELECT (to_jsonb(t) || jsonb_build_object('divisions', COALESCE((SELECT jsonb_agg(to_jsonb(d) ORDER BY d.\"sortOrder\",d.id) FROM public.\"TournamentDivision\" d WHERE d.\"tournamentId\"=t.id),'[]'::jsonb)))::text FROM public.\"Tournament\" t ";
     private final JdbcTemplate jdbc;
     private final JsonSql json;
     private final DraftProvisioningService drafts;
     public TournamentRepository(JdbcTemplate jdbc, JsonSql json, DraftProvisioningService drafts) {
         this.jdbc=jdbc; this.json=json; this.drafts=drafts;
     }
-    public List<JsonNode> all() { return json.list("SELECT to_jsonb(t)::text FROM public.\"Tournament\" t WHERE name <> 'GGL Developer Draft App' ORDER BY id"); }
-    public JsonNode get(int id) { return json.first("SELECT to_jsonb(t)::text FROM public.\"Tournament\" t WHERE id=?",id)
+    public List<JsonNode> all() { return json.list(READ + "WHERE name <> 'GGL Developer Draft App' ORDER BY id"); }
+    public JsonNode get(int id) { return json.first(READ + "WHERE id=?",id)
             .orElseThrow(() -> new DraftHttpException(HttpStatus.NOT_FOUND,"Tournament not found.")); }
-    public Optional<JsonNode> active() { return json.first("SELECT to_jsonb(t)::text FROM public.\"Tournament\" t WHERE name <> 'GGL Developer Draft App' AND state <> 'FINISHED' ORDER BY \"startDate\" DESC,id DESC LIMIT 1"); }
-    public Optional<JsonNode> recent() { return json.first("SELECT to_jsonb(t)::text FROM public.\"Tournament\" t WHERE name <> 'GGL Developer Draft App' ORDER BY \"startDate\" DESC,id DESC LIMIT 1"); }
+    public Optional<JsonNode> active() { return json.first(READ + "WHERE name <> 'GGL Developer Draft App' AND state <> 'FINISHED' ORDER BY id DESC LIMIT 1"); }
+    public Optional<JsonNode> recent() { return json.first(READ + "WHERE name <> 'GGL Developer Draft App' ORDER BY id DESC LIMIT 1"); }
     public boolean nameExists(String name) { return Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM public.\"Tournament\" WHERE name=?)",Boolean.class,name)); }
-    public int create(String name, Instant date) { return jdbc.queryForObject("INSERT INTO public.\"Tournament\" (name,\"startDate\",state) VALUES (?,?,'SCHEDULED'::\"TournamentState\") RETURNING id",Integer.class,name,utc(date)); }
+    public int create(String name, Instant date) { return jdbc.queryForObject("INSERT INTO public.\"Tournament\" (name,\"startDate\",state) VALUES (?,?,'SCHEDULED'::\"TournamentState\") RETURNING id",Integer.class,name,date==null?null:utc(date)); }
+    public void format(int id, String formation, Integer targetTeamCount) {
+        jdbc.update("UPDATE public.\"Tournament\" SET \"teamFormation\"=?,\"targetTeamCount\"=? WHERE id=?", formation,targetTeamCount,id);
+    }
+    public void createDivision(int tournamentId,String name,int order) {
+        jdbc.update("INSERT INTO public.\"TournamentDivision\" (\"tournamentId\",name,\"sortOrder\") VALUES (?,?,?)",tournamentId,name,order);
+    }
     public void update(int id,String name,Instant date,String state) {
         jdbc.update("UPDATE public.\"Tournament\" SET name=COALESCE(?,name),\"startDate\"=COALESCE(?,\"startDate\"),state=COALESCE(?::\"TournamentState\",state) WHERE id=?",name,date==null?null:utc(date),state,id);
     }

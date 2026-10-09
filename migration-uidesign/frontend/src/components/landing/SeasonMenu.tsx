@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import menu from "./season-menu.module.css";
 import { useCurrentTournament } from "@/features/tournament/useCurrentTournament";
+import { matchesSeasonNumber } from "@/features/tournament/seasonIdentity";
 import {
   SEASON_INFORMATION_HREF,
   SEASON_NAV_ITEMS,
@@ -30,7 +31,7 @@ export default function SeasonMenu({
   onNavigate,
 }: Props) {
   const tournament = useCurrentTournament();
-  const live = isTournamentLive(tournament?.state);
+  const live = matchesSeasonNumber(tournament, 9) && isTournamentLive(tournament?.state);
 
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);

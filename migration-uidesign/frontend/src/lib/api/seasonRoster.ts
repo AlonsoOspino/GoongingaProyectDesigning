@@ -23,6 +23,8 @@ export interface SeasonRosterTeam {
   id: number;
   name: string;
   playoffSeed: number | null;
+  divisionId?: number | null;
+  divisionName?: string | null;
 }
 
 export interface SeasonRoster {

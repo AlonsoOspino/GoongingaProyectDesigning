@@ -63,6 +63,7 @@ public class DraftStore {
     public boolean exists(int matchId) { return sessions.findByMatchId(matchId).isPresent(); }
 
     public LoadedDraft save(LoadedDraft loaded, DraftState next, Instant now) {
+        requireRecordedMaps(loaded);
         var before = loaded.state();
         var current = loaded.currentMap();
         if (before.currentMapId() == null && next.currentMapId() != null) {
@@ -100,6 +101,7 @@ public class DraftStore {
     public void flush() { sessions.flush(); }
 
     public LoadedDraft undo(LoadedDraft loaded, DraftState restored, Instant now) {
+        requireRecordedMaps(loaded);
         loaded.maps().getLast().undoResult();
         loaded.session().resume(now);
         loaded.session().apply(restored, now, Duration.ZERO);
@@ -109,6 +111,20 @@ public class DraftStore {
 
     private LoadedDraft assemble(DraftSessionEntity session, MatchInfo match) {
         var picks = maps.findByDraftSessionIdOrderByMapNumber(session.getId());
+        if (session.isSummaryOnlyResult()) {
+            int bestOf=match.effectiveBestOf(),requiredWins=(bestOf+1)/2;
+            int a=match.mapWinsTeamA(),b=match.mapWinsTeamB();
+            boolean emptyResults=match.mapResults()==null || match.mapResults().isNull()
+                    || (match.mapResults().isArray() && match.mapResults().isEmpty());
+            boolean completedScore=requiredWins>0 && a>=0 && b>=0
+                    && ((a==requiredWins && b<requiredWins) || (b==requiredWins && a<requiredWins));
+            if (!"FINISHED".equals(match.status()) || session.getPhase()!=DraftPhase.FINISHED || !picks.isEmpty()
+                    || match.gameNumber()!=0 || !emptyResults || !completedScore)
+                throw new DraftHttpException(HttpStatus.CONFLICT,"The historical series summary is inconsistent. Audit its result before using this match.");
+            var state=new DraftState(match.id(),match.teamAId(),match.teamBId(),session.getMapNumber(),bestOf,
+                    a,b,DraftPhase.FINISHED,null,null,null,null,java.util.Set.of(),List.of(),List.of());
+            return new LoadedDraft(session,match,List.of(),List.of(),state);
+        }
         var turns = picks.isEmpty() ? List.<DraftBanEntity>of()
                 : bans.findByDraftMapIdInOrderById(picks.stream().map(DraftMapEntity::getId).toList());
         var current = picks.stream().filter(m -> m.getMapNumber() == session.getMapNumber() && m.getResultRecordedAt() == null).findFirst().orElse(null);
@@ -131,5 +147,9 @@ public class DraftStore {
     }
 
     private static Long asLong(Integer value) { return value == null ? null : value.longValue(); }
+    private static void requireRecordedMaps(LoadedDraft loaded) {
+        if (loaded.session().isSummaryOnlyResult())
+            throw new DraftHttpException(HttpStatus.CONFLICT,"This historical series has only a recorded final score. Reset it before running a new draft.");
+    }
     private static DraftHttpException missing() { return new DraftHttpException(HttpStatus.NOT_FOUND, "Draft not found."); }
 }

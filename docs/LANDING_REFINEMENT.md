@@ -1,23 +1,26 @@
 # Ajustes de la landing
 
-2 de octubre de 2026. La petición más reciente del usuario autoriza retirar el efecto de cuadrados rechazado. La dirección final conserva y refuerza el verde de Overtime, con ilustraciones grandes, una composición más clara y textos breves en inglés.
+8 de octubre de 2026. Se conservan los cubos iluminados del fondo original con movimiento suave. Se retiró la capa verde opaca: el fondo vuelve a ser oscuro y el verde queda en los cubos, los títulos y las acciones. La composición original de GGL se conserva, con texto a la izquierda e imagen a la derecha.
 
 | Área | Dirección final |
 | --- | --- |
-| Fondo de la landing | Verde con mayor presencia; retirar los tableros, cuadrados y máscaras de recorte cuadradas |
+| Fondo de la landing | Conservar los cubos verdes iluminados en portada, GGL, Game Nights, Discord, cabecera y pie; iluminación contenida y movimiento más tranquilo |
+| Ilustraciones | Retirar únicamente la máscara de celdas que recortaba las imágenes; mantener el arte completo sobre el fondo de cubos |
 | Portada | Reinhardt visible a la derecha y contraste suficiente para leer el título y las acciones |
-| GGL | Titular y explicación breve arriba; ilustración grande y resultado real de Season 8 como apoyo |
+| GGL | Composición original, cierre explícito de Season 8 (Gamin 4 Goonginga 4–2 No Tank?) y presentación de Season 9 |
 | Game Nights | Arte amplio y una frase sobre los juegos y eventos de la comunidad |
 | Discord | Título en dos líneas, peluche a la derecha y enlace directo para participar |
 | Introducción | Retirar la banda independiente de WhoWeAre; evitar repetir el contexto de la portada |
 | Equipos y estadísticas | Logos y bordes de identidad sobre superficies tranquilas; reducir fondos multicolor y brillos |
-| Season 9 | Texto directo e ilustración existente; eliminar placeholders visibles |
+| Season 9 | Nueva composición alineada, dos divisiones, equipos formados por comité y objetivo de ocho equipos; eliminar catálogo interactivo de mapas |
 
 Las mejoras de presentación conservan las integraciones de anuncios, miembros, inscripción, estadísticas, draft y transmisión.
 
 ## Verificación
 
-El typecheck de la iteración anterior pasó. La compilación y revisión visual de esta dirección final deben verificarse después de completar los cambios. Las capturas anteriores de `docs/visual-review` corresponden a una versión con cuadrados y no representan el resultado final.
+Typecheck y compilación de producción correctos. La compilación usó `NEXT_DIST_DIR=.next-season9-check` para mantener funcionando la vista de desarrollo. Información de Season 9 comprobada en escritorio y a 390 px, sin desbordamiento horizontal ni catálogo de mapas. El estado de Season 8 ya no controla las fases de Season 9.
+
+Capturas de Season 9: [escritorio](visual-review/season-9-information-desktop.jpg), [móvil](visual-review/season-9-information-mobile.jpg) y [fases](visual-review/season-9-information-schedule.jpg). Ver [motor de divisiones](SEASON_9.md) para el cambio de calendario y datos.
 
 ## Imagen de Discord
 

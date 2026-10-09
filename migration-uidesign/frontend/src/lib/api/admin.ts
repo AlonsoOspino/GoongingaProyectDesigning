@@ -10,12 +10,36 @@ export async function getCurrentTournament(options: { cache?: RequestCache } = {
 
 export async function createTournament(
   token: string,
-  payload: { name: string; startDate: string }
+  payload: {
+    name: string;
+    startDate?: string | null;
+    divisionNames?: string[];
+    teamFormation?: "DRAFT" | "COMMITTEE";
+    targetTeamCount?: number | null;
+  }
 ) {
   return apiRequest<Tournament>("/tournament/create", {
     method: "POST",
     token,
     body: payload,
+  });
+}
+
+export interface DivisionAssignment {
+  id?: number;
+  name: string;
+  teamIds: number[];
+}
+
+export async function updateTournamentDivisions(
+  token: string,
+  tournamentId: number,
+  divisions: DivisionAssignment[]
+) {
+  return apiRequest<Tournament>(`/tournament/${tournamentId}/divisions`, {
+    method: "PUT",
+    token,
+    body: { divisions },
   });
 }
 export async function updateTournament(
@@ -66,6 +90,7 @@ export interface CreateTeamPayload {
   roster?: string;
   discordRoleId?: string;
   tournamentId: number;
+  divisionId?: number | null;
 }
 
 export async function adminCreateTeam(token: string, payload: CreateTeamPayload) {
