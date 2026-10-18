@@ -151,6 +151,7 @@ export function SiteHeader() {
     { href: "/captain-dashboard", label: "Captain Dashboard", chip: "Captain", show: isCaptain },
     { href: "/manager-dashboard", label: "Manager Dashboard", chip: "Manager", show: isManager },
     { href: "/admin-dashboard", label: "Admin Dashboard", chip: "Admin", show: isAdmin },
+    { href: "/dev/draft-app", label: "Draft Animation Lab", chip: "Developer", show: currentRoles.includes("DEVELOPER") },
   ].filter((entry) => entry.show);
 
   return (

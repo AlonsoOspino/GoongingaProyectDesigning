@@ -8,12 +8,14 @@ import {
   ExternalLink,
   Minus,
   Plus,
+  RotateCcw,
   Trash2,
   X,
 } from "lucide-react";
 import { ImageUploadField } from "@/components/ui/ImageUploadField";
 import { MapPoolControl } from "@/components/manager/MapPoolControl";
 import { getCurrentNetworkMember } from "@/lib/api/networkMember";
+import { resetManagerMatch } from "@/lib/api/match";
 import {
   createDevMatch,
   createDevTeam,
@@ -36,9 +38,10 @@ const MAP_TYPES: MapType[] = ["CONTROL", "HYBRID", "PAYLOAD", "PUSH", "FLASHPOIN
 const HERO_ROLES: Array<"ALL" | HeroRole> = ["ALL", "TANK", "DPS", "SUPPORT"];
 
 const OVERLAYS = [
-  { id: "map-pool", label: "Map pool", path: "/overlay/map-pool/dev" },
-  { id: "header", label: "Match header", path: "/overlay/match-header/dev" },
-  { id: "header-reversed", label: "Reversed header", path: "/overlay/match-header-reversed/dev" },
+  { id: "draft", label: "Draft animation preview", path: "/draft-table/dev?broadcast=1", compact: false },
+  { id: "map-pool", label: "Map pool", path: "/overlay/map-pool/dev", compact: false },
+  { id: "header", label: "Match header", path: "/overlay/match-header/dev", compact: true },
+  { id: "header-reversed", label: "Reversed header", path: "/overlay/match-header-reversed/dev", compact: true },
 ] as const;
 
 type OverlayId = (typeof OVERLAYS)[number]["id"];
@@ -103,17 +106,18 @@ export function DevDraftApp() {
   const [selectedMapIds, setSelectedMapIds] = useState<Set<number>>(new Set());
   const [deleteTeamId, setDeleteTeamId] = useState<number | null>(null);
   const [confirmDeleteMatch, setConfirmDeleteMatch] = useState(false);
+  const [confirmRestart, setConfirmRestart] = useState(false);
   const [banSide, setBanSide] = useState<BanSide>("teamA");
   const [heroRole, setHeroRole] = useState<"ALL" | HeroRole>("ALL");
   const [heroSearch, setHeroSearch] = useState("");
-  const [activeOverlay, setActiveOverlay] = useState<OverlayId>("map-pool");
+  const [activeOverlay, setActiveOverlay] = useState<OverlayId>("draft");
   const [copiedPath, setCopiedPath] = useState<string | null>(null);
   const [scoreDraft, setScoreDraft] = useState({ teamA: "0", teamB: "0" });
 
   useEffect(() => {
     const sessionToken = readNetworkSessionToken();
     if (!sessionToken) {
-      router.replace("/login");
+      router.replace("/login?next=%2Fdev%2Fdraft-app");
       return;
     }
 
@@ -144,6 +148,21 @@ export function DevDraftApp() {
       cancelled = true;
     };
   }, [router]);
+
+  useEffect(() => {
+    if (!token || !state?.match || pending) return;
+    let active = true;
+    const refresh = async () => {
+      if (document.hidden) return;
+      try {
+        const next = await getDevDraftAppState(token);
+        if (active) setState(next);
+      } catch { /* Keep the last confirmed preview during a temporary disconnect. */ }
+    };
+    const interval = window.setInterval(() => void refresh(), 5000);
+    window.addEventListener("focus", refresh);
+    return () => { active = false; window.clearInterval(interval); window.removeEventListener("focus", refresh); };
+  }, [token, state?.match?.id, pending]);
 
   useEffect(() => {
     if (!state || state.match) return;
@@ -262,6 +281,19 @@ export function DevDraftApp() {
     }
   }
 
+  async function handleRestartDraft() {
+    if (!token || !state?.match) return;
+    setPending("restart");
+    setError(null);
+    try {
+      await resetManagerMatch(token, state.match.id);
+      setState(await getDevDraftAppState(token));
+      setConfirmRestart(false);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "The practice draft could not be restarted.");
+    } finally { setPending(null); }
+  }
+
   function adjustScore(side: BanSide, delta: number) {
     setScoreDraft((current) => {
       const score = parseScoreDraft(current[side]) ?? 0;
@@ -368,8 +400,8 @@ export function DevDraftApp() {
     <main className={styles.page}>
       <header className={styles.pageHeader}>
         <div>
-          <h1>Developer / Draft app</h1>
-          <p>Persistent team pool · Match alias /dev</p>
+          <h1>Developer / Draft lab</h1>
+          <p>Practice teams, draft animations and live overlay previews · /dev</p>
         </div>
         <span className={styles.status} data-active={state.match ? "true" : "false"}>
           {state.match ? "Dev match ready" : "No dev match"}
@@ -384,6 +416,15 @@ export function DevDraftApp() {
           </button>
         </div>
       ) : null}
+
+      <section className={styles.labGuide} aria-label="Draft animation walkthrough">
+        <div>
+          <h2>Walk through the real draft</h2>
+          <p>Open the operator table to control both teams from one developer session. Start → map pick → hero bans → playing → result. Restart to replay the transitions.</p>
+          <p className={styles.labNote}>This shared practice match is separate from the season schedule. Other developers see the same test state. The score and ban controls below change overlay previews; restarting clears those overrides.</p>
+        </div>
+        {state.match && <a className={styles.primaryButton} href="/draft-table/dev" target="_blank" rel="noreferrer"><ExternalLink size={16} aria-hidden /> Open operator table</a>}
+      </section>
 
       <div className={styles.workspace}>
         <aside className={styles.teamPanel}>
@@ -476,8 +517,9 @@ export function DevDraftApp() {
               <div className={styles.sectionHead}>
                 <div>
                   <h2>Create dev match</h2>
-                  <p>Select two teams and the maps available to the overlay.</p>
+                  <p>Select two teams and a map pool. Include Control for the opening map and other modes to test later rounds.</p>
                 </div>
+                <button type="button" className={styles.secondaryButton} onClick={() => setSelectedMapIds(new Set(state.maps.map((map) => map.id)))}>Select all maps</button>
               </div>
 
               <div className={styles.teamSelectors}>
@@ -562,6 +604,11 @@ export function DevDraftApp() {
                   <TeamLogo team={teamB} />
                 </div>
                 <div className={styles.matchActions}>
+                  {confirmRestart ? <div className={styles.inlineConfirm}>
+                    <span>Clear test progress, scores and bans?</span>
+                    <button type="button" disabled={pending !== null} onClick={() => setConfirmRestart(false)}>Cancel</button>
+                    <button type="button" disabled={pending !== null} className={styles.dangerText} onClick={() => void handleRestartDraft()}>{pending === "restart" ? "Restarting…" : "Restart draft"}</button>
+                  </div> : <button type="button" className={styles.secondaryButton} disabled={pending !== null} onClick={() => { setConfirmRestart(true); setConfirmDeleteMatch(false); }}><RotateCcw size={15} aria-hidden /> Restart draft</button>}
                   {confirmDeleteMatch ? (
                     <div className={styles.deleteMatchConfirm}>
                       <span>Delete this match?</span>
@@ -576,7 +623,7 @@ export function DevDraftApp() {
                       </button>
                     </div>
                   ) : (
-                    <button type="button" className={styles.iconButton} onClick={() => setConfirmDeleteMatch(true)} aria-label="Delete dev match" title="Delete dev match">
+                      <button type="button" className={styles.iconButton} onClick={() => { setConfirmDeleteMatch(true); setConfirmRestart(false); }} aria-label="Delete dev match" title="Delete dev match">
                       <Trash2 size={17} aria-hidden />
                     </button>
                   )}
@@ -762,8 +809,8 @@ export function DevDraftApp() {
               <section className={styles.previewSection}>
                 <div className={styles.sectionHead}>
                   <div>
-                    <h2>Overlay previews</h2>
-                    <p>All links resolve the persistent developer match.</p>
+                    <h2>Draft & overlay previews</h2>
+                    <p>The draft preview follows the operator table in a 1920 × 1080 canvas. Open it beside the controls to inspect transitions.</p>
                   </div>
                 </div>
                 <div className={styles.overlayList}>
@@ -785,7 +832,7 @@ export function DevDraftApp() {
                 <OverlayPreview
                   path={selectedOverlay.path}
                   label={selectedOverlay.label}
-                  compact={selectedOverlay.id !== "map-pool"}
+                  compact={selectedOverlay.compact}
                 />
               </section>
             </div>

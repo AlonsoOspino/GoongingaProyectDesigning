@@ -8,6 +8,9 @@ import { BRUSH_REVEAL_LENGTH, BrushStrike } from "./BrushStrike";
 
 /** How much longer the ban plays than it used to. 1.5 = 50% slower. */
 const BAN_SLOWDOWN = 1.5;
+// The normal timeline takes 3.825s. RAF can stall in background/OBS previews,
+// so animation completion must never be the only way to release the board.
+const BAN_COMPLETION_TIMEOUT_MS = 5000;
 import styles from "./draft-stage.module.css";
 
 export type BanCeremonyRequest = {
@@ -61,14 +64,25 @@ export function BanCeremony({
       return;
     }
 
-    const finish = () => onComplete(request.key);
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      window.clearTimeout(watchdog);
+      onComplete(request.key);
+    };
+    const watchdog = window.setTimeout(finish, BAN_COMPLETION_TIMEOUT_MS);
 
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       const revealPaths = [strokeOneRef.current, strokeTwoRef.current].filter(Boolean);
       gsap.set(revealPaths, { strokeDashoffset: 0 });
       if (imageRef.current) gsap.set(imageRef.current, { filter: "grayscale(1) brightness(0.65)" });
       const hold = window.setTimeout(finish, 1400 * BAN_SLOWDOWN);
-      return () => window.clearTimeout(hold);
+      return () => {
+        finished = true;
+        window.clearTimeout(hold);
+        window.clearTimeout(watchdog);
+      };
     }
 
     const context = gsap.context(() => {
@@ -144,7 +158,11 @@ export function BanCeremony({
         .to(portrait, { opacity: 0, duration: 0.2, ease: "power2.in" }, flightAt + 0.4);
     });
 
-    return () => context.revert();
+    return () => {
+      finished = true;
+      window.clearTimeout(watchdog);
+      context.revert();
+    };
   }, [request, containerRef, onComplete]);
 
   if (!request) return null;

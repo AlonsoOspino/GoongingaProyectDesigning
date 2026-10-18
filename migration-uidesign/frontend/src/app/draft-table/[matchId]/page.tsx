@@ -49,6 +49,7 @@ import waitingStyles from "@/components/draft/waiting-room.module.css";
 import playing from "@/components/draft/playing-stage.module.css";
 import { isBracketMatch, getRequiredWins, getSeriesLength } from "@/lib/match-format";
 import { parseMatchReference } from "@/lib/matchReference";
+import { deriveDraftPermissions } from "@/lib/draft/permissions";
 
 const POLL_INTERVAL = 3000;
 const TURN_DURATION = 95;
@@ -146,18 +147,17 @@ export default function DraftTablePage() {
     };
   }, [token, isObsKeyAccess]);
 
-  const isManager = !isObsKeyAccess && Boolean(networkUser?.roles.some((role) => role === "SOCIAL_MEDIA" || role === "ADMIN"));
-  const isAdmin = !isObsKeyAccess && Boolean(networkUser?.roles.includes("ADMIN"));
-  // Destructive operational actions (full match reset) are open to both roles.
-  const canResetMatch = isManager || isAdmin;
-  const captainAssignment = capabilities?.captainOf.find((assignment) =>
-    assignment.tournamentId === draftState?.match?.tournamentId
-    && (assignment.teamId === draftState.match.teamAId || assignment.teamId === draftState.match.teamBId));
-  const isCaptain = !isObsKeyAccess && Boolean(captainAssignment);
+  const { isManager, isCaptain, isDevOperator, canActForTeam, actingTeamId: myTeamId, canChooseForCurrentTurn: isMyTurn } = deriveDraftPermissions({
+    roles: networkUser?.roles ?? [],
+    captainOf: capabilities?.captainOf ?? [],
+    matchReference,
+    match: draftState?.match,
+    currentTurnTeamId: draftState?.currentTurnTeamId,
+    readOnly: isObsKeyAccess,
+  });
+  const canResetMatch = isManager;
   const isKeyAccess = isObsKeyAccess;
   const shouldRenderCompactHeader = true;
-  const myTeamId = captainAssignment?.teamId;
-  const isMyTurn = draftState?.currentTurnTeamId === myTeamId;
   const currentPhase = draftState?.phase as Phase;
   const isMapSelectionLocked = currentPhase === "MAPPICKING" && Boolean(draftState?.currentMapId);
   const isCeremonyActive = Boolean(activeCeremony);
@@ -446,7 +446,11 @@ export default function DraftTablePage() {
     }
     setActionLoading(true);
     try {
-      const updated = await endGame(token, draftId);
+      const expected = draftState?.currentMapId ? {
+        expectedGameNumber: (draftState.match.gameNumber || 0) + 1,
+        expectedMapId: draftState.currentMapId,
+      } : undefined;
+      const updated = await endGame(token, draftId, expected);
       setDraftState(updated);
       setActionError(null);
     } catch (err) {
@@ -523,7 +527,11 @@ export default function DraftTablePage() {
     }
     setActionLoading(true);
     try {
-      await submitMatchResult(token, matchId, winnerTeamId);
+      const expected = draftState.currentMapId ? {
+        expectedGameNumber: (draftState.match.gameNumber || 0) + 1,
+        expectedMapId: draftState.currentMapId,
+      } : undefined;
+      await submitMatchResult(token, matchId, winnerTeamId, expected);
       fetchDraftState();
       setActionError(null);
     } catch (err) {
@@ -567,7 +575,13 @@ export default function DraftTablePage() {
       await resetManagerMatch(token, matchId);
       setResetConfirmOpen(false);
       setActionError(null);
-      router.push(`/schedule/${matchId}`);
+      if (isDevOperator) {
+        seenActionIdsRef.current.clear();
+        hasInitializedActionsRef.current = false;
+        setCeremonyQueue([]);
+        setActiveCeremony(null);
+        await loadData();
+      } else router.push(`/schedule/${matchId}`);
     } catch (err) {
       handleRequestFailure("Failed to reset match:", err, "No se pudo reiniciar el match.");
     } finally {
@@ -1008,7 +1022,7 @@ export default function DraftTablePage() {
                 </div>
                 <div className="flex items-center justify-between gap-4 sm:justify-end">
                   {/* Ready Status for Manager */}
-                  {isManager && currentPhase === "STARTING" && (
+                  {isManager && !isDevOperator && currentPhase === "STARTING" && (
                     <div className={clsx("flex items-center gap-2", isObsKeyAccess ? "text-sm" : "text-xs")}>
                       <div className={clsx("w-2 h-2 rounded-full", draftState.match.teamAready ? "bg-success" : "bg-muted")} />
                       <span className="text-muted">{teamA?.name?.substring(0, 8)}</span>
@@ -1067,6 +1081,11 @@ export default function DraftTablePage() {
             </div>
           )}
 
+          {isDevOperator && <section aria-label="Developer test operator" className="mb-5 rounded-sm border border-accent/40 bg-surface/90 px-4 py-3 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3"><strong className="uppercase tracking-wider text-accent">Draft animation lab · Test operator</strong><div className="flex flex-wrap items-center gap-3"><a href="/dev/draft-app" className="text-accent underline underline-offset-4">Teams & map setup</a><Button size="sm" variant="outline" onClick={() => setResetConfirmOpen(true)} disabled={actionLoading || resetPending}>Reset practice</Button></div></div>
+            <p className="mt-2 leading-6 text-muted">You control both teams in this practice match. Picks and bans follow the current turn{firstPickerTeam ? `: ${firstPickerTeam.name}` : ""}. Use the phase controls to advance, register test results, or reset and replay.</p>
+          </section>}
+
           {/* The map verdict is a real subphase, so it shares the broadcast
               transition without replaying on ordinary timer/poll updates. */}
         <PhaseTransition phaseKey={isMapSelectionLocked ? "MAPPICKING:LOCKED" : currentPhase}>
@@ -1077,6 +1096,7 @@ export default function DraftTablePage() {
             <StartingPhase
               isManager={isManager}
               isCaptain={isCaptain}
+              isDevOperator={isDevOperator}
               isObsKeyAccess={isObsKeyAccess}
               teamA={teamA}
               teamB={teamB}
@@ -1104,7 +1124,7 @@ export default function DraftTablePage() {
 
         {currentPhase === "MAPTYPEPICKING" && (
           <MapTypePickingPhase
-            isCaptain={isCaptain}
+            isCaptain={canActForTeam}
             isMyTurn={isMyTurn}
             draftState={draftState}
             teams={teams}
@@ -1117,7 +1137,7 @@ export default function DraftTablePage() {
         {currentPhase === "MAPPICKING" && (
           <MapPickingPhase
             isManager={isManager}
-            isCaptain={isCaptain}
+            isCaptain={canActForTeam}
             isMyTurn={isMyTurn}
             draftState={draftState}
             teams={teams}
@@ -1132,7 +1152,7 @@ export default function DraftTablePage() {
         {currentPhase === "BAN" && (
           <BanPhase
             isManager={isManager}
-            isCaptain={isCaptain}
+            isCaptain={canActForTeam}
             isMyTurn={isMyTurn}
             draftState={draftState}
             teams={teams}
@@ -1291,20 +1311,20 @@ export default function DraftTablePage() {
         >
           <div className="w-[min(92vw,460px)] rounded-lg border border-danger/50 bg-surface p-5 shadow-2xl shadow-black/50">
             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-danger">
-              Destructive action
+              {isDevOperator ? "Practice replay" : "Destructive action"}
             </p>
             <h2 id="reset-match-title" className="mt-1 text-2xl font-black text-foreground">
               Reset match #{matchId}?
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-muted">
-              This sends the match back to the schedule stage. It will:
+              {isDevOperator ? "This clears the test draft and reopens this practice match so you can replay its animations." : "This sends the match back to the schedule stage. It will:"}
             </p>
-            <ul className="mt-3 space-y-1.5 text-sm leading-relaxed text-muted">
+            {!isDevOperator && <ul className="mt-3 space-y-1.5 text-sm leading-relaxed text-muted">
               <li>· Delete the draft and every pick and ban</li>
               <li>· Clear the score, map results and uploaded player stats</li>
               <li>· Reset both captain ready flags and all timers</li>
               <li>· Roll back team standings and un-eliminate the loser</li>
-            </ul>
+            </ul>}
             <p className="mt-3 text-sm font-semibold leading-relaxed text-foreground">
               This cannot be undone.
             </p>
@@ -1538,6 +1558,7 @@ export default function DraftTablePage() {
 function StartingPhase({
   isManager,
   isCaptain,
+  isDevOperator,
   isObsKeyAccess,
   teamA,
   teamB,
@@ -1555,6 +1576,7 @@ function StartingPhase({
 }: {
   isManager: boolean;
   isCaptain: boolean;
+  isDevOperator: boolean;
   isObsKeyAccess: boolean;
   teamA?: Team;
   teamB?: Team;
@@ -1583,16 +1605,16 @@ function StartingPhase({
         <TeamRail
           team={teamA}
           side="A"
-          ready={teamAReady}
-          status={teamAReady ? "Ready" : "Awaiting captain"}
+          ready={isDevOperator ? undefined : teamAReady}
+          status={isDevOperator ? "Test operator" : teamAReady ? "Ready" : "Awaiting captain"}
         />
       }
       right={
         <TeamRail
           team={teamB}
           side="B"
-          ready={teamBReady}
-          status={teamBReady ? "Ready" : "Awaiting captain"}
+          ready={isDevOperator ? undefined : teamBReady}
+          status={isDevOperator ? "Test operator" : teamBReady ? "Ready" : "Awaiting captain"}
         />
       }
     >
@@ -1605,16 +1627,16 @@ function StartingPhase({
           the next screen already say.
         */}
         <p className={waitingStyles.standby} data-ready={bothReady ? "true" : "false"}>
-          {bothReady ? "Both captains ready" : "Waiting for captains"}
+          {isDevOperator ? "Practice draft ready to replay" : bothReady ? "Both captains ready" : "Waiting for captains"}
         </p>
 
         <div className={waitingStyles.actions}>
-          {isCaptain && !amIReady && (
+          {isCaptain && !isDevOperator && !amIReady && (
             <Button size="lg" onClick={onSetReady} disabled={actionLoading} className="px-10">
               {actionLoading ? "Confirming..." : "Confirm team ready"}
             </Button>
           )}
-          {isCaptain && amIReady && (
+          {isCaptain && !isDevOperator && amIReady && (
             <span className={waitingStyles.lockedNote}>You are locked in</span>
           )}
           {isManager && (
@@ -1653,7 +1675,7 @@ function StartingPhase({
             onClick={onRequestResetMatch}
             disabled={actionLoading}
           >
-            Reset match to schedule
+            {isDevOperator ? "Reset practice & replay" : "Reset match to schedule"}
           </button>
         )}
       </div>
@@ -2147,7 +2169,7 @@ function BanPhase({
       state = "struck";
     } else if (roleAtLimit) {
       state = "locked";
-    } else if ((isCaptain && myTeamBannedBefore) || (showBanTeamMarkers && wasBannedBefore)) {
+    } else if ((isCaptain && myTeamBannedBefore) || (!isCaptain && showBanTeamMarkers && wasBannedBefore)) {
       state = "spent";
     } else if (canSelect) {
       state = "selectable";
