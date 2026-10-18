@@ -32,7 +32,7 @@ El control `Administration → Season → Homepage countdown` permite guardar o 
 
 ## Operación integrada de temporada · 16 de octubre de 2026
 
-Cambios preparados y comprobados localmente; esta revisión todavía no se ha desplegado en producción. No requiere una nueva migración.
+Cambios preparados y comprobados localmente el 16 de octubre; desplegados y verificados en producción el 17 de octubre de 2026 (Lima). No requiere una nueva migración.
 
 1. **Administration → Teams & Captains:** crear equipos y elegir su liga/división. Subir logo, roster artwork, left banner y right banner, con vista previa; guardar el equipo publica las imágenes para las fichas, Schedule, draft y overlays. También se pueden pegar URLs o retirar imágenes. Se admiten PNG, JPG, WebP y GIF de hasta 5 MB.
 2. **Players & captain:** editar el equipo guardado y asignar miembros activos como jugadores o capitanes. Reemplazar al capitán deja al anterior como jugador. El roster, My Team, Captain Dashboard, draft y navegación consultan las asignaciones actuales, sin exigir un nuevo login por Discord.
@@ -51,3 +51,16 @@ La landing y `/announcements` comparten una tarjeta de torneo de proporción **1
 - Revisión en Chrome: guardar equipo, previews de los cuatro assets, calendario admin, ocho fuentes OBS disponibles, Schedule público con `division=2&week=1` y dos fixtures, y fichas públicas respondiendo correctamente. Los equipos con prefijo QA en las capturas son datos de ensayo; no se publicaron ni se asignaron equipos reales de Season 9.
 
 Evidencia: [anuncio 16:9](visual-review/season9-announcement-preview.jpg), [nombre largo en móvil](visual-review/season9-announcement-mobile-long-name.jpg), [admin de equipos](visual-review/season9-admin-teams-qa.jpg), [admin de calendario](visual-review/season9-admin-schedule-qa.jpg) y [calendario público filtrado](visual-review/season9-public-schedule-qa.jpg).
+
+## Publicación verificada · 17 de octubre de 2026
+
+Código desplegado: `a4ebaf9`. El procedimiento oficial conservó Compose/Caddy y sus redes, construyó backend y frontends, detuvo escrituras antes del respaldo y completó la importación con 44 drafts conservados y cero bloqueados. PostgreSQL y API saludables; frontend y Game Nights activos. Comprobaciones de HTTPS, CORS y Adara correctas.
+
+- Respaldo validado: `backups/pre-spring-20261018T035158Z.dump`.
+- Imagen anterior conservada: `goonginga-backend:rollback-20261018T035158Z`.
+- Log de despliegue en el VPS: `backups/season9-deploy-20261018T035200Z.log`.
+- Season 9 conserva su ID 5, estado SCHEDULED, comité, dos divisiones, countdown existente y cero equipos/partidos; los datos QA no se transfirieron a producción. Season 8 y la final 43 conservan FINISHED y el resultado 2–4.
+- Landing, anuncios, información de temporada, admin de equipos/calendario, Schedule, Teams, Standings, Stats, Manager y Captain responden HTTP 200. El upload de equipos sin sesión devuelve 401.
+- En Chrome se confirmó la nueva landing y su anuncio de 1224 × 688.5 (16:9 exacto), sin desbordamiento, con las dos divisiones y el countdown configurado. Los enfrentamientos mostrarán los logos y marcadores al crear equipos y fixtures.
+
+[Captura del anuncio publicado](visual-review/season9-announcement-published.jpg).
