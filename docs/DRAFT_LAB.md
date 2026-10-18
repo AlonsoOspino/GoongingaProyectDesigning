@@ -34,3 +34,10 @@ Local verification uses the isolated `goonginga_flow_qa` database with synthetic
 - Reset returned the same `/draft-table/dev` route to game one and 0–0, retaining the teams and pool. The separate season retained its eight QA teams and thirteen fixtures.
 - Broadcast preview kept team actions disabled. Ban ceremonies now release the scrim after five seconds if browser rendering stalls, with no change to the normal animation timeline.
 - Visual evidence: [setup](visual-review/draft-lab-setup.png), [second-map operator](visual-review/draft-lab-operator.png).
+
+## Published release
+
+Frontend commit `20154e3` was deployed on 2026-10-18 UTC (2026-10-17 in Lima). The existing backend container stayed running throughout. Public lab, operator, broadcast, landing and Season 9 routes returned HTTP 200; the published lab bundle includes the walkthrough and replay controls. Database health remained connected. Season 9 stayed at zero teams/fixtures, and the shared developer match remained match 64 / draft 52 in Preparation.
+
+- Build log: `/opt/goonginga/migration-uidesign/backups/draft-lab-frontend-20261018T043301Z.log`
+- Previous frontend image: `migration-uidesign-frontend:rollback-draft-lab-20261018T043301Z`
