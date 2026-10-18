@@ -41,3 +41,13 @@ Frontend commit `20154e3` was deployed on 2026-10-18 UTC (2026-10-17 in Lima). T
 
 - Build log: `/opt/goonginga/migration-uidesign/backups/draft-lab-frontend-20261018T043301Z.log`
 - Previous frontend image: `migration-uidesign-frontend:rollback-draft-lab-20261018T043301Z`
+
+## Mode selection scene, 2026-10-18
+
+Choosing a mode now carries the selected portrait card from its original screen position into the center with two 3D rotations over 1.4 seconds. The backdrop darkens while two opposing vertical reels rapidly cycle every map of that mode in grayscale. The reels brake and stop **2.5 seconds after the rotation ends** (3.9 seconds total); the eligible maps light up in color and become the actual map-selection buttons. Two maps split 1/1; three split 1/2; larger pools stay balanced. The central mode card and side lanes remain in place when the animation finishes.
+
+The same scene runs for captain/operator and broadcast observers. Initial loads and ordinary polls show the settled board without replaying the spin. Same-draft older versions cannot overwrite a confirmed choice. Map selection stays blocked during the reveal, pending requests, pauses and open dialogs. Manager pause/resume stays above the scene, and the broadcast view remains read-only. Reduced-motion preferences disable spinning and reel movement.
+
+Validation: production build and typecheck passed; 18 transition/layout/permission tests passed. Browser tests covered 2, 3 and 8 eligible maps, the actual selection of a revealed map, and pause/resume. Observed stage boundaries in the compiled browser were approximately 1450 ms for spin and 2464 ms from spin completion to reel stop (the implementation deadlines are exactly 1400 + 2500 ms). Tests used only the isolated QA database; its eight season teams and thirteen fixtures were unchanged.
+
+Visual evidence: [grayscale reels](visual-review/map-mode-reels.png), [three-map layout](visual-review/map-mode-three-maps.png), [two-map layout](visual-review/map-mode-two-maps.png), [eight-map layout](visual-review/map-mode-eight-maps.png).

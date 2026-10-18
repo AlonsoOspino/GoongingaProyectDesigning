@@ -12,7 +12,7 @@ type Transition = { key: string; outgoing: Scene | null; sequence: number };
 /** Keep the last committed phase mounted for the broadcast wipe. Its keyed
  * wrapper changes from live to outgoing in the same parent, so React preserves
  * the real subtree instead of mounting a second, state-resetting copy. */
-export function PhaseTransition({ phaseKey, children }: { phaseKey: string; children: ReactNode }) {
+export function PhaseTransition({ phaseKey, children, instant = false }: { phaseKey: string; children: ReactNode; instant?: boolean }) {
   const committed = useRef<Scene>({ key: phaseKey, node: children });
   const [transition, setTransition] = useState<Transition>({
     key: phaseKey,
@@ -45,7 +45,9 @@ export function PhaseTransition({ phaseKey, children }: { phaseKey: string; chil
     return () => window.clearTimeout(timeout);
   }, [transition.outgoing, transition.sequence]);
 
-  const outgoing = transition.key === phaseKey ? transition.outgoing : null;
+  // A dedicated full-screen mode scene owns this handoff, including its card
+  // flight. A second wipe underneath it would clip or duplicate that flight.
+  const outgoing = !instant && transition.key === phaseKey ? transition.outgoing : null;
 
   return (
     <div className={styles.host} data-phase={phaseKey.split(":")[0]} data-transitioning={outgoing ? "true" : "false"}>

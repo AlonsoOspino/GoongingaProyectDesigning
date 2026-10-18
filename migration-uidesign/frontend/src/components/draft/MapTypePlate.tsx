@@ -66,6 +66,7 @@ export function MapTypePlate({
   return (
     <button
       type="button"
+      data-map-type={mapType}
       onClick={() => selectable && onSelect(mapType)}
       disabled={!selectable}
       style={{ ...teamVars(side), ["--plate-index" as string]: index }}

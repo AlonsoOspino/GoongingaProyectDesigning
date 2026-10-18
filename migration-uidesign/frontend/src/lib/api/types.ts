@@ -181,6 +181,7 @@ export interface DraftAction {
 
 export interface DraftState {
   id: number;
+  version?: number;
   matchId: number;
   currentTurnTeamId: number | null;
   phase: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, type ReactNode } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "@/features/session/SessionProvider";
 import { getCurrentNetworkMember, getNetworkMemberCapabilities, type NetworkMemberCapabilities } from "@/lib/api/networkMember";
@@ -44,12 +44,14 @@ import { BanTile, type HeroTileState } from "@/components/draft/BanTile";
 import { BanSlot, EmptyBanSlot } from "@/components/draft/BanRail";
 import { BanCeremony, type BanCeremonyRequest } from "@/components/draft/BanCeremony";
 import { MapTypeIcon, MapTypePlate, MAP_TYPE_LABEL } from "@/components/draft/MapTypePlate";
+import { MapModeScene, type MapModeOrigin } from "@/components/draft/MapModeScene";
 import stageStyles from "@/components/draft/draft-stage.module.css";
 import waitingStyles from "@/components/draft/waiting-room.module.css";
 import playing from "@/components/draft/playing-stage.module.css";
 import { isBracketMatch, getRequiredWins, getSeriesLength } from "@/lib/match-format";
 import { parseMatchReference } from "@/lib/matchReference";
 import { deriveDraftPermissions } from "@/lib/draft/permissions";
+import { getMapModeTransitionKey, shouldAcceptDraftSnapshot } from "@/lib/draft/mapModeScene";
 
 const POLL_INTERVAL = 3000;
 const TURN_DURATION = 95;
@@ -63,6 +65,13 @@ type Phase = "STARTING" | "MAPTYPEPICKING" | "MAPPICKING" | "BAN" | "PLAYING" | 
 // and bans announce through a lower third that leaves the draft visible.
 const SESSION_EXPIRED_MESSAGE =
   "Tu sesion expiro o quedo invalida en este navegador. Vuelve a iniciar sesion para continuar.";
+
+function measureModePlate(mapType: MapType): MapModeOrigin | undefined {
+  const plate = document.querySelector<HTMLButtonElement>(`[data-map-type="${mapType}"]`);
+  if (!plate) return undefined;
+  const { left, top, width, height } = plate.getBoundingClientRect();
+  return width > 0 && height > 0 ? { left, top, width, height } : undefined;
+}
 
 function getRequestErrorMessage(error: unknown, fallback: string) {
   if (error instanceof Error && error.message) return error.message;
@@ -103,6 +112,9 @@ export default function DraftTablePage() {
   // same poll queue rather than overlapping.
   const [ceremonyQueue, setCeremonyQueue] = useState<BanCeremonyRequest[]>([]);
   const [activeCeremony, setActiveCeremony] = useState<BanCeremonyRequest | null>(null);
+  const [modeSceneTransition, setModeSceneTransition] = useState<{ key: string; origin?: MapModeOrigin } | null>(null);
+  const [modeRevealActive, setModeRevealActive] = useState(false);
+  const [modePendingMapId, setModePendingMapId] = useState<number | null>(null);
   const [keyFitScale, setKeyFitScale] = useState(1);
   const [shareOverlayOpen, setShareOverlayOpen] = useState(false);
   const [shareInfo, setShareInfo] = useState<{ matchId: number; key: string; url: string } | null>(null);
@@ -121,6 +133,42 @@ export default function DraftTablePage() {
   const actionErrorTimerRef = useRef<NodeJS.Timeout | null>(null);
   const seenActionIdsRef = useRef<Set<number>>(new Set());
   const hasInitializedActionsRef = useRef(false);
+  const previousModeDraftRef = useRef<DraftState | null>(null);
+  const modeOriginRef = useRef<{ draftId: number; gameNumber: number; mapType: MapType; rect?: MapModeOrigin } | null>(null);
+
+  // A response from an earlier poll must not rewind a confirmed pick and play
+  // the scene twice. Capture the old card before React replaces its phase.
+  const applyDraftState = useCallback((incoming: DraftState) => {
+    const previous = previousModeDraftRef.current;
+    if (getMapModeTransitionKey(previous, incoming) && incoming.selectedMapType) {
+      const captured = modeOriginRef.current;
+      if (captured?.draftId !== incoming.id || captured.gameNumber !== incoming.match.gameNumber || captured.mapType !== incoming.selectedMapType) {
+        modeOriginRef.current = { draftId: incoming.id, gameNumber: incoming.match.gameNumber, mapType: incoming.selectedMapType, rect: measureModePlate(incoming.selectedMapType) };
+      }
+    }
+    setDraftState((current) => shouldAcceptDraftSnapshot(current, incoming) ? incoming : current);
+  }, []);
+
+  useLayoutEffect(() => {
+    const previous = previousModeDraftRef.current;
+    previousModeDraftRef.current = draftState;
+    if (!draftState || draftState.phase !== "MAPPICKING" || draftState.currentMapId) {
+      setModeSceneTransition(null);
+      setModeRevealActive(false);
+      setModePendingMapId(null);
+      if (draftState?.phase !== "MAPTYPEPICKING") modeOriginRef.current = null;
+      return;
+    }
+    const key = getMapModeTransitionKey(previous, draftState);
+    if (!key) return;
+    const captured = modeOriginRef.current;
+    const origin = captured?.draftId === draftState.id && captured.gameNumber === draftState.match.gameNumber && captured.mapType === draftState.selectedMapType
+      ? captured.rect : undefined;
+    setModeSceneTransition({ key, origin });
+    setModeRevealActive(true);
+  }, [draftState]);
+
+  const handleModeSceneSettled = useCallback(() => setModeRevealActive(false), []);
 
   useEffect(() => {
     if (!token || isObsKeyAccess) { setNetworkUser(null); setCapabilities(null); return; }
@@ -169,6 +217,16 @@ export default function DraftTablePage() {
   const firstPickerTeam = teams.find((t) => t.id === draftState?.currentTurnTeamId);
   const matchStatus = draftState?.match?.status;
   const currentGameNumber = (draftState?.match?.gameNumber || 0) + 1;
+  const isModeSceneVisible = currentPhase === "MAPPICKING" && !isMapSelectionLocked && !!draftState?.selectedMapType && currentGameNumber > 1;
+
+  useEffect(() => {
+    if (!isModeSceneVisible) return;
+    const siteHeader = document.querySelector<HTMLElement>(".otp-header");
+    if (!siteHeader) return;
+    const wasInert = siteHeader.inert;
+    siteHeader.inert = true;
+    return () => { siteHeader.inert = wasInert; };
+  }, [isModeSceneVisible]);
 
   const showActionError = useCallback((message: string) => {
     setActionError(message);
@@ -272,7 +330,7 @@ export default function DraftTablePage() {
     // pick/ban is being submitted to the server. Once the action is
     // confirmed and the next turn arrives, the server's fresh
     // `remainingSeconds` re-runs this effect and the timer resumes.
-    if (isMatchPaused || actionLoading || isCeremonyActive) {
+    if (isMatchPaused || actionLoading || isCeremonyActive || modeRevealActive) {
       return;
     }
 
@@ -283,7 +341,7 @@ export default function DraftTablePage() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [draftState?.remainingSeconds, currentPhase, isMatchPaused, actionLoading, isMapSelectionLocked, isCeremonyActive]);
+  }, [draftState?.remainingSeconds, currentPhase, isMatchPaused, actionLoading, isMapSelectionLocked, isCeremonyActive, modeRevealActive]);
 
   useEffect(() => {
     const heroes = draftState?.heroes || [];
@@ -304,7 +362,7 @@ export default function DraftTablePage() {
         getDraftByMatchId(matchReference, { key: urlKey ?? undefined, token: token ?? undefined }),
         getTeams({ includeDev: isDevMatch }),
       ]);
-      setDraftState(draft);
+      applyDraftState(draft);
       setTeams(teamsData);
       setError(null);
     } catch (err) {
@@ -324,7 +382,7 @@ export default function DraftTablePage() {
     if (!draftId) return;
     try {
       const draft = await getDraftState(draftId, { key: urlKey ?? undefined, token: token ?? undefined });
-      setDraftState(draft);
+      applyDraftState(draft);
     } catch (err) {
       if (isSessionFailure(err)) {
         clearSession();
@@ -347,7 +405,7 @@ export default function DraftTablePage() {
     setActionLoading(true);
     try {
       const updated = await startMapPicking(token, draftId);
-      setDraftState(updated);
+      applyDraftState(updated);
       setActionError(null);
     } catch (err) {
       handleRequestFailure("Failed to start map picking:", err, "No se pudo iniciar el map picking.");
@@ -368,7 +426,7 @@ export default function DraftTablePage() {
     setActionLoading(true);
     try {
       const updated = await yieldPlayoffFirstPick(token, draftId);
-      setDraftState(updated);
+      applyDraftState(updated);
       setActionError(null);
     } catch (err) {
       handleRequestFailure("Failed to hand over first pick:", err, "No se pudo ceder la primera eleccion.");
@@ -392,13 +450,14 @@ export default function DraftTablePage() {
       return false;
     }
 
+    modeOriginRef.current = { draftId, gameNumber: draftState?.match.gameNumber ?? 0, mapType, rect: measureModePlate(mapType) };
     setActionLoading(true);
     try {
       const updated = await pickMapType(token, draftId, {
         mapType,
         teamId: myTeamId ?? undefined,
       });
-      setDraftState(updated);
+      applyDraftState(updated);
       setActionError(null);
       return true;
     } catch (err) {
@@ -426,7 +485,7 @@ export default function DraftTablePage() {
     setActionLoading(true);
     try {
       const updated = await startBan(token, draftId);
-      setDraftState(updated);
+      applyDraftState(updated);
       setActionError(null);
     } catch (err) {
       handleRequestFailure("Failed to start ban phase:", err, "No se pudo iniciar la fase de bans.");
@@ -451,7 +510,7 @@ export default function DraftTablePage() {
         expectedMapId: draftState.currentMapId,
       } : undefined;
       const updated = await endGame(token, draftId, expected);
-      setDraftState(updated);
+      applyDraftState(updated);
       setActionError(null);
     } catch (err) {
       handleRequestFailure("Failed to end game:", err, "No se pudo terminar el game.");
@@ -461,6 +520,7 @@ export default function DraftTablePage() {
   }
 
   async function handlePickMap(mapId: number) {
+    if (modeRevealActive) return false;
     if (!token) {
       showActionError(SESSION_EXPIRED_MESSAGE);
       return false;
@@ -477,7 +537,7 @@ export default function DraftTablePage() {
     setActionLoading(true);
     try {
       const updated = await pickMap(token, draftId, { mapId, teamId: myTeamId ?? undefined });
-      setDraftState(updated);
+      applyDraftState(updated);
       setActionError(null);
       return true;
     } catch (err) {
@@ -487,6 +547,13 @@ export default function DraftTablePage() {
     } finally {
       setActionLoading(false);
     }
+  }
+
+  async function handleModeMapSelect(mapId: number) {
+    if (modeRevealActive || actionLoading || modePendingMapId !== null) return;
+    setModePendingMapId(mapId);
+    const accepted = await handlePickMap(mapId);
+    if (!accepted) setModePendingMapId(null);
   }
 
   async function handleBanHero(heroId: number | null) {
@@ -506,7 +573,7 @@ export default function DraftTablePage() {
     setActionLoading(true);
     try {
       const updated = await banHero(token, draftId, { heroId, teamId: myTeamId ?? undefined });
-      setDraftState(updated);
+      applyDraftState(updated);
       setActionError(null);
     } catch (err) {
       handleRequestFailure("Failed to ban hero:", err, "No se pudo registrar el ban.");
@@ -958,6 +1025,29 @@ export default function DraftTablePage() {
           flash a half-rendered image between phases. */}
       <MapBackground src={backgroundMapUrl} position={isKeyAccess ? "container" : "viewport"} />
       <div ref={draftCanvasRef} className="relative w-full h-full">
+        {isModeSceneVisible && draftState.selectedMapType && (
+          <MapModeScene
+            key={`${draftState.id}:${currentGameNumber}:${draftState.selectedMapType}`}
+            mapType={draftState.selectedMapType}
+            maps={(draftState.allMaps ?? []).filter((map) => map.type === draftState.selectedMapType)}
+            availableMaps={draftState.availableMaps ?? []}
+            side={draftState.currentTurnTeamId === draftState.match.teamBId ? "B" : "A"}
+            teamName={firstPickerTeam?.name ?? "The active captain"}
+            gameNumber={currentGameNumber}
+            broadcast={isObsKeyAccess}
+            transition={modeSceneTransition}
+            selectable={canActForTeam && isMyTurn && !actionLoading && !modeRevealActive && !isMatchPaused && !resetConfirmOpen && !shareOverlayOpen}
+            pendingMapId={modePendingMapId}
+            onSelect={(mapId) => void handleModeMapSelect(mapId)}
+            onSettled={handleModeSceneSettled}
+          />
+        )}
+        {isModeSceneVisible && actionError && !isObsKeyAccess && (
+          <div role="alert" className={clsx(overlayPositionClass, "bottom-5 left-1/2 z-[130] w-[min(90vw,42rem)] -translate-x-1/2 border border-danger/60 bg-surface p-4 text-center text-sm text-danger")}>
+            {actionError}
+            <button type="button" className="ml-4 underline" onClick={() => setActionError(null)}>Dismiss</button>
+          </div>
+        )}
         <BanCeremony
           request={activeCeremony}
           containerRef={draftCanvasRef}
@@ -980,7 +1070,7 @@ export default function DraftTablePage() {
           </div>
         )}
 
-        <div className="relative z-10 w-full h-full">
+        <div className="relative z-10 w-full h-full" inert={isModeSceneVisible} aria-hidden={isModeSceneVisible || undefined}>
         {shouldRenderCompactHeader && (
           <header className="relative border-b border-border bg-surface/50 backdrop-blur-sm sticky top-0 z-10">
             <div
@@ -1088,7 +1178,7 @@ export default function DraftTablePage() {
 
           {/* The map verdict is a real subphase, so it shares the broadcast
               transition without replaying on ordinary timer/poll updates. */}
-        <PhaseTransition phaseKey={isMapSelectionLocked ? "MAPPICKING:LOCKED" : currentPhase}>
+        <PhaseTransition phaseKey={isMapSelectionLocked ? "MAPPICKING:LOCKED" : currentPhase} instant={isModeSceneVisible}>
         {currentPhase === "STARTING" && (() => {
           // The Grand Final wraps the same starting phase in the presentation
           // stage. Build the phase once so both paths stay in sync.
@@ -1134,7 +1224,7 @@ export default function DraftTablePage() {
           />
         )}
 
-        {currentPhase === "MAPPICKING" && (
+        {currentPhase === "MAPPICKING" && !isModeSceneVisible && (
           <MapPickingPhase
             isManager={isManager}
             isCaptain={canActForTeam}
@@ -1228,6 +1318,7 @@ export default function DraftTablePage() {
           />
         )}
       </div>
+      </div>
 
       {showDraftHistory && isObsKeyAccess && (
         <div className="absolute bottom-6 left-6 right-6 z-30 mx-auto max-w-[1840px]">
@@ -1240,7 +1331,7 @@ export default function DraftTablePage() {
         </div>
       )}
 
-      {isCaptain && !isObsKeyAccess && (
+      {isCaptain && !isObsKeyAccess && !isModeSceneVisible && (
         <div className={clsx(floatingPositionClass, "right-6 bottom-6 z-40")}>
           <Button size="sm" variant="secondary" onClick={handleOpenShareOverlay} disabled={shareLoading}>
             {shareLoading ? "Loading..." : "Share draft"}
@@ -1249,7 +1340,7 @@ export default function DraftTablePage() {
       )}
 
       {shareOverlayOpen && !isObsKeyAccess && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
           <div className="w-[min(92vw,430px)] aspect-square rounded-lg border border-border bg-surface p-5 shadow-2xl shadow-black/50">
             <div className="flex h-full flex-col">
               <div className="flex items-start justify-between gap-4">
@@ -1304,7 +1395,7 @@ export default function DraftTablePage() {
 
       {resetConfirmOpen && !isObsKeyAccess && (
         <div
-          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[140] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="reset-match-title"
@@ -1346,7 +1437,7 @@ export default function DraftTablePage() {
         </div>
       )}
 
-      {isManager && (
+      {isManager && !isModeSceneVisible && (
         <div className={clsx(floatingPositionClass, "right-6 z-40", isObsKeyAccess ? "top-6" : "bottom-6")}>
           <Button size="sm" variant="secondary" onClick={() => toggleNavbar(!isNavHidden)}>
             {isNavHidden ? "Show header" : "Hide header"}
@@ -1377,7 +1468,8 @@ export default function DraftTablePage() {
           disabled={pauseActionPending || pauseRequestedBy === myTeamId}
           className={clsx(
             floatingPositionClass,
-            "left-6 z-40 px-3 py-1.5 text-xs font-semibold rounded-lg shadow-md transition-all flex items-center gap-1.5",
+            "left-6 px-3 py-1.5 text-xs font-semibold rounded-lg shadow-md transition-all flex items-center gap-1.5",
+            isModeSceneVisible ? "z-[120]" : "z-40",
             isObsKeyAccess ? "top-6" : "bottom-6",
             pauseRequestedBy === myTeamId
               ? "bg-surface border border-warning/50 text-warning cursor-not-allowed"
@@ -1415,7 +1507,8 @@ export default function DraftTablePage() {
           disabled={pauseActionPending}
           className={clsx(
             floatingPositionClass,
-            "left-6 z-40 px-4 py-2 text-sm font-semibold rounded-lg shadow-md transition-all flex items-center gap-2",
+            "left-6 px-4 py-2 text-sm font-semibold rounded-lg shadow-md transition-all flex items-center gap-2",
+            isModeSceneVisible ? "z-[120]" : "z-40",
             isObsKeyAccess ? "top-6" : "bottom-6",
             isMatchPaused
               ? "bg-accent text-accent-foreground hover:bg-accent/90"
@@ -1436,7 +1529,7 @@ export default function DraftTablePage() {
 
       {/* Manager-only: floating pause-request notification when a captain asks */}
       {isManager && pauseRequestedBy && !isMatchPaused && (
-        <div className={clsx(floatingPositionClass, "top-24 right-6 z-40 w-80 bg-surface border-2 border-warning rounded-xl shadow-2xl shadow-warning/20 animate-fade-in")}>
+        <div className={clsx(floatingPositionClass, isModeSceneVisible ? "z-[120]" : "z-40", "top-24 right-6 w-80 bg-surface border-2 border-warning rounded-xl shadow-2xl shadow-warning/20 animate-fade-in")}>
           <div className="p-4">
             <div className="flex items-center gap-2 mb-3">
               <div className="w-8 h-8 rounded-full bg-warning/20 border-2 border-warning flex items-center justify-center flex-shrink-0">
@@ -1506,7 +1599,7 @@ export default function DraftTablePage() {
 
       {/* Full-screen GAME PAUSED overlay (server-driven) */}
       {isMatchPaused && (
-        <div className={clsx(overlayPositionClass, "inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center")}>
+        <div className={clsx(overlayPositionClass, isModeSceneVisible ? "z-[130]" : "z-50", "inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center")}>
           <div className="bg-surface border-2 border-warning rounded-2xl p-8 max-w-md text-center shadow-2xl shadow-warning/20 animate-fade-in">
             <div className="w-20 h-20 rounded-full bg-warning/20 border-4 border-warning mx-auto mb-6 flex items-center justify-center">
               <svg className="w-10 h-10 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1547,7 +1640,6 @@ export default function DraftTablePage() {
           </div>
         </div>
       )}
-        </div>
       </div>
     </main>
   );
