@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import SeasonArchiveCard from "./SeasonArchiveCard";
 import TournamentMode from "./TournamentMode";
 import GridFigure from "./GridFigure";
+import WhoWeAre from "./WhoWeAre";
 import BrandField from "./atmosphere/BrandField";
 import { getRecentNetworkMembers } from "@/lib/api/networkMember";
 import type { NetworkMember } from "@/lib/api/types";
@@ -160,7 +161,7 @@ export function LandingPage() {
 
       <main id="top">
         <div className={styles.brandZone}>
-          <BrandField variant="zone" intensity={1} ground={false} motion="calm" />
+          <BrandField variant="zone" className={styles.heroField} intensity={0.85} ground={false} motion="calm" />
 
         <section className={styles.hero} data-hero>
           <div className={styles.heroArt} aria-hidden="true">
@@ -175,7 +176,7 @@ export function LandingPage() {
           </div>
           <div className={styles.heroInner}>
             <div className={styles.heroCopy}>
-              <p className={styles.eyebrow}>ON AIR SINCE 2023</p>
+              <p className={styles.eyebrow}>TOGETHER SINCE 2022</p>
               <h1 className={styles.h1}>
                 <span className={styles.heroLine}>overtime</span>
                 <span className={styles.heroLine}>productions</span>
@@ -203,7 +204,7 @@ export function LandingPage() {
         <section className={styles.announceSection} id="announcements" aria-label="Announcements">
           <div className={styles.announceInner}>
             <div className={styles.announceStream}>
-            {announcements?.mode === "CUSTOM" && builderCards.length > 0 ? (
+            {announcements?.enabled === false ? null : announcements?.mode === "CUSTOM" && builderCards.length > 0 ? (
               builderCards.slice(0, 2).map((card) => {
                 const expired = card.countdownAt
                   ? new Date(card.countdownAt).getTime() <= Date.now()
@@ -251,11 +252,13 @@ export function LandingPage() {
         </section>
         </div>
 
+        <WhoWeAre />
 
         <section className={styles.gglSection} id="about" data-chapter="ggl">
           <BrandField variant="section" className={styles.fieldGgl} intensity={1} ground={false} motion="calm" seedOffset={101} />
-          <div className={styles.gglCopy} data-motion-copy>
-              <p className={styles.lightEyebrow}>OUR BIGGEST PROJECT!</p>
+          <div className={styles.gglInner}>
+            <div className={styles.gglCopy} data-motion-copy>
+              <p className={styles.lightEyebrow}>OUR BIGGEST PROJECT</p>
               <h2 className={styles.lightH2}>OVERTIME GGL</h2>
               <p className={styles.lightParagraph}>
                 Our biggest event brings the whole community together for a competitive Overwatch
@@ -265,19 +268,20 @@ export function LandingPage() {
               <a href={TWITCH_URL} target="_blank" rel="noopener noreferrer" className={styles.twitchLink}>
                 <TwitchIcon /> Watch the stream
               </a>
-          </div>
-          <div className={`${styles.figureStage} ${styles.gglStage}`}>
-            <GridFigure
-              src="/ggl-lineup.png"
-              alt="GGL Tournament heroes artwork"
-              width={1920}
-              height={1080}
-              motion={false}
-              className={styles.gglBox}
-              imgClassName={styles.gglFigure}
-            />
-            <div className={styles.gglCardSlot}>
-              <SeasonArchiveCard />
+              <div className={styles.gglCardSlot}>
+                <SeasonArchiveCard />
+              </div>
+            </div>
+            <div className={`${styles.figureStage} ${styles.gglStage}`}>
+              <GridFigure
+                src="/ggl-lineup.png"
+                alt="GGL Tournament heroes artwork"
+                width={1920}
+                height={1080}
+                motion={false}
+                className={styles.gglBox}
+                imgClassName={styles.gglFigure}
+              />
             </div>
           </div>
         </section>
@@ -313,23 +317,22 @@ export function LandingPage() {
           <BrandField variant="section" className={styles.fieldDiscord} intensity={1} ground={false} motion="calm" seedOffset={303} />
           <div className={styles.discordInner}>
             <div className={styles.discordCopy} data-motion-copy>
-              <h2 className={styles.lightH2}><span>It all runs</span><span>in the Discord</span></h2>
-              <p className={`${styles.lightParagraph} ${styles.discordLead}`}>
-                Sign up for GGL, find a team or join the next game night.
-              </p>
-              <a href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer" className={styles.discordJoin}>
-                <DiscordIcon size={18} /> Join the Discord
-              </a>
-            </div>
-            <div className={styles.discordArt}>
-              <img src="/winton-discord.png" alt="Winston plush wearing Overwatch armour" width={348} height={348} loading="lazy" decoding="async" />
+              <h2 className={styles.lightH2}>IT ALL RUNS IN THE DISCORD</h2>
+              <div className={styles.discordDetails}>
+                <p className={`${styles.lightParagraph} ${styles.discordLead}`}>
+                  Get tournament announcements, meet the community, join events and find out when we go live.
+                </p>
+                <a href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer" className={styles.discordJoin}>
+                  <DiscordIcon size={18} /> Join the Discord
+                </a>
+              </div>
             </div>
           </div>
         </section>
       </main>
 
       <footer className={styles.footer}>
-        <BrandField variant="footer" intensity={0.65} ground={false} motion="calm" />
+        <BrandField variant="footer" intensity={0.22} ground={false} motion="calm" />
         <div className={styles.footerTop}>
           <div className={styles.footerBrand}>
             <div className={styles.footerBrandRow}>

@@ -12,7 +12,8 @@ import { Input } from "@/components/ui/Input";
 import { ImageUploadField } from "@/components/ui/ImageUploadField";
 import { Modal, ModalHeader, ModalTitle, ModalContent, ModalFooter } from "@/components/ui/Modal";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
-import { ApiError, getMatches, getTeams, updateCaptainMatch, updateCaptainTeam, getDraftByMatchId, captainRequestPause, getMemberProfileById, type Match, type Team, type DraftState } from "@/lib/api";
+import { ApiError, getCurrentTournament, getMatchesByTournament, getLeaderboard, getNetworkMemberCapabilities, updateCaptainMatch, updateCaptainTeam, getDraftByMatchId, captainRequestPause, type Match, type Team, type DraftState } from "@/lib/api";
+import { resolveGenericBackendAsset } from "@/lib/assetUrls";
 import { convertToISODateTime, formatForDateTimeInput, formatRelativeEST, formatTimeEST, isWithinNextHoursEST } from "@/lib/dateUtils";
 import { MapTimer } from "@/components/match/MapTimer";
 import { clsx } from "clsx";
@@ -26,7 +27,7 @@ const SESSION_EXPIRED_MESSAGE = "Session expired or invalid. Sending you back to
 
 const CONNECTION_STEPS = [
   "Session present",
-  "Captain token",
+  "Captain assignment",
   "Match schedule",
   "Team data",
   "Draft access",
@@ -62,6 +63,9 @@ export default function CaptainDashboardPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [drafts, setDrafts] = useState<Record<number, DraftState | null>>({});
   const [loading, setLoading] = useState(true);
+  const [accessReady, setAccessReady] = useState(false);
+  const [captainTeamId, setCaptainTeamId] = useState<number | null>(null);
+  const [dataError, setDataError] = useState<string | null>(null);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [newDate, setNewDate] = useState("");
@@ -83,10 +87,10 @@ export default function CaptainDashboardPage() {
   const prevDraftsRef = useRef<Record<number, DraftState | null>>({});
 
   useEffect(() => {
-    if (isHydrated && (!isAuthenticated || user?.role !== "CAPTAIN")) {
+    if (isHydrated && !isAuthenticated) {
       router.push("/login");
     }
-  }, [isHydrated, isAuthenticated, user, router]);
+  }, [isHydrated, isAuthenticated, router]);
 
   useEffect(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
@@ -98,14 +102,16 @@ export default function CaptainDashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated && user?.role === "CAPTAIN") loadData();
-  }, [isAuthenticated, user]);
+    if (isHydrated && isAuthenticated && token) void loadData();
+  }, [isHydrated, isAuthenticated, token]);
 
   useEffect(() => {
-    if (!isAuthenticated || user?.role !== "CAPTAIN") return;
-    pollRef.current = setInterval(() => loadData(true), POLL_INTERVAL);
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [isAuthenticated, user]);
+    if (!isHydrated || !isAuthenticated || !token) return;
+    const refresh = () => { if (!document.hidden) void loadData(true); };
+    pollRef.current = setInterval(refresh, POLL_INTERVAL);
+    window.addEventListener("focus", refresh);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); window.removeEventListener("focus", refresh); };
+  }, [isHydrated, isAuthenticated, token]);
 
   useEffect(() => {
     return () => {
@@ -120,19 +126,24 @@ export default function CaptainDashboardPage() {
   }, [notificationPermission]);
 
   async function loadData(silent = false) {
+    if (!token) return;
     try {
       if (!silent) setLoading(true);
-      const [matchesData, teamsData] = await Promise.all([getMatches(), getTeams()]);
+      const [current, capabilities] = await Promise.all([getCurrentTournament({ cache: "no-store" }), getNetworkMemberCapabilities(token)]);
+      const ownTeamId = capabilities.captainOf.find((assignment) => assignment.tournamentId === current.id)?.teamId ?? null;
+      setCaptainTeamId(ownTeamId);
+      if (ownTeamId == null) { setMatches([]); setTeams([]); setDrafts({}); setDataError(null); return; }
+      const [matchesData, teamsData] = await Promise.all([getMatchesByTournament(current.id), getLeaderboard(current.id)]);
 
       const myMatches = matchesData.filter(
-        (m) => m.teamAId === user?.teamId || m.teamBId === user?.teamId
+        (m) => m.teamAId === ownTeamId || m.teamBId === ownTeamId
       );
 
       for (const match of myMatches) {
         const prevMatch = prevMatchesRef.current.find((m) => m.id === match.id);
         if (prevMatch && prevMatch.status !== "ACTIVE" && match.status === "ACTIVE") {
           const opponentName = teamsData.find(
-            (t) => t.id === (match.teamAId === user?.teamId ? match.teamBId : match.teamAId)
+            (t) => t.id === (match.teamAId === ownTeamId ? match.teamBId : match.teamAId)
           )?.name || "opponent";
           sendNotification("Match is Live!", `Your match vs ${opponentName} is now active. Join the draft table!`);
         }
@@ -165,7 +176,7 @@ export default function CaptainDashboardPage() {
         }
 
         if (result.draft && prevDraft && prevDraft.phase !== result.draft.phase) {
-          const isMyTurn = result.draft.currentTurnTeamId === user?.teamId;
+          const isMyTurn = result.draft.currentTurnTeamId === ownTeamId;
           if (result.draft.phase === "MAPTYPEPICKING" && isMyTurn) {
             sendNotification("Choose the Next Mode", "As the previous game loser, choose the next map type.");
           } else if (result.draft.phase === "MAPPICKING" && isMyTurn) {
@@ -176,17 +187,21 @@ export default function CaptainDashboardPage() {
         }
 
         if (result.draft && prevDraft &&
-          prevDraft.currentTurnTeamId !== user?.teamId &&
-          result.draft.currentTurnTeamId === user?.teamId) {
+          prevDraft.currentTurnTeamId !== ownTeamId &&
+          result.draft.currentTurnTeamId === ownTeamId) {
           sendNotification("Your Turn!", `It's your turn in the ${result.draft.phase.toLowerCase()} phase.`);
         }
       }
 
       prevDraftsRef.current = newDrafts;
       setDrafts(newDrafts);
+      setDataError(null);
     } catch (err) {
       console.error("Failed to load data:", err);
+      setDataError(errorMessage(err, "Unable to refresh captain access and fixtures."));
+      setCaptainTeamId(null);
     } finally {
+      setAccessReady(true);
       if (!silent) setLoading(false);
     }
   }
@@ -226,7 +241,7 @@ export default function CaptainDashboardPage() {
     try {
       activeStep = 0;
       setConnectionStep(0, "running");
-      if (!token || !user?.id || user.role !== "CAPTAIN") {
+      if (!token || !user?.id) {
         failConnectionStep(0, SESSION_EXPIRED_MESSAGE);
         expireSessionAndRedirect();
         return;
@@ -235,24 +250,26 @@ export default function CaptainDashboardPage() {
 
       activeStep = 1;
       setConnectionStep(1, "running");
-      const profile = await getMemberProfileById(user.id, token);
-      if (profile.role !== "CAPTAIN" || profile.teamId !== user.teamId) {
-        failConnectionStep(1, SESSION_EXPIRED_MESSAGE);
-        expireSessionAndRedirect();
+      const [current, capabilities] = await Promise.all([getCurrentTournament({ cache: "no-store" }), getNetworkMemberCapabilities(token)]);
+      const ownTeamId = capabilities.captainOf.find((assignment) => assignment.tournamentId === current.id)?.teamId;
+      if (!ownTeamId) {
+        failConnectionStep(1, "No captain assignment for the current season. Ask an administrator to assign you to a team.");
+        setCaptainTeamId(null);
         return;
       }
+      setCaptainTeamId(ownTeamId);
       setConnectionStep(1, "success");
 
       activeStep = 2;
       setConnectionStep(2, "running");
-      const matchesData = await getMatches();
-      const myMatchesData = matchesData.filter((m) => m.teamAId === user.teamId || m.teamBId === user.teamId);
+      const matchesData = await getMatchesByTournament(current.id);
+      const myMatchesData = matchesData.filter((m) => m.teamAId === ownTeamId || m.teamBId === ownTeamId);
       setConnectionStep(2, "success");
 
       activeStep = 3;
       setConnectionStep(3, "running");
-      const teamsData = await getTeams();
-      const myTeamData = teamsData.find((t) => t.id === user.teamId);
+      const teamsData = await getLeaderboard(current.id);
+      const myTeamData = teamsData.find((t) => t.id === ownTeamId);
       if (!myTeamData) {
         throw new Error("Your captain account is not linked to a valid team.");
       }
@@ -293,14 +310,14 @@ export default function CaptainDashboardPage() {
     }
   }
 
-  const myTeam = teams.find((t) => t.id === user?.teamId);
-  const myMatches = matches.filter((m) => m.teamAId === user?.teamId || m.teamBId === user?.teamId);
+  const myTeam = teams.find((t) => t.id === captainTeamId);
+  const myMatches = matches.filter((m) => m.teamAId === captainTeamId || m.teamBId === captainTeamId);
   const upcomingMatches = myMatches.filter((m) => m.status === "SCHEDULED");
   const activeMatches = myMatches.filter((m) => m.status === "ACTIVE");
   const historyMatches = myMatches.filter((m) => m.status === "FINISHED");
 
   const getTeamName = (teamId: number) => teams.find((t) => t.id === teamId)?.name || `Team ${teamId}`;
-  const isTeamA = (match: Match) => match.teamAId === user?.teamId;
+  const isTeamA = (match: Match) => match.teamAId === captainTeamId;
   const getMyReadyStatus = (match: Match) => isTeamA(match) ? match.teamAready : match.teamBready;
   const getOpponentReadyStatus = (match: Match) => isTeamA(match) ? match.teamBready : match.teamAready;
 
@@ -401,11 +418,12 @@ export default function CaptainDashboardPage() {
   const formatMatchDate = (dateStr: string) => formatRelativeEST(dateStr);
   const { date: newDateValue, time: newTimeValue } = splitDateTime(newDate);
 
-  if (!isHydrated) {
+  if (!isHydrated || !accessReady) {
     return <div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-muted">Loading...</div></div>;
   }
 
-  if (!isAuthenticated || user?.role !== "CAPTAIN") return null;
+  if (!isAuthenticated) return null;
+  if (!captainTeamId) return <main className="container mx-auto px-4 py-12"><Card variant="bordered"><CardContent className="space-y-4 py-8"><h1 className="text-2xl font-semibold">Captain assignment</h1><p role={dataError ? "alert" : "status"} className="text-sm text-muted">{dataError || "You have no captain assignment for the current season. An administrator can assign you from Teams & Captains; access updates automatically."}</p><Link href="/my-team" className="text-accent underline">View My Team</Link></CardContent></Card></main>;
 
   return (
     <main className="min-h-screen bg-background py-8">
@@ -439,7 +457,7 @@ export default function CaptainDashboardPage() {
                 <div className="flex items-center gap-4">
                   <div className="relative w-16 h-16 rounded-lg bg-primary/10 border border-primary/30 flex items-center justify-center overflow-hidden">
                     {myTeam.logo ? (
-                      <Image src={myTeam.logo} alt={myTeam.name} fill className="object-cover" unoptimized />
+                      <Image src={resolveGenericBackendAsset(myTeam.logo)} alt={myTeam.name} fill className="object-cover" unoptimized />
                     ) : (
                       <span className="text-2xl font-bold text-primary">{myTeam.name.charAt(0)}</span>
                     )}
@@ -461,7 +479,7 @@ export default function CaptainDashboardPage() {
                     </div>
                   ))}
                   <Button onClick={() => {
-                    setTeamFormData({ name: myTeam.name, logo: myTeam.logo || "", roster: myTeam.roster || "" });
+                    setTeamFormData({ name: myTeam.name, logo: myTeam.logo ? resolveGenericBackendAsset(myTeam.logo) : "", roster: myTeam.roster ? resolveGenericBackendAsset(myTeam.roster) : "" });
                     setShowEditTeamModal(true);
                   }} variant="secondary">
                     Edit Team
@@ -723,7 +741,7 @@ export default function CaptainDashboardPage() {
                         draft={drafts[match.id]}
                         isTeamA={isTeamA(match)}
                         opponentName={getTeamName(isTeamA(match) ? match.teamBId : match.teamAId)}
-                        currentTeamId={user?.teamId}
+                        currentTeamId={captainTeamId}
                         token={token}
                       />
                     ))}

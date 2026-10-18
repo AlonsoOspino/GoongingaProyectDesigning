@@ -10,8 +10,8 @@ public class MatchReadController {
     private final MatchQueryService matches;
     public MatchReadController(MatchQueryService matches) { this.matches=matches; }
     @GetMapping public List<JsonNode> all(@RequestParam(required=false) Integer tournamentId,
-            @RequestParam(required=false) Integer semanas,@RequestParam(required=false) String type) {
-        return matches.all(tournamentId,semanas,type);
+            @RequestParam(required=false) Integer semanas,@RequestParam(required=false) String type,@RequestParam(required=false) Integer divisionId) {
+        return matches.all(tournamentId,semanas,type,divisionId);
     }
     @GetMapping("/soonest") public JsonNode soonest() { return matches.soonest(); }
     @GetMapping("/active") public List<JsonNode> active() { return matches.active(); }

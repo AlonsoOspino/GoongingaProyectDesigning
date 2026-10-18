@@ -1,18 +1,21 @@
+import TwitchClips from "./TwitchClips";
 import styles from "./who-we-are.module.css";
 
-/*
- * The introduction the landing never had: who this actually is, before the page
- * starts talking about the league. Sits above the Overtime GGL chapter.
- */
 export default function WhoWeAre() {
   return (
-    <section className={styles.section} aria-label="Who we are">
+    <section className={styles.section} id="who-we-are" aria-labelledby="who-we-are-title">
       <div className={styles.inner}>
-        <h2 className={styles.title}>Run by the community.</h2>
-        <p className={styles.body}>
-          We’ve been organising tournaments and streams since 2023.
-          Players, casters and friends on Discord — the same people who play the games put on the show.
-        </p>
+        <TwitchClips />
+        <div className={styles.copy}>
+          <h2 className={styles.title} id="who-we-are-title">WHO WE ARE?</h2>
+          <p className={styles.body}>
+            Overtime Productions is a group of friends that started with custom game nights in 2022.
+          </p>
+          <p className={styles.body}>
+            Since then, we’ve grown into organized tournaments and events.
+            The community has stayed part of it all, playing together and joining in.
+          </p>
+        </div>
       </div>
     </section>
   );

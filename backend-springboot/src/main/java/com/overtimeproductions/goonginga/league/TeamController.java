@@ -23,6 +23,7 @@ public class TeamController {
         return teams.leaderboard(tournamentId != null && tournamentId > 0 ? tournamentId : null);
     }
     @GetMapping("/{id}") public JsonNode get(@PathVariable int id) { return teams.get(id); }
+    @GetMapping("/{id}/players") public List<JsonNode> players(@PathVariable int id) { return teams.players(id); }
     @PostMapping("/create") @ResponseStatus(HttpStatus.CREATED)
     public JsonNode create(@AuthenticationPrincipal Jwt token, @RequestBody NewTeam input) {
         access.admin(token);

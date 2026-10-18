@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ClipboardList, Swords, Trophy, Users } from "lucide-react";
+import { CalendarDays, ClipboardList, Shield, Swords, Trophy, Users } from "lucide-react";
 import { getCurrentNetworkMember } from "@/lib/api/networkMember";
 import type { NetworkMember } from "@/lib/api/types";
 import { readNetworkSessionToken } from "@/features/networkSession/storage";
@@ -26,6 +26,8 @@ interface AdminTab {
 
 const TABS: AdminTab[] = [
   { href: "/admin-dashboard/season", label: "Season Control", icon: Trophy, adminOnly: true },
+  { href: "/admin-dashboard/teams", label: "Teams & Captains", icon: Shield, adminOnly: true },
+  { href: "/admin-dashboard/schedule", label: "Schedule & Results", icon: CalendarDays, adminOnly: true },
   { href: "/admin-dashboard/roster", label: "Season Roster", icon: ClipboardList, adminOnly: true },
   { href: "/admin-dashboard", label: "Network Members", icon: Users, adminOnly: false },
   { href: "/admin-dashboard/overwatch-content", label: "Overwatch Content", icon: Swords, adminOnly: true },

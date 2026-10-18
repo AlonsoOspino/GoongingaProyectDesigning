@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError } from "@/lib/api/client";
 import { getCurrentTournament } from "@/lib/api/admin";
 import { getLeaderboard } from "@/lib/api/team";
@@ -11,7 +11,8 @@ import type { HeroRole, Match, PlayerStat, Team, Tournament } from "@/lib/api/ty
 import { buildPlayerAverages, sortByMetric, type TopMetricKey } from "@/lib/stats/playerAverages";
 import { resolveGenericBackendAsset } from "@/lib/assetUrls";
 import { matchesSeasonNumber } from "@/features/tournament/seasonIdentity";
-import { filterMatchesByDivision, groupTeamsByDivision, regularSeasonDivision, regularSeasonStats } from "@/features/tournament/divisions";
+import { groupTeamsByDivision, regularSeasonStats } from "@/features/tournament/divisions";
+import { groupSeasonSchedule, type ScheduleStatus } from "@/features/tournament/schedule";
 import styles from "./current-season.module.css";
 
 type View = "schedule" | "standings" | "teams" | "stats";
@@ -38,8 +39,10 @@ const stageLabels: Record<Match["type"], string> = {
 };
 
 function TeamLogo({ team }: { team?: Team }) {
-  if (!team?.logo) return <span className={styles.logoFallback} aria-hidden="true">{team?.name.charAt(0) ?? "?"}</span>;
-  return <img className={styles.logo} src={resolveGenericBackendAsset(team.logo)} alt="" loading="lazy" />;
+  const [failedSrc, setFailedSrc] = useState("");
+  const src = resolveGenericBackendAsset(team?.logo);
+  if (!src || failedSrc === src) return <span className={styles.logoFallback} aria-hidden="true">{team?.name.charAt(0) ?? "?"}</span>;
+  return <img className={styles.logo} src={src} alt="" loading="lazy" onError={() => setFailedSrc(src)} />;
 }
 
 export default function CurrentSeasonView({ view }: { view: View }) {
@@ -52,13 +55,17 @@ export default function CurrentSeasonView({ view }: { view: View }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [divisionFilter, setDivisionFilter] = useState("");
+  const [weekFilter, setWeekFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<ScheduleStatus>("ALL");
+  const requestId = useRef(0);
 
-  const load = useCallback(async (isMounted: () => boolean = () => true) => {
-    setLoading(true);
-    setError(null);
+  const load = useCallback(async (isMounted: () => boolean = () => true, background = false) => {
+    const request = ++requestId.current;
+    const active = () => isMounted() && request === requestId.current;
+    if (!background) setLoading(true);
     try {
       const current = await getCurrentTournament({ cache: "no-store" });
-      if (!isMounted()) return;
+      if (!active()) return;
       if (!matchesSeasonNumber(current, 9)) {
         setTournament(null);
         setTeams([]);
@@ -69,63 +76,60 @@ export default function CurrentSeasonView({ view }: { view: View }) {
       const [nextTeams, nextMatches] = await Promise.all([
         getLeaderboard(current.id), getMatchesByTournament(current.id),
       ]);
-      if (!isMounted()) return;
+      if (!active()) return;
       setTournament(current);
       setTeams(nextTeams);
       setMatches(nextMatches.filter((match) => match.type !== "PRACTICE"));
+      setError(null);
       const currentStats = view === "stats" && nextMatches.some((match) => match.type === "ROUNDROBIN")
         ? await getPublicPlayerStats() : [];
-      if (!isMounted()) return;
+      if (!active()) return;
       setStats(regularSeasonStats(currentStats, nextMatches, nextTeams, null));
     } catch (reason) {
-      if (!isMounted()) return;
+      if (!active()) return;
       if (reason instanceof ApiError && reason.status === 404) {
         setTournament(null);
         setTeams([]);
         setMatches([]);
         setStats([]);
       } else {
-        setError("The season could not be loaded. Please try again.");
+        if (!background) setError("The season could not be loaded. Please try again.");
       }
     } finally {
-      if (isMounted()) setLoading(false);
+      if (active()) setLoading(false);
     }
   }, [view]);
 
   useEffect(() => {
     let mounted = true;
+    const query = new URLSearchParams(window.location.search);
+    setDivisionFilter(query.get("division") ?? "");
+    setWeekFilter(query.get("week") ?? "");
     void load(() => mounted);
-    return () => { mounted = false; };
+    const refresh = () => { if (document.visibilityState === "visible") void load(() => mounted, true); };
+    const timer = window.setInterval(refresh, 15000);
+    window.addEventListener("focus", refresh);
+    return () => { mounted = false; window.clearInterval(timer); window.removeEventListener("focus", refresh); };
   }, [load]);
 
   const divisions = tournament?.divisions ?? [];
-  const divisionId = divisionFilter ? Number(divisionFilter) : null;
+  const divisionId = divisionFilter && divisions.some((division) => division.id === Number(divisionFilter)) ? Number(divisionFilter) : null;
+  const weeks = useMemo(() => [...new Set(matches.filter((match) => match.type === "ROUNDROBIN" && match.semanas != null).map((match) => match.semanas!))].sort((a, b) => a - b), [matches]);
+  const week = weekFilter && weeks.includes(Number(weekFilter)) ? Number(weekFilter) : null;
   const groups = useMemo(() => groupTeamsByDivision(teams, divisions)
     .filter((group) => divisionId == null || group.id === divisionId), [teams, divisions, divisionId]);
   const teamsById = useMemo(() => new Map(teams.map((team) => [team.id, team])), [teams]);
   const playerRows = useMemo(() => sortByMetric(buildPlayerAverages(regularSeasonStats(stats, matches, teams, divisionId))
     .filter((player) => role === "ALL" || player.role === role), metricKey), [stats, matches, teams, divisionId, role, metricKey]);
   const activeMetric = metrics.find((metric) => metric.key === metricKey) ?? metrics[0];
-  const fixtureGroups = useMemo(() => {
-    const grouped = new Map<string, { label: string; order: number; matches: Match[] }>();
-    for (const match of filterMatchesByDivision(matches, teams, divisionId)) {
-      const division = regularSeasonDivision(match, teamsById);
-      const divisionName = divisions.find((item) => item.id === division)?.name;
-      const regular = match.type === "ROUNDROBIN";
-      const label = regular
-        ? `Week ${match.semanas ?? "TBA"}${divisionName ? ` · ${divisionName}` : ""}`
-        : match.title || stageLabels[match.type];
-      const key = regular ? `week-${match.semanas}-${division ?? "all"}` : `stage-${match.playoffRound ?? match.type}-${label}`;
-      const order = regular ? (match.semanas ?? 99) * 10 + (divisions.find((item) => item.id === division)?.sortOrder ?? 0)
-        : 1000 + (match.playoffRound ?? (match.type === "FINALS" ? 3 : 0));
-      const group = grouped.get(key) ?? { label, order, matches: [] };
-      group.matches.push(match);
-      grouped.set(key, group);
-    }
-    return [...grouped.values()].sort((left, right) => left.order - right.order)
-      .map((group) => ({ ...group, matches: [...group.matches].sort((left, right) =>
-        (left.startDate ? Date.parse(left.startDate) : Infinity) - (right.startDate ? Date.parse(right.startDate) : Infinity) || left.id - right.id) }));
-  }, [matches, teams, teamsById, divisions, divisionId]);
+  const fixtureGroups = useMemo(() => groupSeasonSchedule(matches, teams, divisions, { divisionId, week, status: statusFilter }), [matches, teams, divisions, divisionId, week, statusFilter]);
+
+  function changeFilter(key: "division" | "week", value: string) {
+    if (key === "division") setDivisionFilter(value); else setWeekFilter(value);
+    const url = new URL(window.location.href);
+    if (value) url.searchParams.set(key, value); else url.searchParams.delete(key);
+    window.history.replaceState(null, "", url);
+  }
 
   return (
     <main className={styles.page}>
@@ -145,10 +149,24 @@ export default function CurrentSeasonView({ view }: { view: View }) {
         {divisions.length > 0 && (
           <div className={styles.filters}>
             <label htmlFor="division-filter">Division</label>
-            <select id="division-filter" value={divisionFilter} onChange={(event) => setDivisionFilter(event.target.value)}>
+            <select id="division-filter" value={divisionId ?? ""} onChange={(event) => changeFilter("division", event.target.value)}>
               <option value="">All divisions</option>
               {divisions.map((division) => <option key={division.id} value={division.id}>{division.name}</option>)}
             </select>
+          </div>
+        )}
+        {view === "schedule" && matches.length > 0 && (
+          <div className={styles.filters}>
+            <label htmlFor="schedule-week">Week</label>
+            <select id="schedule-week" value={week ?? ""} onChange={(event) => changeFilter("week", event.target.value)}>
+              <option value="">All weeks & playoffs</option>
+              {weeks.map((value) => <option key={value} value={value}>Week {value}</option>)}
+            </select>
+            <label htmlFor="schedule-status">Show</label>
+            <select id="schedule-status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as ScheduleStatus)}>
+              <option value="ALL">All matches</option><option value="UPCOMING">Upcoming</option><option value="ACTIVE">Live</option><option value="FINISHED">Results</option>
+            </select>
+            <span className={styles.refreshNote}>Times in your timezone · Scores update automatically</span>
           </div>
         )}
         {view === "stats" && (
@@ -175,26 +193,28 @@ export default function CurrentSeasonView({ view }: { view: View }) {
           </table></div></div>
         ) : <p className={styles.empty}>Player stats will appear after Season 9 match data is published.</p> : view === "schedule" ? fixtureGroups.length ? (
           <div className={styles.sections}>{fixtureGroups.map((group) => (
-            <section key={group.label} className={styles.division}>
-              <h2>{group.label}</h2>
-              <ul className={styles.matches}>{group.matches.map((match) => {
+            <section key={group.key} className={styles.division}>
+              <div className={styles.divisionHead}><h2>{group.name}</h2><span>{group.weeks.reduce((count, item) => count + item.matches.length, 0)} matches</span></div>
+              {group.weeks.map((item) => <div key={item.week ?? "playoffs"} className={styles.fixtureWeek}>
+              <h3>{group.key === "playoffs" ? "Bracket matches" : `Week ${item.week ?? "TBA"}`}</h3>
+              <ul className={styles.matches}>{item.matches.map((match) => {
                 const a = teamsById.get(match.teamAId);
                 const b = teamsById.get(match.teamBId);
                 const finished = match.status === "FINISHED";
                 return (
                   <li key={match.id}>
                     <Link href={`/schedule/${match.id}`} className={styles.match}>
-                      <span className={styles.matchMeta}>{match.status === "ACTIVE" ? "Live" : finished ? "Final" : match.startDate ? new Date(match.startDate).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "Date to be announced"}<span>Best of {match.bestOf}</span></span>
+                      <span className={styles.matchMeta}><span className={match.status === "ACTIVE" ? styles.live : undefined}>{match.status === "ACTIVE" ? "● Live" : finished ? "Final" : "Scheduled"}{match.startDate ? ` · ${new Date(match.startDate).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : !finished ? " · Date TBA" : ""}</span><span>{match.type !== "ROUNDROBIN" ? `${stageLabels[match.type]} · ` : ""}Best of {match.bestOf}</span></span>
                       <span className={`${styles.matchTeam} ${finished && match.mapWinsTeamA > match.mapWinsTeamB ? styles.winner : ""}`}><TeamLogo team={a} />{a?.name ?? `Team ${match.teamAId}`}</span>
                       <span className={styles.score}>{match.status === "SCHEDULED" ? "VS" : `${match.mapWinsTeamA}–${match.mapWinsTeamB}`}</span>
                       <span className={`${styles.matchTeam} ${styles.matchTeamB} ${finished && match.mapWinsTeamB > match.mapWinsTeamA ? styles.winner : ""}`}>{b?.name ?? `Team ${match.teamBId}`}<TeamLogo team={b} /></span>
                     </Link>
                   </li>
                 );
-              })}</ul>
+              })}</ul></div>)}
             </section>
           ))}</div>
-        ) : <p className={styles.empty}>The Season 9 schedule has not been published yet.</p> : (
+        ) : <p className={styles.empty}>{matches.length ? "No matches match these filters. Choose another week or status." : "The Season 9 schedule has not been published yet."}</p> : (
           <div className={styles.sections}>{groups.map((group) => (
             <section key={group.id ?? "unassigned"} className={styles.division}>
               <div className={styles.divisionHead}><h2>{group.name}</h2><span>{group.teams.length} teams</span></div>

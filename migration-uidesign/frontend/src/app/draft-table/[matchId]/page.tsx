@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "@/features/session/SessionProvider";
-import { readNetworkSessionUser, type NetworkSessionUser } from "@/features/networkSession/storage";
+import { getCurrentNetworkMember, getNetworkMemberCapabilities, type NetworkMemberCapabilities } from "@/lib/api/networkMember";
+import type { NetworkMember } from "@/lib/api/types";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -76,7 +77,7 @@ function isSessionFailure(error: unknown) {
 export default function DraftTablePage() {
   const params = useParams();
   const router = useRouter();
-  const { user, token, isAuthenticated, isHydrated, clearSession } = useSession();
+  const { token, isAuthenticated, isHydrated, clearSession } = useSession();
   const searchParams = useSearchParams();
   const urlKey = searchParams?.get("key");
   const matchReference = parseMatchReference((params as { matchId?: string }).matchId);
@@ -108,7 +109,8 @@ export default function DraftTablePage() {
   const [shareCopied, setShareCopied] = useState<string | null>(null);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [resetPending, setResetPending] = useState(false);
-  const [networkUser, setNetworkUser] = useState<NetworkSessionUser | null>(null);
+  const [networkUser, setNetworkUser] = useState<NetworkMember | null>(null);
+  const [capabilities, setCapabilities] = useState<NetworkMemberCapabilities | null>(null);
 
   // The positioned box a ban portrait flies across. In the broadcast view this
   // sits inside a scaled canvas, which BanCeremony corrects for.
@@ -120,24 +122,41 @@ export default function DraftTablePage() {
   const hasInitializedActionsRef = useRef(false);
 
   useEffect(() => {
-    const refresh = () => setNetworkUser(readNetworkSessionUser());
-    refresh();
+    if (!token || isObsKeyAccess) { setNetworkUser(null); setCapabilities(null); return; }
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const [member, nextCapabilities] = await Promise.all([getCurrentNetworkMember(token), getNetworkMemberCapabilities(token)]);
+        if (!cancelled) { setNetworkUser(member); setCapabilities(nextCapabilities); }
+      } catch {
+        if (!cancelled) { setNetworkUser(null); setCapabilities(null); }
+      }
+    };
+    void refresh();
+    const interval = window.setInterval(() => { if (!document.hidden) void refresh(); }, 12000);
+    window.addEventListener("focus", refresh);
     window.addEventListener("network-session-changed", refresh);
     window.addEventListener("storage", refresh);
     return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refresh);
       window.removeEventListener("network-session-changed", refresh);
       window.removeEventListener("storage", refresh);
     };
-  }, []);
+  }, [token, isObsKeyAccess]);
 
   const isManager = !isObsKeyAccess && Boolean(networkUser?.roles.some((role) => role === "SOCIAL_MEDIA" || role === "ADMIN"));
   const isAdmin = !isObsKeyAccess && Boolean(networkUser?.roles.includes("ADMIN"));
   // Destructive operational actions (full match reset) are open to both roles.
   const canResetMatch = isManager || isAdmin;
-  const isCaptain = !isObsKeyAccess && user?.role === "CAPTAIN";
+  const captainAssignment = capabilities?.captainOf.find((assignment) =>
+    assignment.tournamentId === draftState?.match?.tournamentId
+    && (assignment.teamId === draftState.match.teamAId || assignment.teamId === draftState.match.teamBId));
+  const isCaptain = !isObsKeyAccess && Boolean(captainAssignment);
   const isKeyAccess = isObsKeyAccess;
   const shouldRenderCompactHeader = true;
-  const myTeamId = user?.teamId;
+  const myTeamId = captainAssignment?.teamId;
   const isMyTurn = draftState?.currentTurnTeamId === myTeamId;
   const currentPhase = draftState?.phase as Phase;
   const isMapSelectionLocked = currentPhase === "MAPPICKING" && Boolean(draftState?.currentMapId);

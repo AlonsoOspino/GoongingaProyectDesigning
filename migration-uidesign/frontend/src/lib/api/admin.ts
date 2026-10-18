@@ -96,11 +96,11 @@ export async function getMatchById(matchId: MatchReference) {
 // ==================== TEAMS (Admin) ====================
 export interface CreateTeamPayload {
   name: string;
-  logo?: string;
-  bannerLeft?: string;
-  bannerRight?: string;
-  roster?: string;
-  discordRoleId?: string;
+  logo?: string | null;
+  bannerLeft?: string | null;
+  bannerRight?: string | null;
+  roster?: string | null;
+  discordRoleId?: string | null;
   tournamentId: number;
   divisionId?: number | null;
 }
@@ -111,6 +111,38 @@ export async function adminCreateTeam(token: string, payload: CreateTeamPayload)
     token,
     body: payload,
   });
+}
+
+export async function adminUpdateTeam(token: string, teamId: number, payload: Partial<Omit<CreateTeamPayload, "tournamentId">>) {
+  return apiRequest<Team>(`/team/admin/update/${teamId}`, { method: "PUT", token, body: payload });
+}
+
+export type TeamImageCategory = "logo" | "roster" | "bannerLeft" | "bannerRight";
+
+export async function adminUploadTeamImage(token: string, image: File, category: TeamImageCategory) {
+  const formData = new FormData();
+  formData.append("image", image);
+  formData.append("category", category);
+  return apiRequest<{ imageUrl: string }>("/team/admin/upload-image", { method: "POST", token, formData });
+}
+
+export interface AdminMatchPayload {
+  tournamentId: number;
+  teamAId: number;
+  teamBId: number;
+  type: Match["type"];
+  bestOf: number;
+  semanas: number | null;
+  startDate: string | null;
+  title?: string;
+}
+
+export async function adminCreateMatch(token: string, payload: AdminMatchPayload) {
+  return apiRequest<Match>("/match/admin/create", { method: "POST", token, body: payload });
+}
+
+export async function adminUpdateMatch(token: string, matchId: number, payload: Partial<AdminMatchPayload>) {
+  return apiRequest<Match>(`/match/admin/update/${matchId}`, { method: "PUT", token, body: payload });
 }
 
 export async function adminCreateTeams(token: string, payload: { count: number; tournamentId: number; namePrefix?: string }) {

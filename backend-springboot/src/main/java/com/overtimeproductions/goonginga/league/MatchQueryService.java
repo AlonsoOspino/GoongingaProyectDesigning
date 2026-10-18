@@ -45,12 +45,20 @@ public class MatchQueryService {
         return object;
     }
     public List<JsonNode> all(Integer tournamentId,Integer semanas,String type) {
+        return all(tournamentId,semanas,type,null);
+    }
+    public List<JsonNode> all(Integer tournamentId,Integer semanas,String type,Integer divisionId) {
         var sql=new StringBuilder("SELECT (to_jsonb(m) || " + DIVISION_JSON + ")::text FROM public.\"Match\" m JOIN public.\"Tournament\" t ON t.id=m.\"tournamentId\" WHERE t.name <> 'GGL Developer Draft App'");
         var args=new ArrayList<Object>();
         if (tournamentId!=null) { sql.append(" AND m.\"tournamentId\"=?"); args.add(tournamentId); }
         if (semanas!=null) { sql.append(" AND m.semanas=?"); args.add(semanas); }
         if (type!=null && !type.isBlank()) { sql.append(" AND m.type=?::\"MatchType\""); args.add(type.toUpperCase()); }
-        sql.append(" ORDER BY m.id");
+        if (divisionId!=null) {
+            if (divisionId<1) throw new IllegalArgumentException("divisionId must be a positive integer.");
+            sql.append(" AND m.type='ROUNDROBIN' AND EXISTS(SELECT 1 FROM public.\"Team\" team WHERE team.id=m.\"teamAId\" AND team.\"divisionId\"=?)");
+            args.add(divisionId);
+        }
+        sql.append(" ORDER BY m.semanas NULLS LAST,m.\"startDate\" NULLS LAST,m.id");
         return json.list(sql.toString(),args.toArray());
     }
     public JsonNode soonest() {

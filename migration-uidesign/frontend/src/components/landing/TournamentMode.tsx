@@ -3,247 +3,211 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getCurrentTournament } from "@/lib/api/admin";
+import { ApiError } from "@/lib/api/client";
 import { getLeaderboard } from "@/lib/api/team";
-import { getMatches } from "@/lib/api/match";
-import type { Match, Team, Tournament } from "@/lib/api/types";
-import { matchesSeasonNumber } from "@/features/tournament/seasonIdentity";
+import { getMatchesByTournament } from "@/lib/api/match";
+import type { Team, Tournament } from "@/lib/api/types";
+import { resolveGenericBackendAsset } from "@/lib/assetUrls";
+import { matchesSeasonNumber, resolveSeasonLabel } from "@/features/tournament/seasonIdentity";
+import { filterMatchesByDivision } from "@/features/tournament/divisions";
+import { pickTournamentPhase, type TournamentPhase } from "@/features/tournament/featuredMatch";
+import { ArrowIcon, TWITCH_URL, TwitchIcon } from "./brandAssets";
 import styles from "./tournament-mode.module.css";
 
-/*
- * The automatic tournament announcement.
- *
- * Nobody writes this. It reads the live tournament state and shows the one
- * thing that matters at that moment, following a fixed set of rules:
- *
- *   no live season   -> "Next season coming soon"
- *   scheduled        -> countdown to the season start
- *   in play          -> countdown to the next match, or the latest result, or a
- *                       taste of the nearest week if neither exists
- *   grand final      -> the same, but staged bigger
- *
- * Data is scoped to the current tournament so old seasons can never leak onto
- * the homepage.
- */
-
-type Phase =
-  | { kind: "coming-soon" }
-  | { kind: "starts-in"; at: string }
-  | { kind: "next-match"; match: Match; at: string }
-  | { kind: "live"; match: Match }
-  | { kind: "latest-result"; match: Match }
-  | { kind: "preview"; match: Match };
-
 interface Loaded {
-  phase: Phase;
-  teamsById: Map<number, Team>;
-  finals: boolean;
+  tournament: Tournament | null;
+  teams: Team[];
+  matches: Tournament["matches"];
 }
 
-const POLL_MS = 20000;
-const IN_PLAY = new Set(["ROUNDROBIN", "PLAYOFFS", "SEMIFINALS", "FINALS"]);
+const labels: Record<TournamentPhase["kind"], string> = {
+  "coming-soon": "Season updates",
+  preparation: "Season preparation",
+  complete: "Season complete",
+  "next-match": "Up next",
+  live: "Live now",
+  "latest-result": "Latest result",
+  preview: "On the schedule",
+};
 
-function pickPhase(tournament: Tournament, matches: Match[]): Phase {
-  const state = tournament.state;
-
-  if (state === "SCHEDULED") {
-    return tournament.startDate
-      ? { kind: "starts-in", at: tournament.startDate }
-      : { kind: "coming-soon" };
-  }
-
-  if (!IN_PLAY.has(state)) return { kind: "coming-soon" };
-
-  const live = matches.find((m) => m.status === "ACTIVE");
-  if (live) return { kind: "live", match: live };
-
-  const nextScheduled = matches
-    .filter((m) => m.status === "SCHEDULED" && m.startDate)
-    .sort(
-      (a, b) => new Date(a.startDate as string).getTime() - new Date(b.startDate as string).getTime()
-    )[0];
-  if (nextScheduled) return { kind: "next-match", match: nextScheduled, at: nextScheduled.startDate as string };
-
-  const lastFinished = matches
-    .filter((m) => m.status === "FINISHED")
-    .sort((a, b) => (b.gameNumber || 0) - (a.gameNumber || 0))[0];
-  if (lastFinished) return { kind: "latest-result", match: lastFinished };
-
-  // Nothing scheduled and nothing played: show a match from the nearest week.
-  const nearest = matches
-    .filter((m) => Number.isFinite(m.semanas))
-    .sort((a, b) => (a.semanas || 0) - (b.semanas || 0))[0];
-  if (nearest) return { kind: "preview", match: nearest };
-
-  return { kind: "coming-soon" };
+function TeamIdentity({ team, side }: { team?: Team; side: "a" | "b" }) {
+  const [failedSource, setFailedSource] = useState("");
+  const logo = resolveGenericBackendAsset(team?.logo);
+  const name = team?.name || "Team to be confirmed";
+  return (
+    <div className={styles.team} data-side={side}>
+      <div className={styles.logoPlate}>
+        {logo && failedSource !== logo ? (
+          <img className={styles.logo} src={logo} alt={`${name} logo`} decoding="async" onError={() => setFailedSource(logo)} />
+        ) : (
+          <span className={styles.logoFallback} aria-hidden="true">{team?.name?.slice(0, 2).toUpperCase() || "?"}</span>
+        )}
+      </div>
+      <strong className={styles.teamName} title={name}>{name}</strong>
+    </div>
+  );
 }
 
-function useCountdown(target: string | null) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (!target) return;
-    const id = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(id);
-  }, [target]);
-
+function countdownUnits(target: string | null, now: number) {
   if (!target) return null;
-  const ms = new Date(target).getTime() - now;
-  if (!Number.isFinite(ms)) return null;
-  const clamped = Math.max(0, ms);
-  const days = Math.floor(clamped / 86400000);
-  const hours = Math.floor((clamped % 86400000) / 3600000);
-  const mins = Math.floor((clamped % 3600000) / 60000);
-  const secs = Math.floor((clamped % 60000) / 1000);
-  return { days, hours, mins, secs, done: ms <= 0 };
+  const ms = Date.parse(target) - now;
+  if (!Number.isFinite(ms) || ms <= 0) return null;
+  return [
+    { value: Math.floor(ms / 86400000), label: "Days" },
+    { value: Math.floor((ms % 86400000) / 3600000), label: "Hrs" },
+    { value: Math.floor((ms % 3600000) / 60000), label: "Min" },
+    { value: Math.floor((ms % 60000) / 1000), label: "Sec" },
+  ];
 }
 
-export default function TournamentMode() {
+function formatMatchDate(value: string | null | undefined) {
+  if (!value || !Number.isFinite(Date.parse(value))) return "Match time to be confirmed";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short",
+  }).format(new Date(value));
+}
+
+export default function TournamentMode({ standalone = false }: { standalone?: boolean }) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
+  const [error, setError] = useState(false);
+  const [divisionFilter, setDivisionFilter] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     let mounted = true;
+    let fetching = false;
     const load = async () => {
+      if (fetching) return;
+      fetching = true;
       try {
         const tournament = await getCurrentTournament({ cache: "no-store" });
         if (!matchesSeasonNumber(tournament, 9)) {
-          if (mounted) setLoaded({ phase: { kind: "coming-soon" }, teamsById: new Map(), finals: false });
+          if (mounted) { setLoaded({ tournament: null, teams: [], matches: [] }); setError(false); }
           return;
         }
-        const finished = tournament.state === "FINISHED";
-        const [standings, matches] = await Promise.all([
-          getLeaderboard(tournament.id).catch(() => [] as Team[]),
-          getMatches().catch(() => [] as Match[]),
-        ]);
+        const [teams, matches] = await Promise.all([getLeaderboard(tournament.id), getMatchesByTournament(tournament.id)]);
+        if (mounted) {
+          setLoaded({ tournament, teams, matches });
+          setError(false);
+        }
+      } catch (reason) {
         if (!mounted) return;
-        const seasonMatches = matches.filter((m) => m.tournamentId === tournament.id);
-        const teamsById = new Map(standings.map((t) => [t.id, t] as const));
-        const phase = finished ? ({ kind: "coming-soon" } as Phase) : pickPhase(tournament, seasonMatches);
-        setLoaded({ phase, teamsById, finals: tournament.state === "FINALS" && phase.kind !== "coming-soon" });
-      } catch {
-        if (mounted) setLoaded(null);
+        if (reason instanceof ApiError && reason.status === 404) {
+          setLoaded({ tournament: null, teams: [], matches: [] });
+          setError(false);
+        } else setError(true);
+      } finally {
+        fetching = false;
       }
     };
     void load();
-    const poll = window.setInterval(load, POLL_MS);
+    const poll = window.setInterval(load, 20000);
+    const clock = window.setInterval(() => setNow(Date.now()), 1000);
     return () => {
       mounted = false;
       window.clearInterval(poll);
+      window.clearInterval(clock);
     };
   }, []);
 
-  const countdownTarget = useMemo(() => {
-    if (!loaded) return null;
-    if (loaded.phase.kind === "starts-in") return loaded.phase.at;
-    if (loaded.phase.kind === "next-match") return loaded.phase.at;
-    return null;
-  }, [loaded]);
-
-  const countdown = useCountdown(countdownTarget);
-
-  if (!loaded) return null;
-
-  const { phase, teamsById, finals } = loaded;
-  const teamName = (id: number) => teamsById.get(id)?.name ?? "TBD";
-
-  const matchup = (m: Match) => (
-    <p className={styles.matchup}>
-      <span className={styles.teamA}>{teamName(m.teamAId)}</span>
-      <span className={styles.versus}>vs</span>
-      <span className={styles.teamB}>{teamName(m.teamBId)}</span>
-    </p>
-  );
-
-  const clock = countdown ? (
-    <div className={styles.clock} aria-hidden="false">
-      {[
-        { v: countdown.days, l: "Days" },
-        { v: countdown.hours, l: "Hrs" },
-        { v: countdown.mins, l: "Min" },
-        { v: countdown.secs, l: "Sec" },
-      ].map((u) => (
-        <span key={u.l} className={styles.clockUnit}>
-          <span className={styles.clockValue}>{String(u.v).padStart(2, "0")}</span>
-          <span className={styles.clockLabel}>{u.l}</span>
-        </span>
-      ))}
-    </div>
-  ) : null;
+  const tournament = loaded?.tournament ?? null;
+  const divisions = useMemo(() => [...(tournament?.divisions ?? [])]
+    .sort((left, right) => left.sortOrder - right.sortOrder || left.id - right.id), [tournament]);
+  const selectedDivision = divisions.find((division) => division.id === divisionFilter);
+  const divisionId = selectedDivision?.id ?? null;
+  const teamsById = useMemo(() => new Map((loaded?.teams ?? []).map((team) => [team.id, team])), [loaded]);
+  const fixtures = useMemo(() => filterMatchesByDivision(loaded?.matches ?? [], loaded?.teams ?? [], divisionId), [loaded, divisionId]);
+  const phase = pickTournamentPhase(tournament, fixtures, now);
+  const match = "match" in phase ? phase.match : null;
+  const teamA = match ? teamsById.get(match.teamAId) : undefined;
+  const teamB = match ? teamsById.get(match.teamBId) : undefined;
+  const seasonLabel = tournament ? resolveSeasonLabel(tournament) : "Season 9";
+  const matchDivision = match?.divisionName
+    || (teamA?.divisionId != null && teamA.divisionId === teamB?.divisionId
+      ? divisions.find((division) => division.id === teamA.divisionId)?.name : null);
+  const target = phase.kind === "next-match" ? phase.at : phase.kind === "preparation" ? phase.at : null;
+  const countdown = countdownUnits(target, now);
+  const finals = match?.type === "FINALS";
+  const showScore = phase.kind === "live" || phase.kind === "latest-result";
+  const divisionQuery = divisionId != null ? `?division=${divisionId}` : "";
+  const scheduleHref = `/schedule${divisionQuery}`;
+  const loading = !loaded && !error;
 
   return (
-    <section
-      className={styles.section}
-      data-finals={finals ? "true" : "false"}
-      data-kind={phase.kind}
-      aria-label="Tournament status"
-    >
-      <div className={styles.inner}>
-        <p className={styles.eyebrow}>
-          <span className={styles.dot} aria-hidden="true" />
-          {finals ? "Season 9 · Grand Final" : "GGL Tournament · Season 9"}
-        </p>
-
-        {phase.kind === "coming-soon" && (
-          <>
-            <h2 className={styles.headline}>Season 9</h2>
-            <Link href="/season-9" className={styles.link}>Season information</Link>
-          </>
-        )}
-
-        {phase.kind === "starts-in" && (
-          <>
-            <h2 className={styles.headline}>Season starts in</h2>
-            {clock}
-            <Link href="/schedule" className={styles.link}>
-              See the schedule
-            </Link>
-          </>
-        )}
-
-        {phase.kind === "next-match" && (
-          <>
-            <p className={styles.kicker}>Next match</p>
-            {matchup(phase.match)}
-            {clock}
-            <Link href="/schedule" className={styles.link}>
-              Full schedule
-            </Link>
-          </>
-        )}
-
-        {phase.kind === "live" && (
-          <>
-            <p className={styles.kicker} data-live="true">
-              <span className={styles.liveDot} aria-hidden="true" /> Playing now
-            </p>
-            {matchup(phase.match)}
-            <p className={styles.score}>
-              {phase.match.mapWinsTeamA} <span>–</span> {phase.match.mapWinsTeamB}
-            </p>
-          </>
-        )}
-
-        {phase.kind === "latest-result" && (
-          <>
-            <p className={styles.kicker}>Latest result</p>
-            {matchup(phase.match)}
-            <p className={styles.score}>
-              {phase.match.mapWinsTeamA} <span>–</span> {phase.match.mapWinsTeamB}
-            </p>
-            <Link href="/history?tab=results" className={styles.link}>
-              All results
-            </Link>
-          </>
-        )}
-
-        {phase.kind === "preview" && (
-          <>
-            <p className={styles.kicker}>Week {phase.match.semanas ?? "?"} · Coming soon</p>
-            {matchup(phase.match)}
-            <Link href="/schedule" className={styles.link}>
-              Full schedule
-            </Link>
-          </>
-        )}
+    <section className={`${styles.section} ${standalone ? styles.standalone : ""}`} aria-label="GGL tournament announcement" data-tournament-announcement>
+      <div className={styles.heading}>
+        <div>
+          <p className={styles.eyebrow}>Overtime GGL</p>
+          <h2 className={styles.sectionTitle}>{seasonLabel}</h2>
+        </div>
+        <Link href={scheduleHref} className={styles.scheduleLink}>Schedule & results <ArrowIcon /></Link>
       </div>
+
+      {divisions.length > 0 && (
+        <div className={styles.divisions} role="group" aria-label="Featured match division">
+          <button type="button" aria-pressed={divisionId === null} onClick={() => setDivisionFilter(null)}>All divisions</button>
+          {divisions.map((division) => (
+            <button key={division.id} type="button" aria-pressed={divisionId === division.id} onClick={() => setDivisionFilter(division.id)}>{division.name}</button>
+          ))}
+        </div>
+      )}
+
+      <article className={styles.card} data-finals={finals || undefined} data-kind={phase.kind} data-testid="tournament-card" aria-busy={loading}>
+        <div className={styles.cardHeader}>
+          <span className={styles.brand}>GGL <span>Tournament</span></span>
+          <span className={styles.status} data-live={phase.kind === "live" || undefined}>
+            <i aria-hidden="true" />{loading ? "Loading season" : error && !loaded ? "Season updates" : labels[phase.kind]}
+          </span>
+        </div>
+
+        {match ? (
+          <>
+            <div className={styles.matchHeading}>
+              <p>{[matchDivision, match.semanas != null ? `Week ${match.semanas}` : null, finals ? "Grand Final" : null].filter(Boolean).join(" · ") || seasonLabel}</p>
+              <span>{match.title || (match.type === "ROUNDROBIN" ? "Regular season" : match.type.replaceAll("_", " "))} · Best of {match.bestOf}</span>
+            </div>
+            <div className={styles.matchup} aria-label={`${teamA?.name ?? "Team to be confirmed"} versus ${teamB?.name ?? "Team to be confirmed"}`}>
+              <TeamIdentity team={teamA} side="a" />
+              <div className={styles.matchCenter}>
+                {showScore ? <strong className={styles.score}>{match.mapWinsTeamA}<span>:</span>{match.mapWinsTeamB}</strong> : <span className={styles.versus}>VS</span>}
+                <span className={styles.scoreLabel}>{phase.kind === "live" ? "LIVE" : phase.kind === "latest-result" ? "FINAL" : "OVERWATCH 5v5"}</span>
+              </div>
+              <TeamIdentity team={teamB} side="b" />
+            </div>
+          </>
+        ) : (
+          <div className={styles.seasonCopy}>
+            <p>{selectedDivision?.name || "Overwatch community league"}</p>
+            <h3>{loading ? "Getting ready" : error && !loaded ? "Stay connected" : seasonLabel}</h3>
+            <span>{loading ? "Loading the latest season information." : error && !loaded ? "Season information is temporarily unavailable." : phase.kind === "complete" ? "The season is complete. Explore the teams, standings and results." : selectedDivision ? "This division's matches will appear here when the schedule is published." : "Teams, weekly matches and results. Follow every division here."}</span>
+          </div>
+        )}
+
+        <div className={styles.cardFooter}>
+          {countdown ? (
+            <div className={styles.countdown} aria-label={match ? "Time until next match" : "Time until season starts"}>
+              <span className={styles.countdownLabel}>{match ? "Starts in" : "Season starts in"}</span>
+              <div className={styles.clock}>
+                {countdown.map((unit) => <span className={styles.clockUnit} key={unit.label}><strong>{String(unit.value).padStart(2, "0")}</strong><span>{unit.label}</span></span>)}
+              </div>
+            </div>
+          ) : (
+            <div className={styles.dateLine}>
+              <span>{match ? phase.kind === "next-match" ? "Awaiting start" : phase.kind === "latest-result" ? "Match result" : phase.kind === "live" ? "On stream" : "Match day" : "Follow the season"}</span>
+              {match ? <time dateTime={Number.isFinite(Date.parse(match.startDate)) ? match.startDate : undefined}>{formatMatchDate(match.startDate)}</time> : <strong>Every team. Every division.</strong>}
+            </div>
+          )}
+          <Link href={match ? `/schedule/${match.id}` : "/season-9"} className={styles.cardLink}>
+            {match ? phase.kind === "latest-result" ? "View result" : phase.kind === "live" ? "Open live match" : "Match details" : "Explore the season"}<ArrowIcon />
+          </Link>
+        </div>
+      </article>
+
+      <div className={styles.links}>
+        <Link href={`/teams${divisionQuery}`}>Meet the teams <ArrowIcon size={14} /></Link>
+        {phase.kind === "live" ? <a href={TWITCH_URL} target="_blank" rel="noopener noreferrer"><TwitchIcon size={14} /> Watch live</a> : <Link href={`/standings${divisionQuery}`}>Division standings <ArrowIcon size={14} /></Link>}
+      </div>
+      {error && loaded ? <p className={styles.refreshNotice} role="status">Updates are reconnecting. Showing the last available schedule.</p> : null}
     </section>
   );
 }

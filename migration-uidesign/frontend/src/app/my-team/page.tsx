@@ -5,7 +5,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { useSession } from "@/features/session/SessionProvider";
 import { getTeams, updateCaptainTeam } from "@/lib/api/team";
-import { getMatches } from "@/lib/api/match";
+import { getMatchesByTournament } from "@/lib/api/match";
+import { getCurrentTournament, adminUpdateTeam } from "@/lib/api/admin";
+import { getMemberProfileById } from "@/lib/api/auth";
+import { getNetworkMemberCapabilities, type NetworkMemberCapabilities } from "@/lib/api/networkMember";
+import { resolveGenericBackendAsset } from "@/lib/assetUrls";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -26,63 +30,79 @@ export default function MyTeamPage() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [editForm, setEditForm] = useState({ name: "", logo: "", roster: "" });
+  const [capabilities, setCapabilities] = useState<NetworkMemberCapabilities | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchData() {
-      if (!isAuthenticated || !user?.teamId) {
+      if (!isAuthenticated || !user || !token) {
+        setTeam(null); setCapabilities(null);
         setLoading(false);
         return;
       }
 
       try {
-        const [teamsData, matchesData] = await Promise.all([
+        const current = await getCurrentTournament({ cache: "no-store" });
+        const [teamsData, matchesData, profile, nextCapabilities] = await Promise.all([
           getTeams(),
-          getMatches().catch(() => [] as Match[]),
+          getMatchesByTournament(current.id),
+          getMemberProfileById(user.id, token),
+          getNetworkMemberCapabilities(token),
         ]);
 
         setTeams(teamsData);
+        setCapabilities(nextCapabilities);
 
-        const myTeam = teamsData.find((t) => t.id === user.teamId);
+        const myTeam = teamsData.find((t) => t.id === profile.teamId && t.tournamentId === current.id);
+        setTeam(myTeam || null);
         if (myTeam) {
-          setTeam(myTeam);
-          setEditForm({
+          if (!editModalOpen) setEditForm({
             name: myTeam.name,
-            logo: myTeam.logo || "",
-            roster: myTeam.roster || "",
+            logo: myTeam.logo ? resolveGenericBackendAsset(myTeam.logo) : "",
+            roster: myTeam.roster ? resolveGenericBackendAsset(myTeam.roster) : "",
           });
         }
 
         // Filter matches for my team
         const myMatches = matchesData.filter(
-          (m) => m.teamAId === user.teamId || m.teamBId === user.teamId
+          (m) => m.teamAId === myTeam?.id || m.teamBId === myTeam?.id
         );
         setMatches(myMatches);
+        setError(null);
       } catch (error) {
         console.error("Failed to fetch team data:", error);
+        setError(error instanceof Error ? error.message : "Unable to refresh your season team.");
       } finally {
         setLoading(false);
       }
     }
 
     if (isHydrated) {
-      fetchData();
+      void fetchData();
     }
-  }, [isAuthenticated, user, isHydrated]);
+    const refresh = () => { if (!document.hidden) void fetchData(); };
+    const interval = window.setInterval(refresh, 15000);
+    window.addEventListener("focus", refresh);
+    return () => { window.clearInterval(interval); window.removeEventListener("focus", refresh); };
+  }, [isAuthenticated, user, token, isHydrated, editModalOpen]);
 
   const handleEditSubmit = async () => {
     if (!token || !team) return;
 
     setEditLoading(true);
+    setError(null);
     try {
-      const updatedTeam = await updateCaptainTeam(token, team.id, {
+      const payload = {
         name: editForm.name || undefined,
-        logo: editForm.logo || undefined,
-        roster: editForm.roster || undefined,
-      });
+        logo: editForm.logo,
+        roster: editForm.roster,
+      };
+      const updatedTeam = capabilities?.isAdmin ? await adminUpdateTeam(token, team.id, payload) : await updateCaptainTeam(token, team.id, payload);
       setTeam(updatedTeam);
       setEditModalOpen(false);
     } catch (error) {
       console.error("Failed to update team:", error);
+      setError(error instanceof Error ? error.message : "Unable to save your team.");
     } finally {
       setEditLoading(false);
     }
@@ -174,10 +194,10 @@ export default function MyTeamPage() {
                 </svg>
               </div>
               <h2 className="text-xl font-semibold text-foreground mb-2">
-                No Team Assigned
+                {error ? "Unable to load your team" : "No Team Assigned"}
               </h2>
               <p className="text-muted mb-6">
-                You are not currently assigned to any team. Contact a league administrator to join a team.
+                {error || "You are not currently assigned to any team. Contact a league administrator to join a team."}
               </p>
               <Link href="/teams">
                 <Button variant="outline">Browse Teams</Button>
@@ -195,10 +215,11 @@ export default function MyTeamPage() {
       ? Math.round((team.mapWins / (team.mapWins + team.mapLoses)) * 100)
       : 0;
 
-  const canEdit = user?.role === "CAPTAIN" || user?.role === "MANAGER" || user?.role === "ADMIN";
+  const canEdit = Boolean(capabilities?.isAdmin || capabilities?.captainOf.some((assignment) => assignment.teamId === team.id && assignment.tournamentId === team.tournamentId));
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {error && <p role="alert" className="mb-5 rounded-sm border border-danger/30 bg-danger/10 p-3 text-sm text-danger">{error}</p>}
       {/* Header */}
       <div className="mb-8 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
@@ -224,7 +245,7 @@ export default function MyTeamPage() {
             <div className="flex flex-col items-center text-center">
               <Avatar
                 size="xl"
-                src={team.logo || undefined}
+                src={team.logo ? resolveGenericBackendAsset(team.logo) : undefined}
                 fallback={team.name}
                 className="w-24 h-24 text-2xl mb-4"
               />
@@ -326,7 +347,7 @@ export default function MyTeamPage() {
           <CardContent>
             <div className="relative w-full overflow-hidden rounded-lg border border-border bg-surface">
               <Image
-                src={team.roster}
+                src={resolveGenericBackendAsset(team.roster)}
                 alt={`${team.name} roster`}
                 width={1400}
                 height={900}
@@ -351,6 +372,7 @@ export default function MyTeamPage() {
           }}
           className="space-y-4"
         >
+          {error && <p role="alert" className="rounded-sm border border-danger/30 bg-danger/10 p-3 text-sm text-danger">{error}</p>}
           <Input
             label="Team Name"
             value={editForm.name}

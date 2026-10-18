@@ -11,6 +11,7 @@ import styles from "@/announcements/announcements.module.css";
 import studio from "@/announcements/studio.module.css";
 import { resolveSeasonLabel } from "@/features/tournament/seasonIdentity";
 import { useCurrentTournament } from "@/features/tournament/useCurrentTournament";
+import { resolveGenericBackendAsset } from "@/lib/assetUrls";
 
 function Team({
   name,
@@ -24,7 +25,7 @@ function Team({
   return (
     <div className={styles.team}>
       {logo ? (
-        <img src={logo} alt={`${name} logo`} />
+        <img src={resolveGenericBackendAsset(logo)} alt={`${name} logo`} />
       ) : (
         <span>{name.slice(0, 2)}</span>
       )}

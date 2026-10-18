@@ -2,9 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { getTeams } from "@/lib/api/team";
+import { getTeams, getTeamPlayers } from "@/lib/api/team";
 import { getMatches } from "@/lib/api/match";
-import { getMembers, type Member } from "@/lib/api/admin";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
@@ -13,16 +12,18 @@ import { MatchCard } from "@/components/matches/MatchCard";
 import type { Match } from "@/lib/api/types";
 import { resolveGenericBackendAsset } from "@/lib/assetUrls";
 
+export const dynamic = "force-dynamic";
+
 interface TeamPageProps {
   params: Promise<{ teamId: string }>;
 }
 
 async function getTeamData(teamId: number) {
   try {
-    const [teams, matches, members] = await Promise.all([
+    const [teams, matches, players] = await Promise.all([
       getTeams(),
       getMatches().catch(() => [] as Match[]),
-      getMembers().catch(() => [] as Member[]),
+      getTeamPlayers(teamId),
     ]);
 
     const team = teams.find((t) => t.id === teamId);
@@ -32,15 +33,19 @@ async function getTeamData(teamId: number) {
 
     // Get team's matches
     const teamMatches = matches
-      .filter((m) => m.teamAId === teamId || m.teamBId === teamId)
-      .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+      .filter((m) => m.tournamentId === team.tournamentId && m.type !== "PRACTICE" && (m.teamAId === teamId || m.teamBId === teamId));
 
     const upcomingMatches = teamMatches
       .filter((m) => m.status === "SCHEDULED" || m.status === "ACTIVE")
+      .sort((a, b) => Number(b.status === "ACTIVE") - Number(a.status === "ACTIVE") ||
+        (a.semanas ?? Infinity) - (b.semanas ?? Infinity) ||
+        (a.startDate ? Date.parse(a.startDate) : Infinity) - (b.startDate ? Date.parse(b.startDate) : Infinity) || a.id - b.id)
       .slice(0, 5);
 
     const recentMatches = teamMatches
       .filter((m) => m.status === "FINISHED")
+      .sort((a, b) => (b.semanas ?? 0) - (a.semanas ?? 0) ||
+        (b.startDate ? Date.parse(b.startDate) : 0) - (a.startDate ? Date.parse(a.startDate) : 0) || b.id - a.id)
       .slice(0, 5);
 
     // Calculate stats
@@ -55,15 +60,13 @@ async function getTeamData(teamId: number) {
       };
     });
 
-    const winStreak = matchResults.reduce((streak, r, idx) => {
-      if (idx === 0 && r.won) return 1;
-      if (r.won && idx > 0 && matchResults[idx - 1].won) return streak + 1;
-      return streak;
-    }, 0);
+    const firstLoss = matchResults.findIndex((result) => !result.won);
+    const winStreak = firstLoss === -1 ? matchResults.length : firstLoss;
 
-    const teamMembers = members
-      .filter((member) => member.teamId === teamId)
-      .sort((a, b) => a.nickname.localeCompare(b.nickname));
+    const teamMembers = players.map((player) => ({
+      id: player.memberId, nickname: player.member.nickname || player.member.username,
+      profilePic: player.member.avatarUrl, role: player.role,
+    }));
 
     return {
       team,
@@ -114,13 +117,7 @@ export default async function TeamPage({ params }: TeamPageProps) {
   const winRate = totalMaps > 0 ? Math.round((team.mapWins / totalMaps) * 100) : 0;
   const profileCount = teamMembers?.length ?? 0;
 
-  const rosterSrc = team.roster
-    ? team.roster.startsWith("http")
-      ? team.roster
-      : team.roster.startsWith("/")
-        ? team.roster
-        : `/${team.roster}`
-    : null;
+  const rosterSrc = resolveGenericBackendAsset(team.roster);
 
   const resolveProfilePic = (value?: string | null) => {
     if (!value) return null;
@@ -145,7 +142,7 @@ export default async function TeamPage({ params }: TeamPageProps) {
       {/* Team Header */}
       <div className="flex flex-col md:flex-row md:items-center gap-6 mb-8">
         <div className="flex flex-wrap items-center gap-4">
-          <Avatar size="xl" src={team.logo || undefined} fallback={team.name} className="w-24 h-24 text-2xl" />
+          <Avatar size="xl" src={resolveGenericBackendAsset(team.logo) || undefined} alt={`${team.name} logo`} fallback={team.name} className="w-24 h-24 rounded-sm text-2xl [&_img]:object-contain" />
           {profileCount > 0 && (
             <div className="flex items-center gap-3">
               <div className="flex -space-x-2">
@@ -246,6 +243,18 @@ export default async function TeamPage({ params }: TeamPageProps) {
       )}
 
       {/* Content Grid */}
+      <Card className="mb-8">
+        <CardHeader><CardTitle>Players & Captain</CardTitle></CardHeader>
+        <CardContent>
+          {teamMembers.length ? <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {teamMembers.map((member) => <li key={member.id} className="flex items-center gap-3 border border-border p-3">
+              <Avatar src={resolveProfilePic(member.profilePic) || undefined} fallback={member.nickname} alt={member.nickname} />
+              <Link href={`/stats/${member.id}?tournamentId=${team.tournamentId}`} className="min-w-0 flex-1 break-words font-medium hover:text-accent">{member.nickname}</Link>
+              {member.role === "CAPTAIN" && <Badge variant="primary">Captain</Badge>}
+            </li>)}
+          </ul> : <p className="text-sm text-muted">The roster will be announced here.</p>}
+        </CardContent>
+      </Card>
       <div className="grid gap-8 lg:grid-cols-2">
         {/* Upcoming Matches, limited to 2 */ }
         <Card>

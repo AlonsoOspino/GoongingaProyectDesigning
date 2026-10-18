@@ -5,8 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "@/features/session/SessionProvider";
 import {
-  readNetworkSessionUser,
-  type NetworkSessionUser,
+  readNetworkSessionToken,
 } from "@/features/networkSession/storage";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -16,9 +15,14 @@ import { PauseRequestNotification } from "@/components/match/PauseRequestNotific
 import { MapPoolControl } from "@/components/manager/MapPoolControl";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
 import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { OperationTeamLogo } from "@/components/admin/SeasonOperationUi";
+import { getCurrentTournament } from "@/lib/api/admin";
+import { getCurrentNetworkMember } from "@/lib/api/networkMember";
+import { getMatchesByTournament } from "@/lib/api/match";
+import { getLeaderboard } from "@/lib/api/team";
+import { filterMatchesByDivision } from "@/features/tournament/divisions";
 import {
-  getMatches,
-  getTeams,
   getMembers,
   getDraftByMatchId,
   getDraftPhases,
@@ -32,20 +36,23 @@ import {
 } from "@/lib/api";
 import { formatDateTimeEST } from "@/lib/dateUtils";
 import styles from "./manager-dashboard.module.css";
-import type { PlayerStat } from "@/lib/api/types";
+import type { NetworkMember, PlayerStat, Tournament } from "@/lib/api/types";
 
-type TabValue = "scheduled" | "active" | "stats";
+type TabValue = "scheduled" | "active" | "results" | "stats";
 
 const POLL_INTERVAL = 12000;
 
 function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean }) {
   const router = useRouter();
   const { token, isAuthenticated, isHydrated } = useSession();
-  const [networkUser, setNetworkUser] = useState<NetworkSessionUser | null>(null);
+  const [networkUser, setNetworkUser] = useState<NetworkMember | null>(null);
   const [networkReady, setNetworkReady] = useState(false);
   const [activeTab, setActiveTab] = useState<TabValue>("scheduled");
   const [matches, setMatches] = useState<Match[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [tournament, setTournament] = useState<Tournament | null>(null);
+  const [divisionFilter, setDivisionFilter] = useState("");
+  const [weekFilter, setWeekFilter] = useState("");
   const [members, setMembers] = useState<Member[]>([]);
   const [drafts, setDrafts] = useState<Record<number, DraftState | null>>({});
   // Phase per match, for every draft that exists. A match sitting in STARTING
@@ -69,18 +76,24 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
   const accessReady = isHydrated && networkReady;
 
   useEffect(() => {
-    const refreshNetworkUser = () => {
-      setNetworkUser(readNetworkSessionUser());
-      setNetworkReady(true);
+    let cancelled = false;
+    const refreshNetworkUser = async () => {
+      const sessionToken = token || readNetworkSessionToken();
+      try {
+        const current = sessionToken ? await getCurrentNetworkMember(sessionToken) : null;
+        if (!cancelled) setNetworkUser(current);
+      } catch { if (!cancelled) setNetworkUser(null); }
+      finally { if (!cancelled) setNetworkReady(true); }
     };
-    refreshNetworkUser();
+    void refreshNetworkUser();
     window.addEventListener("network-session-changed", refreshNetworkUser);
     window.addEventListener("storage", refreshNetworkUser);
     return () => {
+      cancelled = true;
       window.removeEventListener("network-session-changed", refreshNetworkUser);
       window.removeEventListener("storage", refreshNetworkUser);
     };
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     if (accessReady && (!isAuthenticated || !canManage)) {
@@ -119,11 +132,13 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
   async function loadData(silent = false) {
     try {
       if (!silent) setLoading(true);
-      const [matchesData, teamsData, membersData, draftPhaseRows] = await Promise.all([
-        getMatches(),
-        getTeams(),
+      const current = await getCurrentTournament({ cache: "no-store" });
+      const [matchesData, teamsData, membersData, draftPhaseRows, currentMember] = await Promise.all([
+        getMatchesByTournament(current.id),
+        getLeaderboard(current.id),
         getMembers(),
         getDraftPhases().catch(() => []),
+        getCurrentNetworkMember(token || readNetworkSessionToken() || ""),
       ]);
 
       setDraftPhases(
@@ -146,6 +161,8 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
       prevMatchesRef.current = matchesData;
       setMatches(matchesData);
       setTeams(teamsData);
+      setTournament(current);
+      setNetworkUser(currentMember);
       setMembers(membersData);
       setDataError(null);
 
@@ -215,16 +232,21 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
   const getTeamName = (teamId: number) =>
     teams.find((t) => t.id === teamId)?.name || `Team ${teamId}`;
 
-  const scheduledMatches = matches.filter((m) => m.status === "SCHEDULED");
-  const activeMatches = matches.filter((m) => m.status === "ACTIVE");
+  const visibleMatches = filterMatchesByDivision(matches, teams, divisionFilter ? Number(divisionFilter) : null)
+    .filter((match) => !weekFilter || (match.type === "ROUNDROBIN" && String(match.semanas) === weekFilter));
+  const scheduledMatches = visibleMatches.filter((m) => m.status === "SCHEDULED");
+  const activeMatches = visibleMatches.filter((m) => m.status === "ACTIVE");
+  const finishedMatches = visibleMatches.filter((m) => m.status === "FINISHED");
+  const weeks = Array.from(new Set(matches.filter((match) => match.type === "ROUNDROBIN").map((match) => match.semanas || 1))).sort((a, b) => a - b);
 
   // Group scheduled matches by week
   const scheduledByWeek = scheduledMatches.reduce((acc, m) => {
-    const w = m.semanas || 1;
+    const division = m.divisionName || teams.find((team) => team.id === m.teamAId)?.divisionName;
+    const w = m.type === "ROUNDROBIN" ? `${m.semanas || 1}${division ? ` · ${division}` : ""}` : `Playoffs · ${m.type}`;
     if (!acc[w]) acc[w] = [];
     acc[w].push(m);
     return acc;
-  }, {} as Record<number, Match[]>);
+  }, {} as Record<string, Match[]>);
 
   // Find the next upcoming match (soonest startDate)
   const nextMatch = scheduledMatches
@@ -235,7 +257,8 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
   const playerAverages = (() => {
     const memberMap = new Map(members.map((m) => [m.id, m]));
     const byPlayer: Record<number, PlayerStat[]> = {};
-    for (const s of allStats) {
+    const matchIds = new Set(visibleMatches.map((match) => match.id));
+    for (const s of allStats.filter((stat) => matchIds.has(stat.matchId))) {
       if (!byPlayer[s.userId]) byPlayer[s.userId] = [];
       byPlayer[s.userId].push(s);
     }
@@ -280,9 +303,10 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
           <div className={styles.headerText}>
             <span className={styles.kicker}>Overtime Productions</span>
             <h1 className={styles.title}>{embedded ? "League operations" : "Manager Dashboard"}</h1>
-            <p className={styles.subtitle}>Manage matches, open draft tables, and register results</p>
+            <p className={styles.subtitle}>{tournament?.name || "League operations"} · Manage matches, open draft tables, and register results</p>
           </div>
           <div className={styles.headerAside}>
+            {networkUser?.roles.includes("ADMIN") && <Link href="/admin-dashboard/schedule" target={embedded ? "_top" : undefined} className="text-sm text-accent underline">Manage weekly schedule</Link>}
             {notificationsSupported && notificationPermission === "default" ? <Button size="sm" variant="secondary" onClick={() => void Notification.requestPermission().then(setNotificationPermission)}>Enable alerts</Button> : null}
             <span className={`${styles.livePill} ${dataError ? styles.livePillDown : ""}`}>
               <span className={styles.liveDot} aria-hidden="true" />
@@ -292,6 +316,10 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
         </header>
 
         {dataError ? <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border border-danger/50 bg-danger/10 p-4" role="alert"><span>Could not refresh league operations: {dataError}</span><Button size="sm" variant="secondary" onClick={() => void loadData()}>Try again</Button></div> : null}
+        <div className="mb-6 grid gap-3 sm:grid-cols-2">
+          <Select label="Division / league" value={divisionFilter} options={[{ value: "", label: "All divisions" }, ...(tournament?.divisions || []).map((division) => ({ value: String(division.id), label: division.name }))]} onChange={(event) => setDivisionFilter(event.target.value)} />
+          <Select label="Week" value={weekFilter} options={[{ value: "", label: "All weeks" }, ...weeks.map((week) => ({ value: String(week), label: `Week ${week}` }))]} onChange={(event) => setWeekFilter(event.target.value)} />
+        </div>
 
         {/* A match in progress is the state that needs someone watching, so it
             is the only counter that carries the accent. */}
@@ -345,6 +373,7 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
           <TabsList className="mb-6">
             <TabsTrigger value="scheduled">Scheduled ({scheduledMatches.length})</TabsTrigger>
             <TabsTrigger value="active">Active ({activeMatches.length})</TabsTrigger>
+            <TabsTrigger value="results">Results ({finishedMatches.length})</TabsTrigger>
             <TabsTrigger value="stats">Stats</TabsTrigger>
           </TabsList>
 
@@ -357,11 +386,11 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
                 <p className="text-muted text-center py-8">No scheduled matches.</p>
               ) : (
                 Object.entries(scheduledByWeek)
-                  .sort(([a], [b]) => Number(a) - Number(b))
+                  .sort(([a], [b]) => (parseInt(a, 10) || 999) - (parseInt(b, 10) || 999) || a.localeCompare(b))
                   .map(([week, weekMatches]) => (
                     <div key={week}>
                       <h3 className="text-sm font-semibold text-muted uppercase tracking-wide mb-3">
-                        Week {week}
+                        {week.startsWith("Playoffs") ? week : `Week ${week}`}
                       </h3>
                       <div className="space-y-3">
                         {weekMatches
@@ -387,9 +416,11 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                                       {isNext && <Badge variant="primary" className="text-xs">Next Match</Badge>}
+                                      <OperationTeamLogo team={teams.find((team) => team.id === match.teamAId)} size="sm" />
                                       <span className="text-lg font-semibold text-foreground">{teamAName}</span>
                                       <span className="text-muted">vs</span>
                                       <span className="text-lg font-semibold text-foreground">{teamBName}</span>
+                                      <OperationTeamLogo team={teams.find((team) => team.id === match.teamBId)} size="sm" />
                                     </div>
                                     <div className="flex items-center gap-3 text-sm text-muted">
                                       <Badge variant="secondary">{match.type}</Badge>
@@ -451,10 +482,12 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
                           <div className="flex flex-col gap-4">
                             <div className="flex flex-col lg:flex-row lg:items-center gap-4">
                               <div className="flex-1">
-                                <div className="flex items-center gap-3 mb-2">
+                                <div className="flex flex-wrap items-center gap-3 mb-2">
+                                  <OperationTeamLogo team={teams.find((team) => team.id === match.teamAId)} size="sm" />
                                   <span className="text-lg font-semibold text-foreground">{getTeamName(match.teamAId)}</span>
                                   <span className="font-mono text-xl text-accent">{match.mapWinsTeamA} - {match.mapWinsTeamB}</span>
                                   <span className="text-lg font-semibold text-foreground">{getTeamName(match.teamBId)}</span>
+                                  <OperationTeamLogo team={teams.find((team) => team.id === match.teamBId)} size="sm" />
                                 </div>
                                 <div className="flex items-center gap-3 text-sm">
                                   <Badge variant="primary">Game {(match.gameNumber || 0) + 1}</Badge>
@@ -509,6 +542,12 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="results">
+            <Card variant="bordered"><CardHeader><CardTitle>Match results</CardTitle></CardHeader><CardContent>
+              {!finishedMatches.length ? <p className="py-5 text-sm text-muted">No finished matches in this view.</p> : <div className="space-y-3">{finishedMatches.map((match) => <div key={match.id} className="flex flex-wrap items-center justify-between gap-4 rounded-sm border border-border p-4"><div><p className="mb-2 text-xs text-muted">{match.divisionName || "Playoffs"} · {match.semanas ? `Week ${match.semanas}` : match.type}</p><div className="flex flex-wrap items-center gap-3"><OperationTeamLogo team={teams.find((team) => team.id === match.teamAId)} size="sm" /><span className="text-sm font-medium">{getTeamName(match.teamAId)}</span><span className="font-mono text-xl text-accent">{match.mapWinsTeamA} – {match.mapWinsTeamB}</span><span className="text-sm font-medium">{getTeamName(match.teamBId)}</span><OperationTeamLogo team={teams.find((team) => team.id === match.teamBId)} size="sm" /></div></div><Button size="sm" variant="outline" onClick={() => openDraftTable(match.id)}>View draft & results</Button></div>)}</div>}
+            </CardContent></Card>
           </TabsContent>
 
           {/* STATS TAB */}

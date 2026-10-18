@@ -337,6 +337,11 @@ export default function SeasonControlPage() {
         <p className="mt-2 max-w-xl text-sm text-muted">
           Drive the full season lifecycle — from creating the tournament to seeding the playoff bracket.
         </p>
+        <div className="mt-5 flex flex-wrap gap-3 text-sm">
+          <Link href="/admin-dashboard/teams" className="rounded-sm border border-border px-4 py-2 hover:border-accent">1. Teams, artwork & captains</Link>
+          <Link href="/admin-dashboard/schedule" className="rounded-sm border border-border px-4 py-2 hover:border-accent">2. Weekly schedule & results</Link>
+          <Link href="/manager-dashboard" className="rounded-sm border border-border px-4 py-2 hover:border-accent">3. Live match control</Link>
+        </div>
       </header>
 
       {error && (

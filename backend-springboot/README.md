@@ -134,6 +134,44 @@ En producción Compose reutiliza `migration-uidesign/backend/.env` para OAuth,
 JWT y la clave OBS; inyecta las credenciales JDBC desde el entorno de PostgreSQL.
 Los permisos y el estado activo del usuario se vuelven a consultar en cada petición.
 
+## Operación de temporada y producción
+
+Los equipos se crean con `POST /team/create` y se editan con
+`PUT /team/admin/update/{id}`. Aceptan `name`, `tournamentId`, `divisionId`,
+`logo`, `roster`, `bannerLeft` y `bannerRight`. Para subir cada imagen, ADMIN usa
+`POST /team/admin/upload-image` con multipart `image` y `category` igual a
+`logo`, `roster`, `bannerLeft` o `bannerRight`. Devuelve la URL persistente en
+`imageUrl` y `url`; se guarda en el campo correspondiente del equipo. Los archivos
+usan el volumen de medios existente, validan formato y contenido y tienen un
+límite de 10 MB. Devuelve rutas relativas a la API para conservar prefijos del
+proxy como `/backend`; `PUBLIC_API_BASE_URL` permite fijar una URL absoluta.
+
+`GET /team/{id}/players` muestra el roster real de esa temporada, con capitán
+primero y solamente identidades públicas. Las asignaciones se administran con
+`PUT /season-roster/{tournamentId}/members/{memberId}` usando
+`{ "role": "CAPTAIN" | "PLAYER", "teamId": id }`. Un equipo con asignaciones
+o partidos no se puede mover de temporada ni borrar; su arte sigue siendo
+editable después de generar el calendario.
+
+`POST /match/admin/create` acepta `tournamentId`, `teamAId`, `teamBId`,
+`type: "ROUNDROBIN"`, `semanas`, `bestOf`, `startDate` ISO o `null` y `title`.
+Cada partido nuevo nace `SCHEDULED`, conecta los mapas del catálogo y prepara
+su draft inmediatamente. Si se especifica `allowedMaps.connect`, todos sus IDs
+deben existir y la lista debe contener algún mapa. El calendario valida que los
+equipos pertenezcan a la temporada y división, y que no jueguen dos veces en la
+misma semana. El primer partido regular creado manualmente pasa la temporada
+de `SCHEDULED` a `ROUNDROBIN`, igual que la generación automática.
+`GET /match?tournamentId=...&divisionId=...&semanas=...` permite
+consultar cada división y semana en orden de calendario.
+
+Los resultados se registran por mapa desde el draft mediante
+`POST /match/{id}/result` con `winnerTeamId`, `expectedGameNumber` y
+`expectedMapId`; `POST /match/{id}/undo-result` revierte el último resultado.
+Estos comandos mantienen marcador, historial, clasificación y overlays juntos.
+Editar los marcadores directamente devuelve 409 cuando el partido tiene draft.
+Las divisiones y nuevos equipos quedan bloqueados cuando comienza el calendario
+regular; fechas, imágenes y roster se pueden seguir administrando.
+
 ## Importar drafts anteriores
 
 Primero revisa una copia aislada. Detén las escrituras Node antes de aplicar

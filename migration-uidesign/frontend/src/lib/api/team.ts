@@ -6,6 +6,17 @@ export async function getTeams(options: { includeDev?: boolean } = {}) {
   return apiRequest<Team[]>(`/team${query}`);
 }
 
+export interface PublicTeamPlayer {
+  id: number;
+  memberId: number;
+  role: "CAPTAIN" | "PLAYER";
+  member: { id: number; username: string; nickname: string | null; avatarUrl: string | null };
+}
+
+export async function getTeamPlayers(teamId: number) {
+  return apiRequest<PublicTeamPlayer[]>(`/team/${teamId}/players`, { cache: "no-store" });
+}
+
 export async function getLeaderboard(tournamentId?: number) {
   const query = tournamentId ? `?tournamentId=${tournamentId}` : "";
   return apiRequest<Team[]>(`/team/leaderboard${query}`);

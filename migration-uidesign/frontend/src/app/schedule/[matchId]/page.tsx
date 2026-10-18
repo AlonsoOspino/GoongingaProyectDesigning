@@ -8,6 +8,9 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import type { MatchStatus, MatchType } from "@/lib/api/types";
+import { resolveGenericBackendAsset } from "@/lib/assetUrls";
+
+export const dynamic = "force-dynamic";
 
 interface MatchPageProps {
   params: Promise<{ matchId: string }>;
@@ -119,9 +122,10 @@ export default async function MatchPage({ params }: MatchPageProps) {
             <Link href={`/teams/${match.teamAId}`} className="flex flex-col items-center gap-4 group">
               <Avatar
                 size="xl"
-                src={teamA?.logo || undefined}
+                src={resolveGenericBackendAsset(teamA?.logo) || undefined}
+                alt={`${teamAName} logo`}
                 fallback={teamAName}
-                className="w-24 h-24 text-2xl group-hover:ring-2 ring-primary transition-all"
+                className="w-24 h-24 rounded-sm text-2xl [&_img]:object-contain group-hover:ring-2 ring-primary transition-all"
               />
               <div className="text-center">
                 <h2 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors">
@@ -171,9 +175,10 @@ export default async function MatchPage({ params }: MatchPageProps) {
             <Link href={`/teams/${match.teamBId}`} className="flex flex-col items-center gap-4 group">
               <Avatar
                 size="xl"
-                src={teamB?.logo || undefined}
+                src={resolveGenericBackendAsset(teamB?.logo) || undefined}
+                alt={`${teamBName} logo`}
                 fallback={teamBName}
-                className="w-24 h-24 text-2xl group-hover:ring-2 ring-primary transition-all"
+                className="w-24 h-24 rounded-sm text-2xl [&_img]:object-contain group-hover:ring-2 ring-primary transition-all"
               />
               <div className="text-center">
                 <h2 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors">
@@ -212,19 +217,21 @@ export default async function MatchPage({ params }: MatchPageProps) {
                       timeZone: "America/New_York",
                       hour: "numeric",
                       minute: "2-digit",
-                    }) + " EST"
+                      timeZoneName: "short",
+                    })
                   : "TBD"}
               </p>
             </div>
             <div className="text-center">
               <p className="text-muted">Week</p>
-              <p className="font-medium text-foreground">{match.semanas}</p>
+              <p className="font-medium text-foreground">{match.semanas ?? "—"}</p>
             </div>
             <div className="text-center">
               <p className="text-muted">Game</p>
               <p className="font-medium text-foreground">#{match.gameNumber}</p>
             </div>
           </div>
+          {match.divisionName && <p className="mt-4 text-center text-sm text-accent">{match.divisionName}</p>}
         </CardContent>
       </Card>
 
@@ -278,7 +285,7 @@ export default async function MatchPage({ params }: MatchPageProps) {
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-4 rounded-lg border border-border">
                   <div className="flex items-center gap-3">
-                    <Avatar size="md" src={teamA?.logo || undefined} fallback={teamAName} />
+                    <Avatar size="md" src={resolveGenericBackendAsset(teamA?.logo) || undefined} alt={`${teamAName} logo`} fallback={teamAName} className="rounded-sm [&_img]:object-contain" />
                     <span className="font-medium text-foreground">{teamAName}</span>
                   </div>
                   {match.teamAready ? (
@@ -289,7 +296,7 @@ export default async function MatchPage({ params }: MatchPageProps) {
                 </div>
                 <div className="flex items-center justify-between p-4 rounded-lg border border-border">
                   <div className="flex items-center gap-3">
-                    <Avatar size="md" src={teamB?.logo || undefined} fallback={teamBName} />
+                    <Avatar size="md" src={resolveGenericBackendAsset(teamB?.logo) || undefined} alt={`${teamBName} logo`} fallback={teamBName} className="rounded-sm [&_img]:object-contain" />
                     <span className="font-medium text-foreground">{teamBName}</span>
                   </div>
                   {match.teamBready ? (
@@ -309,7 +316,7 @@ export default async function MatchPage({ params }: MatchPageProps) {
         <Card className="mt-8">
           <CardContent className="p-6 text-center">
             <p className="text-muted mb-4">This match is currently live!</p>
-            <Link href="/draft">
+            <Link href={`/draft-table/${match.id}`}>
               <Button>Go to Draft Room</Button>
             </Link>
           </CardContent>

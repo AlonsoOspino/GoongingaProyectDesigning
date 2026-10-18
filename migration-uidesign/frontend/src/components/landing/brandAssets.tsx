@@ -6,7 +6,8 @@
  */
 
 export const DISCORD_INVITE = "https://discord.gg/QMukTWr32f";
-export const TWITCH_URL = "https://www.twitch.tv/goongingatournament";
+export const TWITCH_CHANNEL = "overtimeggl";
+export const TWITCH_URL = `https://www.twitch.tv/${TWITCH_CHANNEL}`;
 
 export function DiscordIcon({ size = 19 }: { size?: number }) {
   return (

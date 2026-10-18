@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { getActiveAnnouncements } from "@/lib/api/announcement";
 import { getAnnouncementTemplate } from "@/announcements/registry";
 import type { ActiveAnnouncements } from "@/announcements/types";
+import AutomaticTournament from "@/components/landing/TournamentMode";
 import styles from "@/announcements/announcements.module.css";
 
 export function AnnouncementRenderer({
@@ -35,7 +36,15 @@ export function AnnouncementRenderer({
     return standalone ? (
       <div className={styles.loading}>Loading announcements...</div>
     ) : null;
-  if (!state.enabled || state.announcements.length === 0)
+  if (!state.enabled)
+    return standalone ? (
+      <div className={styles.loading}>No active league announcements.</div>
+    ) : null;
+  // Automatic mode has no authored rows; it follows the current season directly.
+  if (state.mode === "TOURNAMENT" || (state.mode !== "CUSTOM" && state.announcements.length === 0)) {
+    return <AutomaticTournament standalone={standalone} />;
+  }
+  if (state.announcements.length === 0)
     return standalone ? (
       <div className={styles.loading}>No active league announcements.</div>
     ) : null;

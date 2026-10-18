@@ -21,6 +21,10 @@
 .division h2 { margin: 0 0 18px; font-family: var(--font-heading); font-size: 19px; font-weight: 600; }
 .divisionHead { display: flex; justify-content: space-between; align-items: baseline; gap: 18px; }
 .divisionHead > span { font-size: 13px; color: color-mix(in srgb, var(--text) 54%, transparent); }
+.fixtureWeek + .fixtureWeek { margin-top: 26px; }
+.fixtureWeek h3 { margin: 0; padding: 10px 16px; border-left: 3px solid var(--accent); background: #151d18; font-family: var(--font-heading); font-size: 13px; font-weight: 500; }
+.refreshNote { font-size: 11px; color: color-mix(in srgb, var(--text) 50%, transparent); }
+.live { color: var(--accent); font-weight: 700; }
 .empty { margin: 0; padding: 38px 0; line-height: 1.6; color: color-mix(in srgb, var(--text) 64%, transparent); }
 .empty p { margin: 0 0 12px; }
 .empty a, .empty button { color: var(--accent); }
@@ -58,7 +62,10 @@
   .navigation { gap: 6px 18px; font-size: 14px; }
   .teams { grid-template-columns: 1fr; }
   .match { padding: 18px 12px; gap: 14px 10px; grid-template-columns: 1fr 46px 1fr; }
-  .matchTeam { gap: 8px; font-size: 14px; }
+  .matchTeam { flex-direction: column; gap: 8px; font-size: 14px; text-align: center; }
+  .matchTeamB { flex-direction: column-reverse; }
+  .matchTeam .logo, .matchTeam .logoFallback { width: 48px; height: 48px; flex-basis: 48px; }
+  .refreshNote { grid-column: 1 / -1; }
   .logo, .logoFallback { width: 26px; height: 26px; flex-basis: 26px; }
   .score { font-size: 19px; }
   .table td, .table th { padding: 13px 12px; }

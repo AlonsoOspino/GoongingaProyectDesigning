@@ -28,6 +28,17 @@ public class TeamRepository {
         return json.first(READ + "WHERE team.id=?", id)
                 .orElseThrow(() -> new DraftHttpException(HttpStatus.NOT_FOUND, "Team not found."));
     }
+    public List<JsonNode> players(int id) {
+        get(id);
+        return json.list("""
+                SELECT jsonb_build_object('id',sp.id,'memberId',sp."memberId",'role',sp.role,
+                  'member',jsonb_build_object('id',nm.id,'username',nm.username,'nickname',nm.nickname,'avatarUrl',nm."avatarUrl"))::text
+                FROM public."Team" team JOIN public."SeasonPlayer" sp
+                  ON sp."teamId"=team.id AND sp."tournamentId"=team."tournamentId"
+                JOIN public."NetworkMember" nm ON nm.id=sp."memberId"
+                WHERE team.id=? ORDER BY CASE WHEN sp.role='CAPTAIN' THEN 0 ELSE 1 END,nm.username,sp.id
+                """,id);
+    }
     public boolean isCaptain(int memberId, int teamId) {
         return Boolean.TRUE.equals(jdbc.queryForObject("""
                 SELECT EXISTS (SELECT 1 FROM public."SeasonPlayer" sp
@@ -65,6 +76,12 @@ public class TeamRepository {
         jdbc.update("UPDATE public.\"Team\" SET " + String.join(",", clauses) + " WHERE id=?", args.toArray());
     }
     public void remove(int id) { jdbc.update("DELETE FROM public.\"Team\" WHERE id=?", id); }
+    public boolean hasSeasonReferences(int id) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("""
+                SELECT EXISTS(SELECT 1 FROM public."Match" WHERE "teamAId"=? OR "teamBId"=?)
+                  OR EXISTS(SELECT 1 FROM public."SeasonPlayer" WHERE "teamId"=?)
+                """,Boolean.class,id,id,id));
+    }
     public List<JsonNode> roundRobinResults(Integer tournamentId) {
         String where = tournamentId == null ? "JOIN public.\"Tournament\" t ON t.id=m.\"tournamentId\" WHERE t.name <> 'GGL Developer Draft App'" : "WHERE m.\"tournamentId\"=?";
         return json.list("SELECT jsonb_build_object('teamAId',m.\"teamAId\",'teamBId',m.\"teamBId\",'mapWinsTeamA',m.\"mapWinsTeamA\",'mapWinsTeamB',m.\"mapWinsTeamB\")::text "

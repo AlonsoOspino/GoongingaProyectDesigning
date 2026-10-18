@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { getMatchById } from "@/lib/api/admin";
 import { getDraftByMatchId } from "@/lib/api/draft";
 import { getTeams } from "@/lib/api/team";
@@ -22,6 +23,8 @@ function teamAssetUrl(pathValue?: string | null) {
 }
 
 export function MatchHeaderOverlay({ matchId, reverseSides = false }: MatchHeaderOverlayProps) {
+  const searchParams = useSearchParams();
+  const shareKey = searchParams.get("key") || undefined;
   const [match, setMatch] = useState<Match | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
   const [draft, setDraft] = useState<DraftState | null>(null);
@@ -41,7 +44,7 @@ export function MatchHeaderOverlay({ matchId, reverseSides = false }: MatchHeade
           getMatchById(matchId),
           getTeams({ includeDev: matchId === "dev" }),
         ]);
-        const loadedDraft = await getDraftByMatchId(matchId).catch(() => undefined);
+        const loadedDraft = await getDraftByMatchId(matchId, { key: shareKey }).catch(() => undefined);
 
         if (cancelled) return;
         setMatch(loadedMatch);
@@ -62,7 +65,7 @@ export function MatchHeaderOverlay({ matchId, reverseSides = false }: MatchHeade
       cancelled = true;
       window.clearInterval(pollId);
     };
-  }, [matchId]);
+  }, [matchId, shareKey]);
 
   const teamsById = useMemo(() => {
     const result = new Map<number, Team>();

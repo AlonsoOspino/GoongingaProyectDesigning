@@ -65,9 +65,15 @@ public class MatchAdminService {
         if (raw==null) return null;
         return LocalDateTime.ofInstant(TournamentService.parseDate(String.valueOf(raw)),ZoneOffset.UTC).toString();
     }
+    private static int seriesLength(Object value) {
+        int bestOf=positive(value,"bestOf");
+        if (bestOf%2==0) throw new IllegalArgumentException("bestOf must be an odd positive integer.");
+        return bestOf;
+    }
     private String validate(int tournamentId,String matchType,Integer week,int teamA,int teamB,Integer excludeId) {
         if (teamA==teamB) throw new IllegalArgumentException("teamAId and teamBId must be different.");
         String state=tournaments.get(tournamentId).get("state").asText();
+        if ("FINISHED".equals(state)) throw new IllegalArgumentException("Matches cannot be scheduled in a finished season.");
         Set<String> allowed=switch (state) {
             case "ROUNDROBIN" -> Set.of("ROUNDROBIN");
             case "PLAYOFFS" -> Set.of("PLAYINS","PLAYOFFS");
@@ -105,18 +111,29 @@ public class MatchAdminService {
         tournaments.lock(tournamentId);
         String matchType=type(input.get("type"));
         Integer week=input.get("semanas")==null?null:positive(input.get("semanas"),"semanas");
-        validate(tournamentId,matchType,week,a,b,null);
-        int bestOf=input.get("bestOf")==null?5:positive(input.get("bestOf"),"bestOf");
+        String seasonState=validate(tournamentId,matchType,week,a,b,null);
+        int bestOf=input.get("bestOf")==null?5:seriesLength(input.get("bestOf"));
         String status=input.get("status")==null?"SCHEDULED":String.valueOf(input.get("status")).toUpperCase();
-        if (!STATUSES.contains(status)) throw new IllegalArgumentException("Invalid match status.");
+        if (!"SCHEDULED".equals(status)) throw new IllegalArgumentException("New matches must be SCHEDULED. Start play and record results through their draft table.");
+        List<Integer> mapIds=allMapIds();
+        if (input.containsKey("allowedMaps")) {
+            if (!(input.get("allowedMaps") instanceof Map<?,?> maps) || !(maps.get("connect") instanceof List<?> connected))
+                throw new IllegalArgumentException("allowedMaps must contain a connect list of map ids.");
+            var selected=new java.util.LinkedHashSet<Integer>();
+            for (Object entry:connected) {
+                if (!(entry instanceof Map<?,?> map)) throw new IllegalArgumentException("Each allowed map must have an id.");
+                int mapId=positive(map.get("id"),"map id");
+                if (!mapIds.contains(mapId)) throw new IllegalArgumentException("The selected map does not exist.");
+                selected.add(mapId);
+            }
+            if (selected.isEmpty()) throw new IllegalArgumentException("Select at least one allowed map, or omit allowedMaps to use the full map pool.");
+            mapIds=List.copyOf(selected);
+        }
         int id=insert(tournamentId,a,b,matchType,bestOf,matchType.equals("ROUNDROBIN")?week:null,
                 input.get("title")==null?null:String.valueOf(input.get("title")),status,date(input.get("startDate")));
-        if (input.get("allowedMaps") instanceof Map<?,?> maps && maps.get("connect") instanceof List<?> connected) {
-            var ids=new ArrayList<Integer>();
-            for (Object raw:connected) if (raw instanceof Map<?,?> map) ids.add(positive(map.get("id"),"map id"));
-            connectMaps(id,ids);
-        }
+        connectMaps(id,mapIds);
         drafts.ensure(id);
+        if ("ROUNDROBIN".equals(matchType) && "SCHEDULED".equals(seasonState)) tournaments.update(tournamentId,null,null,"ROUNDROBIN");
         return raw(id);
     }
     @Transactional
@@ -152,6 +169,7 @@ public class MatchAdminService {
         JsonNode original=raw(id);
         if (original.path("tournamentId").asInt()!=previewSeason) throw new DraftHttpException(HttpStatus.CONFLICT,"The match season changed. Reload before editing it.");
         if (input.isEmpty()) throw new IllegalArgumentException("No allowed fields to update.");
+        if (input.containsKey("bestOf")) seriesLength(input.get("bestOf"));
         boolean hasDraft = Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM spring_draft.draft_sessions WHERE match_id=?)",Boolean.class,id));
         var structural = List.of("type","bestOf","tournamentId","teamAId","teamBId");
         java.util.function.Predicate<String> changed = field -> input.containsKey(field)

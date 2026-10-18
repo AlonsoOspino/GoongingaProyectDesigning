@@ -21,6 +21,7 @@ public class TeamService {
     public TeamService(TeamRepository teams,DivisionService divisions,TournamentRepository tournaments) { this.teams = teams; this.divisions=divisions; this.tournaments=tournaments; }
     public List<JsonNode> all(boolean includeDev) { return teams.all(includeDev); }
     public JsonNode get(int id) { return teams.get(id); }
+    public List<JsonNode> players(int id) { return teams.players(id); }
 
     public List<JsonNode> leaderboard(Integer tournamentId) {
         List<JsonNode> rows = tournamentId == null ? teams.all(false) : teams.forTournament(tournamentId);
@@ -81,9 +82,9 @@ public class TeamService {
     public JsonNode create(String name, Integer tournamentId, String logo, String roster,String bannerLeft,String bannerRight,String discordRoleId,Integer divisionId) {
         if (name == null || name.isBlank() || tournamentId == null || tournamentId < 1)
             throw new IllegalArgumentException("name and tournamentId are required.");
-        if (teams.all(false).stream().anyMatch(t -> name.equals(t.get("name").asText())))
-            throw new IllegalArgumentException("Team already exists.");
-        tournaments.lock(tournamentId);tournaments.get(tournamentId);
+        name=validName(name,null);
+        tournaments.lock(tournamentId);
+        requireOpenSeason(tournaments.get(tournamentId));
         if (divisions.configured(tournamentId) && divisions.hasSchedule(tournamentId)) throw new IllegalArgumentException("Create season teams before generating the regular-season schedule.");
         divisions.validateAssignment(tournamentId,divisionId);
         return teams.get(teams.create(name.trim(), tournamentId, logo, roster,bannerLeft,bannerRight,discordRoleId,divisionId));
@@ -94,7 +95,7 @@ public class TeamService {
         if (count == null || count < 1 || count > 128 || tournamentId == null || tournamentId < 1)
             throw new IllegalArgumentException("count and tournamentId must be positive integers.");
         String base = prefix == null || prefix.isBlank() ? "Team" : prefix.trim();
-        tournaments.lock(tournamentId);tournaments.get(tournamentId);
+        tournaments.lock(tournamentId);requireOpenSeason(tournaments.get(tournamentId));
         if (divisions.configured(tournamentId) && divisions.hasSchedule(tournamentId)) throw new IllegalArgumentException("Create season teams before generating the regular-season schedule.");
         var names = new ArrayList<String>();
         var existing = new HashSet<String>();
@@ -109,11 +110,19 @@ public class TeamService {
     @Transactional
     public JsonNode update(int id, Map<String,Object> fields, Integer captainMemberId) {
         JsonNode original = teams.get(id);
+        fields=new java.util.LinkedHashMap<>(fields);
         if (captainMemberId != null) {
             if (!teams.isCaptain(captainMemberId,id)) throw new DraftHttpException(HttpStatus.FORBIDDEN,"You are not this team's captain.");
             if (fields.keySet().stream().anyMatch(k -> !List.of("name","logo","roster").contains(k)))
                 throw new IllegalArgumentException("Only name, logo and roster can be updated by a captain.");
         }
+        if (fields.containsKey("name")) {
+            if (!(fields.get("name") instanceof String name)) throw new IllegalArgumentException("name is required.");
+            fields.put("name",validName(name,id));
+        }
+        for (String field:List.of("logo","roster","bannerLeft","bannerRight","discordRoleId"))
+            if (fields.containsKey(field) && fields.get(field)!=null && !(fields.get(field) instanceof String))
+                throw new IllegalArgumentException(field+" must be a string or null.");
         int currentSeason=original.path("tournamentId").asInt();
         int nextSeason=fields.containsKey("tournamentId")?positiveInteger(fields.get("tournamentId"),"tournamentId"):currentSeason;
         Integer currentDivision=nullableInt(original,"divisionId");
@@ -122,6 +131,9 @@ public class TeamService {
             for (int season:java.util.stream.IntStream.of(currentSeason,nextSeason).distinct().sorted().toArray()) tournaments.lock(season);
             JsonNode locked=teams.get(id);
             if (locked.path("tournamentId").asInt()!=currentSeason) throw new DraftHttpException(HttpStatus.CONFLICT,"The team season changed. Reload before assigning its division.");
+            if (nextSeason!=currentSeason && teams.hasSeasonReferences(id))
+                throw new DraftHttpException(HttpStatus.CONFLICT,"A team with assigned players or matches cannot be moved to another season.");
+            if (nextSeason!=currentSeason) requireOpenSeason(tournaments.get(nextSeason));
             currentDivision=nullableInt(locked,"divisionId");
             if (!fields.containsKey("divisionId")) nextDivision=currentDivision;
             if ((divisions.hasSchedule(currentSeason) || divisions.hasSchedule(nextSeason)) && (nextSeason!=currentSeason || !java.util.Objects.equals(currentDivision,nextDivision)))
@@ -133,7 +145,21 @@ public class TeamService {
     }
 
     @Transactional
-    public void remove(int id) { JsonNode team=teams.get(id);tournaments.lock(team.path("tournamentId").asInt());teams.remove(id); }
+    public void remove(int id) {
+        JsonNode team=teams.get(id);tournaments.lock(team.path("tournamentId").asInt());
+        if (teams.hasSeasonReferences(id)) throw new DraftHttpException(HttpStatus.CONFLICT,"Remove this team's season player assignments and unplayed matches before deleting it. Played match history must be preserved.");
+        teams.remove(id);
+    }
+    private String validName(String value,Integer excludeId) {
+        if (value==null || value.isBlank() || value.trim().length()>100) throw new IllegalArgumentException("Team name must contain 1 to 100 characters.");
+        String name=value.trim();
+        if (teams.all(false).stream().anyMatch(t -> (excludeId==null || t.path("id").asInt()!=excludeId) && name.equalsIgnoreCase(t.path("name").asText().trim())))
+            throw new IllegalArgumentException("Team already exists.");
+        return name;
+    }
+    private static void requireOpenSeason(JsonNode season) {
+        if ("FINISHED".equals(season.path("state").asText())) throw new IllegalArgumentException("Create teams in an unfinished season.");
+    }
     private static int positiveInteger(Object value,String field) {
         if (!(value instanceof Number n) || n.doubleValue()!=Math.rint(n.doubleValue()) || n.intValue()<1)
             throw new IllegalArgumentException(field+" must be a positive integer.");

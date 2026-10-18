@@ -14,9 +14,11 @@ import {
   type NetworkSessionUser,
 } from "@/features/networkSession/storage";
 import {
+  getCurrentNetworkMember,
   getNetworkMemberCapabilities,
   type NetworkMemberCapabilities,
 } from "@/lib/api/networkMember";
+import type { NetworkMemberRole } from "@/lib/api/types";
 
 /* EL HEADER DEL SITIO.
  *
@@ -31,7 +33,7 @@ import {
  */
 
 const MOBILE_LINKS = [
-  { href: "/#about", label: "About" },
+  { href: "/#who-we-are", label: "About" },
   { href: "/news", label: "News" },
   { href: "/history", label: "GGL History" },
 ];
@@ -41,6 +43,7 @@ export function SiteHeader() {
   const [sessionReady, setSessionReady] = useState(false);
   const [networkUser, setNetworkUser] = useState<NetworkSessionUser | null>(null);
   const [capabilities, setCapabilities] = useState<NetworkMemberCapabilities | null>(null);
+  const [currentRoles, setCurrentRoles] = useState<NetworkMemberRole[]>([]);
   const [profileOpen, setProfileOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -65,28 +68,36 @@ export function SiteHeader() {
   useEffect(() => {
     if (!networkUser) {
       setCapabilities(null);
+      setCurrentRoles([]);
       return;
     }
 
     const token = readNetworkSessionToken();
     if (!token) {
       setCapabilities(null);
+      setCurrentRoles([]);
       return;
     }
 
     let active = true;
-    getNetworkMemberCapabilities(token)
-      .then((next) => {
-        if (active) setCapabilities(next);
-      })
-      .catch(() => {
-        if (active) setCapabilities(null);
-      });
+    const refreshCapabilities = async () => {
+      try {
+        const [next, member] = await Promise.all([getNetworkMemberCapabilities(token), getCurrentNetworkMember(token)]);
+        if (active) { setCapabilities(next); setCurrentRoles(member.roles); }
+      } catch {
+        if (active) { setCapabilities(null); setCurrentRoles([]); }
+      }
+    };
+    void refreshCapabilities();
+    const interval = window.setInterval(() => { if (!document.hidden) void refreshCapabilities(); }, 15000);
+    window.addEventListener("focus", refreshCapabilities);
 
     return () => {
       active = false;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshCapabilities);
     };
-  }, [networkUser]);
+  }, [networkUser, pathname, profileOpen]);
 
   // Ahora que el header sobrevive a la navegación, los menús tienen que cerrarse
   // solos al cambiar de ruta. Dentro de la landing esto no hacía falta.
@@ -120,6 +131,7 @@ export function SiteHeader() {
     clearNetworkSession();
     setNetworkUser(null);
     setCapabilities(null);
+    setCurrentRoles([]);
     setProfileOpen(false);
   };
 
@@ -127,15 +139,15 @@ export function SiteHeader() {
     Las capacidades se acumulan: un miembro puede ser caster, capitán, manager y
     admin a la vez, así que se listan todos los paneles que tenga.
   */
-  const isAdmin = capabilities?.isAdmin ?? networkUser?.roles.includes("ADMIN") ?? false;
-  const isCaster = capabilities?.isCaster ?? networkUser?.roles.includes("CASTER") ?? false;
+  const isAdmin = capabilities?.isAdmin ?? false;
+  const isCaster = capabilities?.isCaster ?? false;
   const isCaptain = capabilities?.isCaptain ?? false;
-  const isManager = networkUser?.role === "MANAGER";
+  const isManager = isAdmin || currentRoles.includes("SOCIAL_MEDIA");
   const displayName = networkUser?.nickname || networkUser?.username || "";
   const avatarUrl = networkUser?.avatarUrl || networkUser?.profilePic || "";
 
   const dashboards = [
-    { href: "/casting-dashboard", label: "Casting Dashboard", chip: "Caster", show: isCaster || isAdmin || Boolean(networkUser?.roles.includes("SOCIAL_MEDIA")) },
+    { href: "/casting-dashboard", label: "Casting Dashboard", chip: "Caster", show: isCaster || isManager },
     { href: "/captain-dashboard", label: "Captain Dashboard", chip: "Captain", show: isCaptain },
     { href: "/manager-dashboard", label: "Manager Dashboard", chip: "Manager", show: isManager },
     { href: "/admin-dashboard", label: "Admin Dashboard", chip: "Admin", show: isAdmin },
@@ -154,7 +166,7 @@ export function SiteHeader() {
         </Link>
 
         <nav className={styles.nav} aria-label="Primary navigation">
-          <Link href="/#about" className={styles.navLink}>
+          <Link href="/#who-we-are" className={styles.navLink}>
             About
           </Link>
           <Link

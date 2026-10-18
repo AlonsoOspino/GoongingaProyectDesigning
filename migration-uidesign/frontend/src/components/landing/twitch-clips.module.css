@@ -1,0 +1,49 @@
+.clips { min-width: 0; }
+.player {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  min-height: 300px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(231, 236, 233, .14);
+  background: #101914;
+}
+.player iframe { display: block; width: 100%; height: 100%; position: absolute; inset: 0; border: 0; }
+.player:has(iframe) { min-height: 300px; }
+.preview { display: block; position: absolute; inset: 0; }
+.preview img { width: 100%; height: 100%; object-fit: cover; opacity: .65; }
+.channelPreview { text-decoration: none; }
+.channelIdentity { position: absolute; inset: 28px 32px 70px; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; color: var(--text); }
+.channelIdentity > svg { width: 36px; height: 36px; margin-bottom: 24px; color: var(--accent); }
+.channelName { font-family: var(--font-heading); font-size: clamp(24px, 2.8vw, 38px); font-weight: 600; letter-spacing: -.035em; }
+.channelDescription { max-width: 32ch; margin-top: 12px; font-size: 15px; line-height: 1.6; color: var(--copy-color); }
+.channelPreview:hover { background: rgba(52, 199, 123, .035); }
+.previewLabel {
+  position: absolute;
+  inset: auto 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 24px 32px;
+  color: var(--text);
+  font-size: 15px;
+  background: linear-gradient(transparent, rgba(5, 8, 6, .92));
+}
+.channelPreview .previewLabel { margin-inline: 32px; padding: 18px 0; border-top: 1px solid var(--divider); background: none; font-size: 13px; }
+.previewLabel > svg { width: 16px; height: 16px; flex: none; }
+.caption { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 16px; }
+.details { display: grid; gap: 4px; min-width: 0; }
+.clips .clipTitle { color: var(--text); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; }
+.clipTitle:hover { text-decoration: underline; }
+.views, .count { color: color-mix(in srgb, var(--text) 58%, transparent); font-size: 12px; }
+.controls { display: flex; align-items: center; gap: 10px; flex: none; }
+.controls button { border: 1px solid var(--divider); background: transparent; color: var(--text); width: 32px; height: 32px; cursor: pointer; }
+.controls button:hover { border-color: var(--accent); }
+@media (max-width: 500px) {
+  .player { min-height: 260px; }
+  .channelIdentity { inset-inline: 24px; }
+  .channelDescription { font-size: 14px; }
+  .channelPreview .previewLabel { margin-inline: 24px; }
+  .caption { align-items: flex-start; flex-direction: column; gap: 12px; }
+}

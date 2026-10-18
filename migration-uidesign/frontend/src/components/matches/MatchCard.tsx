@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { formatDateEST } from "@/lib/dateUtils";
+import { resolveGenericBackendAsset } from "@/lib/assetUrls";
 import type { Match, Team, MatchStatus, MatchType } from "@/lib/api/types";
 
 interface MatchCardProps {
@@ -91,7 +92,7 @@ export function MatchCard({ match, teamA, teamB }: MatchCardProps) {
               teamAWon && "bg-success/5 ring-1 ring-success/20"
             )}>
               <div className="relative">
-                <Avatar size="lg" src={teamA?.logo || undefined} fallback={teamA?.name || "A"} />
+                <Avatar size="lg" src={resolveGenericBackendAsset(teamA?.logo) || undefined} alt={`${teamA?.name || "Team A"} logo`} fallback={teamA?.name || "A"} className="rounded-sm [&_img]:object-contain" />
                 {teamAWon && (
                   <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-success flex items-center justify-center">
                     <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -166,7 +167,7 @@ export function MatchCard({ match, teamA, teamB }: MatchCardProps) {
                 )}
               </div>
               <div className="relative">
-                <Avatar size="lg" src={teamB?.logo || undefined} fallback={teamB?.name || "B"} />
+                <Avatar size="lg" src={resolveGenericBackendAsset(teamB?.logo) || undefined} alt={`${teamB?.name || "Team B"} logo`} fallback={teamB?.name || "B"} className="rounded-sm [&_img]:object-contain" />
                 {teamBWon && (
                   <div className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-success flex items-center justify-center">
                     <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
