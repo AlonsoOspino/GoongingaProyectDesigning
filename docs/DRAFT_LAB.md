@@ -51,3 +51,9 @@ The same scene runs for captain/operator and broadcast observers. Initial loads 
 Validation: production build and typecheck passed; 18 transition/layout/permission tests passed. Browser tests covered 2, 3 and 8 eligible maps, the actual selection of a revealed map, and pause/resume. Observed stage boundaries in the compiled browser were approximately 1450 ms for spin and 2464 ms from spin completion to reel stop (the implementation deadlines are exactly 1400 + 2500 ms). Tests used only the isolated QA database; its eight season teams and thirteen fixtures were unchanged.
 
 Visual evidence: [grayscale reels](visual-review/map-mode-reels.png), [three-map layout](visual-review/map-mode-three-maps.png), [two-map layout](visual-review/map-mode-two-maps.png), [eight-map layout](visual-review/map-mode-eight-maps.png).
+
+Published frontend `993de5d` on 2026-10-18. Public checks confirmed the new scene and turn-clock code, HTTP 200 for the draft, broadcast, lab, landing and Season 9 routes, and connected database health. The backend container stayed unchanged. Season 9 retained its existing zero teams/fixtures; the active developer match kept match 64 / draft 52 throughout the rollout. No production practice resets or test seeding were performed.
+
+- Scene build log: `/opt/goonginga/migration-uidesign/backups/map-mode-scene-frontend-20261018T173857Z.log`
+- Final build log: `/opt/goonginga/migration-uidesign/backups/map-mode-clock-frontend-20261018T174245Z.log`
+- Frontend image before this animation change: `migration-uidesign-frontend:rollback-map-mode-20261018T173857Z`
