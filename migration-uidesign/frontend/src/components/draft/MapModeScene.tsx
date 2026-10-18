@@ -25,6 +25,7 @@ interface MapModeSceneProps {
   side: "A" | "B";
   teamName: string;
   gameNumber: number;
+  remainingSeconds: number;
   broadcast: boolean;
   transition: { key: string; origin?: MapModeOrigin } | null;
   selectable: boolean;
@@ -46,7 +47,7 @@ function uniqueModeMaps(maps: GameMap[], mapType: MapType) {
 
 /** One continuous scene: the two reels become the final, interactive map pool. */
 export function MapModeScene({
-  mapType, maps, availableMaps, side, teamName, gameNumber, broadcast,
+  mapType, maps, availableMaps, side, teamName, gameNumber, remainingSeconds, broadcast,
   transition, selectable, pendingMapId, onSelect, onSettled,
 }: MapModeSceneProps) {
   const sceneRef = useRef<HTMLElement>(null);
@@ -259,7 +260,7 @@ export function MapModeScene({
     <header className={styles.header}>
       <span className={styles.brand}><i aria-hidden="true" /> GGL <span>/</span> DRAFT</span>
       <div className={styles.teamMeta}><span>Game {String(gameNumber).padStart(2, "0")}</span><strong>{teamName}</strong></div>
-      <span className={styles.chapter}>Map selection <span>02</span></span>
+      <span className={styles.chapter}>Map selection <span role="timer" aria-label="Time remaining" className={styles.clock} data-urgent={remainingSeconds <= 15}>{Math.floor(Math.max(0, remainingSeconds) / 60)}:{String(Math.max(0, remainingSeconds) % 60).padStart(2, "0")}</span></span>
     </header>
     <div className={styles.contextTop} aria-hidden="true"><span>MODE CONFIRMED</span><i /><span>{MAP_TYPE_LABEL[mapType].toUpperCase()}</span></div>
     <div className={styles.board}>

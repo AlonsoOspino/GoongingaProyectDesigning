@@ -1034,6 +1034,7 @@ export default function DraftTablePage() {
             side={draftState.currentTurnTeamId === draftState.match.teamBId ? "B" : "A"}
             teamName={firstPickerTeam?.name ?? "The active captain"}
             gameNumber={currentGameNumber}
+            remainingSeconds={timeLeft}
             broadcast={isObsKeyAccess}
             transition={modeSceneTransition}
             selectable={canActForTeam && isMyTurn && !actionLoading && !modeRevealActive && !isMatchPaused && !resetConfirmOpen && !shareOverlayOpen}

@@ -84,6 +84,8 @@
 .teamMeta > strong { overflow: hidden; max-width: 32ch; color: #c4d3c9; font-size: clamp(12px, calc(var(--scene-w) * .01), 16px); font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 .chapter { display: flex; align-items: center; justify-content: flex-end; gap: 16px; color: var(--scene-muted); white-space: nowrap; }
 .chapter > span { color: var(--scene-gold); }
+.chapter .clock { min-width: 4ch; font-size: 16px; font-variant-numeric: tabular-nums; letter-spacing: .06em; }
+.chapter .clock[data-urgent="true"] { color: #f39c8c; }
 
 .contextTop {
   position: absolute;
@@ -244,7 +246,8 @@
   .scene:not(.broadcast) .teamMeta { justify-content: flex-end; gap: 8px; }
   .scene:not(.broadcast) .teamMeta > span { font-size: 8px; }
   .scene:not(.broadcast) .teamMeta > strong { max-width: 16ch; font-size: 11px; }
-  .scene:not(.broadcast) .chapter { display: none; }
+  .scene:not(.broadcast) .chapter { display: flex; grid-column: 1 / -1; justify-content: center; gap: 10px; font-size: 7px; }
+  .scene:not(.broadcast) .chapter .clock { font-size: 11px; }
   .scene:not(.broadcast) .contextTop { top: 80px; gap: 9px; font-size: 7px; letter-spacing: .12em; }
   .scene:not(.broadcast) .contextTop > i { width: 20px; }
   .scene:not(.broadcast) .board { height: calc(100% - 220px); }
