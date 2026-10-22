@@ -1,0 +1,24 @@
+.host {
+  position: absolute;
+  inset: 0;
+  z-index: 110;
+  /* No transform, filter, or clipping: fixed mode scenes keep their viewport,
+     and the rotor owns its existing three-dimensional rendering context. */
+}
+
+.host[data-mode-handoff="exiting"] {
+  pointer-events: none;
+  /* Opacity only groups the already-settled scene during its departure. */
+  animation: mode-release var(--handoff-duration, 650ms) ease-in-out both;
+}
+
+@keyframes mode-release {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .host[data-mode-handoff="exiting"] {
+    animation-duration: var(--handoff-reduced-duration, 180ms);
+  }
+}

@@ -19,7 +19,6 @@
   color: var(--scene-text);
   background: rgba(2, 8, 5, .08);
   font-family: var(--font-body), ui-sans-serif, sans-serif;
-  perspective: 1400px;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -68,7 +67,7 @@
 }
 
 .header { top: clamp(22px, calc(var(--scene-h) * .039), 48px); }
-.brand, .chapter, .teamMeta > span, .contextTop, .centerStatus, .footerLabel, .poolCount, .modeSerial, .mapEyebrow, .emptyLane > span {
+.brand, .chapter, .teamMeta > span, .contextTop, .centerStatus, .modeSerial, .mapEyebrow, .emptyLane > span {
   font-family: var(--font-mono), ui-monospace, monospace;
   font-size: clamp(9px, calc(var(--scene-w) * .0074), 12px);
   font-weight: 500;
@@ -112,7 +111,6 @@
   width: min(1600px, calc(100% - var(--edge) * 2));
   height: calc(100% - 200px);
   transform: translate(-50%, -50%);
-  perspective: 1400px;
 }
 
 .center {
@@ -127,11 +125,45 @@
   transform-style: preserve-3d;
 }
 
-.modeCard.modeCard {
+.flight {
+  --mode-card-h: clamp(190px, calc(var(--scene-h) * .39), 360px);
+  --card-depth: 14px;
   position: relative;
   z-index: 3;
   width: 100%;
-  height: clamp(190px, calc(var(--scene-h) * .39), 360px);
+  height: var(--mode-card-h);
+  overflow: visible;
+  perspective: 1800px;
+  perspective-origin: 50% 50%;
+  transform-style: preserve-3d;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+/* Grouping properties belong on the flat faces, never on this 3D parent. */
+.rotor {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  opacity: 1;
+  filter: none;
+  isolation: auto;
+  transform-style: preserve-3d;
+  transform-origin: 50% 50%;
+  transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg);
+  will-change: transform;
+}
+
+.modeCard.modeCard {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
   min-height: 0;
   gap: clamp(15px, calc(var(--scene-h) * .032), 28px);
   padding: 26px 10px 38px;
@@ -141,53 +173,105 @@
   box-shadow: 0 0 0 5px rgba(158, 144, 88, .025), 0 28px 65px -26px #000, inset 0 1px 0 rgba(240, 229, 183, .16);
   animation: none;
   transition: border-color 400ms, box-shadow 400ms;
-  backface-visibility: visible;
-  transform-style: preserve-3d;
-  transform-origin: center center;
-  will-change: transform;
+  overflow: hidden;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  transform-style: flat;
 }
 
-.modeCard::before {
+.frontFace { transform: translateZ(calc(var(--card-depth) * .5)); }
+.modeCard.backFace {
+  transform: rotateY(180deg) translateZ(calc(var(--card-depth) * .5));
+  gap: clamp(10px, calc(var(--scene-h) * .016), 18px);
+  padding: 24px 12px;
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(208, 180, 98, .1), transparent 55%),
+    repeating-linear-gradient(135deg, rgba(105, 164, 125, .04) 0 1px, transparent 1px 11px),
+    linear-gradient(145deg, #08150e, #173826 55%, #0a170f);
+  box-shadow: inset 0 0 0 5px #0e2015, inset 0 0 0 6px rgba(215, 188, 119, .28), 0 18px 42px -24px #000;
+}
+
+.faceSheen {
   position: absolute;
   inset: 0;
-  content: "";
   background: linear-gradient(110deg, transparent 28%, rgba(243, 222, 169, .05) 50%, transparent 72%);
   pointer-events: none;
 }
+.scene[data-scene-phase="spin"] .frontFace .faceSheen { animation: face-light var(--mode-spin-duration) linear both; }
+.scene[data-scene-phase="spin"] .backFace .faceSheen { animation: face-light var(--mode-spin-duration) linear -560ms both; }
+
+.cardEdge {
+  position: absolute;
+  display: block;
+  border: 1px solid #a58a48;
+  background: repeating-linear-gradient(90deg, #15160c 0 2px, #a58d4e 2px 3px, #d7c186 3px 5px, #554823 5px 7px);
+  box-shadow: inset 0 0 0 1px rgba(255, 236, 178, .16);
+  backface-visibility: hidden;
+}
+.edgeRight, .edgeLeft { top: 0; left: 50%; width: var(--card-depth); height: 100%; }
+.edgeRight { transform: translateX(-50%) rotateY(90deg) translateZ(calc(var(--center-w) * .5)); }
+.edgeLeft { transform: translateX(-50%) rotateY(-90deg) translateZ(calc(var(--center-w) * .5)); }
+.edgeTop, .edgeBottom { top: 50%; left: 0; width: 100%; height: var(--card-depth); }
+.edgeTop { transform: translateY(-50%) rotateX(90deg) translateZ(calc(var(--mode-card-h) * .5)); }
+.edgeBottom { transform: translateY(-50%) rotateX(-90deg) translateZ(calc(var(--mode-card-h) * .5)); }
+.backTitle { position: relative; z-index: 1; color: #ead9a4; font-family: var(--font-accent), "Arial Narrow", sans-serif; font-size: clamp(30px, calc(var(--center-w) * .25), 58px); font-weight: 400; line-height: 1; letter-spacing: .04em; text-shadow: 0 2px 1px #041108; }
+.backMascot { position: relative; z-index: 1; display: block; width: 100%; height: auto; max-height: 70%; min-height: 0; object-fit: contain; filter: drop-shadow(0 12px 12px rgba(0,0,0,.3)); }
 
 .modeCard .modeIcon { width: clamp(44px, calc(var(--center-w) * .32), 80px); height: clamp(44px, calc(var(--center-w) * .32), 80px); color: #f0e5c6; filter: drop-shadow(0 0 20px rgba(217, 189, 121, .12)); }
-.modeCard > span:nth-of-type(3) { max-width: 100%; font-size: clamp(15px, calc(var(--center-w) * .125), 27px); letter-spacing: .025em; }
+.modeCard .modeName { max-width: 100%; font-size: clamp(15px, calc(var(--center-w) * .125), 27px); letter-spacing: .025em; }
 .modeCard .modeCount { color: #a6b3a2; font-size: clamp(8px, calc(var(--center-w) * .045), 10px); }
 .modeSerial { position: absolute; bottom: 16px; color: #657e6b; font-size: 8px; letter-spacing: .2em; }
 .cardCorner { position: absolute; top: 11px; right: 11px; width: 8px; height: 8px; border-top: 1px solid var(--scene-gold); border-right: 1px solid var(--scene-gold); opacity: .7; }
+
+/* Bright rims and striped edges leave distracting lines during the turns. */
+@media (prefers-reduced-motion: no-preference) {
+  .scene[data-scene-phase="spin"] .modeCard {
+    border-color: transparent;
+    box-shadow: none;
+    transition: none;
+  }
+  .scene[data-scene-phase="spin"] .cardEdge {
+    border-color: transparent;
+    background: #102119;
+    box-shadow: none;
+  }
+  .scene[data-scene-phase="spin"] .cardCorner,
+  .scene[data-scene-phase="spin"] .faceSheen { visibility: hidden; }
+}
+
 .centerStatus { position: absolute; top: calc(50% + clamp(95px, calc(var(--scene-h) * .195), 180px) + 23px); width: 180%; color: var(--scene-gold); font-size: 9px; text-align: center; letter-spacing: .24em; }
 .orbit { position: absolute; top: 50%; left: 50%; z-index: -1; width: calc(var(--center-w) + 90px); aspect-ratio: 1; border: 1px solid rgba(109, 183, 137, .09); border-radius: 50%; box-shadow: 0 0 90px rgba(41, 149, 87, .07); transform: translate(-50%, -50%); }
 .orbit::after { position: absolute; inset: -20px; content: ""; border: 1px solid rgba(109, 183, 137, .035); border-radius: inherit; }
 
-.lane { position: relative; align-self: stretch; min-width: 0; overflow: hidden; }
-.lane::before, .lane::after { position: absolute; right: 0; left: 0; z-index: 5; height: 12%; content: ""; pointer-events: none; }
+.lane { position: relative; align-self: stretch; min-width: 0; overflow: hidden; container-type: inline-size; }
+.lane::before, .lane::after { position: absolute; right: 0; left: 0; z-index: 2; height: 12%; content: ""; pointer-events: none; }
 .lane::before { top: 0; background: linear-gradient(#040b08, transparent); }
 .lane::after { bottom: 0; background: linear-gradient(transparent, #040b08); }
 .leftLane { --lane-turn: -1; }
 .rightLane { --lane-turn: 1; }
 
 .reelWindow { position: absolute; inset: 0; z-index: 1; overflow: hidden; opacity: .78; transition: opacity 200ms ease-out; filter: grayscale(1) contrast(1.07) brightness(.77); }
-.reelTrack { position: absolute; top: -10%; right: 0; left: 0; will-change: transform; }
-.reelCycle { display: flex; flex-direction: column; gap: var(--card-gap); padding-bottom: var(--card-gap); }
-.reelTile { position: relative; flex: 0 0 auto; overflow: hidden; width: 100%; height: clamp(100px, calc(var(--scene-h) * .2), 210px); border: 1px solid rgba(160, 180, 159, .24); border-radius: 5px; }
+.reelTrack { position: absolute; top: -10%; right: 8%; left: 8%; will-change: transform; }
+.reelCycle { display: flex; flex-direction: column; align-items: center; gap: var(--card-gap); padding-bottom: var(--card-gap); }
+.reelTile { --map-image-cap: 210px; position: relative; flex: 0 0 auto; overflow: hidden; width: max-content; max-width: 100%; height: auto; border: 1px solid rgba(160, 180, 159, .24); border-radius: 5px; }
 .reelTile::after { position: absolute; inset: 0; content: ""; background: linear-gradient(transparent 35%, rgba(0, 4, 2, .83)); }
-.mapArt { position: absolute !important; inset: 0; width: 100%; height: 100%; }
+/* Native image dimensions size the frame: Dorado/Gibraltar are 16:10, while
+   other maps are 16:9 or taller. Independent width/height limits retain each
+   source ratio, without letterboxing inside a forced 16:9 button. */
+.mapArt { position: relative !important; inset: auto; display: block; width: max-content; height: auto; background: #05100b !important; }
+.mapArt img { display: block; width: auto; height: auto; max-width: calc(84cqw - 2px); max-height: calc(var(--map-image-cap) - 2px); object-fit: contain; object-position: center; }
 .reelName { position: absolute; right: 16px; bottom: 12px; left: 16px; z-index: 1; color: #c7cec7; font-size: 16px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-.scene[data-scene-phase="spin"] .reelWindow, .scene[data-scene-phase="reeling"] .reelWindow { filter: grayscale(1) contrast(1.07) brightness(.77) blur(.7px); }
 .scene[data-scene-phase="braking"] .reelWindow { filter: grayscale(1) contrast(1.07) brightness(.9); }
 
-.mapStack { position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column; align-items: stretch; justify-content: center; gap: var(--card-gap); opacity: 0; pointer-events: none; }
+.mapStack { --map-card-cap: calc((var(--scene-h) - 230px - (var(--map-rows) - 1) * var(--card-gap)) / var(--map-rows)); position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--card-gap); opacity: 0; pointer-events: none; }
 .mapCard {
+  --map-image-cap: var(--map-card-cap);
   position: relative;
   display: block;
-  flex: 0 1 auto;
-  width: 100%;
-  height: min(245px, calc((var(--scene-h) - 230px - (var(--map-rows) - 1) * var(--card-gap)) / var(--map-rows)));
+  flex: 0 0 auto;
+  width: max-content;
+  max-width: 84%;
+  height: auto;
   min-height: 0;
   padding: 0;
   overflow: hidden;
@@ -216,27 +300,29 @@
 .emptyLane > span { font-size: 8px; }
 
 .scene[data-scene-phase="settled"] .reelWindow { opacity: .1; filter: grayscale(1) brightness(.45); pointer-events: none; }
+.scene[data-scene-phase="settled"] .reelName { visibility: hidden; }
 .scene[data-scene-phase="settled"] .mapStack { opacity: 1; pointer-events: auto; }
 .scene[data-scene-phase="settled"] .mapCard { opacity: 1; transform: translateY(0) scale(1); animation: map-reveal 430ms cubic-bezier(.16,1,.3,1) both; animation-delay: calc(var(--card-index) * 55ms); }
 .scene[data-scene-phase="settled"] .cardLight { animation: card-light 900ms 60ms ease-out both; }
 .scene[data-scene-phase="settled"] .modeCard { border-color: rgba(217, 189, 121, .85); box-shadow: 0 0 0 1px rgba(217, 189, 121, .055), 0 24px 55px -25px #000, 0 0 65px -22px rgba(87, 198, 135, .2); }
 .scene[data-selectable="true"] .mapCard { cursor: pointer; }
 .scene[data-selectable="true"] .mapCard:hover, .scene[data-selectable="true"] .mapCard:focus-visible { z-index: 5; border-color: #f5f8d5; outline: 2px solid rgba(224, 236, 180, .5); outline-offset: 3px; box-shadow: 0 0 28px rgba(126, 224, 165, .2); filter: brightness(1.13); }
-.scene[data-selectable="true"] .mapCard:hover img, .scene[data-selectable="true"] .mapCard:focus-visible img { transform: scale(1.04); filter: saturate(1.1); }
+.scene[data-selectable="true"] .mapCard:hover img, .scene[data-selectable="true"] .mapCard:focus-visible img { transform: none; filter: saturate(1.1); }
+.scene[data-map-rows="4"] .mapCaption { right: 12px; bottom: 9px; left: 12px; }
+.scene[data-map-rows="4"] .mapCaption strong { font-size: 24px; }
+.scene[data-map-rows="4"] .mapEyebrow { display: none; }
+.scene[data-map-rows="4"] .mapArrow { width: 21px; height: 21px; font-size: 14px; }
 .scene .mapPending { border-color: var(--scene-gold); filter: brightness(1.12); }
 .mapPending .mapArrow { color: var(--scene-gold); animation: pending-pulse 850ms linear infinite; }
 
-.footer { bottom: clamp(25px, calc(var(--scene-h) * .047), 52px); padding-top: 18px; border-top: 1px solid var(--scene-line); }
-.footerLabel { display: flex; align-items: center; gap: 9px; color: #6c8b78; font-size: 9px; white-space: nowrap; }
-.footerLabel > i { width: 4px; height: 4px; background: var(--scene-emerald); box-shadow: 0 0 9px rgba(116, 225, 174, .25); }
-.footer > p { margin: 0; color: #d4ded3; font-size: clamp(12px, calc(var(--scene-w) * .011), 19px); font-weight: 400; text-align: center; }
-.poolCount { display: flex; align-items: center; justify-content: flex-end; gap: 10px; color: var(--scene-gold); font-size: 15px; }
-.poolCount > span { color: #6c8b78; font-size: 9px; }
+.footer { bottom: clamp(25px, calc(var(--scene-h) * .047), 52px); grid-template-columns: 1fr; padding-top: 18px; border-top: 1px solid var(--scene-line); }
+.footer > p { margin: 0; color: #a4bdac; font-family: var(--font-mono), monospace; font-size: clamp(9px, calc(var(--scene-w) * .0074), 12px); font-weight: 500; letter-spacing: .22em; text-align: center; text-transform: uppercase; }
 
 @keyframes map-reveal { from { opacity: .2; filter: grayscale(1) brightness(1.5); transform: translateY(8px) scale(.985); } to { opacity: 1; filter: grayscale(0) brightness(1); transform: translateY(0) scale(1); } }
 @keyframes scene-darken { from { opacity: 0; } to { opacity: 1; } }
 @keyframes card-light { to { transform: translateX(140%); } }
 @keyframes pending-pulse { 50% { opacity: .35; } }
+@keyframes face-light { 0%, 100% { opacity: .3; transform: translateX(-12%); } 22%, 76% { opacity: 1; transform: translateX(14%); } 48% { opacity: .45; transform: translateX(-20%); } }
 
 @media (max-width: 700px) {
   .scene:not(.broadcast) { --edge: 14px; --center-w: clamp(78px, calc(var(--scene-w) * .23), 120px); --board-gap: 12px; --card-gap: 10px; }
@@ -251,33 +337,33 @@
   .scene:not(.broadcast) .contextTop { top: 80px; gap: 9px; font-size: 7px; letter-spacing: .12em; }
   .scene:not(.broadcast) .contextTop > i { width: 20px; }
   .scene:not(.broadcast) .board { height: calc(100% - 220px); }
-  .scene:not(.broadcast) .modeCard { height: clamp(150px, calc(var(--scene-h) * .29), 220px); gap: 16px; padding-inline: 5px; border-radius: 8px; }
+  .scene:not(.broadcast) .flight { --mode-card-h: clamp(150px, calc(var(--scene-h) * .29), 220px); --card-depth: 10px; }
+  .scene:not(.broadcast) .modeCard { gap: 16px; padding-inline: 5px; border-radius: 8px; }
   .scene:not(.broadcast) .modeCard .modeIcon { width: 36px; height: 36px; }
-  .scene:not(.broadcast) .modeCard > span:nth-of-type(3) { font-size: clamp(10px, calc(var(--center-w) * .12), 15px); }
+  .scene:not(.broadcast) .modeCard .modeName { font-size: clamp(10px, calc(var(--center-w) * .12), 15px); }
   .scene:not(.broadcast) .modeCard .modeCount { font-size: 7px; letter-spacing: .03em; }
   .scene:not(.broadcast) .modeSerial { bottom: 14px; font-size: 6px; }
   .scene:not(.broadcast) .centerStatus { top: calc(50% + clamp(75px, calc(var(--scene-h) * .145), 110px) + 20px); font-size: 6px; letter-spacing: .12em; }
   .scene:not(.broadcast) .orbit { width: calc(var(--center-w) + 34px); }
-  .scene:not(.broadcast) .mapCard { height: min(150px, calc((var(--scene-h) - 250px - (var(--map-rows) - 1) * var(--card-gap)) / var(--map-rows))); border-radius: 3px; }
+  .scene:not(.broadcast) .mapStack { --map-card-cap: min(150px, calc((var(--scene-h) - 250px - (var(--map-rows) - 1) * var(--card-gap)) / var(--map-rows))); }
+  .scene:not(.broadcast) .mapCard { border-radius: 3px; }
   .scene:not(.broadcast) .mapCaption { right: 7px; bottom: 9px; left: 7px; gap: 3px; }
   .scene:not(.broadcast) .mapCaption strong { font-size: clamp(12px, calc(var(--scene-w) * .034), 20px); }
   .scene:not(.broadcast) .mapEyebrow { display: none; }
   .scene:not(.broadcast) .mapArrow { display: none; }
-  .scene:not(.broadcast) .reelTile { height: 112px; }
+  .scene:not(.broadcast) .reelTile { --map-image-cap: 112px; }
   .scene:not(.broadcast) .reelName { right: 8px; bottom: 10px; left: 8px; font-size: 10px; }
-  .scene:not(.broadcast) .footer { bottom: 24px; grid-template-columns: 1fr auto; row-gap: 13px; padding-top: 13px; }
-  .scene:not(.broadcast) .footer > p { grid-column: 1 / -1; grid-row: 1; font-size: 12px; }
-  .scene:not(.broadcast) .footerLabel { font-size: 6px; letter-spacing: .1em; }
-  .scene:not(.broadcast) .poolCount { font-size: 11px; }
-  .scene:not(.broadcast) .poolCount > span { font-size: 6px; }
+  .scene:not(.broadcast) .footer { bottom: 24px; padding-top: 13px; }
+  .scene:not(.broadcast) .footer > p { font-size: 8px; letter-spacing: .17em; }
 }
 
 @media (max-height: 540px) and (min-width: 701px) {
   .scene:not(.broadcast) .contextTop { display: none; }
   .scene:not(.broadcast) .board { height: calc(100% - 140px); }
-  .scene:not(.broadcast) .modeCard { height: 180px; padding-block: 20px 30px; gap: 16px; }
+  .scene:not(.broadcast) .flight { --mode-card-h: 180px; }
+  .scene:not(.broadcast) .modeCard { padding-block: 20px 30px; gap: 16px; }
   .scene:not(.broadcast) .centerStatus { top: calc(50% + 106px); }
-  .scene:not(.broadcast) .mapCard { height: min(180px, calc((var(--scene-h) - 170px - (var(--map-rows) - 1) * var(--card-gap)) / var(--map-rows))); }
+  .scene:not(.broadcast) .mapStack { --map-card-cap: min(180px, calc((var(--scene-h) - 170px - (var(--map-rows) - 1) * var(--card-gap)) / var(--map-rows))); }
   .scene:not(.broadcast) .mapCaption { bottom: 9px; }
   .scene:not(.broadcast) .mapCaption strong { font-size: 23px; }
   .scene:not(.broadcast) .mapEyebrow { display: none; }

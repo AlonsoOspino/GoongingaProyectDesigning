@@ -28,6 +28,11 @@
   --stage-gap: 1.75rem;
 }
 
+.stage .selectedCheckIn { padding-top: 0; }
+.stageBroadcast .railLogoFallback { font-size: 44px; }
+.stageBroadcast .railName { font-size: 18px; }
+.stageBroadcast .phaseTitle { font-size: 52px; }
+
 /* ---------- Shared text roles ---------- */
 
 .label {
@@ -948,64 +953,63 @@
 /* On small screens the team identity remains visible, but the decision board
    owns a full row. A three-column broadcast frame leaves no usable center. */
 @media (max-width: 760px) {
-  .stage,
-  .stageBroadcast {
+  .stage:not(.stageBroadcast) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1.25rem 0.75rem;
   }
 
-  .stage > :first-child {
+  .stage:not(.stageBroadcast) > :first-child {
     grid-column: 1;
     grid-row: 1;
   }
 
-  .stage > :nth-child(2) {
+  .stage:not(.stageBroadcast) > :nth-child(2) {
     grid-column: 1 / -1;
     grid-row: 2;
   }
 
-  .stage > :nth-child(3) {
+  .stage:not(.stageBroadcast) > :nth-child(3) {
     grid-column: 2;
     grid-row: 1;
   }
 
-  .rail {
+  .stage:not(.stageBroadcast) .rail {
     align-items: center;
     gap: 0.45rem;
   }
 
-  .railLogo {
+  .stage:not(.stageBroadcast) .railLogo {
     width: clamp(68px, 20vw, 96px);
   }
 
-  .railPlate {
+  .stage:not(.stageBroadcast) .railPlate {
     width: 100%;
   }
 
-  .railName {
+  .stage:not(.stageBroadcast) .railName {
     font-size: 0.75rem;
   }
 
-  .railStatus {
+  .stage:not(.stageBroadcast) .railStatus {
     font-size: 0.6rem;
     letter-spacing: 0.1em;
   }
 
-  .railBody {
+  .stage:not(.stageBroadcast) .railBody {
     flex-direction: row;
     justify-content: center;
     gap: 0.35rem;
   }
 
-  .railBody > * {
+  .stage:not(.stageBroadcast) .railBody > * {
     width: min(34%, 58px);
   }
 
-  .plateRow {
+  .stage:not(.stageBroadcast) .plateRow {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .plate {
+  .stage:not(.stageBroadcast) .plate {
     min-height: 10rem;
   }
 }

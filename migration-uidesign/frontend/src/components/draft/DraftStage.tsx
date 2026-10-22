@@ -38,7 +38,7 @@ export function DraftStage({
   className?: string;
 }) {
   return (
-    <div className={clsx(styles.stage, broadcast && styles.stageBroadcast, className)}>
+    <div className={clsx(styles.stage, broadcast && styles.stageBroadcast, className)} data-draft-stage="true">
       {left}
       <div className="min-w-0">{children}</div>
       {right}

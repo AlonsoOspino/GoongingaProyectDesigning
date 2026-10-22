@@ -45,6 +45,8 @@ import { BanSlot, EmptyBanSlot } from "@/components/draft/BanRail";
 import { BanCeremony, type BanCeremonyRequest } from "@/components/draft/BanCeremony";
 import { MapTypeIcon, MapTypePlate, MAP_TYPE_LABEL } from "@/components/draft/MapTypePlate";
 import { MapModeScene, type MapModeOrigin } from "@/components/draft/MapModeScene";
+import { MapModeHandoff } from "@/components/draft/MapModeHandoff";
+import { MapSelectionReveal, measureMapCard, type MapSelectionOrigin } from "@/components/draft/MapSelectionReveal";
 import stageStyles from "@/components/draft/draft-stage.module.css";
 import waitingStyles from "@/components/draft/waiting-room.module.css";
 import playing from "@/components/draft/playing-stage.module.css";
@@ -135,11 +137,17 @@ export default function DraftTablePage() {
   const hasInitializedActionsRef = useRef(false);
   const previousModeDraftRef = useRef<DraftState | null>(null);
   const modeOriginRef = useRef<{ draftId: number; gameNumber: number; mapType: MapType; rect?: MapModeOrigin } | null>(null);
+  const mapSelectionRef = useRef<{ draftId: number; gameNumber: number; mapId: number; origin?: MapSelectionOrigin } | null>(null);
 
   // A response from an earlier poll must not rewind a confirmed pick and play
   // the scene twice. Capture the old card before React replaces its phase.
   const applyDraftState = useCallback((incoming: DraftState) => {
     const previous = previousModeDraftRef.current;
+    if (previous && previous.id === incoming.id && previous.match.gameNumber === incoming.match.gameNumber
+      && incoming.phase === "MAPPICKING" && incoming.currentMapId && previous.currentMapId !== incoming.currentMapId
+      && shouldAcceptDraftSnapshot(previous, incoming)) {
+      mapSelectionRef.current = { draftId: incoming.id, gameNumber: incoming.match.gameNumber, mapId: incoming.currentMapId, origin: measureMapCard(incoming.currentMapId) };
+    }
     if (getMapModeTransitionKey(previous, incoming) && incoming.selectedMapType) {
       const captured = modeOriginRef.current;
       if (captured?.draftId !== incoming.id || captured.gameNumber !== incoming.match.gameNumber || captured.mapType !== incoming.selectedMapType) {
@@ -858,17 +866,25 @@ export default function DraftTablePage() {
 
   const wrapKeyView = (content: ReactNode) =>
     isKeyAccess ? (
-      <div className="min-h-screen w-screen bg-black flex items-start justify-center">
+      <div className="h-dvh w-screen overflow-hidden bg-black flex items-start justify-center">
         <div
-          className="relative"
+          className="relative shrink-0"
           style={{
-            width: `${KEY_CANVAS_WIDTH}px`,
-            height: `${KEY_CANVAS_HEIGHT}px`,
-            transform: `scale(${keyFitScale})`,
-            transformOrigin: "top center",
+            width: `${KEY_CANVAS_WIDTH * keyFitScale}px`,
+            height: `${KEY_CANVAS_HEIGHT * keyFitScale}px`,
           }}
         >
-          {content}
+          <div
+            className="absolute left-0 top-0"
+            style={{
+              width: `${KEY_CANVAS_WIDTH}px`,
+              height: `${KEY_CANVAS_HEIGHT}px`,
+              transform: `scale(${keyFitScale})`,
+              transformOrigin: "top left",
+            }}
+          >
+            {content}
+          </div>
         </div>
       </div>
     ) : (
@@ -1025,6 +1041,7 @@ export default function DraftTablePage() {
           flash a half-rendered image between phases. */}
       <MapBackground src={backgroundMapUrl} position={isKeyAccess ? "container" : "viewport"} />
       <div ref={draftCanvasRef} className="relative w-full h-full">
+        <MapModeHandoff active={isModeSceneVisible}>
         {isModeSceneVisible && draftState.selectedMapType && (
           <MapModeScene
             key={`${draftState.id}:${currentGameNumber}:${draftState.selectedMapType}`}
@@ -1043,6 +1060,7 @@ export default function DraftTablePage() {
             onSettled={handleModeSceneSettled}
           />
         )}
+        </MapModeHandoff>
         {isModeSceneVisible && actionError && !isObsKeyAccess && (
           <div role="alert" className={clsx(overlayPositionClass, "bottom-5 left-1/2 z-[130] w-[min(90vw,42rem)] -translate-x-1/2 border border-danger/60 bg-surface p-4 text-center text-sm text-danger")}>
             {actionError}
@@ -1179,7 +1197,7 @@ export default function DraftTablePage() {
 
           {/* The map verdict is a real subphase, so it shares the broadcast
               transition without replaying on ordinary timer/poll updates. */}
-        <PhaseTransition phaseKey={isMapSelectionLocked ? "MAPPICKING:LOCKED" : currentPhase} instant={isModeSceneVisible}>
+        <PhaseTransition phaseKey={isMapSelectionLocked ? "MAPPICKING:LOCKED" : currentPhase} instant={isModeSceneVisible || isMapSelectionLocked}>
         {currentPhase === "STARTING" && (() => {
           // The Grand Final wraps the same starting phase in the presentation
           // stage. Build the phase once so both paths stay in sync.
@@ -1237,6 +1255,9 @@ export default function DraftTablePage() {
             isMapPicked={isMapPicked}
             actionLoading={actionLoading}
             isObsKeyAccess={isObsKeyAccess}
+            selectionReveal={mapSelectionRef.current?.draftId === draftState.id
+              && mapSelectionRef.current.gameNumber === draftState.match.gameNumber
+              && mapSelectionRef.current.mapId === draftState.currentMapId ? mapSelectionRef.current : undefined}
           />
         )}
 
@@ -1896,6 +1917,7 @@ function MapPickingPhase({
   isMapPicked,
   actionLoading,
   isObsKeyAccess,
+  selectionReveal,
 }: {
   isManager: boolean;
   isCaptain: boolean;
@@ -1907,6 +1929,7 @@ function MapPickingPhase({
   isMapPicked: (mapId: number) => boolean;
   actionLoading: boolean;
   isObsKeyAccess: boolean;
+  selectionReveal?: { origin?: MapSelectionOrigin };
 }) {
   const currentTeam = teams.find((t) => t.id === draftState.currentTurnTeamId);
   const teamA = teams.find((t) => t.id === draftState.match.teamAId);
@@ -1948,37 +1971,9 @@ function MapPickingPhase({
         />
       }
     >
-      <div className={waitingStyles.checkIn}>
+      <div className={clsx(waitingStyles.checkIn, isMapLocked && stageStyles.selectedCheckIn)}>
         {isMapLocked && currentMap ? (
-          <>
-            <header className={stageStyles.phaseHead}>
-              <span className={stageStyles.phaseEyebrow}>Game {gameNumber} · Map locked</span>
-              <h2 className={stageStyles.phaseTitle}>{currentMap.description}</h2>
-            </header>
-            <div
-              className={clsx(
-                "relative w-full overflow-hidden border border-border",
-                stageStyles.lockReveal,
-                isObsKeyAccess ? "max-w-3xl" : "max-w-xl"
-              )}
-            >
-              <MapImage
-                src={currentMap.imgPath ? resolveMapImageUrl(currentMap.imgPath) : null}
-                alt={currentMap.description}
-                fallbackInitial={currentMap.description.charAt(0)}
-                className="aspect-video w-full"
-              />
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-              <span className={stageStyles.lockFlash} aria-hidden />
-              <span className={clsx(stageStyles.lockBracket, stageStyles.lockBracketTL)} aria-hidden />
-              <span className={clsx(stageStyles.lockBracket, stageStyles.lockBracketTR)} aria-hidden />
-              <span className={clsx(stageStyles.lockBracket, stageStyles.lockBracketBL)} aria-hidden />
-              <span className={clsx(stageStyles.lockBracket, stageStyles.lockBracketBR)} aria-hidden />
-              <div className={clsx("absolute bottom-0 left-0 right-0 flex items-center gap-3 p-4", stageStyles.lockCapUp)}>
-                <MapTypeIcon mapType={currentMap.type} style={{ width: 32, height: 32 }} />
-                <span className={stageStyles.phaseTitle}>{currentMap.description}</span>
-              </div>
-            </div>
+          <MapSelectionReveal key={currentMap.id} map={currentMap} gameNumber={gameNumber} broadcast={isObsKeyAccess} animate={Boolean(selectionReveal)} origin={selectionReveal?.origin}>
             {isManager ? (
               <Button size="lg" onClick={onStartBan} disabled={actionLoading} className="px-8">
                 Start ban phase
@@ -1988,7 +1983,7 @@ function MapPickingPhase({
                 Map locked. Waiting for the manager to start the ban phase.
               </p>
             )}
-          </>
+          </MapSelectionReveal>
         ) : (
           <>
             <header className={stageStyles.phaseHead}>
@@ -2025,6 +2020,7 @@ function MapPickingPhase({
                   <button
                     key={map.id}
                     type="button"
+                    data-map-option-id={map.id}
                     onClick={() => canSelect && handleSelectMap(map.id)}
                     disabled={!canSelect}
                     aria-busy={pendingMapId === map.id}
