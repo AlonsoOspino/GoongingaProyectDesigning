@@ -9,30 +9,19 @@ import { getMatchesByTournament } from "@/lib/api/match";
 import type { Team, Tournament } from "@/lib/api/types";
 import { resolveGenericBackendAsset } from "@/lib/assetUrls";
 import { matchesSeasonNumber, resolveSeasonLabel } from "@/features/tournament/seasonIdentity";
-import { filterMatchesByDivision } from "@/features/tournament/divisions";
-import { pickTournamentPhase, type TournamentPhase } from "@/features/tournament/featuredMatch";
+import { pickTournamentPhase } from "@/features/tournament/featuredMatch";
 import { ArrowIcon, TWITCH_URL, TwitchIcon } from "./brandAssets";
 import styles from "./tournament-mode.module.css";
 
-interface Loaded {
+export interface TournamentAnnouncementData {
   tournament: Tournament | null;
   teams: Team[];
   matches: Tournament["matches"];
 }
 
-const labels: Record<TournamentPhase["kind"], string> = {
-  "coming-soon": "Season updates",
-  preparation: "Season preparation",
-  complete: "Season complete",
-  "next-match": "Up next",
-  live: "Live now",
-  "latest-result": "Latest result",
-  preview: "On the schedule",
-};
-
 function TeamIdentity({ team, side }: { team?: Team; side: "a" | "b" }) {
   const [failedSource, setFailedSource] = useState("");
-  const logo = resolveGenericBackendAsset(team?.logo);
+  const logo = team?.logo?.startsWith("/history/") ? team.logo : resolveGenericBackendAsset(team?.logo);
   const name = team?.name || "Team to be confirmed";
   return (
     <div className={styles.team} data-side={side}>
@@ -67,13 +56,15 @@ function formatMatchDate(value: string | null | undefined) {
   }).format(new Date(value));
 }
 
-export default function TournamentMode({ standalone = false }: { standalone?: boolean }) {
-  const [loaded, setLoaded] = useState<Loaded | null>(null);
+export default function TournamentMode({ standalone = false, previewData }: { standalone?: boolean; previewData?: TournamentAnnouncementData }) {
+  const [remoteData, setLoaded] = useState<TournamentAnnouncementData | null>(null);
   const [error, setError] = useState(false);
-  const [divisionFilter, setDivisionFilter] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const isDevelopmentPreview = process.env.NODE_ENV === "development" && previewData !== undefined;
+  const loaded = isDevelopmentPreview ? previewData ?? null : remoteData;
 
   useEffect(() => {
+    if (isDevelopmentPreview) return;
     let mounted = true;
     let fetching = false;
     const load = async () => {
@@ -102,22 +93,22 @@ export default function TournamentMode({ standalone = false }: { standalone?: bo
     };
     void load();
     const poll = window.setInterval(load, 20000);
-    const clock = window.setInterval(() => setNow(Date.now()), 1000);
     return () => {
       mounted = false;
       window.clearInterval(poll);
-      window.clearInterval(clock);
     };
+  }, [isDevelopmentPreview]);
+
+  useEffect(() => {
+    const clock = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(clock);
   }, []);
 
   const tournament = loaded?.tournament ?? null;
   const divisions = useMemo(() => [...(tournament?.divisions ?? [])]
     .sort((left, right) => left.sortOrder - right.sortOrder || left.id - right.id), [tournament]);
-  const selectedDivision = divisions.find((division) => division.id === divisionFilter);
-  const divisionId = selectedDivision?.id ?? null;
   const teamsById = useMemo(() => new Map((loaded?.teams ?? []).map((team) => [team.id, team])), [loaded]);
-  const fixtures = useMemo(() => filterMatchesByDivision(loaded?.matches ?? [], loaded?.teams ?? [], divisionId), [loaded, divisionId]);
-  const phase = pickTournamentPhase(tournament, fixtures, now);
+  const phase = pickTournamentPhase(tournament, loaded?.matches ?? [], now);
   const match = "match" in phase ? phase.match : null;
   const teamA = match ? teamsById.get(match.teamAId) : undefined;
   const teamB = match ? teamsById.get(match.teamBId) : undefined;
@@ -127,39 +118,18 @@ export default function TournamentMode({ standalone = false }: { standalone?: bo
       ? divisions.find((division) => division.id === teamA.divisionId)?.name : null);
   const target = phase.kind === "next-match" ? phase.at : phase.kind === "preparation" ? phase.at : null;
   const countdown = countdownUnits(target, now);
+  const seasonCountdown = Boolean(countdown && !match);
   const finals = match?.type === "FINALS";
   const showScore = phase.kind === "live" || phase.kind === "latest-result";
-  const divisionQuery = divisionId != null ? `?division=${divisionId}` : "";
-  const scheduleHref = `/schedule${divisionQuery}`;
   const loading = !loaded && !error;
 
   return (
     <section className={`${styles.section} ${standalone ? styles.standalone : ""}`} aria-label="GGL tournament announcement" data-tournament-announcement>
       <div className={styles.heading}>
-        <div>
-          <p className={styles.eyebrow}>Overtime GGL</p>
-          <h2 className={styles.sectionTitle}>{seasonLabel}</h2>
-        </div>
-        <Link href={scheduleHref} className={styles.scheduleLink}>Schedule & results <ArrowIcon /></Link>
+        <Link href="/schedule" className={styles.scheduleLink}>Schedule & results <ArrowIcon /></Link>
       </div>
 
-      {divisions.length > 0 && (
-        <div className={styles.divisions} role="group" aria-label="Featured match division">
-          <button type="button" aria-pressed={divisionId === null} onClick={() => setDivisionFilter(null)}>All divisions</button>
-          {divisions.map((division) => (
-            <button key={division.id} type="button" aria-pressed={divisionId === division.id} onClick={() => setDivisionFilter(division.id)}>{division.name}</button>
-          ))}
-        </div>
-      )}
-
-      <article className={styles.card} data-finals={finals || undefined} data-kind={phase.kind} data-testid="tournament-card" aria-busy={loading}>
-        <div className={styles.cardHeader}>
-          <span className={styles.brand}>GGL <span>Tournament</span></span>
-          <span className={styles.status} data-live={phase.kind === "live" || undefined}>
-            <i aria-hidden="true" />{loading ? "Loading season" : error && !loaded ? "Season updates" : labels[phase.kind]}
-          </span>
-        </div>
-
+      <article className={styles.card} data-finals={finals || undefined} data-kind={phase.kind} data-season-countdown={seasonCountdown || undefined} data-testid="tournament-card" aria-busy={loading}>
         {match ? (
           <>
             <div className={styles.matchHeading}>
@@ -177,9 +147,8 @@ export default function TournamentMode({ standalone = false }: { standalone?: bo
           </>
         ) : (
           <div className={styles.seasonCopy}>
-            <p>{selectedDivision?.name || "Overwatch community league"}</p>
-            <h3>{loading ? "Getting ready" : error && !loaded ? "Stay connected" : seasonLabel}</h3>
-            <span>{loading ? "Loading the latest season information." : error && !loaded ? "Season information is temporarily unavailable." : phase.kind === "complete" ? "The season is complete. Explore the teams, standings and results." : selectedDivision ? "This division's matches will appear here when the schedule is published." : "Teams, weekly matches and results. Follow every division here."}</span>
+            <h2>{loading ? "Getting ready" : error && !loaded ? "Stay connected" : seasonLabel}</h2>
+            {!seasonCountdown && <span>{loading ? "Loading the latest season information." : error && !loaded ? "Season information is temporarily unavailable." : phase.kind === "complete" ? "The season is complete. Explore the teams, standings and results." : "Teams, weekly matches and results."}</span>}
           </div>
         )}
 
@@ -197,15 +166,15 @@ export default function TournamentMode({ standalone = false }: { standalone?: bo
               {match ? <time dateTime={Number.isFinite(Date.parse(match.startDate)) ? match.startDate : undefined}>{formatMatchDate(match.startDate)}</time> : <strong>Every team. Every division.</strong>}
             </div>
           )}
-          <Link href={match ? `/schedule/${match.id}` : "/season-9"} className={styles.cardLink}>
+          <Link href={match ? match.id < 0 ? "/schedule" : `/schedule/${match.id}` : "/season-9"} className={styles.cardLink}>
             {match ? phase.kind === "latest-result" ? "View result" : phase.kind === "live" ? "Open live match" : "Match details" : "Explore the season"}<ArrowIcon />
           </Link>
         </div>
       </article>
 
       <div className={styles.links}>
-        <Link href={`/teams${divisionQuery}`}>Meet the teams <ArrowIcon size={14} /></Link>
-        {phase.kind === "live" ? <a href={TWITCH_URL} target="_blank" rel="noopener noreferrer"><TwitchIcon size={14} /> Watch live</a> : <Link href={`/standings${divisionQuery}`}>Division standings <ArrowIcon size={14} /></Link>}
+        <Link href="/teams">Meet the teams <ArrowIcon size={14} /></Link>
+        {phase.kind === "live" ? <a href={TWITCH_URL} target="_blank" rel="noopener noreferrer"><TwitchIcon size={14} /> Watch live</a> : <Link href="/standings">Standings <ArrowIcon size={14} /></Link>}
       </div>
       {error && loaded ? <p className={styles.refreshNotice} role="status">Updates are reconnecting. Showing the last available schedule.</p> : null}
     </section>

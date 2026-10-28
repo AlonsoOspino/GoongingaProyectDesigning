@@ -1,11 +1,19 @@
-import TwitchClips from "./TwitchClips";
 import styles from "./who-we-are.module.css";
 
 export default function WhoWeAre() {
   return (
     <section className={styles.section} id="who-we-are" aria-labelledby="who-we-are-title">
       <div className={styles.inner}>
-        <TwitchClips />
+        <div className={styles.visual}>
+          <img
+            className={styles.image}
+            src="/who-we-are.webp"
+            alt="Freja aiming her crossbow in Overwatch."
+            width={1920}
+            height={1080}
+            loading="lazy"
+          />
+        </div>
         <div className={styles.copy}>
           <h2 className={styles.title} id="who-we-are-title">WHO WE ARE?</h2>
           <p className={styles.body}>

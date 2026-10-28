@@ -15,6 +15,25 @@
   padding-inline: var(--page-gutter);
 }
 .copy { min-width: 0; text-align: right; }
+.visual {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  min-height: 300px;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid rgba(231, 236, 233, .14);
+  background: #101914;
+}
+.image {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 40%;
+}
 .title {
   margin: 0 0 24px;
   font-family: var(--font-otp-display), "Arial Narrow", sans-serif;
@@ -39,4 +58,7 @@
   .inner { grid-template-columns: minmax(0, 1fr); gap: 32px; }
   .copy { grid-row: 1; text-align: left; }
   .body { font-size: 17px; margin-left: 0; }
+}
+@media (max-width: 500px) {
+  .visual { min-height: 260px; }
 }

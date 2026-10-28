@@ -7,15 +7,9 @@
 }
 
 .standalone { width: min(1200px, calc(100% - 40px)); margin: 44px auto; }
-.heading { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
-.eyebrow { margin: 0 0 7px; color: var(--tournament-accent); font-size: 10px; font-weight: 750; letter-spacing: .22em; text-transform: uppercase; }
-.sectionTitle { margin: 0; font-family: var(--font-otp-display), var(--font-display), "Arial Narrow", sans-serif; font-size: clamp(40px, 4vw, 62px); line-height: .95; font-weight: 400; text-transform: uppercase; }
+.heading { display: flex; justify-content: flex-end; margin-bottom: 10px; }
 .section .scheduleLink { display: inline-flex; min-height: 44px; align-items: center; gap: 12px; color: inherit; font-size: 12px; text-decoration: none; }
 .scheduleLink:hover { color: var(--tournament-accent); }
-.divisions { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
-.divisions button { min-height: 38px; border: 1px solid color-mix(in srgb, var(--tournament-accent) 24%, transparent); border-radius: 0; padding: 7px 14px; background: transparent; color: inherit; font: inherit; font-size: 12px; cursor: pointer; }
-.divisions button[aria-pressed="true"] { border-color: var(--tournament-accent); background: var(--tournament-accent); color: #0a160f; }
-.divisions button:hover { border-color: var(--tournament-accent); }
 
 /* A broadcast frame scales with the available width; 1920×1080 is a proportion. */
 .card {
@@ -34,16 +28,9 @@
 .card::before { position: absolute; inset: 0; z-index: -2; background: url("/ggl-lineup.png") 50% 38% / cover; opacity: .12; content: ""; }
 .card::after { position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, rgba(8, 21, 13, .88), rgba(8, 21, 13, .2) 50%, rgba(8, 21, 13, .88)), linear-gradient(0deg, rgba(8, 15, 11, .9), transparent 45%, rgba(8, 15, 11, .4)); content: ""; }
 .card[data-finals="true"] { border-color: var(--tournament-accent); }
-.cardHeader { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 16px; padding: 3cqw 4cqw 0; }
-.brand { display: inline-flex; align-items: baseline; gap: 1cqw; font-family: var(--font-otp-display), var(--font-display), "Arial Narrow", sans-serif; font-size: 4.4cqw; line-height: 1; }
-.brand > span { color: var(--tournament-accent); font-family: var(--font-mono), monospace; font-size: 1cqw; letter-spacing: .13em; text-transform: uppercase; }
-.status { display: inline-flex; align-items: center; gap: .8cqw; font-size: 1.1cqw; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; }
-.status > i { width: .6cqw; height: .6cqw; border-radius: 50%; background: var(--tournament-accent); }
-.status[data-live="true"] { color: var(--tournament-accent); }
-.status[data-live="true"] > i { animation: livePulse 1.4s ease-in-out infinite; }
-.matchHeading { margin-top: 1.3cqw; text-align: center; }
-.matchHeading > p { margin: 0; color: var(--tournament-accent); font-size: 1.3cqw; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
-.matchHeading > span { display: block; margin-top: .5cqw; color: #a3b5aa; font-size: 1cqw; }
+.matchHeading { padding: 4cqw 4cqw 1cqw; text-align: center; }
+.matchHeading > p { margin: 0; color: var(--tournament-accent); font-size: max(10px, 1.5cqw); font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
+.matchHeading > span { display: block; margin-top: .6cqw; color: #a3b5aa; font-size: max(10px, 1.2cqw); }
 .matchup { display: grid; flex: 1 1 0; min-height: 0; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 3cqw; padding: 1cqw 8cqw 2cqw; }
 .team { display: grid; min-width: 0; justify-items: center; align-content: center; gap: 1cqw; }
 .logoPlate { display: grid; width: 17cqw; height: 17cqw; place-items: center; }
@@ -54,53 +41,55 @@
 .versus { color: var(--tournament-accent); font-family: var(--font-otp-display), var(--font-display), "Arial Narrow", sans-serif; font-size: 7cqw; line-height: 1; }
 .score { display: inline-flex; align-items: center; gap: 1cqw; font-family: var(--font-otp-display), var(--font-display), "Arial Narrow", sans-serif; font-size: 7cqw; font-weight: 400; line-height: 1; font-variant-numeric: tabular-nums; }
 .score > span { color: #81988a; font-size: 4cqw; }
-.scoreLabel { color: #a3b5aa; font-family: var(--font-mono), monospace; font-size: .85cqw; letter-spacing: .14em; white-space: nowrap; }
+.scoreLabel { color: #a3b5aa; font-family: var(--font-mono), monospace; font-size: max(9px, 1.1cqw); letter-spacing: .14em; white-space: nowrap; }
 .card[data-kind="live"] .scoreLabel { color: var(--tournament-accent); }
 .cardFooter { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 3cqw; margin: 0 4cqw; padding: 1.8cqw 0 2.5cqw; border-top: 1px solid rgba(162, 205, 180, .18); }
 .countdown { display: flex; align-items: center; gap: 2cqw; }
-.countdownLabel, .dateLine > span { color: #a3b5aa; font-size: 1cqw; letter-spacing: .1em; text-transform: uppercase; }
+.countdownLabel, .dateLine > span { color: #a3b5aa; font-size: max(9px, 1.15cqw); letter-spacing: .1em; text-transform: uppercase; }
 .clock { display: flex; gap: 1.5cqw; }
 .clockUnit { display: grid; justify-items: center; gap: .3cqw; }
-.clockUnit > strong { font-family: var(--font-mono), monospace; font-size: 2cqw; font-weight: 500; line-height: 1; font-variant-numeric: tabular-nums; }
-.clockUnit > span { color: #a3b5aa; font-size: .7cqw; letter-spacing: .1em; text-transform: uppercase; }
+.clockUnit > strong { font-family: var(--font-mono), monospace; font-size: 3cqw; font-weight: 500; line-height: 1; font-variant-numeric: tabular-nums; }
+.clockUnit > span { color: #a3b5aa; font-size: max(8px, .9cqw); letter-spacing: .1em; text-transform: uppercase; }
 .dateLine { display: grid; gap: .6cqw; }
-.dateLine > time, .dateLine > strong { color: #e9f2ec; font-size: 1.2cqw; font-weight: 500; }
-.section .cardLink { display: inline-flex; align-items: center; gap: 1cqw; border: 1px solid var(--tournament-accent); padding: 1.1cqw 1.5cqw; background: var(--tournament-accent); color: #0a160f; font-size: 1.1cqw; font-weight: 750; line-height: 1.2; text-decoration: none; white-space: nowrap; }
-.cardLink > svg { width: 1.4cqw; height: 1.4cqw; }
+.dateLine > time, .dateLine > strong { color: #e9f2ec; font-size: max(11px, 1.4cqw); font-weight: 500; }
+.section .cardLink { display: inline-flex; min-height: 38px; align-items: center; gap: 1cqw; border: 1px solid var(--tournament-accent); padding: 1.1cqw 1.5cqw; background: var(--tournament-accent); color: #0a160f; font-size: max(11px, 1.3cqw); font-weight: 750; line-height: 1.2; text-decoration: none; white-space: nowrap; }
+.cardLink > svg { width: max(14px, 1.6cqw); height: max(14px, 1.6cqw); }
 .cardLink:hover { background: #8bf1b9; border-color: #8bf1b9; }
 .seasonCopy { display: flex; flex: 1 1 0; min-height: 0; flex-direction: column; justify-content: center; padding: 2cqw 7cqw; }
-.seasonCopy > p { margin: 0 0 1.5cqw; color: var(--tournament-accent); font-size: 1.1cqw; font-weight: 750; letter-spacing: .16em; text-transform: uppercase; }
-.seasonCopy > h3 { max-width: 90%; margin: 0; font-family: var(--font-otp-display), var(--font-display), "Arial Narrow", sans-serif; font-size: 12cqw; font-weight: 400; line-height: .85; text-transform: uppercase; }
+.seasonCopy > h2 { max-width: 100%; margin: 0; font-family: var(--font-otp-display), var(--font-display), "Arial Narrow", sans-serif; font-size: 9cqw; font-weight: 400; line-height: .95; text-transform: uppercase; }
 .seasonCopy > span { max-width: 42em; margin-top: 2cqw; color: #c3d1c8; font-size: 1.35cqw; line-height: 1.5; }
+.card[data-season-countdown="true"] { aspect-ratio: 2 / 1; }
+.card[data-season-countdown="true"] .seasonCopy { flex: 0 0 auto; align-items: center; padding: 4cqw 6cqw 0; text-align: center; }
+.card[data-season-countdown="true"] .seasonCopy > h2 { font-size: 6cqw; line-height: 1; }
+.card[data-season-countdown="true"] .cardFooter { flex: 1 1 auto; flex-direction: column; justify-content: center; gap: 3cqw; margin-inline: 5cqw; padding: 2.5cqw 0 3.5cqw; border-top: 0; }
+.card[data-season-countdown="true"] .countdown { width: 100%; flex-direction: column; align-items: center; gap: 2cqw; }
+.card[data-season-countdown="true"] .countdownLabel { color: #d1e2d7; font-size: max(10px, 1.3cqw); letter-spacing: .2em; }
+.card[data-season-countdown="true"] .clock { display: grid; width: 100%; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2cqw; }
+.card[data-season-countdown="true"] .clockUnit { min-width: 0; gap: 1.2cqw; }
+.card[data-season-countdown="true"] .clockUnit > strong { color: var(--tournament-accent); font-size: 12cqw; font-weight: 500; line-height: .95; letter-spacing: -.06em; }
+.card[data-season-countdown="true"] .clockUnit > span { color: #c3d1c8; font-size: max(9px, 1.1cqw); letter-spacing: .16em; }
+.section .card[data-season-countdown="true"] .cardLink { min-height: 40px; padding: 1.2cqw 2cqw; font-size: max(11px, 1.15cqw); }
 .links { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px 24px; padding-top: 15px; }
 .section .links > a { display: inline-flex; min-height: 34px; align-items: center; gap: 10px; color: #a7b7ad; font-size: 12px; text-decoration: none; }
 .links > a:hover { color: var(--tournament-accent); }
 .refreshNotice { color: #a7b7ad; font-size: 12px; line-height: 1.5; }
-.section a:focus-visible, .divisions button:focus-visible { outline: 2px solid var(--tournament-accent); outline-offset: 4px; }
+.section a:focus-visible { outline: 2px solid var(--tournament-accent); outline-offset: 4px; }
 
-@keyframes livePulse { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
 @media (max-width: 760px) {
-  .heading { display: block; margin-bottom: 16px; }
-  .sectionTitle { font-size: 40px; }
-  .section .scheduleLink { min-height: 34px; gap: 7px; margin-top: 6px; font-size: 11px; }
-  .divisions button { min-height: 40px; font-size: 11px; }
-  .brand > span, .matchHeading > span { font-size: max(7px, 1.8cqw); }
-  .status { font-size: max(7px, 1.9cqw); letter-spacing: .08em; }
-  .status > i { width: 1cqw; height: 1cqw; }
-  .matchHeading > p { font-size: max(8px, 2.1cqw); }
+  .section .scheduleLink { min-height: 34px; gap: 7px; font-size: 11px; }
+  .card[data-season-countdown="true"] { aspect-ratio: auto; }
+  .card[data-season-countdown="true"] .seasonCopy { padding-top: 5cqw; }
+  .card[data-season-countdown="true"] .seasonCopy > h2 { font-size: 7cqw; }
+  .card[data-season-countdown="true"] .cardFooter { gap: 5cqw; padding-top: 5cqw; padding-bottom: 5cqw; }
+  .card[data-season-countdown="true"] .countdown { gap: 4cqw; }
+  .card[data-season-countdown="true"] .clockUnit { gap: 2cqw; }
   .matchup { padding-inline: 5cqw; gap: 2cqw; }
   .logoPlate { width: 18cqw; height: 18cqw; }
   .teamName { font-size: 4.3cqw; }
-  .scoreLabel { font-size: 1.4cqw; }
   .cardFooter { padding-top: 1.8cqw; padding-bottom: 2.5cqw; }
-  .countdownLabel, .dateLine > span { font-size: max(7px, 1.7cqw); }
-  .countdown { gap: 2.5cqw; }
-  .clockUnit > strong { font-size: 2.8cqw; }
-  .clockUnit > span { font-size: max(6px, 1.2cqw); }
-  .dateLine > time, .dateLine > strong { font-size: max(8px, 1.9cqw); }
-  .section .cardLink { min-height: 30px; font-size: max(9px, 2cqw); padding: 1.7cqw 2cqw; }
-  .cardLink > svg { width: 2.3cqw; height: 2.3cqw; }
-  .seasonCopy > p { font-size: max(7px, 1.9cqw); }
+  .countdown { flex-direction: column; align-items: flex-start; gap: 1.5cqw; }
+  .clockUnit > strong { font-size: 3.5cqw; }
+  .section .cardLink { min-height: 36px; padding: 1.7cqw 2cqw; }
   .seasonCopy > span { max-width: 34em; font-size: max(8px, 2.1cqw); }
 }
 @media (max-width: 380px) {
@@ -109,4 +98,3 @@
   .logoPlate { width: 12cqw; height: 12cqw; }
   .teamName { font-size: 4.1cqw; line-height: .92; }
 }
-@media (prefers-reduced-motion: reduce) { .status > i { animation: none; } }

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import SeasonArchiveCard from "./SeasonArchiveCard";
-import TournamentMode from "./TournamentMode";
+import TournamentMode, { type TournamentAnnouncementData } from "./TournamentMode";
 import GridFigure from "./GridFigure";
 import WhoWeAre from "./WhoWeAre";
 import BrandField from "./atmosphere/BrandField";
@@ -20,41 +20,54 @@ import {
   TwitchIcon,
 } from "./brandAssets";
 
-function CommunityCarousel({ members }: { members: NetworkMember[] }) {
-  // Mapped vertically, one per row, big enough to actually see who joined.
-  const visible = members.slice(0, 6);
+function MemberAvatar({ member }: { member: NetworkMember }) {
+  const [failed, setFailed] = useState(false);
+
+  if (!member.avatarUrl || failed) {
+    return (
+      <span
+        className={styles.memberAvatar}
+        data-fallback="true"
+        role="img"
+        aria-label={`${member.username}'s profile image is unavailable`}
+      >
+        {Array.from(member.username.trim())[0]?.toUpperCase() || "?"}
+      </span>
+    );
+  }
 
   return (
-    <div className={styles.joinedRail} aria-label="Newest community members">
+    <img
+      className={styles.memberAvatar}
+      src={member.avatarUrl}
+      alt=""
+      width={40}
+      height={40}
+      loading="lazy"
+      decoding="async"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
+function CommunityMembers({ members }: { members: NetworkMember[] }) {
+  const visible = members.slice(0, 5);
+
+  return (
+    <aside className={styles.joinedRail} aria-label="Newest community members">
       <p className={styles.joinedLabel}>
         <span className={styles.liveDot} aria-hidden="true" />
         Newest members
       </p>
       <ul className={styles.memberList}>
-        {visible.map((member, index) => (
-          <li
-            key={member.id}
-            className={styles.memberRow}
-            style={{ animationDelay: `${index * 70}ms` }}
-          >
-            {member.avatarUrl ? (
-              <img
-                className={styles.memberAvatar}
-                src={member.avatarUrl}
-                alt=""
-                loading="lazy"
-                decoding="async"
-              />
-            ) : (
-              <span className={styles.memberAvatar} data-fallback="true">
-                {member.username.slice(0, 1).toUpperCase()}
-              </span>
-            )}
-            <span className={styles.memberName}>{member.username}</span>
+        {visible.map((member) => (
+          <li key={member.id} className={styles.memberRow}>
+            <MemberAvatar key={member.avatarUrl || member.id} member={member} />
+            <span className={styles.memberName} title={member.username}>{member.username}</span>
           </li>
         ))}
       </ul>
-    </div>
+    </aside>
   );
 }
 
@@ -69,7 +82,8 @@ interface BuilderCard {
   countdownAt?: string | null;
 }
 
-export function LandingPage() {
+export function LandingPage({ tournamentPreview }: { tournamentPreview?: TournamentAnnouncementData }) {
+  const preview = process.env.NODE_ENV === "development" ? tournamentPreview : undefined;
   const [announcements, setAnnouncements] = useState<ActiveAnnouncements | null>(null);
   const [recentMembers, setRecentMembers] = useState<NetworkMember[] | null>(null);
 
@@ -204,7 +218,7 @@ export function LandingPage() {
         <section className={styles.announceSection} id="announcements" aria-label="Announcements">
           <div className={styles.announceInner}>
             <div className={styles.announceStream}>
-            {announcements?.enabled === false ? null : announcements?.mode === "CUSTOM" && builderCards.length > 0 ? (
+            {preview ? <TournamentMode previewData={preview} /> : announcements?.enabled === false ? null : announcements?.mode === "CUSTOM" && builderCards.length > 0 ? (
               builderCards.slice(0, 2).map((card) => {
                 const expired = card.countdownAt
                   ? new Date(card.countdownAt).getTime() <= Date.now()
@@ -247,7 +261,7 @@ export function LandingPage() {
             )}
             </div>
 
-            {recentMembers && recentMembers.length > 0 ? <CommunityCarousel members={recentMembers} /> : null}
+            {recentMembers && recentMembers.length > 0 ? <CommunityMembers members={recentMembers} /> : null}
           </div>
         </section>
         </div>
