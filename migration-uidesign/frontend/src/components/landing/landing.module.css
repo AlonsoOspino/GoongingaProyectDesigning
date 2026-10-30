@@ -2290,9 +2290,9 @@
   --section-space: clamp(64px, 7vw, 96px);
   --section-title: clamp(56px, 6.2vw, 88px);
   --copy-color: #b9c2bc;
-  --rest-ggl: .26;
-  --rest-games: .22;
-  --rest-discord: .32;
+  --rest-ggl: .52;
+  --rest-games: .48;
+  --rest-discord: .56;
   background: var(--ground-base);
 }
 .landingHeader {

@@ -13,12 +13,6 @@ function rememberedNextPath() { try { return window.sessionStorage.getItem(LOGIN
 function rememberNextPath(path: string) { try { window.sessionStorage.setItem(LOGIN_NEXT_KEY, path); } catch { /* OAuth still works without redirect memory. */ } }
 function forgetNextPath() { try { window.sessionStorage.removeItem(LOGIN_NEXT_KEY); } catch { /* Nothing to clear. */ } }
 
-const STEPS = [
-  "Authorize with the Discord account you use in the server.",
-  "We read your username, avatar and server roles. Nothing else.",
-  "Your profile and dashboards unlock straight away.",
-];
-
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -57,13 +51,14 @@ export default function LoginPage() {
       <div className={styles.field} aria-hidden />
 
       <div className={styles.art}>
-        <img
-          className={styles.artImage}
-          src="/ramattra-login-cropped.webp"
-          alt=""
-          aria-hidden
-        />
-        <div className={styles.artVeil} aria-hidden />
+        <div className={styles.artVisual} aria-hidden>
+          <img
+            className={styles.artImage}
+            src="/ramattra-login.webp"
+            alt=""
+          />
+          <div className={styles.artVeil} />
+        </div>
         <div className={styles.artMark}>
           <span className={styles.artMarkLabel}>Overtime Productions</span>
           <span className={styles.artMarkText}>Registration</span>
@@ -100,15 +95,6 @@ export default function LoginPage() {
               <span>{error}</span>
             </div>
           )}
-
-          <div className={styles.steps}>
-            {STEPS.map((step, index) => (
-              <p key={step} className={styles.step}>
-                <span className={styles.stepNumber}>{String(index + 1).padStart(2, "0")}</span>
-                <span>{step}</span>
-              </p>
-            ))}
-          </div>
 
           <button
             type="button"

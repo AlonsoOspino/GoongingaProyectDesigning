@@ -3,9 +3,12 @@
   z-index: 1;
   padding: var(--section-space) 0;
   border-top: 1px solid rgba(231, 236, 233, .09);
-  background: #080d0a;
+  background: transparent;
 }
+.field { --field-rest: .48; }
 .inner {
+  position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
   align-items: center;

@@ -346,7 +346,7 @@ export function LandingPage({ tournamentPreview }: { tournamentPreview?: Tournam
       </main>
 
       <footer className={styles.footer}>
-        <BrandField variant="footer" intensity={0.22} ground={false} motion="calm" />
+        <BrandField variant="footer" intensity={0.45} ground={false} motion="calm" />
         <div className={styles.footerTop}>
           <div className={styles.footerBrand}>
             <div className={styles.footerBrandRow}>

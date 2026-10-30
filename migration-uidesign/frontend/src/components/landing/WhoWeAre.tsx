@@ -1,8 +1,10 @@
 import styles from "./who-we-are.module.css";
+import BrandField from "./atmosphere/BrandField";
 
 export default function WhoWeAre() {
   return (
     <section className={styles.section} id="who-we-are" aria-labelledby="who-we-are-title">
+      <BrandField variant="section" className={styles.field} intensity={1} ground={false} motion="calm" seedOffset={50} />
       <div className={styles.inner}>
         <div className={styles.visual}>
           <img
