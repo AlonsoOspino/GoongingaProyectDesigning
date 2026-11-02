@@ -6,6 +6,7 @@ import { getMaps, getMatchById, type AdminGameMap } from "@/lib/api/admin";
 import { getTeams } from "@/lib/api/team";
 import type { DraftState, Match, Team } from "@/lib/api/types";
 import { resolveGenericBackendAsset, resolveMapImageUrl } from "@/lib/assetUrls";
+import BrandField from "@/components/landing/atmosphere/BrandField";
 import styles from "./wincards-overlay.module.css";
 
 interface WincardsOverlayProps {
@@ -332,6 +333,7 @@ export function WincardsOverlay({ matchId }: WincardsOverlayProps) {
   if (loading && !match) {
     return (
       <div className={styles.statusScreen}>
+        <BrandField variant="zone" intensity={0.85} motion="calm" />
         <div className={styles.statusInner}>
           <p className={styles.statusKicker}>Overtime Productions</p>
           <p className={styles.statusTitle}>Loading Wincards</p>
@@ -344,6 +346,7 @@ export function WincardsOverlay({ matchId }: WincardsOverlayProps) {
   if (error || !match) {
     return (
       <div className={styles.statusScreen}>
+        <BrandField variant="zone" intensity={0.85} motion="calm" />
         <div className={styles.statusInner}>
           <p className={styles.statusKicker}>Overtime Productions</p>
           <p className={styles.statusTitle}>Wincards Unavailable</p>
@@ -440,7 +443,7 @@ export function WincardsOverlay({ matchId }: WincardsOverlayProps) {
 
   return (
     <div className={styles.root}>
-      <div className={styles.field} aria-hidden />
+      <BrandField variant="zone" intensity={0.85} motion="calm" />
 
       <aside className={styles.rail}>
         <span className={styles.kicker}>Overtime Productions</span>

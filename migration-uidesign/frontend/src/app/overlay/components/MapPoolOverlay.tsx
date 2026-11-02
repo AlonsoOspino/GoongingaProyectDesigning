@@ -6,6 +6,7 @@ import { getMaps, getMatchById, type AdminGameMap } from "@/lib/api/admin";
 import type { MapType, Match } from "@/lib/api/types";
 import type { MatchReference } from "@/lib/matchReference";
 import { resolveMapImageUrl } from "@/lib/assetUrls";
+import BrandField from "@/components/landing/atmosphere/BrandField";
 import styles from "./map-pool-overlay.module.css";
 
 type OverlayVariant = "classic" | "clean";
@@ -192,6 +193,7 @@ export function MapPoolOverlay({ matchId, variant = "classic" }: MapPoolOverlayP
   if (loading && !match) {
     return (
       <div className={styles.statusScreen}>
+        <BrandField variant="zone" intensity={0.85} motion="calm" />
         <div className={styles.statusInner}>
           <p className={styles.statusKicker}>Overtime Productions</p>
           <p className={styles.statusTitle}>Loading Map Pool</p>
@@ -204,6 +206,7 @@ export function MapPoolOverlay({ matchId, variant = "classic" }: MapPoolOverlayP
   if (!match) {
     return (
       <div className={styles.statusScreen}>
+        <BrandField variant="zone" intensity={0.85} motion="calm" />
         <div className={styles.statusInner}>
           <p className={styles.statusKicker}>Overtime Productions</p>
           <p className={styles.statusTitle}>Map Pool Unavailable</p>
@@ -218,7 +221,7 @@ export function MapPoolOverlay({ matchId, variant = "classic" }: MapPoolOverlayP
       className={clsx(styles.root, variant === "clean" ? styles.clean : styles.classic)}
       data-focused={focusedColumn ? "true" : "false"}
     >
-      <div className={styles.field} aria-hidden />
+      <BrandField variant="zone" intensity={0.85} motion="calm" />
 
       <aside className={styles.rail}>
         <span className={styles.kicker}>Overtime Productions</span>
