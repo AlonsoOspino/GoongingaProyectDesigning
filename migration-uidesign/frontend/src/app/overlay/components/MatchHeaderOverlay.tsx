@@ -6,7 +6,7 @@ import { getMatchById } from "@/lib/api/admin";
 import { getDraftByMatchId } from "@/lib/api/draft";
 import { getTeams } from "@/lib/api/team";
 import type { DraftState, Hero, Match, Team } from "@/lib/api/types";
-import type { MatchReference } from "@/lib/matchReference";
+import { isDevMatchReference, type MatchReference } from "@/lib/matchReference";
 import { resolveGenericBackendAsset, resolveHeroImageUrl } from "@/lib/assetUrls";
 import styles from "./match-header-overlay.module.css";
 
@@ -42,7 +42,7 @@ export function MatchHeaderOverlay({ matchId, reverseSides = false }: MatchHeade
       try {
         const [loadedMatch, loadedTeams] = await Promise.all([
           getMatchById(matchId),
-          getTeams({ includeDev: matchId === "dev" }),
+          getTeams({ includeDev: isDevMatchReference(matchId) }),
         ]);
         const loadedDraft = await getDraftByMatchId(matchId, { key: shareKey }).catch(() => undefined);
 
@@ -59,7 +59,7 @@ export function MatchHeaderOverlay({ matchId, reverseSides = false }: MatchHeade
     void load();
     const pollId = window.setInterval(() => {
       void load();
-    }, matchId === "dev" ? 1200 : POLL_INTERVAL_MS);
+    }, isDevMatchReference(matchId) ? 1200 : POLL_INTERVAL_MS);
 
     return () => {
       cancelled = true;
@@ -136,6 +136,48 @@ export function MatchHeaderOverlay({ matchId, reverseSides = false }: MatchHeade
   const leftScore = reverseSides ? match?.mapWinsTeamB ?? 0 : match?.mapWinsTeamA ?? 0;
   const rightScore = reverseSides ? match?.mapWinsTeamA ?? 0 : match?.mapWinsTeamB ?? 0;
 
+  const renderTeamBanner = (team: Team | null, side: "left" | "right") => {
+    const roster = team?.roster?.trim();
+    const rosterArtwork = roster && /^(https?:\/\/|data:image\/|blob:|\/)/.test(roster) ? roster : null;
+    const banner = (side === "left" ? team?.bannerLeft : team?.bannerRight) || rosterArtwork;
+    const teamName = team?.name || "TEAM";
+
+    return (
+      <div className={styles.bannerFrame}>
+        {banner ? (
+          <div className={styles.bannerIdentity}>
+            <img className={styles.bannerImage} src={teamAssetUrl(banner)} alt="" />
+            <span className={styles.bannerName}>{teamName}</span>
+          </div>
+        ) : team?.logo ? (
+          <div className={side === "right" ? `${styles.logoFallback} ${styles.logoFallbackRight}` : styles.logoFallback}>
+            <img className={styles.logoFallbackImage} src={teamAssetUrl(team.logo)} alt="" />
+            <span>{teamName}</span>
+          </div>
+        ) : (
+          <div className={styles.fallback}>{teamName}</div>
+        )}
+      </div>
+    );
+  };
+
+  const renderBans = (bans: Array<number | null>) => (
+    <div className={styles.banStack}>
+      {bans.map((heroId, index) => {
+        const hero = heroId ? heroesById.get(heroId) : null;
+        return (
+          <div key={index} className={styles.banSlot}>
+            {hero?.imgPath ? (
+              <img className={styles.banImage} src={resolveHeroImageUrl(hero.imgPath)} alt={hero.name || ""} />
+            ) : (
+              <div className={styles.banFallback}>-</div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+
   if (!match) {
     return <div className={styles.root} data-dev={isDevMatch}><div className={styles.standby} role="status">Match header · stand by</div></div>;
   }
@@ -147,43 +189,8 @@ export function MatchHeaderOverlay({ matchId, reverseSides = false }: MatchHeade
 
         <div className={styles.content}>
           <section className={styles.lane}>
-            <div className={styles.bannerFrame}>
-              {leftTeam?.bannerLeft ? (
-                <img
-                  className={styles.bannerImage}
-                  src={teamAssetUrl(leftTeam.bannerLeft)}
-                  alt=""
-                />
-              ) : leftTeam?.logo ? (
-                <div className={styles.logoFallback}>
-                  <img className={styles.logoFallbackImage} src={teamAssetUrl(leftTeam.logo)} alt="" />
-                  <span>{leftTeam.name}</span>
-                </div>
-              ) : (
-                <div className={styles.fallback}>{leftTeam?.name || "TEAM"}</div>
-              )}
-              <div className={`${styles.banStack} ${styles.banStackOverlay} ${styles.banStackRight}`}>
-                {leftTeamBans.map((heroId, index) => {
-                  const hero = heroId ? heroesById.get(heroId) : null;
-                  return (
-                    <div
-                      key={`left-team-ban-${index}`}
-                      className={styles.banSlot}
-                    >
-                      {hero?.imgPath ? (
-                        <img
-                          className={styles.banImage}
-                          src={resolveHeroImageUrl(hero.imgPath)}
-                          alt={hero.name || ""}
-                        />
-                      ) : (
-                        <div className={styles.banFallback}>-</div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            {renderTeamBanner(leftTeam, "left")}
+            {renderBans(leftTeamBans)}
             <div className={styles.scoreValue}>{leftScore}</div>
           </section>
 
@@ -191,43 +198,8 @@ export function MatchHeaderOverlay({ matchId, reverseSides = false }: MatchHeade
 
           <section className={styles.laneRight}>
             <div className={styles.scoreValue}>{rightScore}</div>
-            <div className={styles.bannerFrame}>
-              {rightTeam?.bannerRight ? (
-                <img
-                  className={styles.bannerImage}
-                  src={teamAssetUrl(rightTeam.bannerRight)}
-                  alt=""
-                />
-              ) : rightTeam?.logo ? (
-                <div className={`${styles.logoFallback} ${styles.logoFallbackRight}`}>
-                  <img className={styles.logoFallbackImage} src={teamAssetUrl(rightTeam.logo)} alt="" />
-                  <span>{rightTeam.name}</span>
-                </div>
-              ) : (
-                <div className={styles.fallback}>{rightTeam?.name || "TEAM"}</div>
-              )}
-              <div className={`${styles.banStack} ${styles.banStackOverlay} ${styles.banStackLeft}`}>
-                {rightTeamBans.map((heroId, index) => {
-                  const hero = heroId ? heroesById.get(heroId) : null;
-                  return (
-                    <div
-                      key={`right-team-ban-${index}`}
-                      className={styles.banSlot}
-                    >
-                      {hero?.imgPath ? (
-                        <img
-                          className={styles.banImage}
-                          src={resolveHeroImageUrl(hero.imgPath)}
-                          alt={hero.name || ""}
-                        />
-                      ) : (
-                        <div className={styles.banFallback}>-</div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            {renderBans(rightTeamBans)}
+            {renderTeamBanner(rightTeam, "right")}
           </section>
         </div>
       </header>

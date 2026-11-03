@@ -53,11 +53,11 @@
 }
 
 .lane {
-  grid-template-columns: minmax(0, 1fr) 56px;
+  grid-template-columns: minmax(0, 1fr) max-content 56px;
 }
 
 .laneRight {
-  grid-template-columns: 56px minmax(0, 1fr);
+  grid-template-columns: 56px max-content minmax(0, 1fr);
 }
 
 .centerBlank {
@@ -100,7 +100,7 @@
 }
 
 .banSlot + .banSlot {
-  margin-left: -8px;
+  margin-left: 0;
 }
 
 .banImage {
@@ -111,26 +111,15 @@
 }
 
 .bannerFrame {
-  position: relative;
   width: 100%;
-  height: auto;
-  max-height: 64px;
-  aspect-ratio: 1197 / 154;
+  height: 64px;
 }
 
-.banStackOverlay {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 2;
-}
-
-.banStackLeft {
-  left: -2px;
-}
-
-.banStackRight {
-  right: -2px;
+.bannerIdentity {
+  display: grid;
+  height: 100%;
+  grid-template-rows: minmax(0, 1fr) auto;
+  padding: 2px 8px;
 }
 
 .logoImage,
@@ -145,7 +134,17 @@
 }
 
 .bannerImage {
-  object-fit: cover;
+  min-height: 0;
+  object-fit: contain;
+}
+
+.bannerName {
+  color: #f4d39e;
+  font-family: var(--font-overlay-display), var(--font-overlay-body), sans-serif;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.15;
+  text-align: center;
 }
 
 .logoFallback {
@@ -154,7 +153,7 @@
   display: flex;
   align-items: center;
   gap: 18px;
-  padding: 5px 112px 5px 22px;
+  padding: 5px 14px;
   color: #f4d39e;
   background: #111111;
   font-family: var(--font-overlay-display), var(--font-overlay-body), sans-serif;
@@ -166,7 +165,6 @@
 
 .logoFallbackRight {
   flex-direction: row-reverse;
-  padding: 5px 22px 5px 112px;
   text-align: right;
 }
 
@@ -252,7 +250,8 @@
 }
 
 .root[data-dev="true"] .logoFallback,
-.root[data-dev="true"] .fallback {
+.root[data-dev="true"] .fallback,
+.root[data-dev="true"] .bannerName {
   color: var(--dev-ink);
   background: #ffffff;
   font-family: var(--font-otp-display), var(--font-overlay-display), sans-serif;
@@ -263,30 +262,12 @@
 
 .root[data-dev="true"] .logoFallback {
   gap: 16px;
-  padding: 0 76px 0 0;
-}
-
-.root[data-dev="true"] .logoFallbackRight {
-  padding: 0 0 0 76px;
 }
 
 .root[data-dev="true"] .logoFallbackImage {
   display: block;
-  width: auto;
-  height: auto;
-  max-width: 100%;
-  max-height: 100%;
-  min-width: 0;
-  flex: 0 1 auto;
-  object-fit: contain;
-  object-position: center;
-}
-
-.root[data-dev="true"] .logoFallback span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  max-width: 54px;
+  max-height: 54px;
 }
 
 .root[data-dev="true"] .banStack {

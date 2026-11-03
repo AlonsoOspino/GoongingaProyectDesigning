@@ -279,6 +279,14 @@
     "migration-uidesign/scripts/sql/20261102_hero_catalog.sql": {
       "base": null,
       "new": "ea38e3d67015317ade0b64d6d1b645b593fc4853648f18b76f28a864ebad113e"
+    },
+    "migration-uidesign/frontend/src/app/overlay/components/MatchHeaderOverlay.tsx": {
+      "base": "9f30d25a9b916ba839750ae9ae1e0c972992ee92de7175967f142af6c66cf612",
+      "new": "c1acfb1c61c00223fcb0617e3fc09693c2d6ac47be7cf755e3e800c1d8f634ed"
+    },
+    "migration-uidesign/frontend/src/app/overlay/components/match-header-overlay.module.css": {
+      "base": "edf2949575f5cfd5de17781ddac396b53802384bf08268cefcde26c82aad065d",
+      "new": "2ff2f512b5d17af9d32c076754b96dde02c12544975a0923b07415c7cdea3478"
     }
   },
   "portraits": [
