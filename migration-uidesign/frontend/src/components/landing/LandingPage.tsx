@@ -162,7 +162,6 @@ export function LandingPage({ tournamentPreview }: { tournamentPreview?: Tournam
 
   const footerLeagueLinks = [
     { href: "/season-9", label: "Season 9" },
-    { href: "/wrapped", label: "Wrapped" },
     { href: "/history", label: "GGL History" },
     { href: "/standings", label: "Standings" },
     { href: "/teams", label: "Teams" },

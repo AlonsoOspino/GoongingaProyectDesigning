@@ -287,6 +287,190 @@
     "migration-uidesign/frontend/src/app/overlay/components/match-header-overlay.module.css": {
       "base": "edf2949575f5cfd5de17781ddac396b53802384bf08268cefcde26c82aad065d",
       "new": "2ff2f512b5d17af9d32c076754b96dde02c12544975a0923b07415c7cdea3478"
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/images/averagedamage-d9d571aa.jpg": {
+      "base": "4e4d5c0bb70830586e1903b3b67aac1e8eb5e71ca87f9e4689b6444d35e5a25c",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/images/averagekills-e50ada53.png": {
+      "base": "636f4ace60d51eed7c5a059d35e47c5fcc600fd6dd2c24c6945a663c7f0fc606",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/images/averagemitigation-5f72e8a6.png": {
+      "base": "aa118c56d4b9342bf9173c3bb1e2205273835a4735fd866ce866d830bc90b7d7",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/images/bestkd-a8a6763f.png": {
+      "base": "32d8217434a6195ae513af87f4c99d437f370416ec5b909f6bbc12f06bc313a8",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/images/herobanleast-43440fbb.webp": {
+      "base": "66474451545a380bcf7b55c1927e1ac881922a3f8aed9eea9185e67c69569110",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/images/herobanmost-7d91c852.webp": {
+      "base": "2f4e2e254a9eb3ca89aabcabbc72798e94ee7fe6171c955bd9e1d1a5acc709c9",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/images/leastpickedmap-95236ed6.jpg": {
+      "base": "087a62881e75dca3335d90337384305ce27ac8a9b19b9373c8df6e648d849ad6",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/images/mostpickedmap-a2855f54.webp": {
+      "base": "6f9ee6811d5f0cc1cd87d62e784e78419282b161f98a6bfb0f8dd25ea5d67ede",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/images/totalhealing-cc0d30b0.png": {
+      "base": "2ea2764aeea99deab00213e15a8130719348ca354db3e0eff876ee02ac791ebd",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/images/totalmitigation-5bcf85ad.jpg": {
+      "base": "48c31d4d4de34c375587188e157282d38ee41fe705ec49f2010828f0d5d65f6a",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/soundtrack/countdown-6de02b9e.mp3": {
+      "base": "e7432885b1091c05bf9d7f24b39ffd03b77e5446fa3fea9cd752097f23b0ce6a",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/soundtrack/highlights-105ba0ba.mp3": {
+      "base": "d97cdb01570c5ada4cb28b72bda52540508c7c93fb151dfe652b1eda3b3dd93a",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/soundtrack/intro-1069506d.mp3": {
+      "base": "8811b88f4baf3349f50d56ee658eecb225313f1e5eb2158bea9d77cc4b67265d",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/soundtrack/recap-1069506d.mp3": {
+      "base": "8811b88f4baf3349f50d56ee658eecb225313f1e5eb2158bea9d77cc4b67265d",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/soundtrack/statsintro-bc92523f.mp3": {
+      "base": "a1d30d2ac53ca1973e7da8738a5bc422a787f1ce9fd05035324289ecb396fe73",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/story-audio/averageassists-1-e157d264.wav": {
+      "base": "595bbd610de1e480732740178050e7afe0d187afdd0b208f99c2a6fd526ca07b",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/story-audio/averagedamage-1-89ef52cb.mp3": {
+      "base": "d86df2e73882cb3411f4523c91442a7e83dbe7c0de6d80237db5aa960c7d26fb",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/story-audio/averagehealing-1-2b77a426.mp3": {
+      "base": "1d11a9c54db8e2679eae198ec15d58fd2f3c3f8e279a4044ed1439f61bc9dafb",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/story-audio/averagekills-1-0835b209.mp3": {
+      "base": "cb19e83e140f96dfd0b818d31077b9434fd44473f67e58e5757d1cb3a9711f54",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/story-audio/averagekills-2-ed388d32.mp3": {
+      "base": "96f33957e63e488d99994a1189bae066e8fbc9ae9f86cd39c6613eeb2d68ff89",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/story-audio/averagemitigation-1-2d37b0f2.mp3": {
+      "base": "57b712efc069dbd25a65efdf7dd15e03f80f788ed87ceb71671bfb3245b70e86",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/story-audio/averagemitigation-2-a3d8171f.mp3": {
+      "base": "901698f41cce936ac4a08f308b5407d5a5210d72fbe2a43745764ce74626e508",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/story-audio/averagesurvival-1-ce3edfab.wav": {
+      "base": "03304340e73f96e89041b459de3b6ba80c04011831017b9394583268df677786",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/story-audio/bestkd-1-f8d96888.mp3": {
+      "base": "9ee4d8112bbdb74beb07b3d7a1a19c56171c1b19e79cdbc7428345571b02a7dd",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/story-audio/totaldamage-1-4c05a912.mp3": {
+      "base": "b4218b35091345ae0d89bd1faa5715513c2d410897a627e37b020d49cb708beb",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/story-audio/totalhealing-1-f2b514bc.wav": {
+      "base": "8fa410fa669e9b02a587cc6dc048c04f3e6a68533c183a1f2c867ff5932ee2aa",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/story-audio/totalmitigation-1-315e4eac.mp3": {
+      "base": "4d3716afbc34c2fab14278618c6963d66eb9a8f787f2c8550cf19b302921373b",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/story-audio/totalmitigation-2-c18b5c89.mp3": {
+      "base": "dd2b7f22ceed1798548694a6e76f1404e6b5d7269b5870b524c500ce64d21dd7",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/story-audio/totalmitigation-3-bc95ccd9.mp3": {
+      "base": "e730288d709f6b5508e489e50d320f5927378d65fad9806c1322648674ef362d",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/videos/averageassists-759ee508.mp4": {
+      "base": "d78660d200ce5e2febda90a0af3348e13c107cea91d1971d76c30a2aaa04fd35",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/videos/averagedamage-798f660f.mp4": {
+      "base": "bec10c9421e1a00d8341619d6294deb6ddb0851ba17dfcbb834fa16f32793ea0",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/videos/averagehealing-559663af.mp4": {
+      "base": "fe58f300510954dc15db0800bc0c17f579d43483d5b650af162a89eda8d6b65b",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/videos/averagekills-c487be70.mp4": {
+      "base": "0e2b15dd759a0d3b8d3ecfedb9e0002b1b9b8f723bc52935df2ea18d13fe0485",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/videos/averagemitigation-ebb8763b.mp4": {
+      "base": "902445c4018f9fde2e9fbd7f56956de8952c43a293c213b28c682be7b9f98b95",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/videos/averagesurvival-a32985a6.mp4": {
+      "base": "ba4ddf1ac3f93164b2344d0470b846d1c4b483e7e7707d43005bfb24ddd9733a",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/videos/bestkd-b72ec65a.mp4": {
+      "base": "a6916d36101fcd63288103a7f0a8c02e7b8435fd7a2088f7f507a8ef3dc8ea2c",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/videos/totaldamage-78a9c55f.mp4": {
+      "base": "b1151d3ccfbb1322691a88a12d41a30d99b8d2b339feacf07ca489393a589905",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/videos/totalhealing-20935ed3.mp4": {
+      "base": "f1f1bd28d4c2e8e1fe383cb1813d31c0683fbc4df5e086f0725c3039bef45c4f",
+      "new": null
+    },
+    "migration-uidesign/frontend/public/history/season-8/wrapped/videos/totalmitigation-c674ae1d.mp4": {
+      "base": "ffe14297ae585d6dcefba65c94677b3aa031177c040e99c17bb5aeb16cf281bb",
+      "new": null
+    },
+    "migration-uidesign/frontend/src/app/history/season-8/wrapped/page.tsx": {
+      "base": "57f3396adaf21847accc3e0bd88dcb06c08b71d64f33e2fd0097f690f9d996ec",
+      "new": null
+    },
+    "migration-uidesign/frontend/src/app/wrapped/page.tsx": {
+      "base": "4f3e9ae6f0757798fbefe98921a17797b3ebeb9c6cf2f9a65e044b8154bc8fd1",
+      "new": null
+    },
+    "migration-uidesign/frontend/src/app/wrapped/wrapped.module.css": {
+      "base": "e5cffaa2fab58ae6ad31777d7d0e20c68c1691e64582dfe41e93eebdd4f58ce9",
+      "new": null
+    },
+    "migration-uidesign/frontend/src/lib/api/wrapped.ts": {
+      "base": "56e1fdb5cea7d201c8d809d087462a6bc4191f2f9731e37425679e077a63c6e1",
+      "new": null
+    },
+    "migration-uidesign/frontend/src/components/landing/LandingPage.tsx": {
+      "base": "5d6c73b512eb49af837e0e97a529d9011837b7de3e036949a82b10088491b509",
+      "new": "8edfa4c07ad3745f1c1ebff6b9228b127da5196052bb9c5324677e0997b6bfd7"
+    },
+    "migration-uidesign/frontend/src/lib/api/index.ts": {
+      "base": "b61e0ee0878ae4a56161b2064dd1212dbda89b61abc30c4db2f05df63cd6c6f4",
+      "new": "794f2fe8122dafb1622dea22ee866f79f7afe7c77f5ab30e0ae18ae058b5ba63"
+    },
+    "migration-uidesign/frontend/src/app/history/HistoryClient.tsx": {
+      "base": "bf272cc03d903e770d71233845513e2680162699c7f83abe82109cfc3831f00c",
+      "new": "c767c45fcde6b1f9a19167d376515cd3576c3f418079c56c7b6235cee45d1676"
     }
   },
   "portraits": [

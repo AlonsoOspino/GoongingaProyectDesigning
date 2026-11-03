@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import archive from "@/data/history/season-8.json";
-import { ArrowIcon } from "@/components/landing/brandAssets";
 import SeasonPicker from "./SeasonPicker";
 import { medalColor, roleColor, teamColor } from "./palette";
 import styles from "./history.module.css";
@@ -14,7 +13,6 @@ const tabs = [
   { id: "standings", label: "Standings" },
   { id: "results", label: "Schedule & Results" },
   { id: "finals", label: "Grand Finals" },
-  { id: "wrapped", label: "Wrapped" },
 ] as const;
 
 type TabId = (typeof tabs)[number]["id"];
@@ -527,31 +525,6 @@ function FinalsPanel() {
   );
 }
 
-function WrappedPanel() {
-  return (
-    <>
-      <div className={styles.panelHead}>
-        <h2 className={styles.h2}>Season 8 Wrapped</h2>
-        <p className={styles.panelLead}>
-          The full recap: final statistics, videos, story audio, soundtrack and artwork, kept the way
-          it was published.
-        </p>
-      </div>
-
-      <div className={styles.wrappedCard}>
-        <div className={styles.wrappedCopy}>
-          <h3 className={styles.wrappedTitle}>The whole season, in one piece</h3>
-          <p className={styles.panelLead}>
-            Wrapped is its own experience rather than a page of tables. It opens in full screen.
-          </p>
-        </div>
-        <Link href="/history/season-8/wrapped" className={styles.cta}>
-          Open Wrapped <ArrowIcon size={14} />
-        </Link>
-      </div>
-    </>
-  );
-}
 
 /* Estado en la URL: ?season=8&tab=players.
  *
@@ -672,7 +645,6 @@ export function HistoryClient() {
         {active === "standings" ? <StandingsPanel /> : null}
         {active === "results" ? <ResultsPanel /> : null}
         {active === "finals" ? <FinalsPanel /> : null}
-        {active === "wrapped" ? <WrappedPanel /> : null}
       </div>
     </>
   );
