@@ -37,8 +37,8 @@ public class PreparationService {
 
     public DraftView start(long id, DraftActor actor) {
         var draft = commands.production(id, actor);
-        if (catalog.availableTypes(draft.match(), draft.state().usedMapIds(), draft.state().mapNumber()).isEmpty()) {
-            throw new DraftRuleViolation("No unplayed map is available in the configured pool.");
+        if (catalog.availableTypes(draft.state().usedMapIds(), draft.state().mapNumber()).isEmpty()) {
+            throw new DraftRuleViolation("No unplayed map is available for this round.");
         }
         var next = workflow.startMapSelection(draft.state());
         matches.start(draft.match().id());

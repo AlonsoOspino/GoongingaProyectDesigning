@@ -6,16 +6,15 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, ExternalLink, FolderOpen, Monitor, Radio, Settings, X } from "lucide-react";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { readNetworkSessionToken, readNetworkSessionUser, type NetworkSessionUser } from "@/features/networkSession/storage";
-import { apiRequest, getDraftByMatchId, getDraftShareInfo, getTeams, startMapPicking, startBan, endGame, submitMatchResult, managerSetOverlayFocus, getMemberProfileById, type DraftState, type Team, type MapType } from "@/lib/api";
-import { resolveMapImageUrl } from "@/lib/assetUrls";
-import { BROADCAST_VIEWS, automaticView, belongsToCurrentMap, canCast, currentMapNumber, heroVideo, loadHeroVideos, mapPoolIds, type BroadcastView, type HeroVideoManifest } from "@/lib/casting/model";
+import { apiRequest, getDraftByMatchId, getDraftShareInfo, getTeams, startMapPicking, startBan, endGame, submitMatchResult, getMemberProfileById, type DraftState, type Team } from "@/lib/api";
+import { DEV_MATCH_ID, isDevMatchReference } from "@/lib/matchReference";
+import { BROADCAST_VIEWS, automaticView, belongsToCurrentMap, canCast, currentMapNumber, heroVideo, loadHeroVideos, type BroadcastView, type HeroVideoManifest } from "@/lib/casting/model";
 import { ObsClient, ensureCastingScenes, switchCastingScene, buildCastingOverlayUrl, type CastingSceneSetup } from "@/lib/casting/obs";
 import { createWorkshopLogWatcher, type LogRosterMember, type WorkshopLogWatcher, type WorkshopWatcherState, type WorkshopGameResult, type WorkshopGameStart } from "@/lib/casting/logs";
 import styles from "./control-room.module.css";
 
 interface Preferences { monitors: 1 | 2; theme: "dark" | "bright"; hideHeader: boolean; automatic: boolean }
 const INITIAL: Preferences = { monitors: 1, theme: "dark", hideHeader: false, automatic: false };
-const POOL_TYPES: MapType[] = ["CONTROL", "HYBRID", "PAYLOAD", "PUSH", "FLASHPOINT"];
 const messageOf = (error: unknown) => error instanceof Error ? error.message : "Unable to complete this action.";
 
 export function CastingTable({ matchId }: { matchId: number }) {
@@ -77,7 +76,7 @@ export function CastingTable({ matchId }: { matchId: number }) {
     if (!Number.isInteger(matchId) || matchId <= 0) { setError("Invalid match id."); return; }
     const current = readNetworkSessionUser();
     const auth = readNetworkSessionToken();
-    if (!current || !auth || !canCast(current.roles)) { router.replace(`/login?next=/casting-table/${matchId}`); return; }
+    if (!current || !auth || !(canCast(current.roles) || (matchId === DEV_MATCH_ID && current.roles.includes("DEVELOPER")))) { router.replace(`/login?next=/casting-table/${matchId}`); return; }
     setUser(current); setToken(auth); setOrigin(window.location.origin);
     setDraft(null); setTeams([]); setRoster([]); setLogResult(null); setGameStarted(null);
     setConnected(false); setSetup(null); setProgram(null); setShareKey(""); setPassword("");
@@ -111,10 +110,20 @@ export function CastingTable({ matchId }: { matchId: number }) {
       finally { busy = false; }
     };
     void load();
-    void getTeams().then(value => { if (active) setTeams(value); }).catch(failure => { if (active) setError(messageOf(failure)); });
-    let identitiesReady = false, keyReady = false;
+    void getTeams({ includeDev: isDevMatchReference(matchId) }).then(value => { if (active) setTeams(value); }).catch(failure => { if (active) setError(messageOf(failure)); });
+    let identitiesReady = false, identitiesPending = false, keyReady = false;
+    let rosterSignature = "";
     const loadConnections = () => {
-      if (!identitiesReady) void apiRequest<LogRosterMember[]>(`/match/${matchId}/casting-roster`, { token }).then(value => { if (active) { identitiesReady = true; setRoster(value); watcherRef.current?.setRoster(value); } }).catch(failure => { if (active) setLogState({status:"review", message:`Unable to verify team identities: ${messageOf(failure)}. Retrying…`}); });
+      if (!identitiesPending && (!identitiesReady || matchId === DEV_MATCH_ID)) {
+        identitiesPending = true;
+        void apiRequest<LogRosterMember[]>(`/match/${matchId}/casting-roster`, { token }).then(value => {
+          if (!active) return;
+          identitiesReady = true;
+          const signature = JSON.stringify(value);
+          if (signature !== rosterSignature) { rosterSignature = signature; setRoster(value); watcherRef.current?.setRoster(value); }
+        }).catch(failure => { if (active) setLogState({status:"review", message:`Unable to verify team identities: ${messageOf(failure)}. Retrying…`}); })
+          .finally(() => { identitiesPending = false; });
+      }
       if (!keyReady) void getDraftShareInfo(token, matchId).then(value => { if (active) { keyReady = true; setShareKey(value.key); } }).catch(failure => { if (active) setObsMessage(`Broadcast access is unavailable: ${messageOf(failure)}. Retrying…`); });
     };
     loadConnections();
@@ -290,9 +299,7 @@ export function CastingTable({ matchId }: { matchId: number }) {
   };
   registerRef.current = register;
 
-  const focusPool = (type: MapType | null, mapId?: number) => void perform(() => managerSetOverlayFocus(token,matchId,{focusType:type,focusMapId:mapId ?? null}));
   const teamA = teams.find(t => t.id === draft?.match.teamAId), teamB = teams.find(t => t.id === draft?.match.teamBId);
-  const maps = draft?.allMaps?.filter(m => !draft.match.mapsAllowedByRound || mapPoolIds(draft.match).includes(m.id)) || [];
   const activeBans = draft?.heroes?.filter(h => draft.actions.some(a => a.action === "BAN" && a.gameNumber === currentMapNumber(draft) && a.value === h.id)) || [];
   const missingVideos = activeBans.filter(h => !heroVideo(manifest,h));
   const sceneUrl = origin && view !== "overwatch" ? buildCastingOverlayUrl(origin,String(matchId),view,shareKey || undefined) : "";
@@ -361,10 +368,7 @@ export function CastingTable({ matchId }: { matchId: number }) {
               <p className={styles.help}>Automatic results require a final event, the selected map and at least one matching player per team. Push and ambiguous scores need manual review.</p>
             </div></section>
           </div>
-          <section className={styles.panel}><div className={styles.panelHead}><h2>03 · Map pool director</h2><button className={styles.secondary} disabled={pending || !draft} onClick={() => focusPool(null)}>Reset focus</button></div><div className={styles.panelBody}><div className={styles.pool}>
-            {POOL_TYPES.map(type => <div key={type} className={styles.poolType}><button className={`${styles.secondary} ${draft?.match.overlayFocusType === type ? styles.sceneSelected : ""}`} disabled={pending || !draft} onClick={() => focusPool(type)}>{type === "PAYLOAD" ? "ESCORT" : type}</button>{maps.filter(m => m.type === type).map(map => <button key={map.id} className={`${styles.mapButton} ${draft?.match.overlayFocusMapId === map.id ? styles.mapFocused : ""}`} disabled={pending} onClick={() => focusPool(type,map.id)}><img src={resolveMapImageUrl(map.imgPath)} alt="" /><span>{map.description}</span></button>)}</div>)}
-          </div><p className={styles.help}>Choose a type or map to focus the existing map pool overlay. Use “Map pool” in scene controls to put it on air.</p></div></section>
-          <section className={styles.panel}><div className={styles.panelHead}><h2>04 · Hero video library</h2><span>CLOUDFLARE R2</span></div><div className={styles.panelBody}><p className={styles.help}>{libraryError || `${Object.keys(manifest).length} hero videos linked. Videos loop, play muted and crop to the center of each hero.`}</p>{missingVideos.length > 0 && <p className={styles.notice}>Video pending: {missingVideos.map(h => h.name).join(", ")}. Hero portraits remain visible until their videos are available.</p>}<p className={styles.help}>Two bans per team, left and right, over the selected map. Configure public video URLs in the hero manifest after uploading your clips.</p></div></section>
+          <section className={styles.panel}><div className={styles.panelHead}><h2>03 · Hero video library</h2><span>CLOUDFLARE R2</span></div><div className={styles.panelBody}><p className={styles.help}>{libraryError || `${Object.keys(manifest).length} hero videos linked. Videos loop, play muted and crop to the center of each hero.`}</p>{missingVideos.length > 0 && <p className={styles.notice}>Video pending: {missingVideos.map(h => h.name).join(", ")}. Hero portraits remain visible until their videos are available.</p>}<p className={styles.help}>Two bans per team, left and right, over the selected map. Configure public video URLs in the hero manifest after uploading your clips.</p></div></section>
         </div>
       </div>
     </div>

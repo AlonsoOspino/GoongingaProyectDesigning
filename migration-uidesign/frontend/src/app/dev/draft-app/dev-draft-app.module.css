@@ -112,6 +112,14 @@
 .labGuide .labNote { margin-top: 8px; font-size: .75rem; color: var(--color-text-muted); }
 .labGuide > a { flex-shrink: 0; text-decoration: none; }
 
+.notice { max-width: 1560px; margin: 0 auto 18px; padding: 12px 14px; border: 1px solid var(--color-success); color: var(--color-text-primary); background: var(--color-surface-1); font-size: .875rem; }
+.captainActions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 18px; }
+.captainActions a { text-decoration: none; }
+.labNote { margin-top: 12px; font-size: .75rem; line-height: 1.6; color: var(--color-text-muted); }
+.teamSelectors:has(> .captainFields) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.captainFields { display: grid; gap: 14px; }
+.captainFields small { color: var(--color-text-muted); font-size: .72rem; line-height: 1.5; }
+
 .teamPanel {
   position: sticky;
   top: 82px;
@@ -370,94 +378,6 @@
   color: var(--color-text-muted);
   font-size: .75rem;
   font-weight: 800;
-}
-
-.mapGroups {
-  margin-top: 34px;
-  display: grid;
-  gap: 28px;
-}
-
-.mapGroup {
-  min-width: 0;
-}
-
-.mapGroupHead {
-  margin-bottom: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-}
-
-.mapGroupHead h3 {
-  color: var(--color-text-secondary);
-  font-size: .72rem;
-  letter-spacing: .09em;
-}
-
-.mapGroupHead span {
-  color: var(--color-text-muted);
-  font-size: .7rem;
-}
-
-.mapGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 8px;
-}
-
-.mapCard {
-  position: relative;
-  min-height: 92px;
-  overflow: hidden;
-  display: flex;
-  align-items: end;
-  padding: 10px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  color: white;
-  background: var(--color-surface-inset);
-  cursor: pointer;
-  isolation: isolate;
-  transition: border-color var(--duration-fast) ease, filter var(--duration-fast) ease;
-}
-
-.mapCard::after {
-  content: "";
-  position: absolute;
-  inset: 35% 0 0;
-  z-index: -1;
-  background: linear-gradient(transparent, rgba(0, 0, 0, .82));
-}
-
-.mapCard img {
-  position: absolute;
-  inset: 0;
-  z-index: -2;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  filter: saturate(.65) brightness(.72);
-}
-
-.mapCard span {
-  font-size: .78rem;
-  font-weight: 800;
-}
-
-.mapCard svg {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-}
-
-.mapCard[data-selected="true"] {
-  border-color: #79ad8b;
-}
-
-.mapCard[data-selected="true"] img {
-  filter: saturate(1) brightness(.86);
 }
 
 .builderFooter {
@@ -935,6 +855,7 @@
   }
 
   .teamSelectors,
+  .teamSelectors:has(> .captainFields),
   .banTeams {
     grid-template-columns: 1fr;
   }

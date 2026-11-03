@@ -47,6 +47,7 @@ public class DraftCatalog {
                 .orElseThrow(() -> new DraftRuleViolation("Team not found."));
     }
 
+    /** Map pool used by the legacy broadcast focus controls. */
     public List<MapInfo> pool(MatchInfo match) {
         // Prisma's implicit join uses A = Map.id and B = Match.id.
         Set<Integer> explicit = new HashSet<>(jdbc.queryForList("SELECT \"A\" FROM public.\"_AllowedMaps\" WHERE \"B\"=?", Integer.class, match.id()));
@@ -61,14 +62,14 @@ public class DraftCatalog {
                 .filter(m -> weekly.isEmpty() || weekly.contains(m.id())).toList();
     }
 
-    public Set<MapChoice> choices(MatchInfo match) {
-        return pool(match).stream().map(MapInfo::choice).collect(Collectors.toSet());
+    public Set<MapChoice> choices() {
+        return allMaps().stream().map(MapInfo::choice).collect(Collectors.toSet());
     }
 
-    public Set<MapType> availableTypes(MatchInfo match, Set<Long> used, int number) {
+    public Set<MapType> availableTypes(Set<Long> used, int number) {
         Set<MapType> allowed = number == 1 ? EnumSet.of(MapType.CONTROL)
                 : EnumSet.complementOf(EnumSet.of(MapType.CONTROL));
-        return pool(match).stream().filter(m -> !used.contains((long) m.id()) && allowed.contains(m.type()))
+        return allMaps().stream().filter(m -> !used.contains((long) m.id()) && allowed.contains(m.type()))
                 .map(MapInfo::type).collect(Collectors.toCollection(() -> EnumSet.noneOf(MapType.class)));
     }
 }

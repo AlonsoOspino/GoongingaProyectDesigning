@@ -29,17 +29,17 @@ public class MapSelectionService {
         var command = commands.team(id, actor, request.teamId());
         var draft = command.draft();
         var next = workflow.chooseMapType(draft.state(), command.teamId(), request.mapType(),
-                catalog.availableTypes(draft.match(), draft.state().usedMapIds(), draft.state().mapNumber()));
+                catalog.availableTypes(draft.state().usedMapIds(), draft.state().mapNumber()));
         return views.map(store.save(draft, next, clock.instant()));
     }
 
     public DraftView map(long id, DraftActor actor, DraftRequests.PickMap request) {
         var command = commands.team(id, actor, request.teamId());
         var draft = command.draft();
-        var pool = catalog.choices(draft.match());
-        var choice = pool.stream().filter(m -> m.id() == request.mapId()).findFirst()
-                .orElseThrow(() -> new DraftRuleViolation("Map is not in this match's pool."));
-        var next = workflow.chooseMap(draft.state(), command.teamId(), choice, pool);
+        var choices = catalog.choices();
+        var choice = choices.stream().filter(m -> m.id() == request.mapId()).findFirst()
+                .orElseThrow(() -> new DraftRuleViolation("Map not found."));
+        var next = workflow.chooseMap(draft.state(), command.teamId(), choice, choices);
         return views.map(store.save(draft, next, clock.instant()));
     }
 

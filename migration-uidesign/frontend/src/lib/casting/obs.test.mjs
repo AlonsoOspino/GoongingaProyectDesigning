@@ -127,18 +127,19 @@ function makeObs({ capture = true, failDraftOnce = false } = {}) {
   return { client, scenes, inputs, mutations, matchId, origin };
 }
 
-test('provisions only this match, reuses its map pool alias, preserves foreign sources, and resumes temporary failures', async () => {
+test('provisions only this match, preserves its legacy map pool, preserves foreign sources, and resumes temporary failures', async () => {
   const obs = makeObs({ failDraftOnce: true });
   await obs.client.connect();
   const foreignBefore = structuredClone(obs.inputs.get('Foreign winner browser'));
+  const legacyPoolBefore = structuredClone(obs.inputs.get('Our map pool'));
   const snapshots = [];
   const setup = await ensureCastingScenes(obs.client, { matchId: obs.matchId, origin: obs.origin, key: 'viewer-key', maxAttempts: 2, onProgress: value => snapshots.push(value) });
   assert.equal(setup.ready, true);
   assert.equal(setup.attempts, 2);
   assert.equal(setup.needsVisualCheck, true);
   assert.ok(snapshots.some(value => value.scenes.draft.error?.includes('Temporary')));
-  assert.equal(setup.scenes['map-pool'].sceneName, 'Map Pool');
-  assert.equal(obs.inputs.get('Our map pool').settings.url, buildCastingOverlayUrl(obs.origin, obs.matchId, 'map-pool', 'viewer-key'));
+  assert.equal(setup.scenes['map-pool'], undefined);
+  assert.deepEqual(obs.inputs.get('Our map pool'), legacyPoolBefore);
   assert.deepEqual(obs.inputs.get('Foreign winner browser'), foreignBefore);
   assert.ok(setup.scenes.winner.sceneName.startsWith('GG Casting | match-123 | '));
   assert.ok(setup.scenes.overwatch.sceneName.startsWith('GG Casting | match-123 | '));
@@ -161,7 +162,7 @@ test('missing capture stays incomplete while completing all browser roles; later
   assert.equal(setup.ready, false);
   assert.equal(setup.scenes.overwatch.ready, false);
   assert.match(setup.scenes.overwatch.error, /Game Capture/);
-  for (const key of ['waiting', 'draft', 'map-pool', 'hero-bans', 'winner']) assert.equal(setup.scenes[key].ready, true);
+  for (const key of ['waiting', 'draft', 'hero-bans', 'winner']) assert.equal(setup.scenes[key].ready, true);
   await assert.rejects(switchCastingScene(obs.client, setup, 'overwatch'), /not ready/);
   obs.inputs.set('Configured capture', { inputName: 'Configured capture', inputKind: 'game_capture', settings: { window: 'Overwatch:TankWindowClass:Overwatch.exe', capture_mode: 'window' } });
   const resumed = await ensureCastingScenes(obs.client, { matchId: obs.matchId, origin: obs.origin, maxAttempts: 1 });

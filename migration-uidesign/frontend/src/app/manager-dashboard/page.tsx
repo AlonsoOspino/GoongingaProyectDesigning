@@ -12,20 +12,19 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { MapTimer } from "@/components/match/MapTimer";
 import { PauseRequestNotification } from "@/components/match/PauseRequestNotification";
-import { MapPoolControl } from "@/components/manager/MapPoolControl";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { Modal } from "@/components/ui/Modal";
 import { OperationTeamLogo } from "@/components/admin/SeasonOperationUi";
 import { getCurrentTournament } from "@/lib/api/admin";
 import { getCurrentNetworkMember } from "@/lib/api/networkMember";
-import { getMatchesByTournament } from "@/lib/api/match";
+import { getMatchesByTournament, updateMatchSchedule } from "@/lib/api/match";
 import { getLeaderboard } from "@/lib/api/team";
 import { filterMatchesByDivision } from "@/features/tournament/divisions";
 import {
   getMembers,
   getDraftByMatchId,
-  getDraftPhases,
   getAllPlayerStats,
   managerTogglePause,
   managerClearPauseRequest,
@@ -34,7 +33,7 @@ import {
   type DraftState,
   type Member,
 } from "@/lib/api";
-import { formatDateTimeEST } from "@/lib/dateUtils";
+import { convertToISODateTime, formatDateTimeEST, formatForDateTimeInput } from "@/lib/dateUtils";
 import styles from "./manager-dashboard.module.css";
 import type { NetworkMember, PlayerStat, Tournament } from "@/lib/api/types";
 
@@ -58,9 +57,14 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
   // Phase per match, for every draft that exists. A match sitting in STARTING
   // before its first map still has status SCHEDULED, so the ACTIVE-only draft
   // fetch below never sees it.
-  const [draftPhases, setDraftPhases] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [dataError, setDataError] = useState<string | null>(null);
+  const [scheduleMatch, setScheduleMatch] = useState<Match | null>(null);
+  const [scheduleDate, setScheduleDate] = useState("");
+  const [scheduleTime, setScheduleTime] = useState("");
+  const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [scheduleNotice, setScheduleNotice] = useState<string | null>(null);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
   const [notificationsSupported, setNotificationsSupported] = useState(false);
   // Stats tab state
@@ -73,6 +77,7 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
   const prevMatchesRef = useRef<Match[]>([]);
 
   const canManage = Boolean(networkUser?.roles.some((role) => role === "SOCIAL_MEDIA" || role === "ADMIN"));
+  const canSchedule = canManage || Boolean(networkUser?.roles.includes("DEVELOPER"));
   const accessReady = isHydrated && networkReady;
 
   useEffect(() => {
@@ -96,10 +101,10 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
   }, [token]);
 
   useEffect(() => {
-    if (accessReady && (!isAuthenticated || !canManage)) {
+    if (accessReady && (!isAuthenticated || !canSchedule)) {
       router.push("/login");
     }
-  }, [accessReady, isAuthenticated, canManage, router]);
+  }, [accessReady, isAuthenticated, canSchedule, router]);
 
   useEffect(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
@@ -109,19 +114,19 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated && canManage) {
+    if (isAuthenticated && canSchedule) {
       loadData();
     }
-  }, [isAuthenticated, canManage]);
+  }, [isAuthenticated, canSchedule, canManage]);
 
   useEffect(() => {
-    if (!isAuthenticated || !canManage) return;
+    if (!isAuthenticated || !canSchedule) return;
     pollRef.current = setInterval(() => {
       if (typeof document !== "undefined" && document.hidden) return;
       loadData(true);
     }, POLL_INTERVAL);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [isAuthenticated, canManage]);
+  }, [isAuthenticated, canSchedule, canManage]);
 
   const sendNotification = useCallback((title: string, body: string) => {
     if (notificationPermission === "granted" && typeof window !== "undefined" && "Notification" in window) {
@@ -133,17 +138,12 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
     try {
       if (!silent) setLoading(true);
       const current = await getCurrentTournament({ cache: "no-store" });
-      const [matchesData, teamsData, membersData, draftPhaseRows, currentMember] = await Promise.all([
+      const [matchesData, teamsData, membersData, currentMember] = await Promise.all([
         getMatchesByTournament(current.id),
         getLeaderboard(current.id),
-        getMembers(),
-        getDraftPhases().catch(() => []),
+        canManage ? getMembers() : Promise.resolve<Member[]>([]),
         getCurrentNetworkMember(token || readNetworkSessionToken() || ""),
       ]);
-
-      setDraftPhases(
-        Object.fromEntries(draftPhaseRows.map((row) => [row.matchId, row.phase]))
-      );
 
       for (const match of matchesData) {
         const prevMatch = prevMatchesRef.current.find((m) => m.id === match.id);
@@ -166,7 +166,7 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
       setMembers(membersData);
       setDataError(null);
 
-        const activeMatches = matchesData.filter((m) => m.status === "ACTIVE");
+      const activeMatches = canManage ? matchesData.filter((m) => m.status === "ACTIVE") : [];
       const draftPromises = activeMatches.map(async (match) => {
         try {
           const draft = await getDraftByMatchId(match.id, { token: token ?? undefined });
@@ -191,7 +191,7 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
   }
 
   async function loadStats() {
-    if (!token) return;
+    if (!token || !canManage) return;
     setStatsLoading(true);
     try {
       const data = await getAllPlayerStats(token);
@@ -231,6 +231,34 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
 
   const getTeamName = (teamId: number) =>
     teams.find((t) => t.id === teamId)?.name || `Team ${teamId}`;
+
+  function openSchedule(match: Match) {
+    const [date = "", time = ""] = (match.startDate ? formatForDateTimeInput(match.startDate) : "").split("T");
+    setScheduleMatch(match);
+    setScheduleDate(date);
+    setScheduleTime(time.slice(0, 5));
+    setScheduleError(null);
+    setScheduleNotice(null);
+  }
+
+  async function saveSchedule() {
+    if (!scheduleMatch || !scheduleDate || !scheduleTime || scheduleSaving) return;
+    const sessionToken = token || readNetworkSessionToken();
+    if (!sessionToken) { setScheduleError("Sign in again to save the schedule."); return; }
+    setScheduleSaving(true);
+    setScheduleError(null);
+    try {
+      const updated = await updateMatchSchedule(sessionToken, scheduleMatch.id, convertToISODateTime(`${scheduleDate}T${scheduleTime}`));
+      setMatches((current) => current.map((match) => match.id === updated.id ? updated : match));
+      setScheduleMatch(null);
+      setScheduleNotice("Schedule saved. Your division's Discord scheduling channel will be notified.");
+      void loadData(true);
+    } catch (error) {
+      setScheduleError(error instanceof Error ? error.message : "Unable to save the schedule.");
+    } finally {
+      setScheduleSaving(false);
+    }
+  }
 
   const visibleMatches = filterMatchesByDivision(matches, teams, divisionFilter ? Number(divisionFilter) : null)
     .filter((match) => !weekFilter || (match.type === "ROUNDROBIN" && String(match.semanas) === weekFilter));
@@ -292,7 +320,7 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
     return <div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-muted">Loading...</div></div>;
   }
 
-  if (!isAuthenticated || !canManage) {
+  if (!isAuthenticated || !canSchedule) {
     return <div className="min-h-screen bg-background flex items-center justify-center" role="status"><div className="border border-border bg-surface px-6 py-5 text-muted">Redirecting to authorized access…</div></div>;
   }
 
@@ -303,7 +331,7 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
           <div className={styles.headerText}>
             <span className={styles.kicker}>Overtime Productions</span>
             <h1 className={styles.title}>{embedded ? "League operations" : "Manager Dashboard"}</h1>
-            <p className={styles.subtitle}>{tournament?.name || "League operations"} · Manage matches, open draft tables, and register results</p>
+            <p className={styles.subtitle}>{tournament?.name || "League operations"} · {canManage ? "Manage matches, open draft tables, and register results" : "Schedule matches and notify each division on Discord"}</p>
           </div>
           <div className={styles.headerAside}>
             {networkUser?.roles.includes("ADMIN") && <Link href="/admin-dashboard/schedule" target={embedded ? "_top" : undefined} className="text-sm text-accent underline">Manage weekly schedule</Link>}
@@ -316,6 +344,7 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
         </header>
 
         {dataError ? <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border border-danger/50 bg-danger/10 p-4" role="alert"><span>Could not refresh league operations: {dataError}</span><Button size="sm" variant="secondary" onClick={() => void loadData()}>Try again</Button></div> : null}
+        {scheduleNotice && <p role="status" className="mb-6 rounded-sm border border-success/30 bg-success/10 p-3 text-sm text-success">{scheduleNotice}</p>}
         <div className="mb-6 grid gap-3 sm:grid-cols-2">
           <Select label="Division / league" value={divisionFilter} options={[{ value: "", label: "All divisions" }, ...(tournament?.divisions || []).map((division) => ({ value: String(division.id), label: division.name }))]} onChange={(event) => setDivisionFilter(event.target.value)} />
           <Select label="Week" value={weekFilter} options={[{ value: "", label: "All weeks" }, ...weeks.map((week) => ({ value: String(week), label: `Week ${week}` }))]} onChange={(event) => setWeekFilter(event.target.value)} />
@@ -358,27 +387,29 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
                 <Badge variant={nextMatch.teamBready ? "success" : "default"}>
                   {getTeamName(nextMatch.teamBId).slice(0, 8)}: {nextMatch.teamBready ? "✓" : "—"}
                 </Badge>
-                <Button
+                {canManage && <Button
                   onClick={() => openDraftTable(nextMatch.id)}
                   size="sm"
                 >
                   View Draft
-                </Button>
+                </Button>}
+                <Button size="sm" variant="secondary" onClick={() => openSchedule(nextMatch)}>Reschedule</Button>
               </div>
             </div>
           </div>
         )}
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)}>
+        <Tabs value={canManage ? activeTab : "scheduled"} onValueChange={(v) => setActiveTab(v as TabValue)}>
           <TabsList className="mb-6">
             <TabsTrigger value="scheduled">Scheduled ({scheduledMatches.length})</TabsTrigger>
-            <TabsTrigger value="active">Active ({activeMatches.length})</TabsTrigger>
-            <TabsTrigger value="results">Results ({finishedMatches.length})</TabsTrigger>
-            <TabsTrigger value="stats">Stats</TabsTrigger>
+            {canManage && <TabsTrigger value="active">Active ({activeMatches.length})</TabsTrigger>}
+            {canManage && <TabsTrigger value="results">Results ({finishedMatches.length})</TabsTrigger>}
+            {canManage && <TabsTrigger value="stats">Stats</TabsTrigger>}
           </TabsList>
 
           {/* SCHEDULED TAB */}
           <TabsContent value="scheduled">
+            <p className="mb-4 text-sm text-muted">Schedule or reschedule a pending match to notify its division&apos;s Discord scheduling channel. Enter times in Eastern Time (New York).</p>
             <div className="space-y-8">
               {loading ? (
                 <p className="text-muted text-center py-8">Loading...</p>
@@ -431,28 +462,23 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
                                     </div>
                                   </div>
 
-                                  <div className="flex items-center gap-3">
+                                  <div className="flex flex-wrap items-center gap-3">
                                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${match.teamAready ? "bg-success text-white" : "bg-surface-elevated text-muted"}`}>
                                       {teamAName.charAt(0)}
                                     </div>
                                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${match.teamBready ? "bg-success text-white" : "bg-surface-elevated text-muted"}`}>
                                       {teamBName.charAt(0)}
                                     </div>
-                                    <Button
+                                    <Button size="sm" variant="secondary" onClick={() => openSchedule(match)}>{match.startDate ? "Reschedule" : "Schedule"}</Button>
+                                    {canManage && <Button
                                       onClick={() => openDraftTable(match.id)}
                                       size="sm"
                                     >
                                       View Draft
-                                    </Button>
+                                    </Button>}
                                   </div>
                                 </div>
 
-                                {/* Before the first map the match row is still
-                                    SCHEDULED, so this is where the map pool
-                                    control has to live for the pre-show. */}
-                                {draftPhases[match.id] === "STARTING" && token && (
-                                  <MapPoolControl match={match} token={token} />
-                                )}
                               </div>
                             );
                           })}
@@ -499,12 +525,6 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
                               </Link>
                             </div>
 
-                            {/* Between the draft opening and the first map
-                                type pick, the manager drives what the map
-                                pool overlay is showing. */}
-                            {draftPhases[match.id] === "STARTING" && token && (
-                              <MapPoolControl match={match} token={token} />
-                            )}
 
                             {/* Map Timer */}
                             {hasMapStarted && (
@@ -693,6 +713,21 @@ function ManagerDashboardWorkspace({ embedded = false }: { embedded?: boolean })
           </TabsContent>
 
         </Tabs>
+        <Modal isOpen={scheduleMatch !== null} onClose={() => { if (!scheduleSaving) setScheduleMatch(null); }} title={scheduleMatch?.startDate ? "Reschedule Match" : "Schedule Match"}>
+          <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); void saveSchedule(); }}>
+            {scheduleMatch && <p className="text-sm text-muted">{getTeamName(scheduleMatch.teamAId)} vs {getTeamName(scheduleMatch.teamBId)}{scheduleMatch.divisionName ? ` · ${scheduleMatch.divisionName}` : ""}</p>}
+            <p className="text-sm text-muted">Use Eastern Time (New York). Saving sends the match schedule to its division&apos;s Discord scheduling channel.</p>
+            {scheduleError && <p role="alert" className="rounded-sm border border-danger/30 bg-danger/10 p-3 text-sm text-danger">{scheduleError}</p>}
+            <div className="grid grid-cols-2 gap-4">
+              <Input label="Match date" type="date" value={scheduleDate} onChange={(event) => setScheduleDate(event.target.value)} required disabled={scheduleSaving} />
+              <Input label="Time (Eastern)" type="time" value={scheduleTime} onChange={(event) => setScheduleTime(event.target.value)} required disabled={scheduleSaving} />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" disabled={scheduleSaving} onClick={() => setScheduleMatch(null)}>Cancel</Button>
+              <Button type="submit" disabled={!scheduleDate || !scheduleTime || scheduleSaving} isLoading={scheduleSaving}>Save & Notify Discord</Button>
+            </div>
+          </form>
+        </Modal>
       </div>
     </main>
   );

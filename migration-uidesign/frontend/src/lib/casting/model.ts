@@ -1,14 +1,41 @@
 import type { DraftState, Hero, Match } from "@/lib/api/types";
 
-export type BroadcastView = "waiting" | "draft" | "map-pool" | "hero-bans" | "winner" | "overwatch";
+export type BroadcastView = "waiting" | "draft" | "hero-bans" | "winner" | "overwatch";
 export const BROADCAST_VIEWS: Array<{ key: BroadcastView; label: string }> = [
   { key: "waiting", label: "Waiting for captains" },
-  { key: "map-pool", label: "Map pool" },
   { key: "draft", label: "Draft table" },
   { key: "hero-bans", label: "Hero bans" },
   { key: "overwatch", label: "Overwatch" },
   { key: "winner", label: "Winner cards" },
 ];
+
+function positiveId(value: unknown): number | null {
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+export function winnerCardRounds(
+  bestOf: number,
+  actions?: DraftState["actions"],
+  results?: Match["mapResults"],
+) {
+  const picks = new Map<number, number>();
+  for (const action of actions ?? []) {
+    if (action.action !== "PICK") continue;
+    const mapId = positiveId(action.value);
+    if (mapId !== null) picks.set(action.gameNumber, mapId);
+  }
+  const resultsByGame = new Map(results?.map((result) => [result.gameNumber, result]));
+  return Array.from({ length: bestOf }, (_, index) => {
+    const gameNumber = index + 1;
+    const result = resultsByGame.get(gameNumber);
+    return {
+      gameNumber,
+      mapId: positiveId(result?.mapId) ?? picks.get(gameNumber) ?? null,
+      winnerId: positiveId(result?.winnerTeamId),
+    };
+  });
+}
 
 export function phaseView(phase: string): BroadcastView {
   if (phase === "PLAYING") return "hero-bans";
@@ -35,10 +62,6 @@ export function automaticView(draft: DraftState, gameStart?: LogMapIdentity | nu
   if (draft.phase === "PLAYING" && gameStart && belongsToCurrentMap(draft,gameStart)) return "overwatch";
   if (draft.phase === "STARTING" && draft.match.gameNumber > 0) return "winner";
   return phaseView(draft.phase);
-}
-
-export function mapPoolIds(match: Match): number[] {
-  return Array.from(new Set(Object.values(match.mapsAllowedByRound ?? {}).flat().filter(id => Number.isInteger(id) && id > 0)));
 }
 
 export interface HeroVideo { url: string; objectPosition?: string }

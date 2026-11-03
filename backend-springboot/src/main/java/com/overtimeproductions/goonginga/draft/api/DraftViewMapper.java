@@ -28,13 +28,13 @@ public class DraftViewMapper {
 
     public DraftView map(LoadedDraft draft) {
         var state = draft.state();
-        var pool = catalog.pool(draft.match());
+        var allMaps = catalog.allMaps();
         List<MapType> allowed = state.mapNumber() == 1 ? List.of(MapType.CONTROL)
                 : List.of(MapType.HYBRID, MapType.PAYLOAD, MapType.PUSH, MapType.FLASHPOINT);
-        var available = catalog.availableTypes(draft.match(), state.usedMapIds(), state.mapNumber());
+        var available = catalog.availableTypes(state.usedMapIds(), state.mapNumber());
         Map<MapType, Long> counts = new EnumMap<>(MapType.class);
-        for (var type : allowed) counts.put(type, pool.stream().filter(m -> m.type() == type && !state.usedMapIds().contains((long) m.id())).count());
-        var maps = pool.stream().filter(m -> m.type() == state.selectedMapType() && !state.usedMapIds().contains((long) m.id())).toList();
+        for (var type : allowed) counts.put(type, allMaps.stream().filter(m -> m.type() == type && !state.usedMapIds().contains((long) m.id())).count());
+        var maps = allMaps.stream().filter(m -> m.type() == state.selectedMapType() && !state.usedMapIds().contains((long) m.id())).toList();
         var actions = new ArrayList<DraftView.Action>();
         int order = 1;
         for (var pick : draft.maps()) {
@@ -66,7 +66,7 @@ public class DraftViewMapper {
                 draft.session().getPhaseStartedAt(), seconds, draft.session().getVersion(), List.copyOf(actions),
                 displayedBans,
                 draft.maps().stream().map(m -> (long) m.getMapId()).toList(), state.currentMapId(), state.selectedMapType(),
-                allowed, available.stream().sorted().toList(), counts, maps, catalog.allMaps(), catalog.heroes(), displayMatch);
+                allowed, available.stream().sorted().toList(), counts, maps, allMaps, catalog.heroes(), displayMatch);
     }
 
     public static String legacyPhase(DraftPhase phase) {

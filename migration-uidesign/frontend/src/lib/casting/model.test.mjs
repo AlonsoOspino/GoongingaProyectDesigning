@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { automaticView, belongsToCurrentMap, currentMapNumber, heroVideo, mapPoolIds } from './model.ts';
+import { automaticView, belongsToCurrentMap, currentMapNumber, heroVideo, winnerCardRounds } from './model.ts';
 
 const draft = (phase = 'PLAYING', number = 1, mapId = 81) => ({
   id: 100, matchId: 8, phase, currentMapId: mapId,
@@ -23,12 +23,27 @@ test('winner cards hold until the operator starts the next round', () => {
   assert.equal(automaticView(draft('MAPPICKING',2)),'draft');
   assert.equal(currentMapNumber(draft('ENDMAP',2)),2);
 });
+test('winner cards reveal only the chosen map and leave unpicked rounds incognito', () => {
+  const rounds = winnerCardRounds(5, [
+    { action: 'PICK', gameNumber: 1, value: 81 },
+    { action: 'BAN', gameNumber: 2, value: 39 },
+  ]);
+  assert.deepEqual(rounds.map(({ mapId }) => mapId), [81, null, null, null, null]);
+});
+test('winner cards can recover a historical map from its result and keep winners tied to each round', () => {
+  const rounds = winnerCardRounds(3, [{ action: 'PICK', gameNumber: 2, value: 81 }], [
+    { gameNumber: 1, mapId: 81, winnerTeamId: 5 },
+    { gameNumber: 2, mapId: null, winnerTeamId: 7 },
+  ]);
+  assert.deepEqual(rounds, [
+    { gameNumber: 1, mapId: 81, winnerId: 5 },
+    { gameNumber: 2, mapId: 81, winnerId: 7 },
+    { gameNumber: 3, mapId: null, winnerId: null },
+  ]);
+});
 test('video manifest accepts named or ID HTTPS clips and rejects unsafe URLs', () => {
   const hero = { id:1,name:'Ana' };
   assert.deepEqual(heroVideo({ana:'https://cdn.example/ana.webm'},hero),{url:'https://cdn.example/ana.webm',objectPosition:'50% 50%'});
   assert.equal(heroVideo({'1':{url:'https://cdn.example/ana.webm',objectPosition:'55% 50%'}},hero).objectPosition,'55% 50%');
   for (const url of ['javascript:alert(1)','file:///ana.webm','http://cdn.example/ana.webm','invalid']) assert.equal(heroVideo({ana:url},hero),null);
-});
-test('map pool IDs are unique positive integers', () => {
-  assert.deepEqual(mapPoolIds({mapsAllowedByRound:{1:[1,2,1],2:[2,3,0,-1,2.5]}}),[1,2,3]);
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
   Check,
@@ -13,9 +13,9 @@ import {
   X,
 } from "lucide-react";
 import { ImageUploadField } from "@/components/ui/ImageUploadField";
-import { MapPoolControl } from "@/components/manager/MapPoolControl";
 import { getCurrentNetworkMember } from "@/lib/api/networkMember";
 import { resetManagerMatch } from "@/lib/api/match";
+import { getDraftShareInfo } from "@/lib/api/draft";
 import {
   createDevMatch,
   createDevTeam,
@@ -23,29 +23,61 @@ import {
   deleteDevTeam,
   getDevDraftAppState,
   setDevBans,
-  setDevOverlayFocus,
   setDevScores,
+  setDevCaptains,
+  type DevCaptainMember,
   type DevDraftAppState,
-  type DevOverlayFocusPayload,
 } from "@/lib/api/devDraftApp";
-import type { HeroRole, MapType, Team } from "@/lib/api/types";
+import { DEV_MATCH_ID } from "@/lib/matchReference";
+import type { HeroRole, Team } from "@/lib/api/types";
 import { readNetworkSessionToken } from "@/features/networkSession/storage";
 import { deleteBlobImage } from "@/lib/blobUpload";
-import { resolveHeroImageUrl, resolveMapImageUrl, resolveGenericBackendAsset } from "@/lib/assetUrls";
+import { resolveHeroImageUrl, resolveGenericBackendAsset } from "@/lib/assetUrls";
 import styles from "./dev-draft-app.module.css";
 
-const MAP_TYPES: MapType[] = ["CONTROL", "HYBRID", "PAYLOAD", "PUSH", "FLASHPOINT"];
 const HERO_ROLES: Array<"ALL" | HeroRole> = ["ALL", "TANK", "DPS", "SUPPORT"];
 
 const OVERLAYS = [
-  { id: "draft", label: "Draft animation preview", path: "/draft-table/dev?broadcast=1", compact: false },
-  { id: "map-pool", label: "Map pool", path: "/overlay/map-pool/dev", compact: false },
-  { id: "header", label: "Match header", path: "/overlay/match-header/dev", compact: true },
-  { id: "header-reversed", label: "Reversed header", path: "/overlay/match-header-reversed/dev", compact: true },
+  { id: "draft", label: "Draft broadcast", path: "/draft-table/999?broadcast=1", compact: false },
+  { id: "header", label: "Match header", path: "/overlay/match-header/999", compact: true },
+  { id: "header-reversed", label: "Reversed header", path: "/overlay/match-header-reversed/999", compact: true },
+  { id: "winner", label: "Winner cards", path: "/overlay/wincards/999", compact: false },
+  { id: "hero-bans", label: "Stream hero bans", path: "/overlay/casting/999?view=hero-bans", compact: false },
 ] as const;
 
 type OverlayId = (typeof OVERLAYS)[number]["id"];
 type BanSide = "teamA" | "teamB";
+
+function CaptainSelectors({ members, teamAName, teamBName, captainAId, captainBId, gameNameA, gameNameB, disabled, onChange, onGameNameChange }: {
+  members: DevCaptainMember[];
+  teamAName: string;
+  teamBName: string;
+  captainAId: number | null;
+  captainBId: number | null;
+  gameNameA: string;
+  gameNameB: string;
+  disabled: boolean;
+  onChange: (side: BanSide, id: number | null) => void;
+  onGameNameChange: (side: BanSide, value: string) => void;
+}) {
+  return <div className={styles.teamSelectors}>
+    {(["teamA", "teamB"] as BanSide[]).map((side) => <div className={styles.captainFields} key={side}><label>
+      <span>{side === "teamA" ? teamAName : teamBName} captain</span>
+      <select value={(side === "teamA" ? captainAId : captainBId) ?? ""} disabled={disabled}
+        onChange={(event) => onChange(side, Number(event.target.value) || null)}>
+        <option value="">Select Network Member</option>
+        {members.map((member) => <option key={member.id} value={member.id}
+          disabled={member.id === (side === "teamA" ? captainBId : captainAId)}>
+          {member.nickname || member.username}{member.nickname && member.nickname !== member.username ? ` (@${member.username})` : ""}
+        </option>)}
+      </select>
+    </label><label><span>Overwatch name (optional)</span><input className={styles.textInput}
+      value={side === "teamA" ? gameNameA : gameNameB} disabled={disabled} maxLength={80}
+      pattern="[^#]*" title="Use the in-game name without the #BattleTag suffix."
+      placeholder="Name shown in Workshop logs" onChange={(event) => onGameNameChange(side, event.target.value)} />
+      <small>Identifies this team in Workshop logs.</small></label></div>)}
+  </div>;
+}
 
 function parseScoreDraft(value: string) {
   if (!/^\d+$/.test(value)) return null;
@@ -103,7 +135,6 @@ export function DevDraftApp() {
   const [teamLogo, setTeamLogo] = useState("");
   const [teamAId, setTeamAId] = useState<number | null>(null);
   const [teamBId, setTeamBId] = useState<number | null>(null);
-  const [selectedMapIds, setSelectedMapIds] = useState<Set<number>>(new Set());
   const [deleteTeamId, setDeleteTeamId] = useState<number | null>(null);
   const [confirmDeleteMatch, setConfirmDeleteMatch] = useState(false);
   const [confirmRestart, setConfirmRestart] = useState(false);
@@ -113,6 +144,13 @@ export function DevDraftApp() {
   const [activeOverlay, setActiveOverlay] = useState<OverlayId>("draft");
   const [copiedPath, setCopiedPath] = useState<string | null>(null);
   const [scoreDraft, setScoreDraft] = useState({ teamA: "0", teamB: "0" });
+  const [captainAId, setCaptainAId] = useState<number | null>(null);
+  const [captainBId, setCaptainBId] = useState<number | null>(null);
+  const [gameNameA, setGameNameA] = useState("");
+  const [gameNameB, setGameNameB] = useState("");
+  const [notice, setNotice] = useState<string | null>(null);
+  const [shareKey, setShareKey] = useState("");
+  const [shareError, setShareError] = useState<string | null>(null);
 
   useEffect(() => {
     const sessionToken = readNetworkSessionToken();
@@ -179,14 +217,26 @@ export function DevDraftApp() {
     });
   }, [state?.match?.id, state?.match?.mapWinsTeamA, state?.match?.mapWinsTeamB]);
 
-  const mapsByType = useMemo(() => {
-    const grouped = new Map<MapType, DevDraftAppState["maps"]>();
-    for (const type of MAP_TYPES) grouped.set(type, []);
-    for (const map of state?.maps ?? []) grouped.get(map.type)?.push(map);
-    return grouped;
-  }, [state?.maps]);
+  useEffect(() => {
+    setCaptainAId(state?.captains.teamA?.id ?? null);
+    setCaptainBId(state?.captains.teamB?.id ?? null);
+    setGameNameA(state?.captains.teamA?.gameName ?? "");
+    setGameNameB(state?.captains.teamB?.gameName ?? "");
+  }, [state?.captains.teamA?.id, state?.captains.teamB?.id, state?.captains.teamA?.gameName, state?.captains.teamB?.gameName, state?.match?.id]);
+
+  useEffect(() => {
+    setShareKey("");
+    setShareError(null);
+    if (!token || !state?.match) return;
+    let active = true;
+    void getDraftShareInfo(token, state.match.id)
+      .then((info) => { if (active) setShareKey(info.key); })
+      .catch((failure) => { if (active) setShareError(failure instanceof Error ? failure.message : "Broadcast links could not be loaded."); });
+    return () => { active = false; };
+  }, [token, state?.match?.id]);
 
   const selectedOverlay = OVERLAYS.find((overlay) => overlay.id === activeOverlay) ?? OVERLAYS[0];
+  const broadcastPath = (path: string) => shareKey ? `${path}${path.includes("?") ? "&" : "?"}key=${encodeURIComponent(shareKey)}` : path;
   const teamA = state ? getTeam(state, "teamA") : null;
   const teamB = state ? getTeam(state, "teamB") : null;
   const usedTeamIds = new Set(state?.match ? [state.match.teamAId, state.match.teamBId] : []);
@@ -237,32 +287,55 @@ export function DevDraftApp() {
     }
   }
 
-  function toggleMap(mapId: number) {
-    setSelectedMapIds((current) => {
-      const next = new Set(current);
-      if (next.has(mapId)) next.delete(mapId);
-      else next.add(mapId);
-      return next;
-    });
-  }
-
   async function handleCreateMatch() {
-    if (!token || !teamAId || !teamBId || teamAId === teamBId || selectedMapIds.size === 0) return;
+    if (!token || !state?.maps.length || !teamAId || !teamBId || teamAId === teamBId || !captainAId || !captainBId || captainAId === captainBId) return;
     setPending("create-match");
     setError(null);
     try {
       const next = await createDevMatch(token, {
         teamAId,
         teamBId,
-        mapIds: [...selectedMapIds],
+        mapIds: state.maps.map((map) => map.id),
+        teamACaptainId: captainAId,
+        teamBCaptainId: captainBId,
+        teamAGameName: gameNameA.trim() || null,
+        teamBGameName: gameNameB.trim() || null,
       });
       setState(next);
       setConfirmDeleteMatch(false);
+      setNotice("Match 999 created. Both captains can open their draft table with their own Discord accounts.");
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Developer match could not be created.");
     } finally {
       setPending(null);
     }
+  }
+
+  async function handleSaveCaptains(event: FormEvent) {
+    event.preventDefault();
+    if (!token || !captainAId || !captainBId || captainAId === captainBId) return;
+    setPending("captains");
+    setError(null);
+    setNotice(null);
+    try {
+      setState(await setDevCaptains(token, { teamACaptainId: captainAId, teamBCaptainId: captainBId,
+        teamAGameName: gameNameA.trim() || null, teamBGameName: gameNameB.trim() || null }));
+      setNotice("Captains assigned to match 999. Each member can mark ready, pick and ban for their own team.");
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : "Captains could not be assigned.");
+    } finally { setPending(null); }
+  }
+
+  function changeCaptain(side: BanSide, id: number | null) {
+    if (side === "teamA") { setCaptainAId(id); setGameNameA(""); }
+    else { setCaptainBId(id); setGameNameB(""); }
+    setNotice(null);
+  }
+
+  function changeGameName(side: BanSide, value: string) {
+    if (side === "teamA") setGameNameA(value);
+    else setGameNameB(value);
+    setNotice(null);
   }
 
   async function handleDeleteMatch() {
@@ -273,7 +346,6 @@ export function DevDraftApp() {
       const next = await deleteDevMatch(token);
       setState(next);
       setConfirmDeleteMatch(false);
-      setSelectedMapIds(new Set());
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Developer match could not be deleted.");
     } finally {
@@ -317,16 +389,6 @@ export function DevDraftApp() {
       setPending(null);
     }
   }
-
-  const handleOverlayFocus = useCallback(
-    async (payload: DevOverlayFocusPayload) => {
-      if (!token) throw new Error("Developer session is unavailable.");
-      const next = await setDevOverlayFocus(token, payload);
-      setState(next);
-      return next.match;
-    },
-    [token]
-  );
 
   async function commitBans(side: BanSide, nextIds: number[]) {
     if (!token || !state) return;
@@ -400,8 +462,8 @@ export function DevDraftApp() {
     <main className={styles.page}>
       <header className={styles.pageHeader}>
         <div>
-          <h1>Developer / Draft lab</h1>
-          <p>Practice teams, draft animations and live overlay previews · /dev</p>
+          <h1>Developer / Match 999</h1>
+          <p>Two captains, the full match flow and live stream previews</p>
         </div>
         <span className={styles.status} data-active={state.match ? "true" : "false"}>
           {state.match ? "Dev match ready" : "No dev match"}
@@ -416,14 +478,15 @@ export function DevDraftApp() {
           </button>
         </div>
       ) : null}
+      {notice && <p role="status" className={styles.notice}>{notice}</p>}
 
       <section className={styles.labGuide} aria-label="Draft animation walkthrough">
         <div>
-          <h2>Walk through the real draft</h2>
-          <p>Open the operator table to control both teams from one developer session. Start → map pick → hero bans → playing → result. Restart to replay the transitions.</p>
+          <h2>Test the full match with two captains</h2>
+          <p>Assign two Network Members. Each signs in with Discord and opens /draft-table/999 to mark ready, pick maps and ban heroes. The operator manages phases, pauses and results; the casting table prepares OBS scenes.</p>
           <p className={styles.labNote}>This shared practice match is separate from the season schedule. Other developers see the same test state. The score and ban controls below change overlay previews; restarting clears those overrides.</p>
         </div>
-        {state.match && <a className={styles.primaryButton} href="/draft-table/dev" target="_blank" rel="noreferrer"><ExternalLink size={16} aria-hidden /> Open operator table</a>}
+        {state.match && <a className={styles.primaryButton} href="/draft-table/999" target="_blank" rel="noreferrer"><ExternalLink size={16} aria-hidden /> Open match 999</a>}
       </section>
 
       <div className={styles.workspace}>
@@ -516,10 +579,9 @@ export function DevDraftApp() {
             <div className={styles.matchBuilder}>
               <div className={styles.sectionHead}>
                 <div>
-                  <h2>Create dev match</h2>
-                  <p>Select two teams and a map pool. Include Control for the opening map and other modes to test later rounds.</p>
+                  <h2>Create match {DEV_MATCH_ID}</h2>
+                  <p>Select two teams and their captains. Each round uses the full map catalog for its mode.</p>
                 </div>
-                <button type="button" className={styles.secondaryButton} onClick={() => setSelectedMapIds(new Set(state.maps.map((map) => map.id)))}>Select all maps</button>
               </div>
 
               <div className={styles.teamSelectors}>
@@ -540,38 +602,13 @@ export function DevDraftApp() {
                 </label>
               </div>
 
-              <div className={styles.mapGroups}>
-                {MAP_TYPES.map((type) => (
-                  <section className={styles.mapGroup} key={type}>
-                    <div className={styles.mapGroupHead}>
-                      <h3>{type === "PAYLOAD" ? "ESCORT" : type}</h3>
-                      <span>{mapsByType.get(type)?.filter((map) => selectedMapIds.has(map.id)).length ?? 0} selected</span>
-                    </div>
-                    <div className={styles.mapGrid}>
-                      {(mapsByType.get(type) ?? []).map((map) => {
-                        const selected = selectedMapIds.has(map.id);
-                        return (
-                          <button
-                            type="button"
-                            className={styles.mapCard}
-                            data-selected={selected ? "true" : "false"}
-                            aria-pressed={selected}
-                            key={map.id}
-                            onClick={() => toggleMap(map.id)}
-                          >
-                            <img src={resolveMapImageUrl(map.imgPath)} alt="" />
-                            <span>{map.description}</span>
-                            {selected ? <Check size={15} aria-hidden /> : null}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </section>
-                ))}
-              </div>
+              <CaptainSelectors members={state.members} teamAName="Team A" teamBName="Team B"
+                captainAId={captainAId} captainBId={captainBId} gameNameA={gameNameA} gameNameB={gameNameB}
+                disabled={pending !== null} onChange={changeCaptain} onGameNameChange={changeGameName} />
+              {!state.members.length && <p className={styles.labNote}>Members must sign in with Discord before they can be selected as test captains.</p>}
 
               <div className={styles.builderFooter}>
-                <span>{selectedMapIds.size} maps selected</span>
+                <span>{state.maps.length} maps in the catalog</span>
                 <button
                   type="button"
                   className={styles.primaryButton}
@@ -581,7 +618,8 @@ export function DevDraftApp() {
                     !teamAId ||
                     !teamBId ||
                     teamAId === teamBId ||
-                    selectedMapIds.size === 0
+                    !captainAId || !captainBId || captainAId === captainBId ||
+                    state.maps.length === 0
                   }
                 >
                   {pending === "create-match" ? "Creating…" : "Create dev match"}
@@ -596,7 +634,7 @@ export function DevDraftApp() {
                   <strong>{teamA?.name}</strong>
                 </div>
                 <div className={styles.matchCenter}>
-                  <span>/dev</span>
+                  <span>Match 999</span>
                   <strong>VS</strong>
                 </div>
                 <div className={`${styles.matchTeam} ${styles.matchTeamRight}`}>
@@ -629,6 +667,22 @@ export function DevDraftApp() {
                   )}
                 </div>
               </section>
+
+              <form className={styles.controlSection} onSubmit={(event) => void handleSaveCaptains(event)}>
+                <div className={styles.sectionHead}><div><h2>Test captains</h2><p>Two distinct Network Members, with access to their own side of match 999.</p></div></div>
+                <CaptainSelectors members={state.members} teamAName={teamA?.name || "Team A"} teamBName={teamB?.name || "Team B"}
+                  captainAId={captainAId} captainBId={captainBId} gameNameA={gameNameA} gameNameB={gameNameB}
+                  disabled={pending !== null} onChange={changeCaptain} onGameNameChange={changeGameName} />
+                <div className={styles.captainActions}>
+                  <button type="submit" className={styles.primaryButton} disabled={pending !== null || !captainAId || !captainBId || captainAId === captainBId
+                    || (captainAId === state.captains.teamA?.id && captainBId === state.captains.teamB?.id
+                      && gameNameA.trim() === (state.captains.teamA?.gameName ?? "") && gameNameB.trim() === (state.captains.teamB?.gameName ?? ""))}>{pending === "captains" ? "Saving…" : "Save captains"}</button>
+                  <a href="/draft-table/999" target="_blank" rel="noreferrer" className={styles.secondaryButton}><ExternalLink size={15} aria-hidden /> Captain / operator table</a>
+                  <button type="button" className={styles.secondaryButton} onClick={() => void copyOverlay("/draft-table/999")}><Copy size={15} aria-hidden />{copiedPath === "/draft-table/999" ? "Captain link copied" : "Copy captain link"}</button>
+                  <a href="/casting-table/999" target="_blank" rel="noreferrer" className={styles.secondaryButton}><ExternalLink size={15} aria-hidden /> Casting & OBS</a>
+                </div>
+                <p className={styles.labNote}>Captain assignments apply to this test match. Restart preserves both assignments and clears the match progress.</p>
+              </form>
 
               <form className={styles.controlSection} onSubmit={(event) => void handleSaveScores(event)}>
                 <div className={styles.sectionHead}>
@@ -682,21 +736,6 @@ export function DevDraftApp() {
                   <p className={styles.scoreHint} role="alert">Enter whole numbers from 0 to 2147483647.</p>
                 ) : null}
               </form>
-
-              <section className={styles.controlSection}>
-                <div className={styles.sectionHead}>
-                  <div>
-                    <h2>Map pool control</h2>
-                    <p>Focus a map type or a single map on the live overlay.</p>
-                  </div>
-                </div>
-                <MapPoolControl
-                  match={state.match}
-                  token={token}
-                  overlayMatchReference="dev"
-                  updateFocus={handleOverlayFocus}
-                />
-              </section>
 
               <section className={styles.controlSection}>
                 <div className={styles.sectionHead}>
@@ -810,9 +849,10 @@ export function DevDraftApp() {
                 <div className={styles.sectionHead}>
                   <div>
                     <h2>Draft & overlay previews</h2>
-                    <p>The draft preview follows the operator table in a 1920 × 1080 canvas. Open it beside the controls to inspect transitions.</p>
+                    <p>OBS links include a read-only broadcast key and use a 1920 × 1080 canvas. Captains use the separate captain link above.</p>
                   </div>
                 </div>
+                {shareError && <p role="alert" className={styles.labNote}>{shareError} Reload this page to retry.</p>}
                 <div className={styles.overlayList}>
                   {OVERLAYS.map((overlay) => (
                     <div className={styles.overlayRow} data-active={activeOverlay === overlay.id ? "true" : "false"} key={overlay.id}>
@@ -820,17 +860,17 @@ export function DevDraftApp() {
                         <strong>{overlay.label}</strong>
                         <span>{overlay.path}</span>
                       </button>
-                      <button type="button" className={styles.iconButton} onClick={() => void copyOverlay(overlay.path)} aria-label={`Copy ${overlay.label} link`} title={`Copy ${overlay.label} link`}>
-                        {copiedPath === overlay.path ? <Check size={16} aria-hidden /> : <Copy size={16} aria-hidden />}
+                      <button type="button" className={styles.iconButton} disabled={!shareKey} onClick={() => void copyOverlay(broadcastPath(overlay.path))} aria-label={`Copy ${overlay.label} link`} title={`Copy ${overlay.label} link`}>
+                        {copiedPath === broadcastPath(overlay.path) ? <Check size={16} aria-hidden /> : <Copy size={16} aria-hidden />}
                       </button>
-                      <a className={styles.iconButton} href={overlay.path} target="_blank" rel="noreferrer" aria-label={`Open ${overlay.label}`} title={`Open ${overlay.label}`}>
+                      <a className={styles.iconButton} href={broadcastPath(overlay.path)} target="_blank" rel="noreferrer" aria-label={`Open ${overlay.label}`} title={`Open ${overlay.label}`}>
                         <ExternalLink size={16} aria-hidden />
                       </a>
                     </div>
                   ))}
                 </div>
                 <OverlayPreview
-                  path={selectedOverlay.path}
+                  path={broadcastPath(selectedOverlay.path)}
                   label={selectedOverlay.label}
                   compact={selectedOverlay.compact}
                 />

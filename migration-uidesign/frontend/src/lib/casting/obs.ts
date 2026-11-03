@@ -2,7 +2,7 @@
  * Protocol: https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md
  */
 export type CastingOverlayView = 'waiting' | 'draft' | 'map-pool' | 'hero-bans' | 'winner';
-export type CastingSceneKey = CastingOverlayView | 'overwatch';
+export type CastingSceneKey = Exclude<CastingOverlayView, 'map-pool'> | 'overwatch';
 
 export type ObsClientEvent =
   | { type: 'connected'; version: string }
@@ -256,13 +256,12 @@ interface Inventory {
 }
 
 const labels: Record<CastingSceneKey, string> = {
-  waiting: 'Waiting for captains', draft: 'Draft table', 'map-pool': 'Map pool',
+  waiting: 'Waiting for captains', draft: 'Draft table',
   'hero-bans': 'Hero bans', winner: 'Winner cards', overwatch: 'Overwatch',
 };
-const overlayKeys: CastingOverlayView[] = ['waiting', 'draft', 'map-pool', 'hero-bans', 'winner'];
-const allKeys: CastingSceneKey[] = [...overlayKeys, 'overwatch'];
+const allKeys: CastingSceneKey[] = ['waiting', 'draft', 'hero-bans', 'winner', 'overwatch'];
 const sceneAliases: Record<CastingSceneKey, RegExp> = {
-  waiting: /waiting|captains/i, draft: /draft|map[ _-]*pick/i, 'map-pool': /map[ _-]*pool/i,
+  waiting: /waiting|captains/i, draft: /draft|map[ _-]*pick/i,
   'hero-bans': /hero[ _-]*bans?|bans?/i, winner: /winner[ _-]*cards?|winners?|results?/i, overwatch: /overwatch|game[ _-]*play/i,
 };
 const setupManifests = new WeakMap<ObsClient, Map<string, Partial<Record<CastingSceneKey, string>>>>();

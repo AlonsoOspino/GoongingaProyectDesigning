@@ -1,0 +1,336 @@
+{
+  "files": {
+    "backend-springboot/src/main/java/com/overtimeproductions/goonginga/draft/api/DraftViewMapper.java": {
+      "base": "627c85f04c32e2ce30782dafb12bffa7f210eb25dee5d5069b2c6658629ae48d",
+      "new": "4baff9b6a41c406184da249efccc66201fb51e064d6d3ab6870d17ee7052a7ab"
+    },
+    "backend-springboot/src/main/java/com/overtimeproductions/goonginga/draft/clock/DraftTimeoutService.java": {
+      "base": "85dcd4a79312a385f00067081e9903f4b23ccc1cbbc025a3da2eb713b36e277a",
+      "new": "75c98f7b86ce2dc32347e1277ecfae41d43006bc164e22eadc0ce862ae6ff7dc"
+    },
+    "backend-springboot/src/main/java/com/overtimeproductions/goonginga/draft/context/DraftCatalog.java": {
+      "base": "1373cd58c0085533cd12114c41be7d76373142ca8a498c39d3bfcd6fa4580529",
+      "new": "309ca28e1ab1a314cb9975c7b6e0f457841c1cfcfc6ba82d896b8fc7fc33f93a"
+    },
+    "backend-springboot/src/main/java/com/overtimeproductions/goonginga/draft/mapselection/MapSelectionService.java": {
+      "base": "150a914698a222df9aa75079117653e4375594f4719d84c4a647d43d8d92993e",
+      "new": "f1a8ed4508dd9ee4d5371184e4badc2c2fcf28cc706e0a1c4f1ee17c4460c87e"
+    },
+    "backend-springboot/src/main/java/com/overtimeproductions/goonginga/draft/preparation/PreparationService.java": {
+      "base": "a2a1867a5c027f49dc1d2fcb572233e21e2a691139b24f913058daccddb8b4eb",
+      "new": "4de2407725babd0bb2a88ddd2cd988f5fa3ee7a388373c8ed3a5dd68318dfde9"
+    },
+    "docs/hero-portrait-sources.json": {
+      "base": null,
+      "new": "0c6763afd375c4644f0f166c7081269b47083aa7544375dae7e553ef5ecb1249"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Ana.webp": {
+      "base": "030acfe04932c96ef5c110005702be374565dd442c5409686ca590e40184a6a9",
+      "new": "1e7cad9dbba0bee295cdcf3e052301794ce59bbc644cb95ad9a628dab9a146e7"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Anran.webp": {
+      "base": "c73c53d234f3652d8ff48aa159ce510a07e550f1f328a659c2e2ace58d80f6c0",
+      "new": "535da93534c674f67e04c49117fecdbb93cec1e99ebba2263e8b9a3411137f3a"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Ashe.webp": {
+      "base": "2cb6af97bab879018ae60ae820d4a37273b69174e85005d5a94380c455b34289",
+      "new": "40e7a4f05abdfec571ec78835f828eca80f74db3136a24901f5af87ae7e358ea"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Baptiste.webp": {
+      "base": "8b4375b727b899b1580c5279c9214511dc9e2c5dda7752c97961dd372ec4142e",
+      "new": "33f6fb3d7c99f543a4898337c33d5dca8202ef15fe4ab76707a9ebf37d0ccd84"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Bastion.webp": {
+      "base": "fe54e0bcc30ad370e0b5db007979e8927762555ee355aee00800013ffea44f64",
+      "new": "41c4302ea8fb3d4508234c05b0cc594afe72f100846098f7d53eb7e21c933616"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Brigitte.webp": {
+      "base": "938c336a76dae0a707c1250cc04b525050a7ecc29a22c76194bb9c6e93141474",
+      "new": "f25b73a937d767ef8c62653edca06cd18adc1a977ca793b3142acb50a591d0f0"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Cassidy.webp": {
+      "base": "ccc778cd6acdaea5a291ec07c6cec2269337fb572f917a2fff7a3758c2c21580",
+      "new": "9148e5bb958cfd126b26a3416ea25eb81df82694a6556a139610468aee7532f3"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-D.Va.webp": {
+      "base": "222c78717ef2750568ffb0c5789f9ca24a3bc47b6342a38d68c7ff36bc08cabd",
+      "new": "0bdc1d91d34f1b770fe44c999933b4bc1bf520bc919e6dbf8e69f2e8fcddf4d0"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Domina.webp": {
+      "base": "3b707545aefd41203aac9d4a1946aab2ed91167456eb5939078e19c1db7e8d11",
+      "new": "c1166dd30611d96eb0f148c8d0aefab6535759eb74e36e47651412aeb4483e4e"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Doomfist.webp": {
+      "base": "615238981a6b5d5ef4b64d172763758b39987d6d5c1540989da8b34cfb50afb1",
+      "new": "198a8b90381749b6ee91563f50346823e70dd602ed27d97efbb146e635115d4e"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Echo.webp": {
+      "base": "52c87f1d0f4e76f9855e4708109a2c74eed1849b6cca11cc4aff88d5010ed7d7",
+      "new": "95081ea6f078b7043ffa6d1062fa9f6b025e05b3cfd91d50d0f70f6e3f24d9b7"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Emre.webp": {
+      "base": "4b5ddcdc8f650ac5925a143d88bc1f4ab5cdd180f1677782e02fa4e33790dad1",
+      "new": "6fe2107ae176cebb029c415e3eadebc0316876b190ed5467f7b81ef07902d7af"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Freja.webp": {
+      "base": "f6e4f3404d244f0206d620d1f0fa78d31e4be518bb67d070b828a2d30636f990",
+      "new": "11bc99cdf62eadaaca85f5d1661d3480a14d7667cfeea4e0d4dbe5ca5de6517d"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Genji.webp": {
+      "base": "c2cbe78213d0386094238c596076b394cd6d917e90028fffa9a1842fbafee24a",
+      "new": "4b101aca7d520c3e570b28d3319470e0daf6c3342918e0f21c03c22f28ad808c"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Hanzo.webp": {
+      "base": "74139956929fa58af6c070ec1bb6882760b793e6bba8d0864b3f6478e046c08e",
+      "new": "6a04073cde7b64b188d5ea77a4c14451cbf707f8f151decd96d5949acd08ccbf"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Hazard.webp": {
+      "base": "067c0a67a5b9d195d641310e2c643bb0fab157aa25cd752949a4248c4aa52f67",
+      "new": "4a309c5d586aaa6ccda20ce10278b211794918b13465d15ce90df90d054a8f18"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Illari.webp": {
+      "base": "ad11c5dfb987bc7e55566cd81ec784611f737aed51f9efbf3654497e3c8c3939",
+      "new": "3ab0b3594cd4198b54cdd1a43c4dcd1d4e495b8d03968e09aabd98b81a6d76e9"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Jetpack_Cat.webp": {
+      "base": "9fcaac587b22c07c0a03f5442f68dd0b5850eeaf92cdef2b019e411a6419017e",
+      "new": "35d79563077dc13b441750488c50a3b665cae2e38e42e8439ca5cb7bdba3a88e"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Junker_Queen.webp": {
+      "base": "cd406654ad0c0b41e4df82ffb8d047cc801fd5219d625b6fabc5d1b152e4a4d1",
+      "new": "30b800093d79b079ba08961068f283989615f498b3d5669b0c1a9ced0f9f2667"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Junkrat.webp": {
+      "base": "a2ac8e65087b7f2c9c135b532b8e82af2526ec1a32608b3d3c15264db6556c7e",
+      "new": "d64d74d2152b1e05034c35f0c9cd80869ee4c78c9754e2834eee50b2b97c4b01"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Juno.webp": {
+      "base": "0547177bb78ea6e2172e4b3c04d9c31183f8514235f7fb27961d52144e5f6996",
+      "new": "d9a343af2637a45da331c242439c521c842113bb2f936a982fab9182d105ab44"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Lifeweaver.webp": {
+      "base": "a4608505cfa47f6b96fc8363b47d8c96081c141ba516fa77265a31211dc869ac",
+      "new": "09ad2f046c23464928ea217b1acfff2368b972fe2d1ff87d6da7db9bd816b42a"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Lucio.webp": {
+      "base": "fbc1c925dead6b0aca04ef896b8cb819600f82f3583a46c1e02ac82a85acace8",
+      "new": "31db2e72726a31856b717e6a749ec0f62f3b11961ce21de2b314b3d640b8b767"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Mauga.webp": {
+      "base": "d856f339f16f906133df574e1d3b6b3234ec3b048eafd1a89c2709d8767ec687",
+      "new": "cb6ea92e5cdbd5a52653ad1470d11adfe2d89908f184edf3d0e0fd7ffe51cb8f"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Mei.webp": {
+      "base": "c60e87a5ae36a3b2fae9c9133ce4ce420c309a266ab514234ea8f0723a1f0432",
+      "new": "2be7ec7e84fc95148ae7f10fe312868d942d4fbae11c6442f08e64845ad7be19"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Mercy.webp": {
+      "base": "28769484c8ee7a24b2d3a1eaed89e1fd17c4fe2758da6b29da45d6c3d428f8f0",
+      "new": "a4642cb0c72d084dede18cd84cfd893e1a5b59d596c45e2c48eca671e015ca22"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Mizuki.webp": {
+      "base": "27f8930250ae6ec2cdf589aea49e92db7f769fb7aeba3e1e2d84b6fa455e20b1",
+      "new": "94db24fb2576529dff8eb94206b0c0558ac432cd6ce9c3fc08da6c3b2fb7fed7"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Moira.webp": {
+      "base": "da644eb1f0582ba0fc04e66919b5ac354b640e42e8fbca94b0dcd9b16b83f3c4",
+      "new": "4cdfa734dc8f8b260eab5c1df4e2f138bd8ee615c61465f6b21c0869d80b6090"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Orisa.webp": {
+      "base": "809fa9993d6d64f161a9acb0bdd31c543b5a5a3e4a1fdcce33342de822ccb663",
+      "new": "575a98a2d8708085e1b4d281a63c33a986710e22fabfbba4d33ce3ac2e1673a6"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Pharah.webp": {
+      "base": "2d6b9818c193366b04dd9d2f2cac2ec6009af99e1ab1266d6327962a0dcc4dc6",
+      "new": "9a0137ac257158c3046e7374742eedc138ff21740a56dd640ca30530d7c13d56"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Ramattra.webp": {
+      "base": "301ea56249ae1ba0529b1408c50d047d0c592273bc4cf102ac7f840524ca85be",
+      "new": "1e7ec076471a48bf09368b96f6962992e69d006e1c44406bf81351963a84f21c"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Reaper.webp": {
+      "base": "808207ce10251551fb9cedfd8937f56e1c85942a51e9c96beb9f556c4b9415ac",
+      "new": "9ffb9c18cee2fd7b66277bc99fb7c9d8268c3395888ae5daf46a147b3f4b5c90"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Reinhardt.webp": {
+      "base": "dd061f02b01123dd2ce937a4a14b46c4e6dc8c7e2a736a472336450153fd6fc6",
+      "new": "ee3127822665141d184a8e5f17dc6ba157417dbf5376a3f9f0ccb6702f786c70"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Roadhog.webp": {
+      "base": "e5cea9baade681ced17048e2a19aae1efb5c9c5019ebfab84ba5a09401034beb",
+      "new": "500dcd9651515a3bc10019c3f863279277512a9830be0541bf1ff3489724e913"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Sigma.webp": {
+      "base": "13585007346abb7d322e6cf36d7e4f04c022c8096274f7c0ce69eeb126d086e2",
+      "new": "eea1a225613b93bfffeb262a402362c3ac314157cc2108a058eb0b4d3604aab0"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Sojourn.webp": {
+      "base": "e02dcea1ec41b6fcb2a8ac99848bbdcc7a36d8c86624f8337309c00f4844c345",
+      "new": "67362a78accbdc62f672e4ed6bfb6b8fd303e9070f5793fa2e4f156ea48eddcc"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Soldier_76.webp": {
+      "base": "4d7c35d5476be36633b4c7f619763ec2593a9033a8c260020d8babdb4f62023a",
+      "new": "ceed29f631c5e5d168c34f9bd17707f916057b42b4b3967294ca5fdada0faf82"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Sombra.webp": {
+      "base": "09559bd15566f93a5c1d2eea4c126aa240732e5318f1f7a1f7847d673e45b584",
+      "new": "6968116eb6ab00a94ab1618764409e7e7a33b15361e725d079c7be4bfe792b75"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Symmetra.webp": {
+      "base": "7f6efe62cc1f842d6dd595006250398194ce8db6c7a1c722c10384daac2d757c",
+      "new": "51fba04bafd9024b210c8b69fd17ce078ac75a3d3e9851d8edb2587cb7223d32"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Torbj%3Frn.webp": {
+      "base": "5bd369b0d52d569f42e51d5b0b37cde4ca7452ee25283f86ec070c213de8db04",
+      "new": null
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Torbjorn.webp": {
+      "base": null,
+      "new": "683d84f897471905f65e7a59ad8fa4ae57b1340cad3d86a9ef107d9b7b9d9647"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Tracer.webp": {
+      "base": "b7e4cdb8cb16483877e51d3ab547f43ec24d776fa7d94b722817f7e09173916e",
+      "new": "ec8a0553d9190be310c4604f99726bb1f28b0aab711ba7caec89e1b9ac1ca994"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Vendetta.webp": {
+      "base": "f521574c084ba817929835ac8e5cce446060890913c15e3e1e3a3c1b88b244c4",
+      "new": "592456e8a7aabd963e67870d09ecdecd429ce4b5109934413f5521ce792dcd3b"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Venture.webp": {
+      "base": "c395176281880501869e0b662f39d395769e32a8b770e35edd8aae6be6f3dbd6",
+      "new": "69ce83232a7abb38094f0f2857056f20c761fb1a51f6cd27b4a20001f228c323"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Widowmaker.webp": {
+      "base": "c7d624d0da8e18d52fb0cf21b6af46ac4ffe5250ea039fca4496a79968110ca0",
+      "new": "0e09ba36435237283d6bdbee0c396e3122f4c7a58bd79639db551b03902f7a2f"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Winston.webp": {
+      "base": "b152c70c623955d52d10a8f16f41476a82796bc0fa95730f1d894b27f12ef3ee",
+      "new": "5e7a5054bd105461b76f6e99388a2782218250a64f01b8270a093ae2b7923c67"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Wrecking_Ball.webp": {
+      "base": "7923f87cf3e05a1d76d9f74fa720c773050caf9eb7b56f07bbe5eef0868f7838",
+      "new": "274b8752c2b6849bf7a42bcd5411b65b45fc8a4a35008e0f2bfe99bc0beb9d85"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Wuyang.webp": {
+      "base": "6ff5f8bb5f266ac90521dcce7d815d9ccc993b4edc403ccdd41466783398b095",
+      "new": "f3b1ac35ed650b7b53dc0eb22ce409dee091830ca94ca2145e7a1fec24c752c3"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Zarya.webp": {
+      "base": "e5a088e3f1c75cb7a5e616a3ea14946fadb8768cab3de9968f4f3e17f8bfa249",
+      "new": "85d14fa9fc7c19036b42fc78adf1b8876d7956f5b483a68f7804417b9b3efca0"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-Zenyatta.webp": {
+      "base": "6e566c4bfa33c4645a9f531ad45618dbf1aa4c255a751867d9ab8d00a5546767",
+      "new": "7e340fd3adc35c2da111fc1f423fb14fd7a659b89ed48b139c9d3af0ef441428"
+    },
+    "migration-uidesign/frontend/HeroImages/Icon-kiriko.webp": {
+      "base": "fcd57f47215368efefcb07eea41432d2035213af8f82567eb921f2ee9d8b037b",
+      "new": "94e2e12ca75f2fa221e88ebd16a47aced883bc3b6e6e43a2e5b04ff0bd9d0b2d"
+    },
+    "migration-uidesign/frontend/src/app/dev/draft-app/DevDraftApp.tsx": {
+      "base": "f5ea89ba3587ab2eb8b8eb905c9355d3085be8c9d84ff77b9ce339af843a5647",
+      "new": "4264472386459484d822d8ba305ad4b3fa0ff68933ecfa6e0000157aa38eebf0"
+    },
+    "migration-uidesign/frontend/src/app/dev/draft-app/dev-draft-app.module.css": {
+      "base": "614630ff43705c3a7cabc9ef4b0c4ba750b26f30525a9a51a15bf3bb698c5051",
+      "new": "da80e98b13d94e0e99d052c2dd058a2afade37339db4c7f3281fba3bf6325879"
+    },
+    "migration-uidesign/frontend/src/app/manager-dashboard/page.tsx": {
+      "base": "c10a6054dbe834956f934e3eb2815293b92fa58ff72451619eb02b9647a40745",
+      "new": "ffb34a4ae20c920494f933ed5dc059d42c6e5c7997e5777e0ec2817129d1653e"
+    },
+    "migration-uidesign/frontend/src/app/overlay/components/MapPoolOverlay.tsx": {
+      "base": "683ba58193775bb6ec7f9e6000a34c4e6f9f68135e39527947a3afc344d31815",
+      "new": "fc76d639edd344c7c6c5f88b01ca1ef1063c6fa209f61b20118624330dc03c4c"
+    },
+    "migration-uidesign/frontend/src/app/overlay/components/WincardsOverlay.tsx": {
+      "base": "cb3eb138403efcf06fa7a7c4aa5c1636fe585c2fd2f56f06f5e6db7d9f01626f",
+      "new": "8c006c240087d6c13ca0c03e062f0c147eb99c296515319811a21e145febc57e"
+    },
+    "migration-uidesign/frontend/src/app/overlay/components/map-pool-overlay.module.css": {
+      "base": "309cffcc65525f181fa21b7dbb19dfbb5937e447f61e50ab6f6433bbc32ad100",
+      "new": "7010f8b0b7f7e8923b849fd18658bf2e09d3392145e88f85b8fdc0c53edf4d5d"
+    },
+    "migration-uidesign/frontend/src/app/overlay/components/wincards-overlay.module.css": {
+      "base": "11d634c2f7151a19c09843045fb04d7ad5425984baef5655424a3e117a80578d",
+      "new": "c9f70bab1d8078ece433e22284448525a8fe5bd336b0e976cff6fbf322893719"
+    },
+    "migration-uidesign/frontend/src/components/casting/CastingTable.tsx": {
+      "base": "6981fc60dd9c8bd8f6c7f08ba700739e3088284a711e8a447ef5d3c41b213a9c",
+      "new": "36574a62e6b11cb5f81f9358062a94daa6ef926518dfb9b1e6468a02ef0b4707"
+    },
+    "migration-uidesign/frontend/src/components/casting/control-room.module.css": {
+      "base": "0ab9fdbebe4fc9c4bd6021f03c8771f1c7b53bb6848487f7ac9aff3d770035f5",
+      "new": "5fd5f56d57bb990396629d58e19c21d00ff27bc0cdb71e1fc55bf953c38010dd"
+    },
+    "migration-uidesign/frontend/src/components/draft/playing-stage.module.css": {
+      "base": "040521f829ea08d1cfbc26250335f4d21d90c4c878735cf6b9d24a9373c93453",
+      "new": "342753b6d092e734cafddac8fdf5af3b08fbdadbb4854a53055d60752543042d"
+    },
+    "migration-uidesign/frontend/src/lib/casting/model.ts": {
+      "base": "d1e0d1b3be3c26d2a0ca61c761f4c922273e801d307b40f6fbb143a29f07dd72",
+      "new": "2cf1fec7b44a24a5a2dbe33dfbeef1ad5712d339808e28b677b678a7ec004632"
+    },
+    "migration-uidesign/frontend/src/lib/casting/obs.ts": {
+      "base": "fef4f239ab07bca0fce3541d1027fd1c3f72c290829d1587e2758d19786c29ac",
+      "new": "d92a418d3b970c3412801258d2031e2072d98fbbf7e3172033ff4c2031c56792"
+    },
+    "migration-uidesign/scripts/sql/20261102_hero_catalog.sql": {
+      "base": null,
+      "new": "ea38e3d67015317ade0b64d6d1b645b593fc4853648f18b76f28a864ebad113e"
+    }
+  },
+  "portraits": [
+    "Icon-Ana.webp",
+    "Icon-Anran.webp",
+    "Icon-Ashe.webp",
+    "Icon-Baptiste.webp",
+    "Icon-Bastion.webp",
+    "Icon-Brigitte.webp",
+    "Icon-Cassidy.webp",
+    "Icon-D.Va.webp",
+    "Icon-Domina.webp",
+    "Icon-Doomfist.webp",
+    "Icon-Echo.webp",
+    "Icon-Emre.webp",
+    "Icon-Freja.webp",
+    "Icon-Genji.webp",
+    "Icon-Hanzo.webp",
+    "Icon-Hazard.webp",
+    "Icon-Illari.webp",
+    "Icon-Jetpack_Cat.webp",
+    "Icon-Junker_Queen.webp",
+    "Icon-Junkrat.webp",
+    "Icon-Juno.webp",
+    "Icon-kiriko.webp",
+    "Icon-Lifeweaver.webp",
+    "Icon-Lucio.webp",
+    "Icon-Mauga.webp",
+    "Icon-Mei.webp",
+    "Icon-Mercy.webp",
+    "Icon-Mizuki.webp",
+    "Icon-Moira.webp",
+    "Icon-Orisa.webp",
+    "Icon-Pharah.webp",
+    "Icon-Ramattra.webp",
+    "Icon-Reaper.webp",
+    "Icon-Reinhardt.webp",
+    "Icon-Roadhog.webp",
+    "Icon-Sigma.webp",
+    "Icon-Sojourn.webp",
+    "Icon-Soldier_76.webp",
+    "Icon-Sombra.webp",
+    "Icon-Symmetra.webp",
+    "Icon-Torbjorn.webp",
+    "Icon-Tracer.webp",
+    "Icon-Vendetta.webp",
+    "Icon-Venture.webp",
+    "Icon-Widowmaker.webp",
+    "Icon-Winston.webp",
+    "Icon-Wrecking_Ball.webp",
+    "Icon-Wuyang.webp",
+    "Icon-Zarya.webp",
+    "Icon-Zenyatta.webp"
+  ]
+}
